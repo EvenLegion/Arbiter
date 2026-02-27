@@ -16,9 +16,7 @@ export class MemberUtility extends Utility {
 
 	public async getOrThrow({ guild, discordUserId }: GetOrThrowParams): Promise<GuildMember> {
 		const resolvedGuild = guild ?? (await this.container.utilities.guild.getOrThrow());
-		const member =
-			resolvedGuild.members.cache.get(discordUserId) ??
-			(await resolvedGuild.members.fetch(discordUserId).catch(() => null));
+		const member = resolvedGuild.members.cache.get(discordUserId) ?? (await resolvedGuild.members.fetch(discordUserId).catch(() => null));
 
 		if (!member) {
 			throw new Error(`Guild member not found: guildId=${resolvedGuild.id} discordUserId=${discordUserId}`);

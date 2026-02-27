@@ -1,7 +1,6 @@
 import { ILogger, LogLevel } from '@sapphire/framework';
+import pino, { type Logger as PinoLogger, type TransportMultiOptions } from 'pino';
 import { ENV_CONFIG } from '../config/env';
-
-const pino = require('pino') as any;
 
 type PinoLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'silent';
 
@@ -15,7 +14,9 @@ const SAPPHIRE_TO_PINO_LEVEL: Record<LogLevel, PinoLevel> = {
 	[LogLevel.None]: 'silent'
 };
 
-const transportTargets: any[] = [
+type TransportTarget = NonNullable<TransportMultiOptions['targets']>[number];
+
+const transportTargets: TransportTarget[] = [
 	{
 		target: 'pino-pretty',
 		level: ENV_CONFIG.LOG_LEVEL,
@@ -45,15 +46,13 @@ export const PINO_LOGGER = pino({
 });
 
 export class SapphirePinoLogger implements ILogger {
-	public constructor(private readonly logger: any = PINO_LOGGER) {}
+	public constructor(private readonly logger: PinoLogger = PINO_LOGGER) {}
 
 	public has(level: LogLevel): boolean {
 		if (level === LogLevel.None) return false;
 
 		const mappedLevel = SAPPHIRE_TO_PINO_LEVEL[level];
-		return typeof this.logger.isLevelEnabled === 'function'
-			? this.logger.isLevelEnabled(mappedLevel)
-			: true;
+		return typeof this.logger.isLevelEnabled === 'function' ? this.logger.isLevelEnabled(mappedLevel) : true;
 	}
 
 	public trace(...values: readonly unknown[]): void {
@@ -84,15 +83,34 @@ export class SapphirePinoLogger implements ILogger {
 		if (level === LogLevel.None) return;
 
 		const mappedLevel = SAPPHIRE_TO_PINO_LEVEL[level];
-		const method = this.logger[mappedLevel];
-		if (typeof method !== 'function') return;
-
-		if (values.length === 0) {
-			method.call(this.logger, '');
-			return;
+		switch (mappedLevel) {
+			case 'trace':
+				this.writeWithMethod(this.logger.trace.bind(this.logger), values);
+				return;
+			case 'debug':
+				this.writeWithMethod(this.logger.debug.bind(this.logger), values);
+				return;
+			case 'info':
+				this.writeWithMethod(this.logger.info.bind(this.logger), values);
+				return;
+			case 'warn':
+				this.writeWithMethod(this.logger.warn.bind(this.logger), values);
+				return;
+			case 'error':
+				this.writeWithMethod(this.logger.error.bind(this.logger), values);
+				return;
+			case 'fatal':
+				this.writeWithMethod(this.logger.fatal.bind(this.logger), values);
+				return;
+			case 'silent':
+				return;
+			default:
+				return;
 		}
+	}
 
-		method.apply(this.logger, values as unknown[]);
+	private writeWithMethod(method: (...args: unknown[]) => void, values: readonly unknown[]) {
+		method(...(values as unknown[]));
 	}
 }
 

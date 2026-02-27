@@ -14,10 +14,7 @@ export class DivisionSelectionButtonInteractionHandler extends InteractionHandle
 		return parsed ? this.some(parsed) : this.none();
 	}
 
-	public override async run(
-		interaction: ButtonInteraction,
-		parsedDivisionSelection: NonNullable<ReturnType<typeof parseDivisionSelection>>
-	) {
+	public override async run(interaction: ButtonInteraction, parsedDivisionSelection: NonNullable<ReturnType<typeof parseDivisionSelection>>) {
 		const context = createExecutionContext({
 			bindings: {
 				flow: 'interaction.divisionSelectionButton',

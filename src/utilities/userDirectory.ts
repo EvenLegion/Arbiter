@@ -23,10 +23,7 @@ export class UserDirectoryUtility extends Utility {
 		const user = await findUniqueUser(params);
 
 		if (!user) {
-			const identifier =
-				'discordUserId' in params
-					? `discordUserId=${params.discordUserId}`
-					: `dbUserId=${params.dbUserId}`;
+			const identifier = 'discordUserId' in params ? `discordUserId=${params.discordUserId}` : `dbUserId=${params.dbUserId}`;
 			throw new Error(`User not found in database: ${identifier}`);
 		}
 

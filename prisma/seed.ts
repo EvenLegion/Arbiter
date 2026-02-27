@@ -9,23 +9,23 @@ import { seedEventTiers } from './seeders/eventTiers';
 import { requiredEnv } from './seeders/utils';
 
 async function main() {
-  const pool = new Pool({
-    connectionString: requiredEnv('DATABASE_URL'),
-  });
-  const prisma = new PrismaClient({
-    adapter: new PrismaPg(pool),
-  });
+	const pool = new Pool({
+		connectionString: requiredEnv('DATABASE_URL')
+	});
+	const prisma = new PrismaClient({
+		adapter: new PrismaPg(pool)
+	});
 
-  try {
-    await seedDivisions(prisma);
-    await seedEventTiers(prisma);
-  } finally {
-    await prisma.$disconnect();
-    await pool.end();
-  }
+	try {
+		await seedDivisions(prisma);
+		await seedEventTiers(prisma);
+	} finally {
+		await prisma.$disconnect();
+		await pool.end();
+	}
 }
 
 main().catch((err) => {
-  console.error(err);
-  process.exit(1);
+	console.error(err);
+	process.exit(1);
 });

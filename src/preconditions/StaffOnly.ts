@@ -3,21 +3,18 @@ import type { ChatInputCommandInteraction, ContextMenuCommandInteraction, GuildM
 import { DivisionKind } from '@prisma/client';
 
 export class StaffOnlyPrecondition extends AllFlowsPrecondition {
-	public override messageRun(
-		_message: Message,
-		_command: MessageCommand,
-		_context: Precondition.Context
-	) {
+	public override messageRun(_message: Message, _command: MessageCommand, _context: Precondition.Context) {
+		void _message;
+		void _command;
+		void _context;
 		return this.error({
 			message: 'This command is only available as a slash command.'
 		});
 	}
 
-	public override async chatInputRun(
-		interaction: ChatInputCommandInteraction,
-		_command: ChatInputCommand,
-		_context: Precondition.Context
-	) {
+	public override async chatInputRun(interaction: ChatInputCommandInteraction, _command: ChatInputCommand, _context: Precondition.Context) {
+		void _command;
+		void _context;
 		if (!interaction.inGuild() || !interaction.guild) {
 			return this.error({
 				message: 'This command can only be used in a server.'
@@ -48,11 +45,10 @@ export class StaffOnlyPrecondition extends AllFlowsPrecondition {
 		});
 	}
 
-	public override contextMenuRun(
-		_interaction: ContextMenuCommandInteraction,
-		_command: ContextMenuCommand,
-		_context: Precondition.Context
-	) {
+	public override contextMenuRun(_interaction: ContextMenuCommandInteraction, _command: ContextMenuCommand, _context: Precondition.Context) {
+		void _interaction;
+		void _command;
+		void _context;
 		return this.error({
 			message: 'This command is only available as a slash command.'
 		});

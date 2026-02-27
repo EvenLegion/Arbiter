@@ -8,11 +8,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arbiter}
       POSTGRES_DB: ${POSTGRES_DB:-arbiter}
     ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
       - arbiter-v3-dev-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-arbiter} -d ${POSTGRES_DB:-arbiter}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-arbiter} -d ${POSTGRES_DB:-arbiter}']
       interval: 10s
       timeout: 5s
       retries: 10

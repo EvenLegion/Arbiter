@@ -161,12 +161,15 @@ export class DevCommand extends Subcommand {
 				});
 
 				if (newUserNickname === null) {
-					logger.warn({
-						discordUserId: member.id,
-						discordUsername: member.user.username,
-						discordNickname,
-						reason
-					}, 'Skipping nickname update');
+					logger.warn(
+						{
+							discordUserId: member.id,
+							discordUsername: member.user.username,
+							discordNickname,
+							reason
+						},
+						'Skipping nickname update'
+					);
 					continue;
 				}
 

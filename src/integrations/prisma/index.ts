@@ -3,7 +3,13 @@ export { prisma, closeDb } from './prisma';
 export { upsertUser } from './upsertUser';
 export { findUniqueUser } from './findUniqueUser';
 
-export { getCachedDivisions, getCachedDivisionByDbId, getCachedDivisionByDiscordRoleId, getCachedDivisionByCode, getCachedDivisionsByKind } from './divisionCache/getCachedDivisions';
+export {
+	getCachedDivisions,
+	getCachedDivisionByDbId,
+	getCachedDivisionByDiscordRoleId,
+	getCachedDivisionByCode,
+	getCachedDivisionsByKind
+} from './divisionCache/getCachedDivisions';
 export { initializeDivisionCache } from './divisionCache/initDivisionCache';
 
 export { findManyDivisions } from './findManyDivisions';

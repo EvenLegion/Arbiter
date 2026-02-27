@@ -3,9 +3,11 @@
 Arbiter v3 is a Sapphire-first rewrite of the Arbiter bot.
 
 Project walkthrough:
+
 - [docs/PROJECT_ARCHITECTURE_AND_FLOWS.md](docs/PROJECT_ARCHITECTURE_AND_FLOWS.md)
 
 It follows Sapphire conventions for:
+
 - command routing (`/src/commands`)
 - event handling (`/src/listeners`)
 - button interaction handling (`/src/interaction-handlers`)

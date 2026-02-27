@@ -22,30 +22,18 @@ export class DivisionRolePolicyUtility extends Utility {
 		});
 	}
 
-	public async memberHasDivisionKindRole({
-		member,
-		requiredRoleKinds
-	}: MemberHasDivisionKindRoleParams): Promise<boolean> {
+	public async memberHasDivisionKindRole({ member, requiredRoleKinds }: MemberHasDivisionKindRoleParams): Promise<boolean> {
 		if (requiredRoleKinds.length === 0) {
 			return true;
 		}
 
 		const divisions = await this.container.utilities.divisionCache.get({ kinds: requiredRoleKinds });
-		const requiredRoleIds = divisions
-			.map((division) => division.discordRoleId)
-			.filter((roleId): roleId is string => Boolean(roleId));
+		const requiredRoleIds = divisions.map((division) => division.discordRoleId).filter((roleId): roleId is string => Boolean(roleId));
 
 		return requiredRoleIds.some((roleId) => member.roles.cache.has(roleId));
 	}
 
-	public async memberHasDivision(
-		{
-			member,
-			divisionDiscordRoleId,
-			divisionDbId,
-			divisionCode,
-		}: MemberHasDivisionParams
-	): Promise<boolean> {
+	public async memberHasDivision({ member, divisionDiscordRoleId, divisionDbId, divisionCode }: MemberHasDivisionParams): Promise<boolean> {
 		if (!divisionDiscordRoleId && !divisionCode && !divisionDbId) {
 			throw new Error('Either divisionDiscordRoleId, divisionCode, or divisionDbId must be provided');
 		}
@@ -64,11 +52,15 @@ export class DivisionRolePolicyUtility extends Utility {
 		}
 
 		if (division === undefined) {
-			throw new Error(`Division not found: divisionDbId=${divisionDbId}, divisionDiscordRoleId=${divisionDiscordRoleId}, divisionCode=${divisionCode}`);
+			throw new Error(
+				`Division not found: divisionDbId=${divisionDbId}, divisionDiscordRoleId=${divisionDiscordRoleId}, divisionCode=${divisionCode}`
+			);
 		}
 
 		if (division.discordRoleId === null) {
-			throw new Error(`Division has no discord role: divisionDbId=${divisionDbId}, divisionDiscordRoleId=${divisionDiscordRoleId}, divisionCode=${divisionCode}`);
+			throw new Error(
+				`Division has no discord role: divisionDbId=${divisionDbId}, divisionDiscordRoleId=${divisionDiscordRoleId}, divisionCode=${divisionCode}`
+			);
 		}
 
 		return member.roles.cache.has(division.discordRoleId);

@@ -83,13 +83,7 @@ export async function listAuxVcCredits(): Promise<AuxVcCreditRow[]> {
 	return rows.sort((left, right) => left.discordUserId.localeCompare(right.discordUserId));
 }
 
-export async function upsertAuxVcCredit({
-	discordUserId,
-	userId,
-	credits,
-	eligibleAccumulatedMs,
-	lastEvaluatedAtMs
-}: UpsertAuxVcCreditParams) {
+export async function upsertAuxVcCredit({ discordUserId, userId, credits, eligibleAccumulatedMs, lastEvaluatedAtMs }: UpsertAuxVcCreditParams) {
 	const redis = getRedisClient();
 	const key = getAuxVcCreditKey(discordUserId);
 	const now = new Date().toISOString();
@@ -132,13 +126,7 @@ async function scanAuxVcCreditKeys() {
 	let cursor = '0';
 
 	do {
-		const [nextCursor, pageKeys] = await redis.scan(
-			cursor,
-			'MATCH',
-			`${AUX_VC_CREDIT_KEY_PREFIX}*`,
-			'COUNT',
-			'200'
-		);
+		const [nextCursor, pageKeys] = await redis.scan(cursor, 'MATCH', `${AUX_VC_CREDIT_KEY_PREFIX}*`, 'COUNT', '200');
 		cursor = nextCursor;
 		keys.push(...pageKeys);
 	} while (cursor !== '0');
@@ -146,13 +134,7 @@ async function scanAuxVcCreditKeys() {
 	return keys;
 }
 
-function mapAuxVcCreditRow({
-	discordUserId,
-	hash
-}: {
-	discordUserId: string;
-	hash: Record<string, string>;
-}): AuxVcCreditRow {
+function mapAuxVcCreditRow({ discordUserId, hash }: { discordUserId: string; hash: Record<string, string> }): AuxVcCreditRow {
 	return {
 		discordUserId: hash.discordUserId ?? discordUserId,
 		userId: hash.userId ?? null,

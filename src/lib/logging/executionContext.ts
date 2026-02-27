@@ -26,29 +26,23 @@ type CreateChildExecutionContextParams = {
 	bindings?: Record<string, unknown>;
 };
 
-export function createExecutionContext({
-	requestId = randomUUID(),
-	bindings = {},
-}: CreateExecutionContextParams = {}): ExecutionContext {
+export function createExecutionContext({ requestId = randomUUID(), bindings = {} }: CreateExecutionContextParams = {}): ExecutionContext {
 	const logger = (PINO_LOGGER as ContextLogger).child({
 		requestId,
-		...bindings,
+		...bindings
 	});
 
 	return {
 		requestId,
-		logger,
+		logger
 	};
 }
 
-export function createChildExecutionContext({
-	context,
-	bindings = {},
-}: CreateChildExecutionContextParams): ExecutionContext {
+export function createChildExecutionContext({ context, bindings = {} }: CreateChildExecutionContextParams): ExecutionContext {
 	const hasBindings = Object.keys(bindings).length > 0;
 
 	return {
 		requestId: context.requestId,
-		logger: hasBindings ? context.logger.child(bindings) : context.logger,
+		logger: hasBindings ? context.logger.child(bindings) : context.logger
 	};
 }

@@ -32,9 +32,12 @@ const main = async () => {
 		await client.login(ENV_DISCORD.DISCORD_TOKEN);
 		client.logger.info('Logged in');
 	} catch (err) {
-		client.logger.fatal({
-			err,
-		}, 'Failed to log in');
+		client.logger.fatal(
+			{
+				err
+			},
+			'Failed to log in'
+		);
 		await client.destroy();
 		process.exit(1);
 	}

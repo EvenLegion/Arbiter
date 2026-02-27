@@ -1,25 +1,25 @@
-import { prisma } from "./prisma";
+import { prisma } from './prisma';
 
 type FindUniqueUserParams = {
-    discordUserId?: string;
-    dbUserId?: string;
+	discordUserId?: string;
+	dbUserId?: string;
 };
 
 export async function findUniqueUser({ discordUserId, dbUserId }: FindUniqueUserParams) {
-    const hasDiscordUserId = typeof discordUserId === 'string';
-    const hasDbUserId = typeof dbUserId === 'string';
+	const hasDiscordUserId = typeof discordUserId === 'string';
+	const hasDbUserId = typeof dbUserId === 'string';
 
-    if (hasDbUserId) {
-        return prisma.user.findUnique({
-            where: { id: dbUserId! },
-        });
-    }
+	if (hasDbUserId) {
+		return prisma.user.findUnique({
+			where: { id: dbUserId! }
+		});
+	}
 
-    if (hasDiscordUserId) {
-        return prisma.user.findUnique({
-            where: { discordUserId },
-        });
-    }
+	if (hasDiscordUserId) {
+		return prisma.user.findUnique({
+			where: { discordUserId }
+		});
+	}
 
-    throw new Error('findUniqueUser requires either discordUserId or dbUserId');
+	throw new Error('findUniqueUser requires either discordUserId or dbUserId');
 }

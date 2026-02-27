@@ -3,15 +3,11 @@ import type { ExecutionContext } from '../../logging/executionContext';
 import { handleAuxVcVoiceStateUpdate } from './aux-vc/handleAuxVcVoiceStateUpdate';
 
 type HandleVoiceStateUpdateParams = {
-    oldState: VoiceState;
-    newState: VoiceState;
-    context: ExecutionContext;
+	oldState: VoiceState;
+	newState: VoiceState;
+	context: ExecutionContext;
 };
 
-export async function handleVoiceStateUpdate({
-    oldState,
-    newState,
-    context,
-}: HandleVoiceStateUpdateParams) {
-    await handleAuxVcVoiceStateUpdate({ oldState, newState, context });
+export async function handleVoiceStateUpdate({ oldState, newState, context }: HandleVoiceStateUpdateParams) {
+	await handleAuxVcVoiceStateUpdate({ oldState, newState, context });
 }
