@@ -14,12 +14,13 @@ model User {
     nameChangeRequests         NameChangeRequest[] @relation("NameChangeRequestRequesterUser")
     reviewedNameChangeRequests NameChangeRequest[] @relation("NameChangeRequestReviewerUser")
 
-    hostedEventSessions          EventSession[]         @relation("EventSessionHostUser")
-    reviewFinalizedEventSessions EventSession[]         @relation("EventSessionReviewFinalizedByUser")
-    addedEventSessionChannels    EventSessionChannel[]  @relation("EventSessionChannelAddedByUser")
-    eventParticipantStats        EventParticipantStat[] @relation("EventParticipantStatUser")
-    targetEventDecisions         EventReviewDecision[]  @relation("EventReviewDecisionTargetUser")
+    hostedEventSessions       EventSession[]         @relation("EventSessionHostUser")
+    finalizedEventSessions    EventSession[]         @relation("EventSessionFinalizedByUser")
+    addedEventSessionChannels EventSessionChannel[]  @relation("EventSessionChannelAddedByUser")
+    eventParticipantStats     EventParticipantStat[] @relation("EventParticipantStatUser")
+    targetEventDecisions      EventReviewDecision[]  @relation("EventReviewDecisionTargetUser")
 
-    merits        Merit[] @relation("MeritRecipientUser")
-    awardedMerits Merit[] @relation("MeritAwarderUser")
+    merits        Merit[]        @relation("MeritRecipientUser")
+    awardedMerits Merit[]        @relation("MeritAwarderUser")
+    eventSessions EventSession[]
 }

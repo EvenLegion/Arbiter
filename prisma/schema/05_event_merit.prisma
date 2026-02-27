@@ -21,7 +21,7 @@ model EventSession {
   id                      Int               @id @default(autoincrement())
   hostUserId              String
   eventTierId             Int
-  threadId                String?           @unique
+  threadId                String            @unique
   name                    String
   state                   EventSessionState @default(DRAFT)
   startedAt               DateTime?
@@ -32,13 +32,15 @@ model EventSession {
   updatedAt               DateTime          @updatedAt
 
   hostUser              User                   @relation("EventSessionHostUser", fields: [hostUserId], references: [id], onDelete: Cascade)
-  reviewFinalizedByUser User?                  @relation("EventSessionReviewFinalizedByUser", fields: [reviewFinalizedByUserId], references: [id], onDelete: SetNull)
+  reviewFinalizedByUser User?                  @relation("EventSessionFinalizedByUser", fields: [reviewFinalizedByUserId], references: [id], onDelete: SetNull)
   eventTier             EventTier              @relation(fields: [eventTierId], references: [id], onDelete: Restrict)
   channels              EventSessionChannel[]
   eventMessages         EventSessionMessage[]
   participantStats      EventParticipantStat[]
   reviewDecisions       EventReviewDecision[]
   meritAwards           Merit[]
+  user                  User?                  @relation(fields: [userId], references: [id])
+  userId                String?
 
   @@index([state])
   @@index([state, createdAt])
@@ -100,7 +102,7 @@ model Merit {
   userId          String
   awardedByUserId String
   amount          Int
-  source          MeritSource @default(MANUAL)
+  source          MeritSource
   reason          String?
   eventSessionId  Int?
   createdAt       DateTime    @default(now())

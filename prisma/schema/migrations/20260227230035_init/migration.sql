@@ -89,7 +89,7 @@ CREATE TABLE "EventSession" (
     "id" SERIAL NOT NULL,
     "hostUserId" TEXT NOT NULL,
     "eventTierId" INTEGER NOT NULL,
-    "threadId" TEXT,
+    "threadId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "state" "EventSessionState" NOT NULL DEFAULT 'DRAFT',
     "startedAt" TIMESTAMP(3),
@@ -98,6 +98,7 @@ CREATE TABLE "EventSession" (
     "reviewFinalizedByUserId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "userId" TEXT,
 
     CONSTRAINT "EventSession_pkey" PRIMARY KEY ("id")
 );
@@ -144,7 +145,7 @@ CREATE TABLE "Merit" (
     "userId" TEXT NOT NULL,
     "awardedByUserId" TEXT NOT NULL,
     "amount" INTEGER NOT NULL,
-    "source" "MeritSource" NOT NULL DEFAULT 'MANUAL',
+    "source" "MeritSource" NOT NULL,
     "reason" TEXT,
     "eventSessionId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -315,6 +316,9 @@ ALTER TABLE "EventSession" ADD CONSTRAINT "EventSession_reviewFinalizedByUserId_
 
 -- AddForeignKey
 ALTER TABLE "EventSession" ADD CONSTRAINT "EventSession_eventTierId_fkey" FOREIGN KEY ("eventTierId") REFERENCES "EventTier"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EventSession" ADD CONSTRAINT "EventSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EventSessionChannel" ADD CONSTRAINT "EventSessionChannel_eventSessionId_fkey" FOREIGN KEY ("eventSessionId") REFERENCES "EventSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
