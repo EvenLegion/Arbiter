@@ -1,0 +1,28 @@
+enum NameChangeRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+model NameChangeRequest {
+  id                      Int                     @id @default(autoincrement())
+  requesterUserId         String
+  currentName             String
+  requestedName           String
+  reason                  String
+  status                  NameChangeRequestStatus @default(PENDING)
+  reviewerUserId          String?
+  reviewedAt              DateTime?
+  reviewThreadId          String?
+  reviewMessageId         String?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  requesterUser User @relation("NameChangeRequestRequesterUser", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  reviewerUser User? @relation("NameChangeRequestReviewerUser", fields: [reviewerUserId], references: [id], onDelete: SetNull)
+
+  @@index([requesterUserId])
+  @@index([reviewerUserId])
+  @@index([status])
+  @@index([reviewThreadId])
+}

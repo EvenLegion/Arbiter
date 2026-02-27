@@ -1,0 +1,27 @@
+services:
+  arbiter-redis:
+    image: ${REDIS_DOCKER_VERSION:-redis:7-alpine}
+    container_name: arbiter-v3-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - arbiter-v3-redis-data:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: >-
+      sh -c '
+      if [ -n "$${REDIS_PASSWORD}" ]; then
+        exec redis-server --appendonly yes --save 60 1000 --requirepass "$${REDIS_PASSWORD}";
+      else
+        exec redis-server --appendonly yes --save 60 1000;
+      fi'
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  arbiter-v3-redis-data:

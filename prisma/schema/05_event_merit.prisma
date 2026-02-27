@@ -1,0 +1,118 @@
+enum EventSessionState {
+  DRAFT
+  CANCELLED
+  ACTIVE
+  ENDED_PENDING_REVIEW
+  FINALIZED_WITH_MERITS
+  FINALIZED_NO_MERITS
+}
+
+enum EventReviewDecisionKind {
+  MERIT
+  NO_MERIT
+}
+
+enum MeritSource {
+  MANUAL
+  EVENT
+}
+
+model EventSession {
+  id                      Int               @id @default(autoincrement())
+  hostUserId              String
+  eventTierId             Int
+  threadId                String?           @unique
+  name                    String
+  state                   EventSessionState @default(DRAFT)
+  startedAt               DateTime?
+  endedAt                 DateTime?
+  reviewFinalizedAt       DateTime?
+  reviewFinalizedByUserId String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+
+  hostUser              User                   @relation("EventSessionHostUser", fields: [hostUserId], references: [id], onDelete: Cascade)
+  reviewFinalizedByUser User?                  @relation("EventSessionReviewFinalizedByUser", fields: [reviewFinalizedByUserId], references: [id], onDelete: SetNull)
+  eventTier             EventTier              @relation(fields: [eventTierId], references: [id], onDelete: Restrict)
+  channels              EventSessionChannel[]
+  eventMessages         EventSessionMessage[]
+  participantStats      EventParticipantStat[]
+  reviewDecisions       EventReviewDecision[]
+  meritAwards           Merit[]
+
+  @@index([state])
+  @@index([state, createdAt])
+  @@index([state, startedAt])
+  @@index([hostUserId])
+  @@index([reviewFinalizedByUserId])
+}
+
+model EventSessionChannel {
+  id             Int      @id @default(autoincrement())
+  eventSessionId Int
+  channelId      String
+  addedByUserId  String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  eventSession EventSession @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
+  addedByUser  User         @relation("EventSessionChannelAddedByUser", fields: [addedByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([eventSessionId, channelId])
+  @@index([eventSessionId])
+  @@index([channelId])
+}
+
+model EventParticipantStat {
+  id              Int      @id @default(autoincrement())
+  eventSessionId  Int
+  userId          String
+  attendedSeconds Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  eventSession EventSession @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
+  user         User         @relation("EventParticipantStatUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventSessionId, userId])
+  @@index([eventSessionId, attendedSeconds])
+  @@index([userId])
+}
+
+model EventReviewDecision {
+  id             Int                     @id @default(autoincrement())
+  eventSessionId Int
+  targetUserId   String
+  decision       EventReviewDecisionKind
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  eventSession EventSession @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
+  targetUser   User         @relation("EventReviewDecisionTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([eventSessionId, targetUserId])
+  @@index([eventSessionId])
+  @@index([eventSessionId, decision])
+}
+
+model Merit {
+  id              Int         @id @default(autoincrement())
+  userId          String
+  awardedByUserId String
+  amount          Int
+  source          MeritSource @default(MANUAL)
+  reason          String?
+  eventSessionId  Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user          User          @relation("MeritRecipientUser", fields: [userId], references: [id], onDelete: Cascade)
+  awardedByUser User          @relation("MeritAwarderUser", fields: [awardedByUserId], references: [id], onDelete: Cascade)
+  eventSession  EventSession? @relation(fields: [eventSessionId], references: [id], onDelete: SetNull)
+
+  @@unique([eventSessionId, userId, source])
+  @@index([userId, createdAt])
+  @@index([userId, source, createdAt])
+  @@index([source, eventSessionId, userId])
+  @@index([eventSessionId])
+}

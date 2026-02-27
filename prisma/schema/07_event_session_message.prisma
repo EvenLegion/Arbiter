@@ -1,0 +1,21 @@
+enum EventSessionMessageKind {
+  DRAFT_CONFIRMATION
+  ACTIVE
+  TRACKING_SUMMARY
+  REVIEW
+}
+
+model EventSessionMessage {
+  id             Int                     @id @default(autoincrement())
+  eventSessionId Int
+  kind           EventSessionMessageKind
+  channelId      String
+  messageId      String
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  eventSession EventSession @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([eventSessionId, kind])
+  @@unique([channelId, messageId])
+}
