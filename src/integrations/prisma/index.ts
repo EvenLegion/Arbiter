@@ -18,3 +18,15 @@ export { findManyUsersDivisions } from './findManyUsersDivisions';
 
 export { createManyDivisionMembership } from './createManyDivisionMembership';
 export { deleteManyDivisionMembership } from './deleteManyDivisionMembership';
+
+export {
+	activateDraftEventSession,
+	cancelDraftEventSession,
+	createDraftEventSession,
+	findManyEventSessionMessages,
+	findManyActiveEventTiers,
+	findUniqueActiveEventTierById,
+	findUniqueEventSessionById,
+	upsertEventSessionChannel,
+	upsertEventSessionMessageRef
+} from './event';

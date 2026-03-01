@@ -1,42 +1,42 @@
 enum DivisionKind {
-    STAFF
-    SPECIAL
-    LANCEARIUS
-    COMBAT
-    INDUSTRIAL
-    LEGIONNAIRE
-    AUXILIARY
+  STAFF
+  SPECIAL
+  LANCEARIUS
+  COMBAT
+  INDUSTRIAL
+  LEGIONNAIRE
+  AUXILIARY
 }
 
 model Division {
-    id                Int          @id @default(autoincrement())
-    code              String       @unique
-    name              String       @unique
-    kind              DivisionKind
-    displayNamePrefix String?
-    showRank          Boolean      @default(false)
-    emojiName         String?
-    emojiId           String?
-    discordRoleId     String?      @unique
-    createdAt         DateTime     @default(now())
-    updatedAt         DateTime     @updatedAt
+  id                Int          @id @default(autoincrement())
+  code              String       @unique
+  name              String       @unique
+  kind              DivisionKind
+  displayNamePrefix String?
+  showRank          Boolean      @default(false)
+  emojiName         String?
+  emojiId           String?
+  discordRoleId     String?      @unique
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
-    divisionMemberships DivisionMembership[]
+  divisionMemberships DivisionMembership[]
 
-    @@index([kind])
+  @@index([kind])
 }
 
 model DivisionMembership {
-    id         Int      @id @default(autoincrement())
-    userId     String
-    divisionId Int
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  userId     String
+  divisionId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-    user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, divisionId])
-    @@index([userId])
-    @@index([divisionId])
+  @@unique([userId, divisionId])
+  @@index([userId])
+  @@index([divisionId])
 }

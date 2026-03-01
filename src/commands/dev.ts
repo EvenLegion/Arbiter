@@ -91,7 +91,7 @@ export class DevCommand extends Subcommand {
 					targetDiscordUserId: member.id
 				}
 			});
-			const discordNickname = member.nickname ?? member.user.globalName ?? member.user.username;
+			const discordNickname = member.user.globalName ?? member.nickname ?? member.user.username;
 			let dbUserId: string | null = null;
 
 			try {

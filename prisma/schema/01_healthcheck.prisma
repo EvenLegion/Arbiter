@@ -1,5 +1,5 @@
 model Healthcheck {
-    id           Int      @id @default(autoincrement())
-    randomNumber Int      @unique
-    createdAt    DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  randomNumber Int      @unique
+  createdAt    DateTime @default(now())
 }

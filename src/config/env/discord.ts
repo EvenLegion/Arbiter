@@ -51,9 +51,15 @@ const DiscordSchema = z.object({
 	// Auxiliary role
 	AUX_ROLE_ID: z.string().min(1, 'AUX_ROLE_ID is required'),
 
+	// AUX VC credit config
 	AUX_VC_CREDIT_INTERVAL_SECONDS: z.coerce.number().int().min(1),
 	AUX_VC_REQUIRED_CREDITS: z.coerce.number().int().min(1),
-	AUX_VC_MIN_OTHER_QUALIFIED_MEMBERS: z.coerce.number().int().min(1)
+	AUX_VC_MIN_OTHER_QUALIFIED_MEMBERS: z.coerce.number().int().min(1),
+
+	// Event and merit tracking config
+	EVENT_TRACKING_CHANNEL_ID: z.string().min(1, 'EVENT_TRACKING_CHANNEL_ID is required'),
+	EVENT_TRACKING_INTERVAL_SECONDS: z.coerce.number().int().min(1),
+	EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT: z.coerce.number().int().min(0).max(100)
 });
 
 const parsed = DiscordSchema.safeParse(env);

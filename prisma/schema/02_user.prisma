@@ -1,26 +1,26 @@
 model User {
-    id String @id @default(uuid())
+  id String @id @default(uuid())
 
-    discordUserId    String @unique
-    discordUsername  String
-    discordNickname  String
-    discordAvatarUrl String
+  discordUserId    String @unique
+  discordUsername  String
+  discordNickname  String
+  discordAvatarUrl String
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    divisionMemberships DivisionMembership[]
+  divisionMemberships DivisionMembership[]
 
-    nameChangeRequests         NameChangeRequest[] @relation("NameChangeRequestRequesterUser")
-    reviewedNameChangeRequests NameChangeRequest[] @relation("NameChangeRequestReviewerUser")
+  nameChangeRequests         NameChangeRequest[] @relation("NameChangeRequestRequesterUser")
+  reviewedNameChangeRequests NameChangeRequest[] @relation("NameChangeRequestReviewerUser")
 
-    hostedEventSessions       EventSession[]         @relation("EventSessionHostUser")
-    finalizedEventSessions    EventSession[]         @relation("EventSessionFinalizedByUser")
-    addedEventSessionChannels EventSessionChannel[]  @relation("EventSessionChannelAddedByUser")
-    eventParticipantStats     EventParticipantStat[] @relation("EventParticipantStatUser")
-    targetEventDecisions      EventReviewDecision[]  @relation("EventReviewDecisionTargetUser")
+  hostedEventSessions       EventSession[]         @relation("EventSessionHostUser")
+  finalizedEventSessions    EventSession[]         @relation("EventSessionFinalizedByUser")
+  addedEventSessionChannels EventSessionChannel[]  @relation("EventSessionChannelAddedByUser")
+  eventParticipantStats     EventParticipantStat[] @relation("EventParticipantStatUser")
+  targetEventDecisions      EventReviewDecision[]  @relation("EventReviewDecisionTargetUser")
 
-    merits        Merit[]        @relation("MeritRecipientUser")
-    awardedMerits Merit[]        @relation("MeritAwarderUser")
-    eventSessions EventSession[]
+  merits        Merit[]        @relation("MeritRecipientUser")
+  awardedMerits Merit[]        @relation("MeritAwarderUser")
+  eventSessions EventSession[]
 }

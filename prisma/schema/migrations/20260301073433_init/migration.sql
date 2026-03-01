@@ -11,6 +11,9 @@ CREATE TYPE "EventSessionState" AS ENUM ('DRAFT', 'CANCELLED', 'ACTIVE', 'ENDED_
 CREATE TYPE "EventReviewDecisionKind" AS ENUM ('MERIT', 'NO_MERIT');
 
 -- CreateEnum
+CREATE TYPE "EventSessionChannelKind" AS ENUM ('EVENT_THREAD', 'PARENT_VC', 'CHILD_VC');
+
+-- CreateEnum
 CREATE TYPE "MeritSource" AS ENUM ('MANUAL', 'EVENT');
 
 -- CreateEnum
@@ -108,6 +111,7 @@ CREATE TABLE "EventSessionChannel" (
     "id" SERIAL NOT NULL,
     "eventSessionId" INTEGER NOT NULL,
     "channelId" TEXT NOT NULL,
+    "kind" "EventSessionChannelKind" NOT NULL,
     "addedByUserId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -241,6 +245,9 @@ CREATE INDEX "EventSession_reviewFinalizedByUserId_idx" ON "EventSession"("revie
 
 -- CreateIndex
 CREATE INDEX "EventSessionChannel_eventSessionId_idx" ON "EventSessionChannel"("eventSessionId");
+
+-- CreateIndex
+CREATE INDEX "EventSessionChannel_eventSessionId_kind_idx" ON "EventSessionChannel"("eventSessionId", "kind");
 
 -- CreateIndex
 CREATE INDEX "EventSessionChannel_channelId_idx" ON "EventSessionChannel"("channelId");

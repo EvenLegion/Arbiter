@@ -12,6 +12,12 @@ enum EventReviewDecisionKind {
   NO_MERIT
 }
 
+enum EventSessionChannelKind {
+  EVENT_THREAD
+  PARENT_VC
+  CHILD_VC
+}
+
 enum MeritSource {
   MANUAL
   EVENT
@@ -50,18 +56,20 @@ model EventSession {
 }
 
 model EventSessionChannel {
-  id             Int      @id @default(autoincrement())
+  id             Int                     @id @default(autoincrement())
   eventSessionId Int
   channelId      String
+  kind           EventSessionChannelKind
   addedByUserId  String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
 
   eventSession EventSession @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
   addedByUser  User         @relation("EventSessionChannelAddedByUser", fields: [addedByUserId], references: [id], onDelete: Cascade)
 
   @@unique([eventSessionId, channelId])
   @@index([eventSessionId])
+  @@index([eventSessionId, kind])
   @@index([channelId])
 }
 
