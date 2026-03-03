@@ -14,13 +14,12 @@ import { z } from 'zod';
 import { ENV_DISCORD } from '../../../../config/env/discord';
 import {
 	createDraftEventSession,
-	findUniqueActiveEventTierById,
+	findFirstEventTier,
 	upsertEventSessionChannel,
 	upsertEventSessionMessageRef
 } from '../../../../integrations/prisma';
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { buildEventStartConfirmationPayload } from '../ui/buildEventStartConfirmationPayload';
-import { buildEventTrackingSummaryEmbed } from '../ui/buildEventTrackingSummaryEmbed';
+import { buildEventTrackingSummaryPayload } from '../ui/buildEventTrackingSummaryPayload';
 
 type HandleEventStartParams = {
 	interaction: import('@sapphire/plugin-subcommands').Subcommand.ChatInputCommandInteraction;
@@ -66,8 +65,11 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 		return;
 	}
 
-	const eventTier = await findUniqueActiveEventTierById({
-		eventTierId: parsedEventTierId.data
+	const eventTier = await findFirstEventTier({
+		where: {
+			id: parsedEventTierId.data,
+			isActive: true
+		}
 	});
 	if (!eventTier) {
 		await interaction.editReply({
@@ -136,19 +138,31 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 			addedByDbUserId: dbUser.id
 		});
 
-		const summaryMessage = await thread.send({
-			embeds: [
-				buildEventTrackingSummaryEmbed({
-					eventSessionId: eventSession.id,
-					eventName: eventSession.name,
-					tierName: eventTier.name,
-					tierMeritAmount: eventTier.meritAmount,
-					hostDiscordUserId: issuer.id,
-					trackedChannelIds: [primaryVoiceChannelId],
-					trackingThreadId: thread.id,
-					state: EventSessionState.DRAFT
-				})
-			]
+		const summaryMessage = await thread.send(
+			buildEventTrackingSummaryPayload({
+				eventSessionId: eventSession.id,
+				eventName: eventSession.name,
+				tierName: eventTier.name,
+				tierMeritAmount: eventTier.meritAmount,
+				hostDiscordUserId: issuer.id,
+				trackedChannelIds: [primaryVoiceChannelId],
+				trackingThreadId: thread.id,
+				state: EventSessionState.DRAFT
+			})
+		);
+		const parentVoiceSummaryMessage = await postTrackingSummaryToParentVoiceChat({
+			primaryVoiceChannel,
+			eventSessionId: eventSession.id,
+			eventName: eventSession.name,
+			tierName: eventTier.name,
+			tierMeritAmount: eventTier.meritAmount,
+			hostDiscordUserId: issuer.id,
+			trackedChannelIds: [primaryVoiceChannelId],
+			trackingThreadId: thread.id,
+			logger
+		});
+		await thread.send({
+			content: `Event draft **${eventSession.name}** created by <@${interaction.user.id}>.`
 		});
 
 		await upsertEventSessionMessageRef({
@@ -157,43 +171,16 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 			channelId: summaryMessage.channelId,
 			messageId: summaryMessage.id
 		});
-
-		const confirmationPayload = buildEventStartConfirmationPayload({
-			eventSessionId: eventSession.id,
-			eventName: eventSession.name,
-			tierName: eventTier.name,
-			tierMeritAmount: eventTier.meritAmount,
-			primaryVoiceChannelId,
-			trackingThreadId: thread.id
-		});
-
-		const threadConfirmationMessage = await thread.send({
-			content: `<@${interaction.user.id}>`,
-			...confirmationPayload
-		});
-		const voiceChatConfirmationMessage = await sendConfirmationToVoiceChat({
-			guild,
-			primaryVoiceChannelId,
-			confirmationPayload,
-			logger
-		});
-
-		await interaction.deleteReply().catch(() => null);
-
-		await upsertEventSessionMessageRef({
-			eventSessionId: eventSession.id,
-			kind: EventSessionMessageKind.DRAFT_CONFIRMATION,
-			channelId: threadConfirmationMessage.channelId,
-			messageId: threadConfirmationMessage.id
-		});
-		if (voiceChatConfirmationMessage) {
+		if (parentVoiceSummaryMessage) {
 			await upsertEventSessionMessageRef({
 				eventSessionId: eventSession.id,
-				kind: EventSessionMessageKind.ACTIVE,
-				channelId: voiceChatConfirmationMessage.channelId,
-				messageId: voiceChatConfirmationMessage.id
+				kind: EventSessionMessageKind.TRACKING_SUMMARY_PARENT_VC,
+				channelId: parentVoiceSummaryMessage.channelId,
+				messageId: parentVoiceSummaryMessage.id
 			});
 		}
+
+		await interaction.deleteReply().catch(() => null);
 
 		logger.info(
 			{
@@ -265,12 +252,12 @@ function buildParentVoiceChannelName({ tierName, eventName }: { tierName: string
 }
 
 async function resolvePrimaryVoiceChannel(guild: Guild, channelId: string) {
-	const channel = guild.channels.cache.get(channelId) ?? (await guild.channels.fetch(channelId).catch(() => null));
-	if (!channel || !channel.isVoiceBased()) {
-		return null;
-	}
-
-	return channel;
+	return container.utilities.guild
+		.getVoiceBasedChannelOrThrow({
+			guild,
+			channelId
+		})
+		.catch(() => null);
 }
 
 async function createTrackingThread({
@@ -307,38 +294,60 @@ async function createTrackingThread({
 	});
 }
 
-async function sendConfirmationToVoiceChat({
-	guild,
-	primaryVoiceChannelId,
-	confirmationPayload,
+async function postTrackingSummaryToParentVoiceChat({
+	primaryVoiceChannel,
+	eventSessionId,
+	eventName,
+	tierName,
+	tierMeritAmount,
+	hostDiscordUserId,
+	trackedChannelIds,
+	trackingThreadId,
 	logger
 }: {
-	guild: Guild;
-	primaryVoiceChannelId: string;
-	confirmationPayload: ReturnType<typeof buildEventStartConfirmationPayload>;
+	primaryVoiceChannel: Awaited<ReturnType<typeof resolvePrimaryVoiceChannel>>;
+	eventSessionId: number;
+	eventName: string;
+	tierName: string;
+	tierMeritAmount: number;
+	hostDiscordUserId: string;
+	trackedChannelIds: string[];
+	trackingThreadId: string | null;
 	logger: ExecutionContext['logger'];
 }): Promise<Message | null> {
-	const channel = guild.channels.cache.get(primaryVoiceChannelId) ?? (await guild.channels.fetch(primaryVoiceChannelId).catch(() => null));
-	if (!channel || !('send' in channel) || typeof channel.send !== 'function') {
+	if (!primaryVoiceChannel || !('send' in primaryVoiceChannel) || typeof primaryVoiceChannel.send !== 'function') {
 		logger.warn(
 			{
-				primaryVoiceChannelId
+				eventSessionId,
+				primaryVoiceChannelId: trackedChannelIds[0] ?? null
 			},
-			'Primary voice channel does not support chat message send for event confirmation'
+			'Primary VC chat unavailable; skipping parent VC summary post'
 		);
 		return null;
 	}
 
-	const message = await channel.send(confirmationPayload).catch((error: unknown) => {
-		logger.warn(
-			{
-				err: error,
-				primaryVoiceChannelId
-			},
-			'Failed to post start confirmation in primary voice channel chat'
-		);
-		return null;
-	});
-
-	return message;
+	return primaryVoiceChannel
+		.send(
+			buildEventTrackingSummaryPayload({
+				eventSessionId,
+				eventName,
+				tierName,
+				tierMeritAmount,
+				hostDiscordUserId,
+				trackedChannelIds,
+				trackingThreadId,
+				state: EventSessionState.DRAFT
+			})
+		)
+		.catch((error: unknown) => {
+			logger.warn(
+				{
+					err: error,
+					eventSessionId,
+					primaryVoiceChannelId: trackedChannelIds[0] ?? null
+				},
+				'Failed to post tracking summary in parent VC chat'
+			);
+			return null;
+		});
 }

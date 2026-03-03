@@ -20,13 +20,15 @@ export { createManyDivisionMembership } from './createManyDivisionMembership';
 export { deleteManyDivisionMembership } from './deleteManyDivisionMembership';
 
 export {
-	activateDraftEventSession,
-	cancelDraftEventSession,
 	createDraftEventSession,
+	findManyEventSessions,
+	findReservedEventVoiceChannelReservation,
+	findManyReservedEventVoiceChannelIds,
 	findManyEventSessionMessages,
-	findManyActiveEventTiers,
-	findUniqueActiveEventTierById,
-	findUniqueEventSessionById,
+	findManyEventTiers,
+	findFirstEventTier,
+	findUniqueEventSession,
+	updateEventSessionState,
 	upsertEventSessionChannel,
 	upsertEventSessionMessageRef
 } from './event';

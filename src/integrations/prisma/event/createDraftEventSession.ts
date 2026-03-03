@@ -1,4 +1,5 @@
 import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
+import { z } from 'zod';
 import { prisma } from '../prisma';
 
 type CreateDraftEventSessionParams = {
@@ -10,6 +11,15 @@ type CreateDraftEventSessionParams = {
 	addedByDbUserId: string;
 };
 
+const CREATE_DRAFT_EVENT_SESSION_SCHEMA = z.object({
+	hostDbUserId: z.string().min(1),
+	eventTierId: z.number().int().positive(),
+	threadId: z.string().min(1),
+	name: z.string().min(1),
+	primaryChannelId: z.string().min(1),
+	addedByDbUserId: z.string().min(1)
+});
+
 export async function createDraftEventSession({
 	hostDbUserId,
 	eventTierId,
@@ -18,18 +28,27 @@ export async function createDraftEventSession({
 	primaryChannelId,
 	addedByDbUserId
 }: CreateDraftEventSessionParams) {
+	const parsed = CREATE_DRAFT_EVENT_SESSION_SCHEMA.parse({
+		hostDbUserId,
+		eventTierId,
+		threadId,
+		name,
+		primaryChannelId,
+		addedByDbUserId
+	});
+
 	return prisma.eventSession.create({
 		data: {
-			hostUserId: hostDbUserId,
-			eventTierId,
-			threadId,
-			name,
+			hostUserId: parsed.hostDbUserId,
+			eventTierId: parsed.eventTierId,
+			threadId: parsed.threadId,
+			name: parsed.name,
 			state: EventSessionState.DRAFT,
 			channels: {
 				create: {
-					channelId: primaryChannelId,
+					channelId: parsed.primaryChannelId,
 					kind: EventSessionChannelKind.PARENT_VC,
-					addedByUserId: addedByDbUserId
+					addedByUserId: parsed.addedByDbUserId
 				}
 			}
 		},
