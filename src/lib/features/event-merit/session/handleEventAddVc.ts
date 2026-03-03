@@ -2,7 +2,7 @@ import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import { container } from '@sapphire/framework';
 import { MessageFlags, type VoiceBasedChannel } from 'discord.js';
 import { z } from 'zod';
-import { findUniqueEventSession, upsertEventSessionChannel } from '../../../../integrations/prisma';
+import { findReservedEventVoiceChannelReservation, findUniqueEventSession, upsertEventSessionChannel } from '../../../../integrations/prisma';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { syncTrackingSummaryMessage } from './syncTrackingSummaryMessage';
 
@@ -120,6 +120,17 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 
 	const isNewChildChannel = !existingChannelRow;
 	if (!existingChannelRow) {
+		const existingReservation = await findReservedEventVoiceChannelReservation({
+			channelId: targetVoiceChannelId,
+			excludeEventSessionId: eventSession.id
+		});
+		if (existingReservation) {
+			await interaction.editReply({
+				content: `Channel <#${targetVoiceChannelId}> is already reserved by event **${existingReservation.eventSession.name}** (#${existingReservation.eventSessionId}, ${existingReservation.eventSession.state}).`
+			});
+			return;
+		}
+
 		await upsertEventSessionChannel({
 			eventSessionId: eventSession.id,
 			channelId: targetVoiceChannelId,

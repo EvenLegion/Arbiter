@@ -22,6 +22,7 @@ export { deleteManyDivisionMembership } from './deleteManyDivisionMembership';
 export {
 	createDraftEventSession,
 	findManyEventSessions,
+	findReservedEventVoiceChannelReservation,
 	findManyReservedEventVoiceChannelIds,
 	findManyEventSessionMessages,
 	findManyEventTiers,
