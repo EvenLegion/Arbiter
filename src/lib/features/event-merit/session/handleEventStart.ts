@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { ENV_DISCORD } from '../../../../config/env/discord';
 import {
 	createDraftEventSession,
-	findUniqueActiveEventTierById,
+	findFirstEventTier,
 	upsertEventSessionChannel,
 	upsertEventSessionMessageRef
 } from '../../../../integrations/prisma';
@@ -65,8 +65,11 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 		return;
 	}
 
-	const eventTier = await findUniqueActiveEventTierById({
-		eventTierId: parsedEventTierId.data
+	const eventTier = await findFirstEventTier({
+		where: {
+			id: parsedEventTierId.data,
+			isActive: true
+		}
 	});
 	if (!eventTier) {
 		await interaction.editReply({

@@ -1,9 +1,9 @@
-import { EventSessionChannelKind } from '@prisma/client';
+import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import { Utility } from '@sapphire/plugin-utilities-store';
 import type { Guild } from 'discord.js';
 
 import { ENV_DISCORD } from '../config/env/discord';
-import { findManyActiveEventSessionsByIds } from '../integrations/prisma';
+import { findManyEventSessions } from '../integrations/prisma';
 import { applyTrackingTick, listActiveTrackingSessionIds, stopTrackingSession } from '../integrations/redis/eventTracking';
 import type { ExecutionContext } from '../lib/logging/executionContext';
 import { createChildExecutionContext } from '../lib/logging/executionContext';
@@ -12,7 +12,13 @@ type TickAllActiveSessionsParams = {
 	context: ExecutionContext;
 };
 
-type ActiveEventSession = Awaited<ReturnType<typeof findManyActiveEventSessionsByIds>>[number];
+type ActiveEventSession = Awaited<
+	ReturnType<
+		typeof findManyEventSessions<{
+			channels: true;
+		}>
+	>
+>[number];
 
 export class EventTrackingUtility extends Utility {
 	public constructor(context: Utility.LoaderContext, options: Utility.Options) {
@@ -30,8 +36,12 @@ export class EventTrackingUtility extends Utility {
 			return;
 		}
 
-		const activeSessions = await findManyActiveEventSessionsByIds({
-			eventSessionIds
+		const activeSessions = await findManyEventSessions({
+			eventSessionIds,
+			states: [EventSessionState.ACTIVE],
+			include: {
+				channels: true
+			}
 		});
 		const activeSessionById = new Map(activeSessions.map((session) => [session.id, session]));
 		const guild = await this.container.utilities.guild.getOrThrow();

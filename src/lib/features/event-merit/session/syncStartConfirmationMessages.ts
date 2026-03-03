@@ -1,9 +1,16 @@
-import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
+import { EventSessionChannelKind, EventSessionState, type Prisma } from '@prisma/client';
 import { type ButtonInteraction, type Guild } from 'discord.js';
-
-import { findUniqueEventSessionById } from '../../../../integrations/prisma';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { syncTrackingSummaryMessage } from './syncTrackingSummaryMessage';
+
+type EventSessionWithRelations = Prisma.EventSessionGetPayload<{
+	include: {
+		hostUser: true;
+		eventTier: true;
+		channels: true;
+		eventMessages: true;
+	};
+}>;
 
 export async function syncStartConfirmationMessages({
 	interaction,
@@ -14,7 +21,7 @@ export async function syncStartConfirmationMessages({
 }: {
 	interaction: ButtonInteraction;
 	guild: Guild;
-	eventSession: NonNullable<Awaited<ReturnType<typeof findUniqueEventSessionById>>>;
+	eventSession: EventSessionWithRelations;
 	actorDiscordUserId: string;
 	logger: ExecutionContext['logger'];
 }) {
@@ -90,7 +97,7 @@ async function syncTimelineStatusMessages({
 }: {
 	interaction: ButtonInteraction;
 	guild: Guild;
-	eventSession: NonNullable<Awaited<ReturnType<typeof findUniqueEventSessionById>>>;
+	eventSession: EventSessionWithRelations;
 	trackedVoiceChannelIds: string[];
 	timelineMessage: string;
 	timelineLogContext: 'started' | 'cancelled' | 'ended';

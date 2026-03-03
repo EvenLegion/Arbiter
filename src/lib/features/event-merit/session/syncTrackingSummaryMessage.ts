@@ -1,11 +1,20 @@
-import { EventSessionChannelKind, EventSessionMessageKind } from '@prisma/client';
+import { EventSessionChannelKind, EventSessionMessageKind, type Prisma } from '@prisma/client';
 import type { Guild } from 'discord.js';
-import { findManyEventSessionMessages, findUniqueEventSessionById } from '../../../../integrations/prisma';
+import { findManyEventSessionMessages } from '../../../../integrations/prisma';
 import { buildEventTrackingSummaryPayload } from '../ui/buildEventTrackingSummaryPayload';
+
+type EventSessionWithRelations = Prisma.EventSessionGetPayload<{
+	include: {
+		hostUser: true;
+		eventTier: true;
+		channels: true;
+		eventMessages: true;
+	};
+}>;
 
 type SyncTrackingSummaryMessageParams = {
 	guild: Guild;
-	eventSession: NonNullable<Awaited<ReturnType<typeof findUniqueEventSessionById>>>;
+	eventSession: EventSessionWithRelations;
 	logger: {
 		warn: (...values: readonly unknown[]) => void;
 	};

@@ -2,7 +2,7 @@ import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import { container } from '@sapphire/framework';
 import { MessageFlags, type VoiceBasedChannel } from 'discord.js';
 import { z } from 'zod';
-import { findUniqueEventSessionById, upsertEventSessionChannel } from '../../../../integrations/prisma';
+import { findUniqueEventSession, upsertEventSessionChannel } from '../../../../integrations/prisma';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { syncTrackingSummaryMessage } from './syncTrackingSummaryMessage';
 
@@ -81,8 +81,14 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 		return;
 	}
 
-	const eventSession = await findUniqueEventSessionById({
-		eventSessionId: parsedEventSessionId.data
+	const eventSession = await findUniqueEventSession({
+		eventSessionId: parsedEventSessionId.data,
+		include: {
+			hostUser: true,
+			eventTier: true,
+			channels: true,
+			eventMessages: true
+		}
 	});
 	if (!eventSession || !ADD_VC_ALLOWED_EVENT_STATES.has(eventSession.state)) {
 		await interaction.editReply({
@@ -146,8 +152,14 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 		}
 	}
 
-	const refreshedEventSession = await findUniqueEventSessionById({
-		eventSessionId: eventSession.id
+	const refreshedEventSession = await findUniqueEventSession({
+		eventSessionId: eventSession.id,
+		include: {
+			hostUser: true,
+			eventTier: true,
+			channels: true,
+			eventMessages: true
+		}
 	});
 	if (refreshedEventSession) {
 		await syncTrackingSummaryMessage({

@@ -1,12 +1,7 @@
 import { EventSessionState, DivisionKind } from '@prisma/client';
 import { container } from '@sapphire/framework';
 
-import {
-	activateDraftEventSession,
-	cancelDraftEventSession,
-	endActiveEventSession,
-	findUniqueEventSessionById
-} from '../../../../integrations/prisma';
+import { findUniqueEventSession, updateEventSessionState } from '../../../../integrations/prisma';
 import { startTrackingSession, stopTrackingSession } from '../../../../integrations/redis/eventTracking';
 import { ENV_DISCORD } from '../../../../config/env';
 import type { ExecutionContext } from '../../../logging/executionContext';
@@ -32,8 +27,14 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 	}
 	const guild = interaction.guild;
 
-	const eventSession = await findUniqueEventSessionById({
-		eventSessionId: parsedEventStartButton.eventSessionId
+	const eventSession = await findUniqueEventSession({
+		eventSessionId: parsedEventStartButton.eventSessionId,
+		include: {
+			hostUser: true,
+			eventTier: true,
+			channels: true,
+			eventMessages: true
+		}
 	});
 	if (!eventSession) {
 		await interaction.reply({
@@ -83,9 +84,13 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 			return;
 		}
 
-		const activated = await activateDraftEventSession({
+		const activated = await updateEventSessionState({
 			eventSessionId: eventSession.id,
-			startedAt: new Date()
+			fromState: EventSessionState.DRAFT,
+			toState: EventSessionState.ACTIVE,
+			data: {
+				startedAt: new Date()
+			}
 		});
 		if (!activated) {
 			await interaction.reply({
@@ -101,8 +106,14 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 			startedAtMs: Date.now()
 		});
 
-		const refreshed = await findUniqueEventSessionById({
-			eventSessionId: eventSession.id
+		const refreshed = await findUniqueEventSession({
+			eventSessionId: eventSession.id,
+			include: {
+				hostUser: true,
+				eventTier: true,
+				channels: true,
+				eventMessages: true
+			}
 		});
 		if (!refreshed) {
 			await interaction.reply({
@@ -139,9 +150,13 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 			return;
 		}
 
-		const ended = await endActiveEventSession({
+		const ended = await updateEventSessionState({
 			eventSessionId: eventSession.id,
-			endedAt: new Date()
+			fromState: EventSessionState.ACTIVE,
+			toState: EventSessionState.ENDED_PENDING_REVIEW,
+			data: {
+				endedAt: new Date()
+			}
 		});
 		if (!ended) {
 			await interaction.reply({
@@ -155,8 +170,14 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 			eventSessionId: eventSession.id
 		});
 
-		const refreshed = await findUniqueEventSessionById({
-			eventSessionId: eventSession.id
+		const refreshed = await findUniqueEventSession({
+			eventSessionId: eventSession.id,
+			include: {
+				hostUser: true,
+				eventTier: true,
+				channels: true,
+				eventMessages: true
+			}
 		});
 		if (!refreshed) {
 			await interaction.reply({
@@ -192,8 +213,10 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 		return;
 	}
 
-	const cancelled = await cancelDraftEventSession({
-		eventSessionId: eventSession.id
+	const cancelled = await updateEventSessionState({
+		eventSessionId: eventSession.id,
+		fromState: EventSessionState.DRAFT,
+		toState: EventSessionState.CANCELLED
 	});
 	if (!cancelled) {
 		await interaction.reply({
@@ -211,8 +234,14 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 		'Cancelled draft event session from start button'
 	);
 
-	const refreshed = await findUniqueEventSessionById({
-		eventSessionId: eventSession.id
+	const refreshed = await findUniqueEventSession({
+		eventSessionId: eventSession.id,
+		include: {
+			hostUser: true,
+			eventTier: true,
+			channels: true,
+			eventMessages: true
+		}
 	});
 	if (!refreshed) {
 		await interaction.reply({

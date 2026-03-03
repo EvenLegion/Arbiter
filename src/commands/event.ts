@@ -1,9 +1,10 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
+import { EventSessionState } from '@prisma/client';
 import { ChannelType } from 'discord.js';
 
 import { ENV_DISCORD } from '../config/env';
-import { findManyActiveEventTiers, findManyReservedEventVoiceChannelIds, findManySelectableEventSessionSelections } from '../integrations/prisma';
+import { findManyEventSessions, findManyEventTiers, findManyReservedEventVoiceChannelIds } from '../integrations/prisma';
 import { handleEventAddVc } from '../lib/features/event-merit/session/handleEventAddVc';
 import { handleEventStart } from '../lib/features/event-merit/session/handleEventStart';
 import { createExecutionContext } from '../lib/logging/executionContext';
@@ -114,7 +115,10 @@ export class EventCommand extends Subcommand {
 			const subcommandName = interaction.options.getSubcommand(false);
 			if (subcommandName === 'start' && focused.name === 'tier_level') {
 				const query = String(focused.value).trim().toLowerCase();
-				const tiers = await findManyActiveEventTiers();
+				const tiers = await findManyEventTiers({
+					isActive: true,
+					orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }]
+				});
 				const filtered = tiers.filter((tier) => {
 					if (query.length === 0) {
 						return true;
@@ -139,9 +143,14 @@ export class EventCommand extends Subcommand {
 			if (subcommandName === 'add-vc' && focused.name === 'event_selection') {
 				const query = String(focused.value).trim();
 				// TODO Add caching support so we don't have to query the DB for each autocomplete request
-				const sessions = await findManySelectableEventSessionSelections({
+				const sessions = await findManyEventSessions({
+					states: [EventSessionState.DRAFT, EventSessionState.ACTIVE],
 					query,
-					limit: 25
+					limit: 25,
+					include: {
+						eventTier: true
+					},
+					orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }]
 				});
 				await interaction.respond(
 					sessions.map((session) => ({
