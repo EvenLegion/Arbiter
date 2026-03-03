@@ -1,19 +1,17 @@
-import { EventSessionChannelKind, EventSessionMessageKind, EventSessionState, DivisionKind } from '@prisma/client';
+import { EventSessionState, DivisionKind } from '@prisma/client';
 import { container } from '@sapphire/framework';
-import { type ButtonInteraction, type Guild } from 'discord.js';
 
 import {
 	activateDraftEventSession,
 	cancelDraftEventSession,
-	findManyEventSessionMessages,
+	endActiveEventSession,
 	findUniqueEventSessionById
 } from '../../../../integrations/prisma';
-import { startTrackingSession } from '../../../../integrations/redis/eventTracking';
+import { startTrackingSession, stopTrackingSession } from '../../../../integrations/redis/eventTracking';
 import { ENV_DISCORD } from '../../../../config/env';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import type { ParsedEventStartButton } from './parseEventStartButton';
-import { buildEventStartConfirmationPayload } from '../ui/buildEventStartConfirmationPayload';
-import { buildEventTrackingSummaryEmbed } from '../ui/buildEventTrackingSummaryEmbed';
+import { syncStartConfirmationMessages } from './syncStartConfirmationMessages';
 
 type HandleEventStartButtonParams = {
 	interaction: import('discord.js').ButtonInteraction;
@@ -127,7 +125,61 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 				eventSessionId: eventSession.id,
 				actorDiscordUserId: interaction.user.id
 			},
-			'Activated draft event session from start button'
+			'Event session activated from start button'
+		);
+		return;
+	}
+
+	if (parsedEventStartButton.action === 'end') {
+		if (eventSession.state !== EventSessionState.ACTIVE) {
+			await interaction.reply({
+				content: `This event is no longer in ACTIVE state (current state: ${eventSession.state}).`,
+				ephemeral: true
+			});
+			return;
+		}
+
+		const ended = await endActiveEventSession({
+			eventSessionId: eventSession.id,
+			endedAt: new Date()
+		});
+		if (!ended) {
+			await interaction.reply({
+				content: 'Unable to end the active event. It may have already been updated.',
+				ephemeral: true
+			});
+			return;
+		}
+
+		await stopTrackingSession({
+			eventSessionId: eventSession.id
+		});
+
+		const refreshed = await findUniqueEventSessionById({
+			eventSessionId: eventSession.id
+		});
+		if (!refreshed) {
+			await interaction.reply({
+				content: 'Event session not found after ending.',
+				ephemeral: true
+			});
+			return;
+		}
+
+		await syncStartConfirmationMessages({
+			interaction,
+			guild,
+			eventSession: refreshed,
+			actorDiscordUserId: interaction.user.id,
+			logger
+		});
+
+		logger.info(
+			{
+				eventSessionId: eventSession.id,
+				actorDiscordUserId: interaction.user.id
+			},
+			'Ended active event session from end button'
 		);
 		return;
 	}
@@ -177,128 +229,4 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 		actorDiscordUserId: interaction.user.id,
 		logger
 	});
-}
-
-async function syncStartConfirmationMessages({
-	interaction,
-	guild,
-	eventSession,
-	actorDiscordUserId,
-	logger
-}: {
-	interaction: ButtonInteraction;
-	guild: Guild;
-	eventSession: NonNullable<Awaited<ReturnType<typeof findUniqueEventSessionById>>>;
-	actorDiscordUserId: string;
-	logger: ExecutionContext['logger'];
-}) {
-	const trackedVoiceChannelIds = eventSession.channels
-		.filter((channel) => channel.kind === EventSessionChannelKind.PARENT_VC || channel.kind === EventSessionChannelKind.CHILD_VC)
-		.map((channel) => channel.channelId);
-	const primaryVoiceChannelId =
-		eventSession.channels.find((channel) => channel.kind === EventSessionChannelKind.PARENT_VC)?.channelId ??
-		trackedVoiceChannelIds[0] ??
-		'unknown';
-
-	const summaryEmbed = buildEventTrackingSummaryEmbed({
-		eventSessionId: eventSession.id,
-		eventName: eventSession.name,
-		tierName: eventSession.eventTier.name,
-		tierMeritAmount: eventSession.eventTier.meritAmount,
-		hostDiscordUserId: eventSession.hostUser.discordUserId,
-		trackedChannelIds: trackedVoiceChannelIds,
-		trackingThreadId: eventSession.threadId,
-		state: eventSession.state
-	});
-	const content =
-		eventSession.state === EventSessionState.ACTIVE
-			? `Event **${eventSession.name}** started by <@${actorDiscordUserId}>.`
-			: eventSession.state === EventSessionState.CANCELLED
-				? `Event draft **${eventSession.name}** was cancelled by <@${actorDiscordUserId}>.`
-				: `Event **${eventSession.name}** updated to state \`${eventSession.state}\` by <@${actorDiscordUserId}>.`;
-
-	const confirmationPayload = buildEventStartConfirmationPayload({
-		eventSessionId: eventSession.id,
-		eventName: eventSession.name,
-		tierName: eventSession.eventTier.name,
-		tierMeritAmount: eventSession.eventTier.meritAmount,
-		primaryVoiceChannelId,
-		trackingThreadId: eventSession.threadId
-	});
-	const confirmationEmbeds = eventSession.state === EventSessionState.CANCELLED ? [] : confirmationPayload.embeds;
-
-	const confirmationMessageRefs = await findManyEventSessionMessages({
-		eventSessionId: eventSession.id,
-		kinds: [EventSessionMessageKind.DRAFT_CONFIRMATION, EventSessionMessageKind.ACTIVE]
-	});
-	const summaryMessageRefs = await findManyEventSessionMessages({
-		eventSessionId: eventSession.id,
-		kinds: [EventSessionMessageKind.TRACKING_SUMMARY]
-	});
-
-	await interaction.update({
-		content,
-		embeds: confirmationEmbeds,
-		components: []
-	});
-
-	for (const summaryRef of summaryMessageRefs) {
-		const channel = guild.channels.cache.get(summaryRef.channelId) ?? (await guild.channels.fetch(summaryRef.channelId).catch(() => null));
-		if (!channel || !channel.isTextBased()) {
-			continue;
-		}
-
-		await channel.messages
-			.fetch(summaryRef.messageId)
-			.then((message) =>
-				message.edit({
-					content: null,
-					embeds: [summaryEmbed],
-					components: []
-				})
-			)
-			.catch((error: unknown) => {
-				logger.warn(
-					{
-						err: error,
-						eventSessionId: eventSession.id,
-						channelId: summaryRef.channelId,
-						messageId: summaryRef.messageId
-					},
-					'Failed to sync tracking summary message'
-				);
-			});
-	}
-
-	for (const ref of confirmationMessageRefs) {
-		if (ref.channelId === interaction.channelId && ref.messageId === interaction.message.id) {
-			continue;
-		}
-
-		const channel = guild.channels.cache.get(ref.channelId) ?? (await guild.channels.fetch(ref.channelId).catch(() => null));
-		if (!channel || !channel.isTextBased()) {
-			continue;
-		}
-
-		await channel.messages
-			.fetch(ref.messageId)
-			.then((message) =>
-				message.edit({
-					content,
-					embeds: confirmationEmbeds,
-					components: []
-				})
-			)
-			.catch((error: unknown) => {
-				logger.warn(
-					{
-						err: error,
-						eventSessionId: eventSession.id,
-						channelId: ref.channelId,
-						messageId: ref.messageId
-					},
-					'Failed to sync start confirmation embed'
-				);
-			});
-	}
 }

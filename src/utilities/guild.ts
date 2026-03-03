@@ -1,4 +1,5 @@
 import { Utility } from '@sapphire/plugin-utilities-store';
+import type { Guild, VoiceBasedChannel } from 'discord.js';
 import { ENV_DISCORD } from '../config/env/discord';
 
 export class GuildUtility extends Utility {
@@ -19,6 +20,16 @@ export class GuildUtility extends Utility {
 		}
 
 		return guild;
+	}
+
+	public async getVoiceBasedChannelOrThrow({ channelId, guild }: { channelId: string; guild?: Guild }): Promise<VoiceBasedChannel> {
+		const resolvedGuild = guild ?? (await this.getOrThrow());
+		const channel = resolvedGuild.channels.cache.get(channelId) ?? (await resolvedGuild.channels.fetch(channelId).catch(() => null));
+		if (!channel || !channel.isVoiceBased()) {
+			throw new Error(`Voice-based channel not found: guildId=${resolvedGuild.id} channelId=${channelId}`);
+		}
+
+		return channel;
 	}
 }
 

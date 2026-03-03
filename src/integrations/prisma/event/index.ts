@@ -1,7 +1,11 @@
 export { activateDraftEventSession } from './activateDraftEventSession';
 export { cancelDraftEventSession } from './cancelDraftEventSession';
 export { createDraftEventSession } from './createDraftEventSession';
+export { endActiveEventSession } from './endActiveEventSession';
 export { findManyEventSessionMessages } from './findManyEventSessionMessages';
+export { findManyActiveEventSessionsByIds } from './findManyActiveEventSessionsByIds';
+export { findManyActiveEventSessionSelections, findManySelectableEventSessionSelections } from './findManyActiveEventSessionSelections';
+export { findManyReservedEventVoiceChannelIds } from './findManyReservedEventVoiceChannelIds';
 export { findManyActiveEventTiers } from './findManyActiveEventTiers';
 export { findUniqueActiveEventTierById } from './findUniqueActiveEventTierById';
 export { findUniqueEventSessionById } from './findUniqueEventSessionById';

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-type EventStartButtonAction = 'confirm' | 'cancel';
+type EventStartButtonAction = 'confirm' | 'cancel' | 'end';
 
 export type ParsedEventStartButton = {
 	action: EventStartButtonAction;
@@ -19,7 +19,7 @@ export function parseEventStartButton({ customId }: ParseEventStartButtonParams)
 		return null;
 	}
 
-	if (action !== 'confirm' && action !== 'cancel') {
+	if (action !== 'confirm' && action !== 'cancel' && action !== 'end') {
 		return null;
 	}
 
