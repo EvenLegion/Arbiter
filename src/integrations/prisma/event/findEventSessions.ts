@@ -1,4 +1,5 @@
-import { type EventSession, type EventSessionState, type Prisma } from '@prisma/client';
+import { EventSessionState, type EventSession, type Prisma } from '@prisma/client';
+import { z } from 'zod';
 import { prisma } from '../prisma';
 
 type EventSessionFilters = {
@@ -27,6 +28,18 @@ type FindUniqueEventSessionResult<TInclude extends Prisma.EventSessionInclude | 
 	? Prisma.EventSessionGetPayload<{ include: TInclude }> | null
 	: EventSession | null;
 
+const EVENT_SESSION_STATE_SCHEMA = z.enum(EventSessionState);
+const FIND_MANY_EVENT_SESSIONS_SCHEMA = z.object({
+	eventSessionIds: z.array(z.number().int().positive()).optional(),
+	states: z.array(EVENT_SESSION_STATE_SCHEMA).optional(),
+	query: z.string().default(''),
+	limit: z.number().int().positive().optional()
+});
+
+const FIND_UNIQUE_EVENT_SESSION_SCHEMA = z.object({
+	eventSessionId: z.number().int().positive()
+});
+
 export async function findManyEventSessions<TInclude extends Prisma.EventSessionInclude | undefined = undefined>({
 	eventSessionIds,
 	states,
@@ -36,14 +49,20 @@ export async function findManyEventSessions<TInclude extends Prisma.EventSession
 	orderBy,
 	limit
 }: FindManyEventSessionsParams<TInclude> = {}): Promise<FindManyEventSessionsResult<TInclude>> {
-	if (eventSessionIds && eventSessionIds.length === 0) {
+	const parsed = FIND_MANY_EVENT_SESSIONS_SCHEMA.parse({
+		eventSessionIds,
+		states,
+		query,
+		limit
+	});
+	if (parsed.eventSessionIds && parsed.eventSessionIds.length === 0) {
 		return [] as unknown as FindManyEventSessionsResult<TInclude>;
 	}
 
 	const derivedWhere = buildEventSessionWhere({
-		eventSessionIds,
-		states,
-		query
+		eventSessionIds: parsed.eventSessionIds,
+		states: parsed.states,
+		query: parsed.query
 	});
 
 	const combinedWhere = combineWhereConditions({
@@ -55,7 +74,7 @@ export async function findManyEventSessions<TInclude extends Prisma.EventSession
 		where: combinedWhere,
 		include,
 		orderBy,
-		...(typeof limit === 'number' ? { take: Math.max(1, Math.floor(limit)) } : {})
+		...(typeof parsed.limit === 'number' ? { take: Math.max(1, Math.floor(parsed.limit)) } : {})
 	});
 
 	return sessions as FindManyEventSessionsResult<TInclude>;
@@ -65,9 +84,13 @@ export async function findUniqueEventSession<TInclude extends Prisma.EventSessio
 	eventSessionId,
 	include
 }: FindUniqueEventSessionParams<TInclude>): Promise<FindUniqueEventSessionResult<TInclude>> {
+	const parsed = FIND_UNIQUE_EVENT_SESSION_SCHEMA.parse({
+		eventSessionId
+	});
+
 	const session = await prisma.eventSession.findUnique({
 		where: {
-			id: eventSessionId
+			id: parsed.eventSessionId
 		},
 		include
 	});

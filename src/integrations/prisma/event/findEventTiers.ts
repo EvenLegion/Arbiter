@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import { prisma } from '../prisma';
 
 type EventTierFilters = {
@@ -14,16 +15,35 @@ type FindManyEventTiersParams = EventTierFilters & {
 	limit?: number;
 };
 
+const FIND_MANY_EVENT_TIERS_SCHEMA = z.object({
+	eventTierIds: z.array(z.number().int().positive()).optional(),
+	eventTierId: z.number().int().positive().optional(),
+	isActive: z.boolean().optional(),
+	query: z.string().default(''),
+	limit: z.number().int().positive().optional()
+});
+
+const FIND_FIRST_EVENT_TIER_SCHEMA = z.object({
+	where: z.record(z.string(), z.unknown())
+});
+
 export async function findManyEventTiers({ eventTierIds, eventTierId, isActive, query = '', where, orderBy, limit }: FindManyEventTiersParams = {}) {
-	if (eventTierIds && eventTierIds.length === 0) {
+	const parsed = FIND_MANY_EVENT_TIERS_SCHEMA.parse({
+		eventTierIds,
+		eventTierId,
+		isActive,
+		query,
+		limit
+	});
+	if (parsed.eventTierIds && parsed.eventTierIds.length === 0) {
 		return [];
 	}
 
 	const derivedWhere = buildEventTierWhere({
-		eventTierIds,
-		eventTierId,
-		isActive,
-		query
+		eventTierIds: parsed.eventTierIds,
+		eventTierId: parsed.eventTierId,
+		isActive: parsed.isActive,
+		query: parsed.query
 	});
 	const combinedWhere = combineWhereConditions({
 		derivedWhere,
@@ -33,11 +53,15 @@ export async function findManyEventTiers({ eventTierIds, eventTierId, isActive, 
 	return prisma.eventTier.findMany({
 		where: combinedWhere,
 		orderBy,
-		...(typeof limit === 'number' ? { take: Math.max(1, Math.floor(limit)) } : {})
+		...(typeof parsed.limit === 'number' ? { take: Math.max(1, Math.floor(parsed.limit)) } : {})
 	});
 }
 
 export async function findFirstEventTier({ where }: { where: Prisma.EventTierWhereInput }) {
+	FIND_FIRST_EVENT_TIER_SCHEMA.parse({
+		where
+	});
+
 	return prisma.eventTier.findFirst({
 		where
 	});
