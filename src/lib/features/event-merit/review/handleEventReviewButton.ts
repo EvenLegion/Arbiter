@@ -93,15 +93,25 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 			return;
 		}
 
-		if (parsedEventReviewButton.action === 'decision') {
-			if (eventSession.state !== EventSessionState.ENDED_PENDING_REVIEW) {
-				await interaction.reply({
-					content: 'Review decisions are locked because this event is already finalized.',
-					ephemeral: true
-				});
-				return;
-			}
+		if (parsedEventReviewButton.action === 'decision' && eventSession.state !== EventSessionState.ENDED_PENDING_REVIEW) {
+			await interaction.reply({
+				content: 'Review decisions are locked because this event is already finalized.',
+				ephemeral: true
+			});
+			return;
+		}
 
+		if (parsedEventReviewButton.action === 'submit' && eventSession.state !== EventSessionState.ENDED_PENDING_REVIEW) {
+			await interaction.reply({
+				content: 'This event review has already been finalized.',
+				ephemeral: true
+			});
+			return;
+		}
+
+		await interaction.deferUpdate().catch(() => null);
+
+		if (parsedEventReviewButton.action === 'decision') {
 			await upsertEventReviewDecision({
 				eventSessionId: parsedEventReviewButton.eventSessionId,
 				targetDbUserId: parsedEventReviewButton.targetDbUserId,
@@ -110,23 +120,15 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 		}
 
 		if (parsedEventReviewButton.action === 'submit') {
-			if (eventSession.state !== EventSessionState.ENDED_PENDING_REVIEW) {
-				await interaction.reply({
-					content: 'This event review has already been finalized.',
-					ephemeral: true
-				});
-				return;
-			}
-
 			const reviewerDbUser = await container.utilities.userDirectory
 				.getOrThrow({
 					discordUserId: interaction.user.id
 				})
 				.catch(() => null);
 			if (!reviewerDbUser) {
-				await interaction.reply({
+				await interaction.followUp({
 					content: 'Could not resolve your database user for review finalization.',
-					ephemeral: true
+					flags: MessageFlags.Ephemeral
 				});
 				return;
 			}
@@ -137,9 +139,9 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 				mode: parsedEventReviewButton.mode
 			});
 			if (!finalizeResult.finalized) {
-				await interaction.reply({
+				await interaction.followUp({
 					content: 'Unable to finalize event review. It may have already been finalized by another reviewer.',
-					ephemeral: true
+					flags: MessageFlags.Ephemeral
 				});
 				return;
 			}
@@ -209,8 +211,6 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 				'Finalized event review'
 			);
 		}
-
-		await interaction.deferUpdate().catch(() => null);
 
 		const synced = await syncEventReviewMessage({
 			guild,
