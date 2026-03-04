@@ -31,7 +31,8 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 
 	await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-	if (!interaction.inGuild() || !interaction.guild) {
+	const guild = await container.utilities.guild.getOrThrow().catch(() => null);
+	if (!guild) {
 		await interaction.editReply({
 			content: 'This action can only be used in a server.'
 		});
@@ -41,7 +42,7 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 	let guildMember: GuildMember;
 	try {
 		guildMember = await container.utilities.member.getOrThrow({
-			guild: interaction.guild,
+			guild,
 			discordUserId: interaction.user.id
 		});
 	} catch {

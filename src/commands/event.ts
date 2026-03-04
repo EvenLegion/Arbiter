@@ -163,7 +163,8 @@ export class EventCommand extends Subcommand {
 			}
 
 			if (subcommandName === 'add-vc' && focused.name === 'voice_channel') {
-				if (!interaction.guild) {
+				const guild = await this.container.utilities.guild.getOrThrow().catch(() => null);
+				if (!guild) {
 					await interaction.respond([]);
 					return;
 				}
@@ -174,7 +175,7 @@ export class EventCommand extends Subcommand {
 				const cutoffMs = query.length === 0 ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 				const cutoffTimestamp = now - cutoffMs;
 				const reservedChannelIds = new Set(await findManyReservedEventVoiceChannelIds());
-				const channels = interaction.guild.channels.cache
+				const channels = guild.channels.cache
 					.filter((channel) => channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice)
 					.filter((channel) => !reservedChannelIds.has(channel.id))
 					.map((channel) => ({

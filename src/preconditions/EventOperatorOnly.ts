@@ -16,7 +16,9 @@ export class EventOperatorOnlyPrecondition extends AllFlowsPrecondition {
 	public override async chatInputRun(interaction: ChatInputCommandInteraction, _command: ChatInputCommand, _context: Precondition.Context) {
 		void _command;
 		void _context;
-		if (!interaction.inGuild() || !interaction.guild) {
+
+		const guild = await this.container.utilities.guild.getOrThrow().catch(() => null);
+		if (!guild) {
 			return this.error({
 				message: 'This command can only be used in a server.'
 			});
@@ -25,7 +27,7 @@ export class EventOperatorOnlyPrecondition extends AllFlowsPrecondition {
 		let member: GuildMember;
 		try {
 			member = await this.container.utilities.member.getOrThrow({
-				guild: interaction.guild,
+				guild,
 				discordUserId: interaction.user.id
 			});
 		} catch {
