@@ -60,13 +60,14 @@ export class DevCommand extends Subcommand {
 
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-		if (!interaction.inGuild() || !interaction.guild) {
+		const guild = await this.container.utilities.guild.getOrThrow().catch(() => null);
+		if (!guild) {
 			await interaction.editReply({ content: 'This command can only be used in a guild.' });
 			return;
 		}
 
 		await this.container.utilities.divisionCache.refresh();
-		const members = await interaction.guild.members.fetch();
+		const members = await guild.members.fetch();
 
 		let totalMembers = 0;
 		let botMembersSkipped = 0;

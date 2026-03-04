@@ -7,6 +7,7 @@ import { ENV_DISCORD } from '../config/env';
 import { findManyEventSessions, findManyEventTiers, findManyReservedEventVoiceChannelIds } from '../integrations/prisma';
 import { handleEventAddVc } from '../lib/features/event-merit/session/handleEventAddVc';
 import { handleEventStart } from '../lib/features/event-merit/session/handleEventStart';
+import { formatEventSessionStateLabel } from '../lib/features/event-merit/ui/formatEventSessionStateLabel';
 import { createExecutionContext } from '../lib/logging/executionContext';
 
 @ApplyOptions<Subcommand.Options>({
@@ -154,7 +155,7 @@ export class EventCommand extends Subcommand {
 				});
 				await interaction.respond(
 					sessions.map((session) => ({
-						name: `${session.eventTier.name} | ${session.name} | ${session.state}`,
+						name: `${session.eventTier.name} | ${session.name} | ${formatEventSessionStateLabel(session.state)}`,
 						value: String(session.id)
 					}))
 				);
@@ -162,7 +163,8 @@ export class EventCommand extends Subcommand {
 			}
 
 			if (subcommandName === 'add-vc' && focused.name === 'voice_channel') {
-				if (!interaction.guild) {
+				const guild = await this.container.utilities.guild.getOrThrow().catch(() => null);
+				if (!guild) {
 					await interaction.respond([]);
 					return;
 				}
@@ -173,7 +175,7 @@ export class EventCommand extends Subcommand {
 				const cutoffMs = query.length === 0 ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 				const cutoffTimestamp = now - cutoffMs;
 				const reservedChannelIds = new Set(await findManyReservedEventVoiceChannelIds());
-				const channels = interaction.guild.channels.cache
+				const channels = guild.channels.cache
 					.filter((channel) => channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice)
 					.filter((channel) => !reservedChannelIds.has(channel.id))
 					.map((channel) => ({

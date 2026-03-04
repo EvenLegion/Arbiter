@@ -1,4 +1,5 @@
 import { type ButtonInteraction } from 'discord.js';
+import { container } from '@sapphire/framework';
 
 import { Division, DivisionKind } from '@prisma/client';
 import type { ExecutionContext } from '../../logging/executionContext';
@@ -15,7 +16,30 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 	const caller = 'handleLeaveDivision';
 	const logger = context.logger.child({ caller });
 
-	const guildMember = await interaction.guild?.members.fetch(interaction.user.id);
+	const guild = await container.utilities.guild.getOrThrow().catch(() => null);
+	if (!guild) {
+		logger.error(
+			{
+				userDbId,
+				discordMessageId: interaction.id,
+				discordUserId: interaction.user.id,
+				discordUsername: interaction.user.username,
+				customButtonId: interaction.customId
+			},
+			'Guild not found for interaction'
+		);
+		interaction.editReply({
+			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
+		});
+		return;
+	}
+
+	const guildMember = await container.utilities.member
+		.getOrThrow({
+			guild,
+			discordUserId: interaction.user.id
+		})
+		.catch(() => null);
 	if (!guildMember) {
 		logger.error(
 			{
@@ -28,7 +52,7 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 			'Guild member not found'
 		);
 		interaction.editReply({
-			content: `There was an error processing your selection. Please contact a TECH member with the following: discordMessageId=${interaction.id} customButtonId=${interaction.customId}`
+			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
 	}

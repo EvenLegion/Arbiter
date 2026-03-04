@@ -101,7 +101,6 @@ CREATE TABLE "EventSession" (
     "reviewFinalizedByUserId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "userId" TEXT,
 
     CONSTRAINT "EventSession_pkey" PRIMARY KEY ("id")
 );
@@ -323,9 +322,6 @@ ALTER TABLE "EventSession" ADD CONSTRAINT "EventSession_reviewFinalizedByUserId_
 
 -- AddForeignKey
 ALTER TABLE "EventSession" ADD CONSTRAINT "EventSession_eventTierId_fkey" FOREIGN KEY ("eventTierId") REFERENCES "EventTier"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EventSession" ADD CONSTRAINT "EventSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EventSessionChannel" ADD CONSTRAINT "EventSessionChannel_eventSessionId_fkey" FOREIGN KEY ("eventSessionId") REFERENCES "EventSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;

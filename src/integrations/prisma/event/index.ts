@@ -1,9 +1,15 @@
 export { createDraftEventSession } from './createDraftEventSession';
+export { deleteManyEventSessionChannels } from './deleteManyEventSessionChannels';
+export { finalizeEventReview } from './finalizeEventReview';
+export { getEventReviewPage, type EventReviewPage, type EventReviewPageAttendee } from './getEventReviewPage';
 export { findManyEventSessions, findUniqueEventSession } from './findEventSessions';
 export { findFirstEventTier, findManyEventTiers } from './findEventTiers';
 export { findManyEventSessionMessages } from './findManyEventSessionMessages';
 export { findReservedEventVoiceChannelReservation } from './findReservedEventVoiceChannelReservation';
 export { findManyReservedEventVoiceChannelIds } from './findManyReservedEventVoiceChannelIds';
 export { updateEventSessionState } from './updateEventSessionState';
+export { upsertEventReviewDecision } from './upsertEventReviewDecision';
 export { upsertEventSessionChannel } from './upsertEventSessionChannel';
 export { upsertEventSessionMessageRef } from './upsertEventSessionMessageRef';
+export { upsertManyEventParticipantStats } from './upsertManyEventParticipantStats';
+export { upsertManyEventReviewDecisions } from './upsertManyEventReviewDecisions';

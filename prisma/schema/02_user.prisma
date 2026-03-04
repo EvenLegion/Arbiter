@@ -20,7 +20,6 @@ model User {
   eventParticipantStats     EventParticipantStat[] @relation("EventParticipantStatUser")
   targetEventDecisions      EventReviewDecision[]  @relation("EventReviewDecisionTargetUser")
 
-  merits        Merit[]        @relation("MeritRecipientUser")
-  awardedMerits Merit[]        @relation("MeritAwarderUser")
-  eventSessions EventSession[]
+  merits        Merit[] @relation("MeritRecipientUser")
+  awardedMerits Merit[] @relation("MeritAwarderUser")
 }

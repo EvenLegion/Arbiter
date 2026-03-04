@@ -1,10 +1,13 @@
-import { EventSessionState, DivisionKind } from '@prisma/client';
+import { EventSessionChannelKind, EventSessionState, DivisionKind } from '@prisma/client';
 import { container } from '@sapphire/framework';
+import { MessageFlags } from 'discord.js';
 
 import { findUniqueEventSession, updateEventSessionState } from '../../../../integrations/prisma';
 import { startTrackingSession, stopTrackingSession } from '../../../../integrations/redis/eventTracking';
 import { ENV_DISCORD } from '../../../../config/env';
-import type { ExecutionContext } from '../../../logging/executionContext';
+import { createChildExecutionContext, type ExecutionContext } from '../../../logging/executionContext';
+import { initializeEventReview } from '../review/initializeEventReview';
+import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel';
 import type { ParsedEventStartButton } from './parseEventStartButton';
 import { syncStartConfirmationMessages } from './syncStartConfirmationMessages';
 
@@ -18,14 +21,14 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 	const caller = 'handleEventStartButton';
 	const logger = context.logger.child({ caller, action: parsedEventStartButton.action, eventSessionId: parsedEventStartButton.eventSessionId });
 
-	if (!interaction.inGuild() || !interaction.guild) {
+	const guild = await container.utilities.guild.getOrThrow().catch(() => null);
+	if (!guild) {
 		await interaction.reply({
 			content: 'This action can only be used in a server.',
 			ephemeral: true
 		});
 		return;
 	}
-	const guild = interaction.guild;
 
 	const eventSession = await findUniqueEventSession({
 		eventSessionId: parsedEventStartButton.eventSessionId,
@@ -78,7 +81,7 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 	if (parsedEventStartButton.action === 'confirm') {
 		if (eventSession.state !== EventSessionState.DRAFT) {
 			await interaction.reply({
-				content: `This event is no longer in DRAFT state (current state: ${eventSession.state}).`,
+				content: `This event is no longer in ${formatEventSessionStateLabel(EventSessionState.DRAFT)} state (current state: ${formatEventSessionStateLabel(eventSession.state)}).`,
 				ephemeral: true
 			});
 			return;
@@ -144,7 +147,7 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 	if (parsedEventStartButton.action === 'end') {
 		if (eventSession.state !== EventSessionState.ACTIVE) {
 			await interaction.reply({
-				content: `This event is no longer in ACTIVE state (current state: ${eventSession.state}).`,
+				content: `This event is no longer in ${formatEventSessionStateLabel(EventSessionState.ACTIVE)} state (current state: ${formatEventSessionStateLabel(eventSession.state)}).`,
 				ephemeral: true
 			});
 			return;
@@ -187,12 +190,68 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 			return;
 		}
 
+		const parentVoiceChannelId = refreshed.channels.find((channel) => channel.kind === EventSessionChannelKind.PARENT_VC)?.channelId ?? null;
+		if (parentVoiceChannelId) {
+			const parentVoiceChannel = await container.utilities.guild
+				.getVoiceBasedChannelOrThrow({
+					guild,
+					channelId: parentVoiceChannelId
+				})
+				.catch(() => null);
+			if (parentVoiceChannel) {
+				await parentVoiceChannel.setName('Post Event Hangout', `Event ended by ${interaction.user.tag}`).catch((error: unknown) => {
+					logger.warn(
+						{
+							err: error,
+							eventSessionId: refreshed.id,
+							parentVoiceChannelId
+						},
+						'Failed to rename parent VC to Post Event Hangout after event end'
+					);
+				});
+			} else {
+				logger.warn(
+					{
+						eventSessionId: refreshed.id,
+						parentVoiceChannelId
+					},
+					'Parent VC not found while attempting post-event rename'
+				);
+			}
+		}
+
 		await syncStartConfirmationMessages({
 			interaction,
 			guild,
 			eventSession: refreshed,
 			actorDiscordUserId: interaction.user.id,
 			logger
+		});
+
+		await initializeEventReview({
+			guild,
+			eventSessionId: refreshed.id,
+			context: createChildExecutionContext({
+				context,
+				bindings: {
+					step: 'initializeEventReview'
+				}
+			})
+		}).catch(async (error: unknown) => {
+			logger.error(
+				{
+					err: error,
+					eventSessionId: refreshed.id
+				},
+				'Failed to initialize post-event review flow'
+			);
+
+			await interaction
+				.followUp({
+					content: `Event ended, but review initialization failed. Please contact TECH with requestId=${context.requestId}.`,
+					flags: MessageFlags.Ephemeral
+				})
+				.catch(() => null);
 		});
 
 		logger.info(
@@ -207,7 +266,7 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 
 	if (eventSession.state !== EventSessionState.DRAFT) {
 		await interaction.reply({
-			content: `This event is no longer in DRAFT state (current state: ${eventSession.state}).`,
+			content: `This event is no longer in ${formatEventSessionStateLabel(EventSessionState.DRAFT)} state (current state: ${formatEventSessionStateLabel(eventSession.state)}).`,
 			ephemeral: true
 		});
 		return;

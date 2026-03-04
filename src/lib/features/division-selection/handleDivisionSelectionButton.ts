@@ -31,7 +31,8 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 
 	await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-	if (!interaction.inGuild() || !interaction.guild) {
+	const guild = await container.utilities.guild.getOrThrow().catch(() => null);
+	if (!guild) {
 		await interaction.editReply({
 			content: 'This action can only be used in a server.'
 		});
@@ -41,12 +42,12 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 	let guildMember: GuildMember;
 	try {
 		guildMember = await container.utilities.member.getOrThrow({
-			guild: interaction.guild,
+			guild,
 			discordUserId: interaction.user.id
 		});
 	} catch {
 		await interaction.editReply({
-			content: `Could not resolve your member record. Please contact TECH with: discordMessageId=${interaction.id}`
+			content: `Could not resolve your member record. Please contact TECH with: requestId=${context.requestId}`
 		});
 		return;
 	}
@@ -147,7 +148,7 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 	);
 
 	interaction.editReply({
-		content: `There was an error processing your selection. Please contact a TECH member with the following: discordMessageId=${interaction.id} customButtonId=${interaction.customId}`
+		content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 	});
 	return;
 }
