@@ -54,7 +54,6 @@ export async function syncEventReviewMessage({ guild, eventSessionId, page = 1, 
 	const durationSeconds = computeDurationSeconds(reviewPage.eventSession.startedAt, reviewPage.eventSession.endedAt);
 	const payload = buildEventReviewPayload({
 		eventSessionId: reviewPage.eventSession.id,
-		eventName: reviewPage.eventSession.name,
 		state: reviewPage.eventSession.state,
 		durationSeconds,
 		attendeeCount: reviewPage.attendeeCount,

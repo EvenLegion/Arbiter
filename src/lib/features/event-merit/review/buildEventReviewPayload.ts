@@ -6,7 +6,6 @@ import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel
 
 type BuildEventReviewPayloadParams = {
 	eventSessionId: number;
-	eventName: string;
 	state: EventSessionState;
 	durationSeconds: number;
 	attendeeCount: number;
