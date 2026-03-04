@@ -7,6 +7,7 @@ import { ENV_DISCORD } from '../config/env';
 import { findManyEventSessions, findManyEventTiers, findManyReservedEventVoiceChannelIds } from '../integrations/prisma';
 import { handleEventAddVc } from '../lib/features/event-merit/session/handleEventAddVc';
 import { handleEventStart } from '../lib/features/event-merit/session/handleEventStart';
+import { formatEventSessionStateLabel } from '../lib/features/event-merit/ui/formatEventSessionStateLabel';
 import { createExecutionContext } from '../lib/logging/executionContext';
 
 @ApplyOptions<Subcommand.Options>({
@@ -154,7 +155,7 @@ export class EventCommand extends Subcommand {
 				});
 				await interaction.respond(
 					sessions.map((session) => ({
-						name: `${session.eventTier.name} | ${session.name} | ${session.state}`,
+						name: `${session.eventTier.name} | ${session.name} | ${formatEventSessionStateLabel(session.state)}`,
 						value: String(session.id)
 					}))
 				);

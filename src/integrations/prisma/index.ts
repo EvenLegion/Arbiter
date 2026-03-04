@@ -21,6 +21,9 @@ export { deleteManyDivisionMembership } from './deleteManyDivisionMembership';
 
 export {
 	createDraftEventSession,
+	deleteManyEventSessionChannels,
+	finalizeEventReview,
+	findEventReviewPage,
 	findManyEventSessions,
 	findReservedEventVoiceChannelReservation,
 	findManyReservedEventVoiceChannelIds,
@@ -29,6 +32,9 @@ export {
 	findFirstEventTier,
 	findUniqueEventSession,
 	updateEventSessionState,
+	upsertEventReviewDecision,
 	upsertEventSessionChannel,
-	upsertEventSessionMessageRef
+	upsertEventSessionMessageRef,
+	upsertManyEventParticipantStats,
+	upsertManyEventReviewDecisions
 } from './event';

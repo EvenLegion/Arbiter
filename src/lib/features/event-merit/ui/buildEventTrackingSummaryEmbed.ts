@@ -1,5 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 import { EventSessionState } from '@prisma/client';
+import { formatEventSessionStateLabel } from './formatEventSessionStateLabel';
 
 type BuildEventTrackingSummaryEmbedParams = {
 	eventSessionId: number;
@@ -31,7 +32,7 @@ export function buildEventTrackingSummaryEmbed({
 		.addFields(
 			{ name: 'Event Name', value: eventName, inline: false },
 			{ name: 'Tier', value: `${tierName} (${tierMeritAmount} merits)`, inline: true },
-			{ name: 'State', value: state, inline: true },
+			{ name: 'State', value: formatEventSessionStateLabel(state), inline: true },
 			{ name: 'Host', value: `<@${hostDiscordUserId}>`, inline: true },
 			{
 				name: 'Tracking Thread',

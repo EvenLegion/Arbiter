@@ -45,8 +45,6 @@ model EventSession {
   participantStats      EventParticipantStat[]
   reviewDecisions       EventReviewDecision[]
   meritAwards           Merit[]
-  user                  User?                  @relation(fields: [userId], references: [id])
-  userId                String?
 
   @@index([state])
   @@index([state, createdAt])

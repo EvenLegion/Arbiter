@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { findReservedEventVoiceChannelReservation, findUniqueEventSession, upsertEventSessionChannel } from '../../../../integrations/prisma';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { syncTrackingSummaryMessage } from './syncTrackingSummaryMessage';
+import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel';
 
 type HandleEventAddVcParams = {
 	interaction: import('@sapphire/plugin-subcommands').Subcommand.ChatInputCommandInteraction;
@@ -113,7 +114,7 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 	const parentVoiceChannelId = eventSession.channels.find((channel) => channel.kind === EventSessionChannelKind.PARENT_VC)?.channelId ?? null;
 	if (existingChannelRow?.kind === EventSessionChannelKind.PARENT_VC) {
 		await interaction.editReply({
-			content: `Channel <#${targetVoiceChannelId}> is already the parent VC for event **${eventSession.name}**.`
+			content: `Channel <#${targetVoiceChannelId}> is already the Main channel for event **${eventSession.name}**.`
 		});
 		return;
 	}
@@ -126,7 +127,7 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 		});
 		if (existingReservation) {
 			await interaction.editReply({
-				content: `Channel <#${targetVoiceChannelId}> is already reserved by event **${existingReservation.eventSession.name}** (#${existingReservation.eventSessionId}, ${existingReservation.eventSession.state}).`
+				content: `Channel <#${targetVoiceChannelId}> is already reserved by event **${existingReservation.eventSession.name}** (#${existingReservation.eventSessionId}, ${formatEventSessionStateLabel(existingReservation.eventSession.state)}).`
 			});
 			return;
 		}
@@ -191,8 +192,8 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 			logger
 		});
 
-		const parentVoiceChannelMention = parentVoiceChannelId ? `<#${parentVoiceChannelId}>` : 'unknown parent VC';
-		const publicMessage = `<@${interaction.user.id}> added <#${targetVoiceChannelId}> as a child VC under ${parentVoiceChannelMention} for **${eventSession.name}**.`;
+		const parentVoiceChannelMention = parentVoiceChannelId ? `<#${parentVoiceChannelId}>` : 'unknown Main channel';
+		const publicMessage = `<@${interaction.user.id}> added <#${targetVoiceChannelId}> as a sub channel under Main channel ${parentVoiceChannelMention} for **${eventSession.name}**.`;
 		const publicAnnouncement = await postPublicAddVcMessages({
 			guild: interaction.guild,
 			parentVoiceChannelId,
@@ -209,7 +210,8 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 		}
 
 		await interaction.editReply({
-			content: 'Event channel was added, but I could not post the success message in both parent and child VC chats. Check bot permissions.'
+			content:
+				'Event channel was added, but I could not post the success message in both Main channel and sub channel chats. Check bot permissions.'
 		});
 		return;
 	}
@@ -250,8 +252,8 @@ async function postChildVcAddedLogToEventThread({
 
 	await threadChannel
 		.send({
-			content: `<@${actorDiscordUserId}> added <#${channelId}> as a child VC under ${
-				parentVoiceChannelId ? `<#${parentVoiceChannelId}>` : 'unknown parent VC'
+			content: `<@${actorDiscordUserId}> added <#${channelId}> as a sub channel under Main channel ${
+				parentVoiceChannelId ? `<#${parentVoiceChannelId}>` : 'unknown Main channel'
 			} for **${eventName}**.`
 		})
 		.catch((error: unknown) => {
