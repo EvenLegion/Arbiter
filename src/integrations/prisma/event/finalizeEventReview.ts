@@ -8,9 +8,11 @@ type FinalizeEventReviewParams = {
 	mode: 'with' | 'without';
 };
 
+type FinalizedEventSessionState = Extract<EventSessionState, 'FINALIZED_WITH_MERITS' | 'FINALIZED_NO_MERITS'>;
+
 type FinalizeEventReviewResult = {
 	finalized: boolean;
-	toState: 'FINALIZED_WITH_MERITS' | 'FINALIZED_NO_MERITS';
+	toState: FinalizedEventSessionState;
 	awardedCount: number;
 };
 
@@ -22,7 +24,8 @@ const FINALIZE_EVENT_REVIEW_SCHEMA = z.object({
 
 export async function finalizeEventReview(params: FinalizeEventReviewParams): Promise<FinalizeEventReviewResult> {
 	const parsed = FINALIZE_EVENT_REVIEW_SCHEMA.parse(params);
-	const toState = parsed.mode === 'with' ? EventSessionState.FINALIZED_WITH_MERITS : EventSessionState.FINALIZED_NO_MERITS;
+	const toState: FinalizeEventReviewResult['toState'] =
+		parsed.mode === 'with' ? EventSessionState.FINALIZED_WITH_MERITS : EventSessionState.FINALIZED_NO_MERITS;
 
 	const now = new Date();
 
