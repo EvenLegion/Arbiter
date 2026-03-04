@@ -1,6 +1,6 @@
 import { DivisionKind, EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import { container } from '@sapphire/framework';
-import { MessageFlags } from 'discord.js';
+import { ButtonInteraction, MessageFlags } from 'discord.js';
 import {
 	deleteManyEventSessionChannels,
 	finalizeEventReview,
@@ -15,7 +15,7 @@ import { syncEventReviewMessage } from './syncEventReviewMessage';
 import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel';
 
 type HandleEventReviewButtonParams = {
-	interaction: import('discord.js').ButtonInteraction;
+	interaction: ButtonInteraction;
 	parsedEventReviewButton: ParsedEventReviewButton;
 	context: ExecutionContext;
 };
@@ -35,7 +35,8 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 	});
 
 	try {
-		if (!interaction.inGuild() || !interaction.guild) {
+		const guild = await container.utilities.guild.getOrThrow().catch(() => null);
+		if (!guild) {
 			await interaction.reply({
 				content: 'This action can only be used in a server.',
 				ephemeral: true
@@ -43,7 +44,6 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 			return;
 		}
 
-		const guild = interaction.guild;
 		const member = await container.utilities.member
 			.getOrThrow({
 				guild,

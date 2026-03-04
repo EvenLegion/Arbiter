@@ -21,7 +21,8 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 
 	await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-	if (!interaction.inGuild() || !interaction.guild) {
+	const guild = await container.utilities.guild.getOrThrow().catch(() => null);
+	if (!guild) {
 		await interaction.editReply({
 			content: 'This command can only be used in a server.'
 		});
@@ -36,7 +37,7 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 	if (requestedVoiceChannelId.length > 0) {
 		targetVoiceChannel = await container.utilities.guild
 			.getVoiceBasedChannelOrThrow({
-				guild: interaction.guild,
+				guild,
 				channelId: requestedVoiceChannelId
 			})
 			.catch(() => null);
@@ -51,7 +52,7 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 	} else {
 		const member = await container.utilities.member
 			.getOrThrow({
-				guild: interaction.guild,
+				guild,
 				discordUserId: interaction.user.id
 			})
 			.catch(() => null);
@@ -175,7 +176,7 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 	});
 	if (refreshedEventSession) {
 		await syncTrackingSummaryMessage({
-			guild: interaction.guild,
+			guild,
 			eventSession: refreshedEventSession,
 			logger
 		});
@@ -183,7 +184,7 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 
 	if (isNewChildChannel) {
 		await postChildVcAddedLogToEventThread({
-			guild: interaction.guild,
+			guild,
 			threadId: eventSession.threadId,
 			eventName: eventSession.name,
 			actorDiscordUserId: interaction.user.id,
@@ -195,7 +196,7 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 		const parentVoiceChannelMention = parentVoiceChannelId ? `<#${parentVoiceChannelId}>` : 'unknown Main channel';
 		const publicMessage = `<@${interaction.user.id}> added <#${targetVoiceChannelId}> as a sub channel under Main channel ${parentVoiceChannelMention} for **${eventSession.name}**.`;
 		const publicAnnouncement = await postPublicAddVcMessages({
-			guild: interaction.guild,
+			guild,
 			parentVoiceChannelId,
 			childVoiceChannelId: targetVoiceChannelId,
 			childVoiceChannel: targetVoiceChannel,
