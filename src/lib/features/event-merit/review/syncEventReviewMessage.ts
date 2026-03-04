@@ -2,6 +2,7 @@ import { EventSessionMessageKind } from '@prisma/client';
 import type { Guild } from 'discord.js';
 import { getEventReviewPage, findManyEventSessionMessages, upsertEventSessionMessageRef } from '../../../../integrations/prisma';
 import { buildEventReviewPayload } from './buildEventReviewPayload';
+import { computeEventDurationSeconds } from './computeEventDurationSeconds';
 
 type SyncEventReviewMessageParams = {
 	guild: Guild;
@@ -35,7 +36,10 @@ export async function syncEventReviewMessage({ guild, eventSessionId, page = 1, 
 		return false;
 	}
 
-	const durationSeconds = computeDurationSeconds(reviewPage.eventSession.startedAt, reviewPage.eventSession.endedAt);
+	const durationSeconds = computeEventDurationSeconds({
+		startedAt: reviewPage.eventSession.startedAt,
+		endedAt: reviewPage.eventSession.endedAt
+	});
 	const payload = buildEventReviewPayload({
 		eventSessionId: reviewPage.eventSession.id,
 		state: reviewPage.eventSession.state,
@@ -99,12 +103,4 @@ export async function syncEventReviewMessage({ guild, eventSessionId, page = 1, 
 	});
 
 	return true;
-}
-
-function computeDurationSeconds(startedAt: Date | null, endedAt: Date | null) {
-	if (!startedAt || !endedAt) {
-		return 0;
-	}
-
-	return Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000));
 }

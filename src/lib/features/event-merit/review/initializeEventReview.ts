@@ -3,6 +3,7 @@ import { prisma, findUniqueEventSession, upsertManyEventParticipantStats, upsert
 import { clearTrackingSession, getTrackingParticipantsSnapshot } from '../../../../integrations/redis/eventTracking';
 import { ENV_DISCORD } from '../../../../config/env/discord';
 import type { ExecutionContext } from '../../../logging/executionContext';
+import { computeEventDurationSeconds } from './computeEventDurationSeconds';
 import { syncEventReviewMessage } from './syncEventReviewMessage';
 
 type InitializeEventReviewParams = {
@@ -35,7 +36,10 @@ export async function initializeEventReview({ guild, eventSessionId, context }: 
 		return;
 	}
 
-	const durationSeconds = computeDurationSeconds(eventSession.startedAt, eventSession.endedAt);
+	const durationSeconds = computeEventDurationSeconds({
+		startedAt: eventSession.startedAt,
+		endedAt: eventSession.endedAt
+	});
 	const participantSnapshots = await getTrackingParticipantsSnapshot({
 		eventSessionId
 	});
@@ -119,14 +123,6 @@ export async function initializeEventReview({ guild, eventSessionId, context }: 
 		},
 		'Initialized post-event merit review'
 	);
-}
-
-function computeDurationSeconds(startedAt: Date | null, endedAt: Date | null) {
-	if (!startedAt || !endedAt) {
-		return 0;
-	}
-
-	return Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000));
 }
 
 function clampAttendedSeconds(attendedSeconds: number, durationSeconds: number) {

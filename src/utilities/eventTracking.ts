@@ -33,6 +33,9 @@ export class EventTrackingUtility extends Utility {
 	public async tickAllActiveSessions({ context }: TickAllActiveSessionsParams) {
 		const logger = context.logger.child({ caller: 'EventTrackingUtility.tickAllActiveSessions' });
 		const eventSessionIds = await listActiveTrackingSessionIds();
+		this.cleanupMissingTrackedChannelWarningsForInactiveSessions({
+			activeEventSessionIds: eventSessionIds
+		});
 		if (eventSessionIds.length === 0) {
 			logger.trace('No active event sessions in Redis');
 			return;
@@ -52,6 +55,9 @@ export class EventTrackingUtility extends Utility {
 			const session = activeSessionById.get(eventSessionId);
 			if (!session) {
 				await stopTrackingSession({
+					eventSessionId
+				});
+				this.clearMissingTrackedChannelWarningsForSession({
 					eventSessionId
 				});
 				logger.warn(
@@ -172,6 +178,44 @@ export class EventTrackingUtility extends Utility {
 
 	private getMissingTrackedChannelKey({ eventSessionId, channelId }: { eventSessionId: number; channelId: string }) {
 		return `${eventSessionId}:${channelId}`;
+	}
+
+	private clearMissingTrackedChannelWarningsForSession({ eventSessionId }: { eventSessionId: number }) {
+		for (const key of this.missingTrackedChannelWarnings) {
+			if (this.getEventSessionIdFromMissingTrackedChannelKey(key) === eventSessionId) {
+				this.missingTrackedChannelWarnings.delete(key);
+			}
+		}
+	}
+
+	private cleanupMissingTrackedChannelWarningsForInactiveSessions({ activeEventSessionIds }: { activeEventSessionIds: number[] }) {
+		if (this.missingTrackedChannelWarnings.size === 0) {
+			return;
+		}
+
+		if (activeEventSessionIds.length === 0) {
+			this.missingTrackedChannelWarnings.clear();
+			return;
+		}
+
+		const activeSessionIdSet = new Set(activeEventSessionIds);
+		for (const key of this.missingTrackedChannelWarnings) {
+			const eventSessionId = this.getEventSessionIdFromMissingTrackedChannelKey(key);
+			if (eventSessionId === null || !activeSessionIdSet.has(eventSessionId)) {
+				this.missingTrackedChannelWarnings.delete(key);
+			}
+		}
+	}
+
+	private getEventSessionIdFromMissingTrackedChannelKey(key: string) {
+		const separatorIndex = key.indexOf(':');
+		if (separatorIndex === -1) {
+			return null;
+		}
+
+		const rawEventSessionId = key.slice(0, separatorIndex);
+		const eventSessionId = Number.parseInt(rawEventSessionId, 10);
+		return Number.isInteger(eventSessionId) ? eventSessionId : null;
 	}
 }
 
