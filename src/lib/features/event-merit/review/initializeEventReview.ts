@@ -1,8 +1,8 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 import { prisma, findUniqueEventSession, upsertManyEventParticipantStats, upsertManyEventReviewDecisions } from '../../../../integrations/prisma';
 import { clearTrackingSession, getTrackingParticipantsSnapshot } from '../../../../integrations/redis/eventTracking';
+import { ENV_DISCORD } from '../../../../config/env/discord';
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { EVENT_REVIEW_MERIT_THRESHOLD } from './constants';
 import { syncEventReviewMessage } from './syncEventReviewMessage';
 
 type InitializeEventReviewParams = {
@@ -143,5 +143,7 @@ function resolveDefaultDecision({ attendedSeconds, durationSeconds }: { attended
 		return EventReviewDecisionKind.NO_MERIT;
 	}
 
-	return attendedSeconds / durationSeconds >= EVENT_REVIEW_MERIT_THRESHOLD ? EventReviewDecisionKind.MERIT : EventReviewDecisionKind.NO_MERIT;
+	return attendedSeconds / durationSeconds >= ENV_DISCORD.EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT / 100
+		? EventReviewDecisionKind.MERIT
+		: EventReviewDecisionKind.NO_MERIT;
 }

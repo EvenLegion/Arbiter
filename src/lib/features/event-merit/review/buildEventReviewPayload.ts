@@ -1,7 +1,7 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
+import { ENV_DISCORD } from '../../../../config/env/discord';
 import type { EventReviewPageAttendee } from '../../../../integrations/prisma/event/getEventReviewPage';
-import { EVENT_REVIEW_MERIT_THRESHOLD } from './constants';
 import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel';
 
 type BuildEventReviewPayloadParams = {
@@ -253,7 +253,9 @@ function resolveDecision({
 		return EventReviewDecisionKind.NO_MERIT;
 	}
 
-	return attendedSeconds / durationSeconds >= EVENT_REVIEW_MERIT_THRESHOLD ? EventReviewDecisionKind.MERIT : EventReviewDecisionKind.NO_MERIT;
+	return attendedSeconds / durationSeconds >= ENV_DISCORD.EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT / 100
+		? EventReviewDecisionKind.MERIT
+		: EventReviewDecisionKind.NO_MERIT;
 }
 
 function formatDecisionLabel(decision: EventReviewDecisionKind) {
