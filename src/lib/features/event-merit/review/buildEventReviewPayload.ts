@@ -1,6 +1,6 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
-import type { EventReviewPageAttendee } from '../../../../integrations/prisma/event/findEventReviewPage';
+import type { EventReviewPageAttendee } from '../../../../integrations/prisma/event/getEventReviewPage';
 import { EVENT_REVIEW_MERIT_THRESHOLD } from './constants';
 import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel';
 

@@ -23,7 +23,7 @@ export {
 	createDraftEventSession,
 	deleteManyEventSessionChannels,
 	finalizeEventReview,
-	findEventReviewPage,
+	getEventReviewPage,
 	findManyEventSessions,
 	findReservedEventVoiceChannelReservation,
 	findManyReservedEventVoiceChannelIds,

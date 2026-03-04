@@ -2,7 +2,7 @@ import { type EventReviewDecisionKind, type EventSessionState } from '@prisma/cl
 import { z } from 'zod';
 import { prisma } from '../prisma';
 
-type FindEventReviewPageParams = {
+type GetEventReviewPageParams = {
 	eventSessionId: number;
 	page?: number;
 	pageSize?: number;
@@ -33,14 +33,14 @@ export type EventReviewPage = {
 	attendees: EventReviewPageAttendee[];
 };
 
-const FIND_EVENT_REVIEW_PAGE_SCHEMA = z.object({
+const GET_EVENT_REVIEW_PAGE_SCHEMA = z.object({
 	eventSessionId: z.number().int().positive(),
 	page: z.number().int().positive().default(1),
 	pageSize: z.number().int().positive().max(25).default(4)
 });
 
-export async function findEventReviewPage({ eventSessionId, page = 1, pageSize = 4 }: FindEventReviewPageParams): Promise<EventReviewPage | null> {
-	const parsed = FIND_EVENT_REVIEW_PAGE_SCHEMA.parse({
+export async function getEventReviewPage({ eventSessionId, page = 1, pageSize = 4 }: GetEventReviewPageParams): Promise<EventReviewPage | null> {
+	const parsed = GET_EVENT_REVIEW_PAGE_SCHEMA.parse({
 		eventSessionId,
 		page,
 		pageSize

@@ -1,7 +1,7 @@
 export { createDraftEventSession } from './createDraftEventSession';
 export { deleteManyEventSessionChannels } from './deleteManyEventSessionChannels';
 export { finalizeEventReview } from './finalizeEventReview';
-export { findEventReviewPage, type EventReviewPage, type EventReviewPageAttendee } from './findEventReviewPage';
+export { getEventReviewPage, type EventReviewPage, type EventReviewPageAttendee } from './getEventReviewPage';
 export { findManyEventSessions, findUniqueEventSession } from './findEventSessions';
 export { findFirstEventTier, findManyEventTiers } from './findEventTiers';
 export { findManyEventSessionMessages } from './findManyEventSessionMessages';

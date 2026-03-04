@@ -1,7 +1,7 @@
 import { EventSessionMessageKind, EventSessionState } from '@prisma/client';
 import type { Guild } from 'discord.js';
 import {
-	findEventReviewPage,
+	getEventReviewPage,
 	findManyEventSessionMessages,
 	findUniqueEventSession,
 	upsertEventSessionMessageRef
@@ -28,7 +28,7 @@ export async function syncEventReviewMessage({ guild, eventSessionId, page = 1, 
 
 	const pageSize = eventSessionState === EventSessionState.ENDED_PENDING_REVIEW ? EVENT_REVIEW_PAGE_SIZE : EVENT_REVIEW_FINALIZED_PAGE_SIZE;
 
-	const reviewPage = await findEventReviewPage({
+	const reviewPage = await getEventReviewPage({
 		eventSessionId,
 		page,
 		pageSize
