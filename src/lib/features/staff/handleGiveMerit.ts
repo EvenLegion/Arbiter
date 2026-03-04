@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { awardManualMerit, findUniqueEventSession, upsertUser } from '../../../integrations/prisma';
 import type { ExecutionContext } from '../../logging/executionContext';
+import { buildUserNickname } from '../guild-member/buildUserNickname';
 
 type HandleGiveMeritParams = {
 	interaction: ChatInputCommandInteraction;
@@ -127,10 +128,47 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 		eventSessionId: linkedEvent?.id ?? null
 	});
 
+	const awarderNicknameForDm =
+		(
+			await buildUserNickname({
+				discordUser: awarderMember,
+				context
+			}).catch((error: unknown) => {
+				logger.warn(
+					{
+						err: error,
+						awarderDiscordUserId: awarderMember.id
+					},
+					'Failed to build awarder nickname for manual merit DM'
+				);
+				return {
+					newUserNickname: null
+				};
+			})
+		).newUserNickname ?? awarderMember.displayName;
+
+	const dmEventLine = linkedEvent ? `\nEvent: ${linkedEvent.name} (#${linkedEvent.id})` : '';
+	const dmReasonLine = reason ? `\nReason: ${reason}` : '';
+	const dmSent = await targetMember.user
+		.send(`You were awarded **${parsedMerits.data} merits** in **${guild.name}** by **${awarderNicknameForDm}**.${dmEventLine}${dmReasonLine}`)
+		.then(() => true)
+		.catch((error: unknown) => {
+			logger.warn(
+				{
+					err: error,
+					targetDiscordUserId: targetMember.id,
+					meritRecordId: award.id
+				},
+				'Failed to DM manual merit award to recipient'
+			);
+			return false;
+		});
+
 	const eventLine = linkedEvent ? `\nLinked event: **${linkedEvent.name}** (#${linkedEvent.id})` : '';
 	const reasonLine = reason ? `\nReason: ${reason}` : '';
+	const dmLine = dmSent ? '\nRecipient notified via DM.' : '\nCould not DM recipient (DMs may be disabled).';
 	await interaction.editReply({
-		content: `Awarded **${parsedMerits.data} merits** to <@${targetMember.id}>${eventLine}${reasonLine}`
+		content: `Awarded **${parsedMerits.data} merits** to <@${targetMember.id}>${eventLine}${reasonLine}${dmLine}`
 	});
 
 	logger.info(
