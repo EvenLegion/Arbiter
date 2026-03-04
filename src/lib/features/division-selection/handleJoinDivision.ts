@@ -28,7 +28,7 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			'Guild not found for interaction'
 		);
 		interaction.editReply({
-			content: `There was an error processing your selection. Please contact a TECH member with the following: discordMessageId=${interaction.id} customButtonId=${interaction.customId}`
+			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
 	}
@@ -52,7 +52,7 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			'Guild member not found'
 		);
 		interaction.editReply({
-			content: `There was an error processing your selection. Please contact a TECH member with the following: discordMessageId=${interaction.id} customButtonId=${interaction.customId}`
+			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
 	}
@@ -72,7 +72,7 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			'Selected division not found'
 		);
 		interaction.editReply({
-			content: `There was an error processing your selection. Please contact a TECH member with the following: discordMessageId=${interaction.id} customButtonId=${interaction.customId}`
+			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
 	}
