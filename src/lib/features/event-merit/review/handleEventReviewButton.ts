@@ -35,7 +35,15 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 	});
 
 	try {
-		const guild = await container.utilities.guild.getOrThrow().catch(() => null);
+		const guild = await container.utilities.guild.getOrThrow().catch((error: unknown) => {
+			logger.error(
+				{
+					err: error
+				},
+				'Failed to resolve configured guild while handling event review button'
+			);
+			return null;
+		});
 		if (!guild) {
 			await interaction.reply({
 				content: 'This action can only be used in a server.',

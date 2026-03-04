@@ -2,6 +2,7 @@ export { prisma, closeDb } from './prisma';
 
 export { upsertUser } from './upsertUser';
 export { findUniqueUser } from './findUniqueUser';
+export { awardManualMerit } from './awardManualMerit';
 
 export {
 	getCachedDivisions,

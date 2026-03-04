@@ -15,7 +15,15 @@ type HandleJoinDivisionParams = {
 export async function handleJoinDivision({ userDbId, interaction, parsedDivisionSelection, divisions, context }: HandleJoinDivisionParams) {
 	const caller = 'handleJoinDivision';
 	const logger = context.logger.child({ caller });
-	const guild = await container.utilities.guild.getOrThrow().catch(() => null);
+	const guild = await container.utilities.guild.getOrThrow().catch((error: unknown) => {
+		logger.error(
+			{
+				err: error
+			},
+			'Failed to resolve configured guild while handling division join'
+		);
+		return null;
+	});
 	if (!guild) {
 		logger.error(
 			{
