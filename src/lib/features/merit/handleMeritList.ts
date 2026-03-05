@@ -73,16 +73,21 @@ export async function handleMeritList({ interaction, context }: HandleMeritListP
 
 	const requestedTargetUserId = interaction.options.getString('user_name')?.trim() ?? null;
 	const targetMember = requestedTargetUserId
-		? await guild.members.fetch(requestedTargetUserId).catch((error: unknown) => {
-				logger.warn(
-					{
-						err: error,
-						requestedTargetUserId
-					},
-					'Failed to resolve target member for merit list command'
-				);
-				return null;
-			})
+		? await container.utilities.member
+				.getOrThrow({
+					guild,
+					discordUserId: requestedTargetUserId
+				})
+				.catch((error: unknown) => {
+					logger.warn(
+						{
+							err: error,
+							requestedTargetUserId
+						},
+						'Failed to resolve target member for merit list command'
+					);
+					return null;
+				})
 		: requesterMember;
 	if (!targetMember || targetMember.user.bot) {
 		await interaction.reply({
@@ -177,15 +182,21 @@ export async function handleMeritListPageButton({ interaction, parsedMeritListBu
 		return;
 	}
 
-	const targetMember = await guild.members.fetch(parsedMeritListButton.targetDiscordUserId).catch((error: unknown) => {
-		logger.warn(
-			{
-				err: error
-			},
-			'Failed to resolve target member for merit list pagination'
-		);
-		return null;
-	});
+	const targetMember = await container.utilities.member
+		.getOrThrow({
+			guild,
+			discordUserId: parsedMeritListButton.targetDiscordUserId
+		})
+		.catch((error: unknown) => {
+			logger.warn(
+				{
+					err: error,
+					targetDiscordUserId: parsedMeritListButton.targetDiscordUserId
+				},
+				'Failed to resolve target member for merit list pagination'
+			);
+			return null;
+		});
 	if (!targetMember || targetMember.user.bot) {
 		await interaction
 			.followUp({
@@ -329,7 +340,7 @@ function buildMeritListPayload({
 }) {
 	const controls = new ActionRowBuilder<ButtonBuilder>().addComponents(
 		new ButtonBuilder()
-			.setCustomId(buildMeritListPageButtonId({ targetDiscordUserId, page: Math.max(1, page - 1), source: 'prev' }))
+			.setCustomId(buildMeritListPageButtonId({ targetDiscordUserId, page: Math.max(1, page - 1) }))
 			.setLabel('Prev')
 			.setStyle(ButtonStyle.Secondary)
 			.setDisabled(page <= 1),
@@ -339,7 +350,7 @@ function buildMeritListPayload({
 			.setStyle(ButtonStyle.Secondary)
 			.setDisabled(true),
 		new ButtonBuilder()
-			.setCustomId(buildMeritListPageButtonId({ targetDiscordUserId, page: Math.min(totalPages, page + 1), source: 'next' }))
+			.setCustomId(buildMeritListPageButtonId({ targetDiscordUserId, page: Math.min(totalPages, page + 1) }))
 			.setLabel('Next')
 			.setStyle(ButtonStyle.Secondary)
 			.setDisabled(page >= totalPages)
@@ -351,6 +362,6 @@ function buildMeritListPayload({
 	};
 }
 
-function buildMeritListPageButtonId({ targetDiscordUserId, page, source }: { targetDiscordUserId: string; page: number; source: 'prev' | 'next' }) {
-	return `merit:list:page:${targetDiscordUserId}:${page}:${source}`;
+function buildMeritListPageButtonId({ targetDiscordUserId, page }: { targetDiscordUserId: string; page: number }) {
+	return `merit:list:page:${targetDiscordUserId}:${page}`;
 }
