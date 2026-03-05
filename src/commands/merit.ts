@@ -38,12 +38,7 @@ export class MeritCommand extends Subcommand {
 								option.setName('player_name').setDescription('Player to award merits to.').setRequired(true).setAutocomplete(true)
 							)
 							.addIntegerOption((option) =>
-								option
-									.setName('number_of_merits')
-									.setDescription('How many merits to award.')
-									.setRequired(true)
-									.setMinValue(1)
-									.setMaxValue(10)
+								option.setName('number_of_merits').setDescription('How many merits to award.').setRequired(true).setMinValue(1)
 							)
 							.addStringOption((option) =>
 								option
@@ -56,7 +51,7 @@ export class MeritCommand extends Subcommand {
 							.addStringOption((option) =>
 								option
 									.setName('existing_event')
-									.setDescription('Optional event from the last 3 days to link this award to.')
+									.setDescription('Optional event from the last 5 days to link this award to.')
 									.setRequired(false)
 									.setAutocomplete(true)
 							)
@@ -160,11 +155,11 @@ export class MeritCommand extends Subcommand {
 
 		if (subcommandName === 'give' && focused.name === 'existing_event') {
 			const query = String(focused.value).trim();
-			const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+			const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
 			const sessions = await findManyEventSessions({
 				where: {
 					createdAt: {
-						gte: threeDaysAgo
+						gte: fiveDaysAgo
 					}
 				},
 				include: {

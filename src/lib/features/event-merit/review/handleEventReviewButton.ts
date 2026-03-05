@@ -363,7 +363,7 @@ async function syncAwardedMemberNicknames({
 				discordUserId
 			})
 			.catch((error: unknown) => {
-				logger.warn(
+				logger.error(
 					{
 						err: error,
 						discordUserId
@@ -386,7 +386,7 @@ async function syncAwardedMemberNicknames({
 				}
 			})
 		}).catch((error: unknown) => {
-			logger.warn(
+			logger.error(
 				{
 					err: error,
 					discordUserId
@@ -400,7 +400,7 @@ async function syncAwardedMemberNicknames({
 
 		if (nicknameResult.newUserNickname && member.nickname !== nicknameResult.newUserNickname) {
 			await member.setNickname(nicknameResult.newUserNickname, 'Event review merit rank sync').catch((error: unknown) => {
-				logger.warn(
+				logger.error(
 					{
 						err: error,
 						discordUserId,

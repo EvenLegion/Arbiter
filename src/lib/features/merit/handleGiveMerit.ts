@@ -101,13 +101,13 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 	const targetDbUser = await upsertUser({
 		discordUserId: targetMember.id,
 		discordUsername: targetMember.user.username,
-		discordNickname: targetMember.user.globalName ?? targetMember.nickname ?? targetMember.user.username,
+		discordNickname: targetMember.user.globalName ?? targetMember.user.username,
 		discordAvatarUrl: targetMember.user.displayAvatarURL()
 	});
 	const awarderDbUser = await upsertUser({
 		discordUserId: awarderMember.id,
 		discordUsername: awarderMember.user.username,
-		discordNickname: awarderMember.user.globalName ?? awarderMember.nickname ?? awarderMember.user.username,
+		discordNickname: awarderMember.user.globalName ?? awarderMember.user.username,
 		discordAvatarUrl: awarderMember.user.displayAvatarURL()
 	});
 
