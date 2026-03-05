@@ -106,7 +106,7 @@ export class MeritCommand extends Subcommand {
 		if (!requesterIsStaff) {
 			await interaction.respond([
 				{
-					name: `${requesterMember.displayName} (@${requesterMember.user.username})`.slice(0, 100),
+					name: `${requesterMember.displayName}`.slice(0, 100),
 					value: requesterMember.id
 				}
 			]);
@@ -122,8 +122,7 @@ export class MeritCommand extends Subcommand {
 				}
 
 				const displayName = member.displayName.toLowerCase();
-				const username = member.user.username.toLowerCase();
-				return displayName.includes(query) || username.includes(query);
+				return displayName.includes(query);
 			})
 			.sort((a, b) => sortMembersByQuery({ a, b, query }));
 
@@ -142,7 +141,7 @@ export class MeritCommand extends Subcommand {
 
 		await interaction.respond(
 			members.slice(0, 25).map((member) => ({
-				name: `${member.displayName} (@${member.user.username})`.slice(0, 100),
+				name: `${member.displayName}`.slice(0, 100),
 				value: member.id
 			}))
 		);
@@ -154,8 +153,8 @@ function sortMembersByQuery({ a, b, query }: { a: GuildMember; b: GuildMember; q
 		return a.displayName.localeCompare(b.displayName);
 	}
 
-	const aStarts = a.displayName.toLowerCase().startsWith(query) || a.user.username.toLowerCase().startsWith(query);
-	const bStarts = b.displayName.toLowerCase().startsWith(query) || b.user.username.toLowerCase().startsWith(query);
+	const aStarts = a.displayName.toLowerCase().startsWith(query);
+	const bStarts = b.displayName.toLowerCase().startsWith(query);
 	if (aStarts !== bStarts) {
 		return aStarts ? -1 : 1;
 	}
