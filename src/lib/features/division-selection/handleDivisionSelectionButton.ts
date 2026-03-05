@@ -31,7 +31,15 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 
 	await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-	const guild = await container.utilities.guild.getOrThrow().catch(() => null);
+	const guild = await container.utilities.guild.getOrThrow().catch((error: unknown) => {
+		logger.error(
+			{
+				err: error
+			},
+			'Failed to resolve configured guild while handling division selection button'
+		);
+		return null;
+	});
 	if (!guild) {
 		await interaction.editReply({
 			content: 'This action can only be used in a server.'

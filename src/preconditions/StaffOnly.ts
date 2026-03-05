@@ -16,7 +16,17 @@ export class StaffOnlyPrecondition extends AllFlowsPrecondition {
 		void _command;
 		void _context;
 
-		const guild = await this.container.utilities.guild.getOrThrow().catch(() => null);
+		const guild = await this.container.utilities.guild.getOrThrow().catch((error: unknown) => {
+			this.container.logger.error(
+				{
+					err: error,
+					precondition: 'StaffOnly',
+					discordUserId: interaction.user.id
+				},
+				'Failed to resolve configured guild in StaffOnly precondition'
+			);
+			return null;
+		});
 		if (!guild) {
 			return this.error({
 				message: 'This command can only be used in a server.'

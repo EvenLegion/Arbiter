@@ -60,7 +60,15 @@ export class DevCommand extends Subcommand {
 
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-		const guild = await this.container.utilities.guild.getOrThrow().catch(() => null);
+		const guild = await this.container.utilities.guild.getOrThrow().catch((error: unknown) => {
+			logger.error(
+				{
+					err: error
+				},
+				'Failed to resolve configured guild for dev sync command'
+			);
+			return null;
+		});
 		if (!guild) {
 			await interaction.editReply({ content: 'This command can only be used in a guild.' });
 			return;

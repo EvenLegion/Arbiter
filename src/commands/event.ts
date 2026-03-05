@@ -163,7 +163,18 @@ export class EventCommand extends Subcommand {
 			}
 
 			if (subcommandName === 'add-vc' && focused.name === 'voice_channel') {
-				const guild = await this.container.utilities.guild.getOrThrow().catch(() => null);
+				const guild = await this.container.utilities.guild.getOrThrow().catch((error: unknown) => {
+					this.container.logger.error(
+						{
+							err: error,
+							commandName: this.name,
+							subcommandName,
+							focusedOptionName: focused.name
+						},
+						'Failed to resolve configured guild during event command autocomplete'
+					);
+					return null;
+				});
 				if (!guild) {
 					await interaction.respond([]);
 					return;
