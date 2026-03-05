@@ -13,7 +13,7 @@ import {
 import { container } from '@sapphire/framework';
 
 import { ENV_DISCORD } from '../../../config/env';
-import { createNameChangeRequest, saveNameChangeRequestReviewMessage } from '../../../integrations/prisma';
+import { createNameChangeRequest, saveNameChangeRequestReviewThread } from '../../../integrations/prisma';
 import type { ExecutionContext } from '../../logging/executionContext';
 import { buildNameChangeReviewActionRow } from './nameChangeReviewButtons';
 
@@ -163,10 +163,9 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 		return;
 	}
 
-	await saveNameChangeRequestReviewMessage({
+	await saveNameChangeRequestReviewThread({
 		requestId: request.id,
-		reviewThreadId: threadResult.thread.id,
-		reviewMessageId: threadResult.reviewMessageId
+		reviewThreadId: threadResult.thread.id
 	});
 
 	logger.info(
@@ -174,8 +173,7 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 			requestId: request.id,
 			requesterDiscordUserId: interaction.user.id,
 			requestedName,
-			reviewThreadId: threadResult.thread.id,
-			reviewMessageId: threadResult.reviewMessageId
+			reviewThreadId: threadResult.thread.id
 		},
 		'Created name change ticket'
 	);
@@ -236,11 +234,9 @@ async function createReviewThread({
 			},
 			reason
 		});
-		const starterMessage = await thread.fetchStarterMessage().catch(() => null);
-		const reviewMessageId = starterMessage?.id ?? thread.id;
+		await thread.fetchStarterMessage().catch(() => null);
 		return {
-			thread,
-			reviewMessageId
+			thread
 		};
 	}
 
@@ -249,7 +245,7 @@ async function createReviewThread({
 		autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
 		reason
 	});
-	const reviewMessage = await thread.send({
+	await thread.send({
 		content: mentionContent,
 		embeds: [embed],
 		components,
@@ -259,8 +255,7 @@ async function createReviewThread({
 	});
 
 	return {
-		thread,
-		reviewMessageId: reviewMessage.id
+		thread
 	};
 }
 
