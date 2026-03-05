@@ -21,7 +21,7 @@ type FailedMember = {
 	preconditions: ['GuildOnly', 'StaffOnly'],
 	subcommands: [
 		{
-			name: 'sync-guild-members',
+			name: 'sync_guild_members',
 			chatInputRun: 'chatInputSyncGuildMembers'
 		}
 	]
@@ -39,7 +39,7 @@ export class DevCommand extends Subcommand {
 					.setDescription('Development-only commands.')
 					.addSubcommand((subcommand) =>
 						subcommand
-							.setName('sync-guild-members')
+							.setName('sync_guild_members')
 							.setDescription('Sync all guild members with the database (users, divisions, and nicknames).')
 					),
 			{

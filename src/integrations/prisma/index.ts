@@ -1,7 +1,11 @@
 export { prisma, closeDb } from './prisma';
 
 export { upsertUser } from './upsertUser';
+export { updateUserNickname } from './updateUserNickname';
 export { findUniqueUser } from './findUniqueUser';
+export { createNameChangeRequest } from './createNameChangeRequest';
+export { reviewNameChangeRequest } from './reviewNameChangeRequest';
+export { saveNameChangeRequestReviewMessage } from './saveNameChangeRequestReviewMessage';
 export { getUserMeritSummary, type UserMeritSummary, type MeritSummaryEntry } from './getUserMeritSummary';
 export { getUserTotalMerits } from './getUserTotalMerits';
 export { getUsersTotalMerits } from './getUsersTotalMerits';

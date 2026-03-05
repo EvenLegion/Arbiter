@@ -10,7 +10,7 @@ import { createExecutionContext } from '../lib/logging/executionContext';
 	preconditions: ['GuildOnly', 'StaffOnly'],
 	subcommands: [
 		{
-			name: 'post-division-message',
+			name: 'post_division_message',
 			chatInputRun: 'chatInputPostDivisionMessage'
 		}
 	]
@@ -23,7 +23,7 @@ export class StaffCommand extends Subcommand {
 					.setName('staff')
 					.setDescription('Staff commands.')
 					.addSubcommand((subcommand) =>
-						subcommand.setName('post-division-message').setDescription('Post combat and industrial division selection message.')
+						subcommand.setName('post_division_message').setDescription('Post combat and industrial division selection message.')
 					),
 			{
 				guildIds: [ENV_DISCORD.DISCORD_GUILD_ID]
