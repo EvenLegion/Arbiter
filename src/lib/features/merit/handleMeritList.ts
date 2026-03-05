@@ -15,13 +15,14 @@ import {
 import { findUniqueUser, getUserMeritSummary, type MeritSummaryEntry } from '../../../integrations/prisma';
 import type { ExecutionContext } from '../../logging/executionContext';
 import type { ParsedMeritListButton } from './parseMeritListButton';
+import { buildMeritRankProgressBar, resolveMeritRankProgress } from './meritRank';
 
 type HandleMeritListParams = {
 	interaction: ChatInputCommandInteraction;
 	context: ExecutionContext;
 };
 
-const MERIT_LIST_PAGE_SIZE = 10;
+const MERIT_LIST_PAGE_SIZE = 5;
 
 export async function handleMeritList({ interaction, context }: HandleMeritListParams) {
 	const caller = 'handleMeritList';
@@ -266,6 +267,14 @@ function buildMeritListEmbed({
 	const { description } = buildEntriesDescription({
 		entries
 	});
+	const rankProgress = resolveMeritRankProgress(totalMerits);
+	const currentRankLabel = rankProgress.currentLevel ? `Level ${rankProgress.currentLevel}` : 'Unranked';
+	const progressValue = rankProgress.nextLevel
+		? [
+				`To Level ${rankProgress.nextLevel}: ${buildMeritRankProgressBar({ progressRatio: rankProgress.progressRatio })} ${rankProgress.progressPercent}%`,
+				`${rankProgress.meritsRemainingToNextLevel} merit${rankProgress.meritsRemainingToNextLevel === 1 ? '' : 's'} needed to next rank`
+			].join('\n')
+		: 'Max rank reached';
 
 	return new EmbedBuilder()
 		.setTitle(`Merits for ${targetMember.displayName}`)
@@ -280,6 +289,16 @@ function buildMeritListEmbed({
 				name: 'Merit Awarding Events',
 				value: String(totalLinkedEvents),
 				inline: true
+			},
+			{
+				name: 'Current Rank',
+				value: currentRankLabel,
+				inline: true
+			},
+			{
+				name: 'Rank Progress',
+				value: progressValue,
+				inline: false
 			}
 		)
 		.setDescription(description);
@@ -300,8 +319,8 @@ function buildEntriesDescription({ entries }: { entries: MeritSummaryEntry[] }) 
 		const entry = entries[index];
 		const timestamp = `<t:${Math.floor(entry.createdAt.getTime() / 1_000)}:f>`;
 		const reason = trimForDisplay(entry.reason ?? 'No reason provided', 180);
-		const event = entry.eventSession ? `${entry.eventSession.name} (#${entry.eventSession.id})` : 'No linked event';
-		const chunk = `**+${entry.amount} merits** • ${timestamp}\nReason: ${reason}\nEvent: ${trimForDisplay(event, 140)}`;
+		const event = entry.eventSession ? `${entry.eventSession.name}` : 'No linked event';
+		const chunk = `**+${entry.amount} merits** ${timestamp}\nReason: ${reason}\nEvent: ${trimForDisplay(event, 140)}`;
 
 		const extraLength = chunks.length === 0 ? chunk.length : chunk.length + 2;
 		if (currentLength + extraLength > maxDescriptionLength) {

@@ -14,6 +14,11 @@ type FinalizeEventReviewResult = {
 	finalized: boolean;
 	toState: FinalizedEventSessionState;
 	awardedCount: number;
+	awardedMeritAmount: number;
+	awardedUsers: {
+		dbUserId: string;
+		discordUserId: string;
+	}[];
 };
 
 const FINALIZE_EVENT_REVIEW_SCHEMA = z.object({
@@ -49,7 +54,9 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			return {
 				finalized: false,
 				toState,
-				awardedCount: 0
+				awardedCount: 0,
+				awardedMeritAmount: 0,
+				awardedUsers: []
 			};
 		}
 
@@ -68,7 +75,9 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			return {
 				finalized: false,
 				toState,
-				awardedCount: 0
+				awardedCount: 0,
+				awardedMeritAmount: 0,
+				awardedUsers: []
 			};
 		}
 
@@ -76,7 +85,9 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			return {
 				finalized: true,
 				toState,
-				awardedCount: 0
+				awardedCount: 0,
+				awardedMeritAmount: 0,
+				awardedUsers: []
 			};
 		}
 
@@ -86,7 +97,12 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 				decision: EventReviewDecisionKind.MERIT
 			},
 			select: {
-				targetUserId: true
+				targetUserId: true,
+				targetUser: {
+					select: {
+						discordUserId: true
+					}
+				}
 			},
 			distinct: ['targetUserId']
 		});
@@ -95,12 +111,38 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			return {
 				finalized: true,
 				toState,
-				awardedCount: 0
+				awardedCount: 0,
+				awardedMeritAmount: 0,
+				awardedUsers: []
+			};
+		}
+
+		const preExistingMerits = await tx.merit.findMany({
+			where: {
+				eventSessionId: parsed.eventSessionId,
+				source: MeritSource.EVENT,
+				userId: {
+					in: meritDecisionRows.map((row) => row.targetUserId)
+				}
+			},
+			select: {
+				userId: true
+			}
+		});
+		const preExistingMeritUserIds = new Set(preExistingMerits.map((row) => row.userId));
+		const rowsToAward = meritDecisionRows.filter((row) => !preExistingMeritUserIds.has(row.targetUserId));
+		if (rowsToAward.length === 0) {
+			return {
+				finalized: true,
+				toState,
+				awardedCount: 0,
+				awardedMeritAmount: 0,
+				awardedUsers: []
 			};
 		}
 
 		const createManyResult = await tx.merit.createMany({
-			data: meritDecisionRows.map((row) => ({
+			data: rowsToAward.map((row) => ({
 				userId: row.targetUserId,
 				awardedByUserId: parsed.reviewerDbUserId,
 				amount: eventSession.eventTier.meritAmount,
@@ -114,7 +156,12 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 		return {
 			finalized: true,
 			toState,
-			awardedCount: createManyResult.count
+			awardedCount: createManyResult.count,
+			awardedMeritAmount: eventSession.eventTier.meritAmount,
+			awardedUsers: rowsToAward.map((row) => ({
+				dbUserId: row.targetUserId,
+				discordUserId: row.targetUser.discordUserId
+			}))
 		};
 	});
 }

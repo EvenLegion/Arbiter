@@ -1,10 +1,11 @@
 import { DivisionKind, EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import { container } from '@sapphire/framework';
-import { ButtonInteraction, MessageFlags } from 'discord.js';
+import { ButtonInteraction, Guild, MessageFlags } from 'discord.js';
 import {
 	deleteManyEventSessionChannels,
 	finalizeEventReview,
 	findUniqueEventSession,
+	getUsersTotalMerits,
 	upsertEventReviewDecision
 } from '../../../../integrations/prisma';
 import { ENV_DISCORD } from '../../../../config/env';
@@ -13,6 +14,9 @@ import type { ParsedEventReviewButton } from './parseEventReviewButton';
 import { syncTrackingSummaryMessage } from '../session/syncTrackingSummaryMessage';
 import { syncEventReviewMessage } from './syncEventReviewMessage';
 import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel';
+import { buildUserNickname } from '../../guild-member/buildUserNickname';
+import { createChildExecutionContext } from '../../../logging/executionContext';
+import { notifyMeritRankUp } from '../../merit/notifyMeritRankUp';
 
 type HandleEventReviewButtonParams = {
 	interaction: ButtonInteraction;
@@ -25,6 +29,7 @@ const VIEWABLE_REVIEW_STATES = new Set<EventSessionState>([
 	EventSessionState.FINALIZED_WITH_MERITS,
 	EventSessionState.FINALIZED_NO_MERITS
 ]);
+const AWARDED_MEMBER_SYNC_CONCURRENCY = 3;
 
 export async function handleEventReviewButton({ interaction, parsedEventReviewButton, context }: HandleEventReviewButtonParams) {
 	const caller = 'handleEventReviewButton';
@@ -154,6 +159,14 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 				return;
 			}
 
+			await syncAwardedMemberNicknames({
+				guild,
+				awardedUsers: finalizeResult.awardedUsers,
+				awardedMeritAmount: finalizeResult.awardedMeritAmount,
+				context,
+				logger
+			});
+
 			const finalizedSession = await findUniqueEventSession({
 				eventSessionId: parsedEventReviewButton.eventSessionId,
 				include: {
@@ -268,7 +281,7 @@ async function postReviewSubmissionMessagesToTrackedVoiceChannels({
 	mode,
 	logger
 }: {
-	guild: import('discord.js').Guild;
+	guild: Guild;
 	eventSession: Awaited<
 		ReturnType<
 			typeof findUniqueEventSession<{
@@ -321,4 +334,139 @@ async function postReviewSubmissionMessagesToTrackedVoiceChannels({
 			);
 		});
 	}
+}
+
+async function syncAwardedMemberNicknames({
+	guild,
+	awardedUsers,
+	awardedMeritAmount,
+	context,
+	logger
+}: {
+	guild: Guild;
+	awardedUsers: Array<{
+		dbUserId: string;
+		discordUserId: string;
+	}>;
+	awardedMeritAmount: number;
+	context: ExecutionContext;
+	logger: ExecutionContext['logger'];
+}) {
+	if (awardedUsers.length === 0) {
+		return;
+	}
+
+	const awardedUsersByDbUserId = new Map(awardedUsers.map((awardedUser) => [awardedUser.dbUserId, awardedUser]));
+	const uniqueAwardedUsers = [...awardedUsersByDbUserId.values()];
+	const totalsByDbUserId =
+		awardedMeritAmount > 0
+			? await getUsersTotalMerits({
+					userDbUserIds: uniqueAwardedUsers.map((awardedUser) => awardedUser.dbUserId)
+				}).catch((error: unknown) => {
+					logger.error(
+						{
+							err: error
+						},
+						'Failed to fetch total merits for awarded users'
+					);
+					return new Map<string, number>();
+				})
+			: new Map<string, number>();
+
+	await runWithConcurrencyLimit(uniqueAwardedUsers, AWARDED_MEMBER_SYNC_CONCURRENCY, async (awardedUser) => {
+		const discordUserId = awardedUser.discordUserId;
+		const member = await container.utilities.member
+			.getOrThrow({
+				guild,
+				discordUserId
+			})
+			.catch((error: unknown) => {
+				logger.error(
+					{
+						err: error,
+						discordUserId
+					},
+					'Failed to resolve awarded member for nickname sync'
+				);
+				return null;
+			});
+		if (!member || member.user.bot) {
+			return;
+		}
+
+		const nicknameResult = await buildUserNickname({
+			discordUser: member,
+			context: createChildExecutionContext({
+				context,
+				bindings: {
+					step: 'syncAwardedMemberNickname',
+					discordUserId
+				}
+			}),
+			totalMeritsOverride: totalsByDbUserId.get(awardedUser.dbUserId)
+		}).catch((error: unknown) => {
+			logger.error(
+				{
+					err: error,
+					discordUserId
+				},
+				'Failed to build awarded member nickname after review finalization'
+			);
+			return {
+				newUserNickname: null
+			};
+		});
+
+		if (nicknameResult.newUserNickname && member.nickname !== nicknameResult.newUserNickname) {
+			await member.setNickname(nicknameResult.newUserNickname, 'Event review merit rank sync').catch((error: unknown) => {
+				logger.error(
+					{
+						err: error,
+						discordUserId,
+						newUserNickname: nicknameResult.newUserNickname
+					},
+					'Failed to set awarded member nickname after review finalization'
+				);
+			});
+		}
+
+		if (awardedMeritAmount > 0) {
+			const currentTotalMerits = totalsByDbUserId.get(awardedUser.dbUserId);
+			if (typeof currentTotalMerits !== 'number') {
+				logger.warn(
+					{
+						discordUserId,
+						dbUserId: awardedUser.dbUserId
+					},
+					'Skipping rank-up notification because total merits could not be resolved'
+				);
+				return;
+			}
+			const previousTotalMerits = Math.max(0, currentTotalMerits - awardedMeritAmount);
+			await notifyMeritRankUp({
+				member,
+				previousTotalMerits,
+				currentTotalMerits,
+				logger
+			});
+		}
+	});
+}
+
+async function runWithConcurrencyLimit<T>(items: readonly T[], concurrency: number, worker: (item: T) => Promise<void>) {
+	if (items.length === 0) {
+		return;
+	}
+
+	const maxConcurrency = Math.max(1, Math.min(concurrency, items.length));
+	let nextIndex = 0;
+
+	const runners = Array.from({ length: maxConcurrency }, async () => {
+		while (nextIndex < items.length) {
+			const currentIndex = nextIndex++;
+			await worker(items[currentIndex]);
+		}
+	});
+
+	await Promise.all(runners);
 }

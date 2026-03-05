@@ -3,6 +3,8 @@ export { prisma, closeDb } from './prisma';
 export { upsertUser } from './upsertUser';
 export { findUniqueUser } from './findUniqueUser';
 export { getUserMeritSummary, type UserMeritSummary, type MeritSummaryEntry } from './getUserMeritSummary';
+export { getUserTotalMerits } from './getUserTotalMerits';
+export { getUsersTotalMerits } from './getUsersTotalMerits';
 export { awardManualMerit } from './awardManualMerit';
 
 export {
