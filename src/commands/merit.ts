@@ -4,6 +4,8 @@ import { DivisionKind } from '@prisma/client';
 import type { GuildMember } from 'discord.js';
 
 import { ENV_DISCORD } from '../config/env';
+import { findManyEventSessions } from '../integrations/prisma';
+import { handleGiveMerit } from '../lib/features/merit/handleGiveMerit';
 import { handleMeritList } from '../lib/features/merit/handleMeritList';
 import { createExecutionContext } from '../lib/logging/executionContext';
 
@@ -11,6 +13,10 @@ import { createExecutionContext } from '../lib/logging/executionContext';
 	description: 'Merit commands',
 	preconditions: ['GuildOnly'],
 	subcommands: [
+		{
+			name: 'give',
+			chatInputRun: 'chatInputGive'
+		},
 		{
 			name: 'list',
 			chatInputRun: 'chatInputList'
@@ -24,6 +30,37 @@ export class MeritCommand extends Subcommand {
 				builder
 					.setName('merit')
 					.setDescription('Merit commands.')
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('give')
+							.setDescription('Award manual merits to a player (staff only).')
+							.addStringOption((option) =>
+								option.setName('player_name').setDescription('Player to award merits to.').setRequired(true).setAutocomplete(true)
+							)
+							.addIntegerOption((option) =>
+								option
+									.setName('number_of_merits')
+									.setDescription('How many merits to award.')
+									.setRequired(true)
+									.setMinValue(1)
+									.setMaxValue(10)
+							)
+							.addStringOption((option) =>
+								option
+									.setName('reason')
+									.setDescription('Optional reason for this manual merit award.')
+									.setRequired(false)
+									.setMinLength(1)
+									.setMaxLength(100)
+							)
+							.addStringOption((option) =>
+								option
+									.setName('existing_event')
+									.setDescription('Optional event from the last 3 days to link this award to.')
+									.setRequired(false)
+									.setAutocomplete(true)
+							)
+					)
 					.addSubcommand((subcommand) =>
 						subcommand
 							.setName('list')
@@ -63,10 +100,22 @@ export class MeritCommand extends Subcommand {
 		});
 	}
 
+	public async chatInputGive(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createExecutionContext({
+			bindings: {
+				flow: 'merit.give',
+				discordInteractionId: interaction.id,
+				discordUserId: interaction.user.id
+			}
+		});
+
+		return handleGiveMerit({ interaction, context });
+	}
+
 	public override async autocompleteRun(interaction: Subcommand.AutocompleteInteraction) {
 		const subcommandName = interaction.options.getSubcommand(false);
 		const focused = interaction.options.getFocused(true);
-		if (subcommandName !== 'list' || focused.name !== 'user_name') {
+		if (subcommandName !== 'list' && subcommandName !== 'give') {
 			await interaction.respond([]);
 			return;
 		}
@@ -103,10 +152,47 @@ export class MeritCommand extends Subcommand {
 			member: requesterMember,
 			requiredRoleKinds: [DivisionKind.STAFF]
 		});
+
+		if (subcommandName === 'give' && !requesterIsStaff) {
+			await interaction.respond([]);
+			return;
+		}
+
+		if (subcommandName === 'give' && focused.name === 'existing_event') {
+			const query = String(focused.value).trim();
+			const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+			const sessions = await findManyEventSessions({
+				where: {
+					createdAt: {
+						gte: threeDaysAgo
+					}
+				},
+				include: {
+					eventTier: true
+				},
+				orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+				query,
+				limit: 25
+			});
+
+			await interaction.respond(
+				sessions.map((session) => ({
+					name: `${formatRelativeDayLabel(session.createdAt)} | ${session.eventTier.name} | ${session.name}`.slice(0, 100),
+					value: String(session.id)
+				}))
+			);
+			return;
+		}
+
+		if (focused.name !== 'user_name' && focused.name !== 'player_name') {
+			await interaction.respond([]);
+			return;
+		}
+
 		if (!requesterIsStaff) {
 			await interaction.respond([
 				{
-					name: `${requesterMember.displayName} (@${requesterMember.user.username})`.slice(0, 100),
+					name: `${requesterMember.displayName}`.slice(0, 100),
 					value: requesterMember.id
 				}
 			]);
@@ -142,11 +228,23 @@ export class MeritCommand extends Subcommand {
 
 		await interaction.respond(
 			members.slice(0, 25).map((member) => ({
-				name: `${member.displayName} (@${member.user.username})`.slice(0, 100),
+				name: `${member.displayName}`.slice(0, 100),
 				value: member.id
 			}))
 		);
 	}
+}
+
+function formatRelativeDayLabel(value: Date) {
+	const now = new Date();
+	const dayDiff = Math.floor((now.getTime() - value.getTime()) / (24 * 60 * 60 * 1000));
+	if (dayDiff <= 0) {
+		return 'Today';
+	}
+	if (dayDiff === 1) {
+		return 'Yesterday';
+	}
+	return `${dayDiff} days ago`;
 }
 
 function sortMembersByQuery({ a, b, query }: { a: GuildMember; b: GuildMember; query: string }) {

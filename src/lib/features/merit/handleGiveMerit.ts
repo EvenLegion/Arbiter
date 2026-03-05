@@ -1,10 +1,12 @@
+import { DivisionKind } from '@prisma/client';
 import { type ChatInputCommandInteraction, type Guild, type GuildMember, MessageFlags } from 'discord.js';
 import { container } from '@sapphire/framework';
 import { z } from 'zod';
 
-import { awardManualMerit, findUniqueEventSession, upsertUser } from '../../../integrations/prisma';
-import type { ExecutionContext } from '../../logging/executionContext';
+import { awardManualMerit, findUniqueEventSession, getUserTotalMerits, upsertUser } from '../../../integrations/prisma';
+import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
 import { buildUserNickname } from '../guild-member/buildUserNickname';
+import { notifyMeritRankUp } from './notifyMeritRankUp';
 
 type HandleGiveMeritParams = {
 	interaction: ChatInputCommandInteraction;
@@ -85,6 +87,16 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 		});
 		return;
 	}
+	const requesterIsStaff = await container.utilities.divisionRolePolicy.memberHasDivisionKindRole({
+		member: awarderMember,
+		requiredRoleKinds: [DivisionKind.STAFF]
+	});
+	if (!requesterIsStaff) {
+		await interaction.editReply({
+			content: 'Only staff can use this command.'
+		});
+		return;
+	}
 
 	const targetDbUser = await upsertUser({
 		discordUserId: targetMember.id,
@@ -128,6 +140,50 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 		eventSessionId: linkedEvent?.id ?? null
 	});
 
+	const targetNicknameResult = await buildUserNickname({
+		discordUser: targetMember,
+		context: createChildExecutionContext({
+			context,
+			bindings: {
+				step: 'syncRecipientNicknameAfterManualMerit'
+			}
+		})
+	}).catch((error: unknown) => {
+		logger.warn(
+			{
+				err: error,
+				targetDiscordUserId: targetMember.id
+			},
+			'Failed to build recipient nickname after manual merit award'
+		);
+		return {
+			newUserNickname: null
+		};
+	});
+	if (targetNicknameResult.newUserNickname && targetMember.nickname !== targetNicknameResult.newUserNickname) {
+		await targetMember.setNickname(targetNicknameResult.newUserNickname, 'Manual merit rank sync').catch((error: unknown) => {
+			logger.warn(
+				{
+					err: error,
+					targetDiscordUserId: targetMember.id,
+					newUserNickname: targetNicknameResult.newUserNickname
+				},
+				'Failed to set recipient nickname after manual merit award'
+			);
+		});
+	}
+
+	const currentTotalMerits = await getUserTotalMerits({
+		userDbUserId: targetDbUser.id
+	});
+	const previousTotalMerits = Math.max(0, currentTotalMerits - parsedMerits.data);
+	await notifyMeritRankUp({
+		member: targetMember,
+		previousTotalMerits,
+		currentTotalMerits,
+		logger
+	});
+
 	const awarderNicknameForDm =
 		(
 			await buildUserNickname({
@@ -147,10 +203,12 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 			})
 		).newUserNickname ?? awarderMember.displayName;
 
-	const dmEventLine = linkedEvent ? `\nEvent: ${linkedEvent.name} (#${linkedEvent.id})` : '';
+	const dmEventLine = linkedEvent ? `\nEvent: ${linkedEvent.name}` : '';
 	const dmReasonLine = reason ? `\nReason: ${reason}` : '';
 	const dmSent = await targetMember.user
-		.send(`You were awarded **${parsedMerits.data} merits** in **${guild.name}** by **${awarderNicknameForDm}**.${dmEventLine}${dmReasonLine}`)
+		.send(
+			`You were awarded **${parsedMerits.data} merit${parsedMerits.data === 1 ? '' : 's'}** by **${awarderNicknameForDm}**.${dmEventLine}${dmReasonLine}`
+		)
 		.then(() => true)
 		.catch((error: unknown) => {
 			logger.warn(
@@ -164,7 +222,7 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 			return false;
 		});
 
-	const eventLine = linkedEvent ? `\nLinked event: **${linkedEvent.name}** (#${linkedEvent.id})` : '';
+	const eventLine = linkedEvent ? `\nLinked event: **${linkedEvent.name}**` : '';
 	const reasonLine = reason ? `\nReason: ${reason}` : '';
 	const dmLine = dmSent ? '\nRecipient notified via DM.' : '\nCould not DM recipient (DMs may be disabled).';
 	await interaction.editReply({

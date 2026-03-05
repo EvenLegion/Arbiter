@@ -1,10 +1,11 @@
 import { DivisionKind, EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import { container } from '@sapphire/framework';
-import { ButtonInteraction, MessageFlags } from 'discord.js';
+import { ButtonInteraction, Guild, MessageFlags } from 'discord.js';
 import {
 	deleteManyEventSessionChannels,
 	finalizeEventReview,
 	findUniqueEventSession,
+	getUserTotalMerits,
 	upsertEventReviewDecision
 } from '../../../../integrations/prisma';
 import { ENV_DISCORD } from '../../../../config/env';
@@ -13,6 +14,9 @@ import type { ParsedEventReviewButton } from './parseEventReviewButton';
 import { syncTrackingSummaryMessage } from '../session/syncTrackingSummaryMessage';
 import { syncEventReviewMessage } from './syncEventReviewMessage';
 import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel';
+import { buildUserNickname } from '../../guild-member/buildUserNickname';
+import { createChildExecutionContext } from '../../../logging/executionContext';
+import { notifyMeritRankUp } from '../../merit/notifyMeritRankUp';
 
 type HandleEventReviewButtonParams = {
 	interaction: ButtonInteraction;
@@ -154,6 +158,14 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 				return;
 			}
 
+			await syncAwardedMemberNicknames({
+				guild,
+				awardedUsers: finalizeResult.awardedUsers,
+				awardedMeritAmount: finalizeResult.awardedMeritAmount,
+				context,
+				logger
+			});
+
 			const finalizedSession = await findUniqueEventSession({
 				eventSessionId: parsedEventReviewButton.eventSessionId,
 				include: {
@@ -268,7 +280,7 @@ async function postReviewSubmissionMessagesToTrackedVoiceChannels({
 	mode,
 	logger
 }: {
-	guild: import('discord.js').Guild;
+	guild: Guild;
 	eventSession: Awaited<
 		ReturnType<
 			typeof findUniqueEventSession<{
@@ -320,5 +332,96 @@ async function postReviewSubmissionMessagesToTrackedVoiceChannels({
 				'Failed to post review-submitted update to tracked voice channel'
 			);
 		});
+	}
+}
+
+async function syncAwardedMemberNicknames({
+	guild,
+	awardedUsers,
+	awardedMeritAmount,
+	context,
+	logger
+}: {
+	guild: Guild;
+	awardedUsers: Array<{
+		dbUserId: string;
+		discordUserId: string;
+	}>;
+	awardedMeritAmount: number;
+	context: ExecutionContext;
+	logger: ExecutionContext['logger'];
+}) {
+	if (awardedUsers.length === 0) {
+		return;
+	}
+
+	for (const awardedUser of awardedUsers) {
+		const discordUserId = awardedUser.discordUserId;
+		const member = await container.utilities.member
+			.getOrThrow({
+				guild,
+				discordUserId
+			})
+			.catch((error: unknown) => {
+				logger.warn(
+					{
+						err: error,
+						discordUserId
+					},
+					'Failed to resolve awarded member for nickname sync'
+				);
+				return null;
+			});
+		if (!member || member.user.bot) {
+			continue;
+		}
+
+		const nicknameResult = await buildUserNickname({
+			discordUser: member,
+			context: createChildExecutionContext({
+				context,
+				bindings: {
+					step: 'syncAwardedMemberNickname',
+					discordUserId
+				}
+			})
+		}).catch((error: unknown) => {
+			logger.warn(
+				{
+					err: error,
+					discordUserId
+				},
+				'Failed to build awarded member nickname after review finalization'
+			);
+			return {
+				newUserNickname: null
+			};
+		});
+
+		if (nicknameResult.newUserNickname && member.nickname !== nicknameResult.newUserNickname) {
+			await member.setNickname(nicknameResult.newUserNickname, 'Event review merit rank sync').catch((error: unknown) => {
+				logger.warn(
+					{
+						err: error,
+						discordUserId,
+						newUserNickname: nicknameResult.newUserNickname
+					},
+					'Failed to set awarded member nickname after review finalization'
+				);
+			});
+		}
+
+		if (awardedMeritAmount > 0) {
+			const currentTotalMerits = await getUserTotalMerits({
+				userDbUserId: awardedUser.dbUserId
+			});
+			const previousTotalMerits = Math.max(0, currentTotalMerits - awardedMeritAmount);
+			await notifyMeritRankUp({
+				member,
+				previousTotalMerits,
+				currentTotalMerits,
+				logger
+			});
+		}
 	}
 }
