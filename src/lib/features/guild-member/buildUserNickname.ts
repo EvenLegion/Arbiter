@@ -21,11 +21,13 @@ const MAX_DISCORD_NICKNAME_LENGTH = 32;
 type BuildUserNicknameParams = {
 	discordUser: GuildMember;
 	context: ExecutionContext;
+	totalMeritsOverride?: number;
 };
 
 export const buildUserNickname = async ({
 	discordUser,
-	context: _context
+	context: _context,
+	totalMeritsOverride
 }: BuildUserNicknameParams): Promise<{ newUserNickname: string | null; reason?: string }> => {
 	const caller = 'buildUserNickname';
 	const logger = _context.logger.child({ caller });
@@ -40,9 +42,12 @@ export const buildUserNickname = async ({
 	});
 
 	const dbUser = await container.utilities.userDirectory.getOrThrow({ discordUserId: discordUser.id });
-	const totalMerits = await getUserTotalMerits({
-		userDbUserId: dbUser.id
-	});
+	const totalMerits =
+		typeof totalMeritsOverride === 'number'
+			? totalMeritsOverride
+			: await getUserTotalMerits({
+					userDbUserId: dbUser.id
+				});
 	const meritRankLevel = resolveMeritRankLevel(totalMerits);
 
 	for (const hasPriority of PREFIX_PRIORITY) {

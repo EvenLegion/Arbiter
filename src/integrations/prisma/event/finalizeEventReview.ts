@@ -136,7 +136,7 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 				finalized: true,
 				toState,
 				awardedCount: 0,
-				awardedMeritAmount: eventSession.eventTier.meritAmount,
+				awardedMeritAmount: 0,
 				awardedUsers: []
 			};
 		}
@@ -149,7 +149,8 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 				source: MeritSource.EVENT,
 				reason: `Awarded for attending`,
 				eventSessionId: parsed.eventSessionId
-			}))
+			})),
+			skipDuplicates: true
 		});
 
 		return {
