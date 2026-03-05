@@ -123,10 +123,10 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 			return;
 		}
 
-		const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1_000;
-		if (linkedEvent.createdAt.getTime() < threeDaysAgo) {
+		const fiveDaysAgo = Date.now() - 5 * 24 * 60 * 60 * 1_000;
+		if (linkedEvent.createdAt.getTime() < fiveDaysAgo) {
 			await interaction.editReply({
-				content: 'Selected event is older than 3 days and cannot be linked for this command.'
+				content: 'Selected event is older than 5 days and cannot be linked for this command.'
 			});
 			return;
 		}
