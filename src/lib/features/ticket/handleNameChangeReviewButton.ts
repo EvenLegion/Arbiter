@@ -3,8 +3,7 @@ import { container } from '@sapphire/framework';
 import { EmbedBuilder, MessageFlags, type APIEmbedField, type ButtonInteraction, type Guild } from 'discord.js';
 
 import { reviewNameChangeRequest, updateUserNickname } from '../../../integrations/prisma';
-import { buildUserNickname } from '../guild-member/buildUserNickname';
-import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
+import type { ExecutionContext } from '../../logging/executionContext';
 import type { ParsedNameChangeReviewButton } from './nameChangeReviewButtons';
 import { buildNameChangeReviewActionRow } from './nameChangeReviewButtons';
 
@@ -240,26 +239,22 @@ async function applyApprovedNameChangeNicknameSync({
 		discordUserId: reviewed.requesterUser.discordUserId
 	});
 
-	const nicknameResult = await buildUserNickname({
-		discordUser: requesterMember,
-		context: createChildExecutionContext({
-			context,
-			bindings: {
-				step: 'buildUserNicknameForApprovedNameChange'
-			}
-		})
+	const nicknameSyncResult = await container.utilities.member.syncComputedNickname({
+		member: requesterMember,
+		context,
+		setReason: 'Approved name change request',
+		contextBindings: {
+			step: 'buildUserNicknameForApprovedNameChange'
+		}
 	});
-
-	let updatedRequesterMember = requesterMember;
-	if (nicknameResult.newUserNickname && requesterMember.nickname !== nicknameResult.newUserNickname) {
-		updatedRequesterMember = await requesterMember.setNickname(nicknameResult.newUserNickname, 'Approved name change request');
-	}
 
 	logger.info(
 		{
 			requesterDiscordUserId: reviewed.requesterUser.discordUserId,
 			requestedName: reviewed.requestedName,
-			updatedNickname: updatedRequesterMember.displayName
+			updatedNickname: nicknameSyncResult.member.displayName,
+			nicknameSyncOutcome: nicknameSyncResult.outcome,
+			nicknameSyncSkipReason: nicknameSyncResult.outcome === 'skipped' ? nicknameSyncResult.reason : undefined
 		},
 		'Applied approved name change request nickname sync'
 	);

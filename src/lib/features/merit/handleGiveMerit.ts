@@ -5,7 +5,6 @@ import { z } from 'zod';
 
 import { awardManualMerit, findUniqueEventSession, getUserTotalMerits, upsertUser } from '../../../integrations/prisma';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
-import { buildUserNickname } from '../guild-member/buildUserNickname';
 import { notifyMeritRankUp } from './notifyMeritRankUp';
 
 type HandleGiveMeritParams = {
@@ -140,38 +139,48 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 		eventSessionId: linkedEvent?.id ?? null
 	});
 
-	const targetNicknameResult = await buildUserNickname({
-		discordUser: targetMember,
-		context: createChildExecutionContext({
-			context,
-			bindings: {
-				step: 'syncRecipientNicknameAfterManualMerit'
-			}
+	await container.utilities.member
+		.syncComputedNickname({
+			member: targetMember,
+			context: createChildExecutionContext({
+				context,
+				bindings: {
+					step: 'syncRecipientNicknameAfterManualMerit'
+				}
+			}),
+			setReason: 'Manual merit rank sync'
 		})
-	}).catch((error: unknown) => {
-		logger.warn(
-			{
-				err: error,
-				targetDiscordUserId: targetMember.id
-			},
-			'Failed to build recipient nickname after manual merit award'
-		);
-		return {
-			newUserNickname: null
-		};
-	});
-	if (targetNicknameResult.newUserNickname && targetMember.nickname !== targetNicknameResult.newUserNickname) {
-		await targetMember.setNickname(targetNicknameResult.newUserNickname, 'Manual merit rank sync').catch((error: unknown) => {
+		.catch((error: unknown) => {
 			logger.warn(
 				{
 					err: error,
-					targetDiscordUserId: targetMember.id,
-					newUserNickname: targetNicknameResult.newUserNickname
+					targetDiscordUserId: targetMember.id
 				},
-				'Failed to set recipient nickname after manual merit award'
+				'Failed to sync recipient nickname after manual merit award'
 			);
 		});
-	}
+
+	const awarderNicknameForDm =
+		(
+			await container.utilities.member
+				.computeNickname({
+					member: awarderMember,
+					context,
+					contextBindings: {
+						step: 'buildAwarderNicknameForManualMeritDm'
+					}
+				})
+				.catch((error: unknown) => {
+					logger.warn(
+						{
+							err: error,
+							awarderDiscordUserId: awarderMember.id
+						},
+						'Failed to build awarder nickname for manual merit DM'
+					);
+					return null;
+				})
+		)?.computedNickname ?? awarderMember.displayName;
 
 	const currentTotalMerits = await getUserTotalMerits({
 		userDbUserId: targetDbUser.id
@@ -183,25 +192,6 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 		currentTotalMerits,
 		logger
 	});
-
-	const awarderNicknameForDm =
-		(
-			await buildUserNickname({
-				discordUser: awarderMember,
-				context
-			}).catch((error: unknown) => {
-				logger.warn(
-					{
-						err: error,
-						awarderDiscordUserId: awarderMember.id
-					},
-					'Failed to build awarder nickname for manual merit DM'
-				);
-				return {
-					newUserNickname: null
-				};
-			})
-		).newUserNickname ?? awarderMember.displayName;
 
 	const dmEventLine = linkedEvent ? `\nEvent: ${linkedEvent.name}` : '';
 	const dmReasonLine = reason ? `\nReason: ${reason}` : '';

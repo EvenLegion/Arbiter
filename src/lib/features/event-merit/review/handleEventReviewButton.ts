@@ -14,8 +14,6 @@ import type { ParsedEventReviewButton } from './parseEventReviewButton';
 import { syncTrackingSummaryMessage } from '../session/syncTrackingSummaryMessage';
 import { syncEventReviewMessage } from './syncEventReviewMessage';
 import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel';
-import { buildUserNickname } from '../../guild-member/buildUserNickname';
-import { createChildExecutionContext } from '../../../logging/executionContext';
 import { notifyMeritRankUp } from '../../merit/notifyMeritRankUp';
 
 type HandleEventReviewButtonParams = {
@@ -394,41 +392,26 @@ async function syncAwardedMemberNicknames({
 			return;
 		}
 
-		const nicknameResult = await buildUserNickname({
-			discordUser: member,
-			context: createChildExecutionContext({
+		await container.utilities.member
+			.syncComputedNickname({
+				member,
 				context,
-				bindings: {
+				setReason: 'Event review merit rank sync',
+				totalMeritsOverride: totalsByDbUserId.get(awardedUser.dbUserId),
+				contextBindings: {
 					step: 'syncAwardedMemberNickname',
 					discordUserId
 				}
-			}),
-			totalMeritsOverride: totalsByDbUserId.get(awardedUser.dbUserId)
-		}).catch((error: unknown) => {
-			logger.error(
-				{
-					err: error,
-					discordUserId
-				},
-				'Failed to build awarded member nickname after review finalization'
-			);
-			return {
-				newUserNickname: null
-			};
-		});
-
-		if (nicknameResult.newUserNickname && member.nickname !== nicknameResult.newUserNickname) {
-			await member.setNickname(nicknameResult.newUserNickname, 'Event review merit rank sync').catch((error: unknown) => {
+			})
+			.catch((error: unknown) => {
 				logger.error(
 					{
 						err: error,
-						discordUserId,
-						newUserNickname: nicknameResult.newUserNickname
+						discordUserId
 					},
-					'Failed to set awarded member nickname after review finalization'
+					'Failed to sync awarded member nickname after review finalization'
 				);
 			});
-		}
 
 		if (awardedMeritAmount > 0) {
 			const currentTotalMerits = totalsByDbUserId.get(awardedUser.dbUserId);

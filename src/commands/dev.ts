@@ -4,7 +4,6 @@ import { EmbedBuilder, MessageFlags } from 'discord.js';
 
 import { ENV_CONFIG, ENV_DISCORD } from '../config/env';
 import { upsertUser } from '../integrations/prisma';
-import { buildUserNickname } from '../lib/features/guild-member/buildUserNickname';
 import { reconcileRolesAndMemberships } from '../lib/features/guild-member/reconcileRolesAndMemberships';
 import { createChildExecutionContext, createExecutionContext } from '../lib/logging/executionContext';
 
@@ -157,74 +156,56 @@ export class DevCommand extends Subcommand {
 				continue;
 			}
 
-			let computedNickname: string;
-			try {
-				const { newUserNickname, reason } = await buildUserNickname({
-					discordUser: member,
-					context: createChildExecutionContext({
-						context: memberContext,
-						bindings: {
-							step: 'buildUserNickname'
-						}
-					})
-				});
-
-				if (newUserNickname === null) {
-					logger.warn(
+			const nicknameSyncResult = await this.container.utilities.member
+				.syncComputedNickname({
+					member,
+					context: memberContext,
+					setReason: 'Development guild member sync',
+					contextBindings: {
+						step: 'buildUserNickname'
+					}
+				})
+				.catch((err: unknown) => {
+					logger.error(
 						{
 							discordUserId: member.id,
-							discordUsername: member.user.username,
-							discordNickname,
-							reason
+							err
 						},
-						'Skipping nickname update'
+						'Failed to sync nickname during sync-guild-members'
 					);
-					continue;
-				}
-
-				computedNickname = newUserNickname;
-				nicknameComputed++;
-			} catch (err) {
+					return null;
+				});
+			if (!nicknameSyncResult) {
 				failedMembers.push({
 					discordUserId: member.id,
 					discordUsername: member.user.username,
 					discordNickname,
 					dbUserId
 				});
-				logger.error(
+				continue;
+			}
+
+			if (nicknameSyncResult.outcome === 'skipped') {
+				logger.warn(
 					{
 						discordUserId: member.id,
-						err
+						discordUsername: member.user.username,
+						discordNickname,
+						reason: nicknameSyncResult.reason
 					},
-					'Failed to compute nickname during sync-guild-members'
+					'Skipping nickname update'
 				);
 				continue;
 			}
 
-			if (member.nickname === computedNickname) {
+			nicknameComputed++;
+
+			if (nicknameSyncResult.outcome === 'unchanged') {
 				nicknameUnchanged++;
 				continue;
 			}
 
-			try {
-				await member.setNickname(computedNickname, 'Development guild member sync');
-				nicknameUpdated++;
-			} catch (err) {
-				failedMembers.push({
-					discordUserId: member.id,
-					discordUsername: member.user.username,
-					discordNickname,
-					dbUserId
-				});
-				logger.error(
-					{
-						discordUserId: member.id,
-						computedNickname,
-						err
-					},
-					'Failed to set nickname during sync-guild-members'
-				);
-			}
+			nicknameUpdated++;
 		}
 
 		logger.info(
