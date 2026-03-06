@@ -14,6 +14,7 @@ import { container } from '@sapphire/framework';
 
 import { ENV_DISCORD } from '../../../config/env';
 import { createNameChangeRequest, saveNameChangeRequestReviewThread } from '../../../integrations/prisma';
+import { isNicknameTooLongError } from '../../errors/nicknameTooLongError';
 import type { ExecutionContext } from '../../logging/executionContext';
 import { buildNameChangeReviewActionRow } from './nameChangeReviewButtons';
 
@@ -67,6 +68,59 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 	if (!requesterDbUser) {
 		await interaction.editReply({
 			content: `User not found in database. Please contact staff with: requestId=${context.requestId}`
+		});
+		return;
+	}
+
+	const requesterMember = await container.utilities.member
+		.getOrThrow({
+			guild,
+			discordUserId: interaction.user.id
+		})
+		.catch((error: unknown) => {
+			logger.error(
+				{
+					err: error,
+					discordUserId: interaction.user.id
+				},
+				'Failed to resolve requester member while validating name change ticket'
+			);
+			return null;
+		});
+	if (!requesterMember) {
+		await interaction.editReply({
+			content: `Could not resolve your member record. Please contact staff with: requestId=${context.requestId}`
+		});
+		return;
+	}
+
+	try {
+		await container.utilities.member.computeNickname({
+			member: requesterMember,
+			context,
+			baseDiscordNicknameOverride: requestedName,
+			contextBindings: {
+				step: 'validateRequestedNameNicknameLength'
+			}
+		});
+	} catch (error) {
+		if (isNicknameTooLongError(error)) {
+			await interaction.editReply({
+				content:
+					'Requested name is too long after organization formatting/rank is applied. Please submit a shorter name that fits Discord nickname limits.'
+			});
+			return;
+		}
+
+		logger.error(
+			{
+				err: error,
+				discordUserId: interaction.user.id
+			},
+			'Failed to validate requested name for name change ticket'
+		);
+		await interaction.editReply({
+			content: `Could not validate requested name. Please contact staff with: requestId=${context.requestId}`
 		});
 		return;
 	}
@@ -163,10 +217,25 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 		return;
 	}
 
-	await saveNameChangeRequestReviewThread({
-		requestId: request.id,
-		reviewThreadId: threadResult.thread.id
-	});
+	try {
+		await saveNameChangeRequestReviewThread({
+			requestId: request.id,
+			reviewThreadId: threadResult.thread.id
+		});
+	} catch (error) {
+		logger.error(
+			{
+				err: error,
+				requestId: request.id,
+				reviewThreadId: threadResult.thread.id
+			},
+			'Failed to persist name change request review thread reference'
+		);
+		await interaction.editReply({
+			content: `Name change request thread was created, but I could not persist its review reference. Please contact staff with: requestId=${request.id}`
+		});
+		return;
+	}
 
 	logger.info(
 		{

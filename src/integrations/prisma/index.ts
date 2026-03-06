@@ -4,6 +4,7 @@ export { upsertUser } from './upsertUser';
 export { updateUserNickname } from './updateUserNickname';
 export { findUniqueUser } from './findUniqueUser';
 export { createNameChangeRequest } from './createNameChangeRequest';
+export { findUniqueNameChangeRequest, isPendingNameChangeRequestStatus } from './findUniqueNameChangeRequest';
 export { reviewNameChangeRequest } from './reviewNameChangeRequest';
 export { saveNameChangeRequestReviewThread } from './saveNameChangeRequestReviewThread';
 export { getUserMeritSummary, type UserMeritSummary, type MeritSummaryEntry } from './getUserMeritSummary';

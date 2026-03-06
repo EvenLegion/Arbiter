@@ -3,6 +3,8 @@ import { container } from '@sapphire/framework';
 import { GuildMember } from 'discord.js';
 
 import { findManyUsersDivisions, getUserTotalMerits } from '../../../integrations/prisma';
+import { DISCORD_MAX_NICKNAME_LENGTH } from '../../constants';
+import { NicknameTooLongError } from '../../errors/nicknameTooLongError';
 import type { ExecutionContext } from '../../logging/executionContext';
 import { getMeritRankSymbol, MAX_MERIT_RANK_LEVEL, resolveMeritRankLevel } from '../merit/meritRank';
 
@@ -16,18 +18,18 @@ const PREFIX_PRIORITY: ((division: Division) => boolean)[] = [
 	(division) => division.kind === DivisionKind.LEGIONNAIRE
 ];
 
-const MAX_DISCORD_NICKNAME_LENGTH = 32;
-
 type BuildUserNicknameParams = {
 	discordUser: GuildMember;
 	context: ExecutionContext;
 	totalMeritsOverride?: number;
+	baseDiscordNicknameOverride?: string;
 };
 
 export const buildUserNickname = async ({
 	discordUser,
 	context: _context,
-	totalMeritsOverride
+	totalMeritsOverride,
+	baseDiscordNicknameOverride
 }: BuildUserNicknameParams): Promise<{ newUserNickname: string | null; reason?: string }> => {
 	const caller = 'buildUserNickname';
 	const logger = _context.logger.child({ caller });
@@ -42,6 +44,7 @@ export const buildUserNickname = async ({
 	});
 
 	const dbUser = await container.utilities.userDirectory.getOrThrow({ discordUserId: discordUser.id });
+	const baseNickname = baseDiscordNicknameOverride ?? dbUser.discordNickname;
 	const totalMerits =
 		typeof totalMeritsOverride === 'number'
 			? totalMeritsOverride
@@ -55,7 +58,7 @@ export const buildUserNickname = async ({
 		if (priorityDivision?.displayNamePrefix) {
 			return {
 				newUserNickname: appendMeritRankSuffix({
-					nickname: `${priorityDivision.displayNamePrefix} | ${dbUser.discordNickname}`,
+					nickname: `${priorityDivision.displayNamePrefix} | ${baseNickname}`,
 					meritRankLevel
 				})
 			};
@@ -64,7 +67,7 @@ export const buildUserNickname = async ({
 
 	return {
 		newUserNickname: appendMeritRankSuffix({
-			nickname: dbUser.discordNickname,
+			nickname: baseNickname,
 			meritRankLevel
 		})
 	};
@@ -73,6 +76,13 @@ export const buildUserNickname = async ({
 function appendMeritRankSuffix({ nickname, meritRankLevel }: { nickname: string; meritRankLevel: number | null }) {
 	const sanitizedNickname = stripTrailingMeritRankSuffix(nickname);
 	if (!meritRankLevel) {
+		if (sanitizedNickname.length > DISCORD_MAX_NICKNAME_LENGTH) {
+			throw new NicknameTooLongError({
+				computedNickname: sanitizedNickname,
+				computedLength: sanitizedNickname.length
+			});
+		}
+
 		return sanitizedNickname;
 	}
 
@@ -82,16 +92,14 @@ function appendMeritRankSuffix({ nickname, meritRankLevel }: { nickname: string;
 	}
 
 	const suffix = ` ${meritRankSymbol}`;
-	if (sanitizedNickname.length + suffix.length <= MAX_DISCORD_NICKNAME_LENGTH) {
+	if (sanitizedNickname.length + suffix.length <= DISCORD_MAX_NICKNAME_LENGTH) {
 		return `${sanitizedNickname}${suffix}`;
 	}
 
-	const truncatedBaseLength = MAX_DISCORD_NICKNAME_LENGTH - suffix.length;
-	if (truncatedBaseLength <= 0) {
-		return meritRankSymbol;
-	}
-
-	return `${sanitizedNickname.slice(0, truncatedBaseLength).trimEnd()}${suffix}`;
+	throw new NicknameTooLongError({
+		computedNickname: `${sanitizedNickname}${suffix}`,
+		computedLength: sanitizedNickname.length + suffix.length
+	});
 }
 
 function stripTrailingMeritRankSuffix(value: string) {

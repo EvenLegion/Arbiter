@@ -2,6 +2,7 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { ENV_DISCORD } from '../config/env';
+import { DISCORD_MAX_NICKNAME_LENGTH } from '../lib/constants';
 import { handleNameChangeTicket } from '../lib/features/ticket/handleNameChangeTicket';
 import { createExecutionContext } from '../lib/logging/executionContext';
 
@@ -32,7 +33,7 @@ export class TicketCommand extends Subcommand {
 									.setDescription('Requested nickname')
 									.setRequired(true)
 									.setMinLength(1)
-									.setMaxLength(100)
+									.setMaxLength(DISCORD_MAX_NICKNAME_LENGTH)
 							)
 							.addStringOption((option) =>
 								option.setName('reason').setDescription('Reason for the request').setRequired(true).setMinLength(1).setMaxLength(200)

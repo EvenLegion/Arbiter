@@ -4,6 +4,7 @@ import { container } from '@sapphire/framework';
 import { z } from 'zod';
 
 import { awardManualMerit, findUniqueEventSession, getUserTotalMerits, upsertUser } from '../../../integrations/prisma';
+import { isNicknameTooLongError } from '../../errors/nicknameTooLongError';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
 import { notifyMeritRankUp } from './notifyMeritRankUp';
 
@@ -139,6 +140,7 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 		eventSessionId: linkedEvent?.id ?? null
 	});
 
+	let recipientNicknameTooLong = false;
 	await container.utilities.member
 		.syncComputedNickname({
 			member: targetMember,
@@ -151,6 +153,9 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 			setReason: 'Manual merit rank sync'
 		})
 		.catch((error: unknown) => {
+			if (isNicknameTooLongError(error)) {
+				recipientNicknameTooLong = true;
+			}
 			logger.warn(
 				{
 					err: error,
@@ -215,8 +220,11 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 	const eventLine = linkedEvent ? `\nLinked event: **${linkedEvent.name}**` : '';
 	const reasonLine = reason ? `\nReason: ${reason}` : '';
 	const dmLine = dmSent ? '\nRecipient notified via DM.' : '\nCould not DM recipient (DMs may be disabled).';
+	const nicknameWarningLine = recipientNicknameTooLong
+		? '\nNickname was not updated because the computed nickname exceeds Discord limits. Ask the user to shorten their base nickname.'
+		: '';
 	await interaction.editReply({
-		content: `Awarded **${parsedMerits.data} merits** to <@${targetMember.id}>${eventLine}${reasonLine}${dmLine}`
+		content: `Awarded **${parsedMerits.data} merits** to <@${targetMember.id}>${eventLine}${reasonLine}${dmLine}${nicknameWarningLine}`
 	});
 
 	logger.info(

@@ -16,7 +16,13 @@ type SyncComputedNicknameParams = {
 	contextBindings?: Record<string, unknown>;
 };
 
-type ComputeNicknameParams = Omit<SyncComputedNicknameParams, 'setReason'>;
+type ComputeNicknameParams = {
+	member: GuildMember;
+	context: ExecutionContext;
+	totalMeritsOverride?: number;
+	contextBindings?: Record<string, unknown>;
+	baseDiscordNicknameOverride?: string;
+};
 
 type ComputeNicknameResult = {
 	computedNickname: string | null;
@@ -56,14 +62,21 @@ export class MemberUtility extends Utility {
 		return member;
 	}
 
-	public async computeNickname({ member, context, totalMeritsOverride, contextBindings }: ComputeNicknameParams): Promise<ComputeNicknameResult> {
+	public async computeNickname({
+		member,
+		context,
+		totalMeritsOverride,
+		contextBindings,
+		baseDiscordNicknameOverride
+	}: ComputeNicknameParams): Promise<ComputeNicknameResult> {
 		const nicknameResult = await buildUserNickname({
 			discordUser: member,
 			context: createChildExecutionContext({
 				context,
 				bindings: contextBindings ?? { step: 'buildUserNickname' }
 			}),
-			totalMeritsOverride
+			totalMeritsOverride,
+			baseDiscordNicknameOverride
 		});
 
 		return {

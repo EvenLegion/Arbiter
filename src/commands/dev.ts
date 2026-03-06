@@ -123,7 +123,7 @@ export class DevCommand extends Subcommand {
 						discordUserId: member.id,
 						err
 					},
-					'Failed to upsert user during sync-guild-members'
+					'Failed to upsert user during sync_guild_members'
 				);
 				continue;
 			}
@@ -151,7 +151,7 @@ export class DevCommand extends Subcommand {
 						discordUserId: member.id,
 						err: error
 					},
-					'Failed to sync division memberships during sync-guild-members'
+					'Failed to sync division memberships during sync_guild_members'
 				);
 				continue;
 			}
@@ -171,7 +171,7 @@ export class DevCommand extends Subcommand {
 							discordUserId: member.id,
 							err
 						},
-						'Failed to sync nickname during sync-guild-members'
+						'Failed to sync nickname during sync_guild_members'
 					);
 					return null;
 				});
