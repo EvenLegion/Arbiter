@@ -17,6 +17,7 @@ import { createNameChangeRequest, saveNameChangeRequestReviewThread } from '../.
 import { isNicknameTooLongError } from '../../errors/nicknameTooLongError';
 import type { ExecutionContext } from '../../logging/executionContext';
 import { buildNameChangeReviewActionRow } from './nameChangeReviewButtons';
+import { normalizeRequestedName } from './normalizeRequestedName';
 
 type HandleNameChangeTicketParams = {
 	interaction: ChatInputCommandInteraction;
@@ -27,9 +28,9 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 	const caller = 'handleNameChangeTicket';
 	const logger = context.logger.child({ caller });
 
-	const requestedName = interaction.options.getString('requested_name', true).trim();
+	const rawRequestedName = interaction.options.getString('requested_name', true).trim();
 	const reason = interaction.options.getString('reason', true).trim();
-	if (!requestedName || !reason) {
+	if (!rawRequestedName || !reason) {
 		await interaction.reply({
 			content: 'Requested name and reason are required.',
 			flags: MessageFlags.Ephemeral
@@ -53,6 +54,47 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 			content: `Could not resolve configured guild. Please contact TECH with: requestId=${context.requestId}`
 		});
 		return;
+	}
+
+	const divisions = await container.utilities.divisionCache.get().catch((error: unknown) => {
+		logger.error(
+			{
+				err: error
+			},
+			'Failed to resolve divisions while normalizing name change request'
+		);
+		return null;
+	});
+	if (!divisions) {
+		await interaction.editReply({
+			content: `Could not validate requested name. Please contact TECH with: requestId=${context.requestId}`
+		});
+		return;
+	}
+
+	const divisionPrefixes = divisions
+		.flatMap((division) => [division.displayNamePrefix, division.code])
+		.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+	const normalizedResult = normalizeRequestedName({
+		rawRequestedName,
+		divisionPrefixes
+	});
+	if (!normalizedResult.success) {
+		await interaction.editReply({
+			content: normalizedResult.errorMessage
+		});
+		return;
+	}
+	const requestedName = normalizedResult.normalizedRequestedName;
+	if (normalizedResult.strippedDivisionPrefix) {
+		logger.info(
+			{
+				rawRequestedName,
+				normalizedRequestedName: requestedName,
+				strippedDivisionPrefix: normalizedResult.strippedDivisionPrefix
+			},
+			'Detected and stripped division prefix from requested name'
+		);
 	}
 
 	const requesterDbUser = await container.utilities.userDirectory.getOrThrow({ discordUserId: interaction.user.id }).catch((error: unknown) => {
@@ -248,7 +290,9 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 	);
 
 	await interaction.editReply({
-		content: `Name change request created.\nReview thread: <#${threadResult.thread.id}>`
+		content: `Name change request created.\nReview thread: <#${threadResult.thread.id}>${
+			normalizedResult.strippedDivisionPrefix ? '\nNote: I removed your division prefix from the requested name.' : ''
+		}`
 	});
 }
 

@@ -1,6 +1,16 @@
 import { DivisionKind, NameChangeRequestStatus } from '@prisma/client';
 import { container } from '@sapphire/framework';
-import { EmbedBuilder, MessageFlags, type APIEmbedField, type ButtonInteraction, type Guild } from 'discord.js';
+import {
+	ActionRowBuilder,
+	EmbedBuilder,
+	MessageFlags,
+	ModalBuilder,
+	TextInputBuilder,
+	TextInputStyle,
+	type APIEmbedField,
+	type ButtonInteraction,
+	type Guild
+} from 'discord.js';
 
 import {
 	findUniqueNameChangeRequest,
@@ -8,10 +18,15 @@ import {
 	reviewNameChangeRequest,
 	updateUserNickname
 } from '../../../integrations/prisma';
+import { DISCORD_MAX_NICKNAME_LENGTH } from '../../constants';
 import { isNicknameTooLongError } from '../../errors/nicknameTooLongError';
 import type { ExecutionContext } from '../../logging/executionContext';
 import type { ParsedNameChangeReviewButton } from './nameChangeReviewButtons';
-import { buildNameChangeReviewActionRow } from './nameChangeReviewButtons';
+import {
+	buildNameChangeReviewActionRow,
+	buildNameChangeReviewEditModalCustomId,
+	NAME_CHANGE_REVIEW_EDIT_MODAL_REQUESTED_NAME_INPUT_ID
+} from './nameChangeReviewButtons';
 
 type HandleNameChangeReviewButtonParams = {
 	interaction: ButtonInteraction;
@@ -24,7 +39,7 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 	const logger = context.logger.child({
 		caller,
 		requestId: parsedNameChangeReviewButton.requestId,
-		decision: parsedNameChangeReviewButton.decision
+		action: parsedNameChangeReviewButton.action
 	});
 
 	const guild = await container.utilities.guild.getOrThrow().catch((error: unknown) => {
@@ -79,6 +94,50 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 		return;
 	}
 
+	if (parsedNameChangeReviewButton.action === 'edit') {
+		const request = await findUniqueNameChangeRequest({
+			requestId: parsedNameChangeReviewButton.requestId
+		}).catch((error: unknown) => {
+			logger.error(
+				{
+					err: error
+				},
+				'Failed to resolve name change request before opening edit modal'
+			);
+			return null;
+		});
+		if (!request || !isPendingNameChangeRequestStatus(request.status)) {
+			await interaction.reply({
+				content: 'This request has already been reviewed.',
+				flags: MessageFlags.Ephemeral
+			});
+			return;
+		}
+
+		const modalShown = await interaction
+			.showModal(buildEditNameModal({ requestId: request.id, requestedName: request.requestedName }))
+			.then(() => true)
+			.catch((error: unknown) => {
+				logger.error(
+					{
+						err: error,
+						requestId: request.id
+					},
+					'Failed to show edit name modal'
+				);
+				return false;
+			});
+		if (!modalShown && !interaction.replied && !interaction.deferred) {
+			await interaction
+				.reply({
+					content: `Failed to open edit modal. Please try again. requestId=${context.requestId}`,
+					flags: MessageFlags.Ephemeral
+				})
+				.catch(() => null);
+		}
+		return;
+	}
+
 	await interaction.deferUpdate().catch(() => null);
 
 	const reviewerDbUser = await container.utilities.userDirectory
@@ -103,7 +162,7 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 		return;
 	}
 
-	if (parsedNameChangeReviewButton.decision === 'approve') {
+	if (parsedNameChangeReviewButton.action === 'approve') {
 		const request = await findUniqueNameChangeRequest({
 			requestId: parsedNameChangeReviewButton.requestId
 		}).catch((error: unknown) => {
@@ -183,7 +242,7 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 	const reviewed = await reviewNameChangeRequest({
 		requestId: parsedNameChangeReviewButton.requestId,
 		reviewerDbUserId: reviewerDbUser.id,
-		decision: parsedNameChangeReviewButton.decision
+		decision: parsedNameChangeReviewButton.action
 	}).catch((error: unknown) => {
 		logger.error(
 			{
@@ -395,4 +454,20 @@ function upsertEmbedField({ fields, name, value, inline = false }: { fields: API
 		value,
 		inline
 	});
+}
+
+function buildEditNameModal({ requestId, requestedName }: { requestId: number; requestedName: string }) {
+	const textInput = new TextInputBuilder()
+		.setCustomId(NAME_CHANGE_REVIEW_EDIT_MODAL_REQUESTED_NAME_INPUT_ID)
+		.setLabel('Requested Name')
+		.setStyle(TextInputStyle.Short)
+		.setRequired(true)
+		.setMinLength(1)
+		.setMaxLength(DISCORD_MAX_NICKNAME_LENGTH)
+		.setValue(requestedName.slice(0, DISCORD_MAX_NICKNAME_LENGTH));
+
+	return new ModalBuilder()
+		.setCustomId(buildNameChangeReviewEditModalCustomId({ requestId }))
+		.setTitle('Edit Name Request')
+		.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(textInput));
 }

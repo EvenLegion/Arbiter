@@ -1,5 +1,6 @@
 import { Utility } from '@sapphire/plugin-utilities-store';
 import type { Guild, GuildMember } from 'discord.js';
+
 import { buildUserNickname } from '../lib/features/guild-member/buildUserNickname';
 import { createChildExecutionContext, type ExecutionContext } from '../lib/logging/executionContext';
 

@@ -29,7 +29,7 @@ export class NameChangeReviewButtonsInteractionHandler extends InteractionHandle
 				discordUserId: interaction.user.id,
 				customButtonId: interaction.customId,
 				nameChangeRequestId: parsedNameChangeReviewButton.requestId,
-				nameChangeDecision: parsedNameChangeReviewButton.decision
+				nameChangeAction: parsedNameChangeReviewButton.action
 			}
 		});
 

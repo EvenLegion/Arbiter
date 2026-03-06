@@ -26,11 +26,11 @@ export class TicketCommand extends Subcommand {
 					.addSubcommand((subcommand) =>
 						subcommand
 							.setName('name_change')
-							.setDescription('Request a nickname change for yourself.')
+							.setDescription('Request a nickname change (base name only, no division prefix).')
 							.addStringOption((option) =>
 								option
 									.setName('requested_name')
-									.setDescription('Requested nickname')
+									.setDescription('Base nickname only (no prefix, "|", spaces, or merit-rank symbol)')
 									.setRequired(true)
 									.setMinLength(1)
 									.setMaxLength(DISCORD_MAX_NICKNAME_LENGTH)

@@ -7,6 +7,7 @@ export { createNameChangeRequest } from './createNameChangeRequest';
 export { findUniqueNameChangeRequest, isPendingNameChangeRequestStatus } from './findUniqueNameChangeRequest';
 export { reviewNameChangeRequest } from './reviewNameChangeRequest';
 export { saveNameChangeRequestReviewThread } from './saveNameChangeRequestReviewThread';
+export { updatePendingNameChangeRequestRequestedName } from './updatePendingNameChangeRequestRequestedName';
 export { getUserMeritSummary, type UserMeritSummary, type MeritSummaryEntry } from './getUserMeritSummary';
 export { getUserTotalMerits } from './getUserTotalMerits';
 export { getUsersTotalMerits } from './getUsersTotalMerits';
