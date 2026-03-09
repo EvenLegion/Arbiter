@@ -95,7 +95,11 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 		eventSessionId: parsedEventSessionId.data,
 		include: {
 			hostUser: true,
-			eventTier: true,
+			eventTier: {
+				include: {
+					meritType: true
+				}
+			},
 			channels: true,
 			eventMessages: true
 		}
@@ -177,7 +181,11 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 		eventSessionId: eventSession.id,
 		include: {
 			hostUser: true,
-			eventTier: true,
+			eventTier: {
+				include: {
+					meritType: true
+				}
+			},
 			channels: true,
 			eventMessages: true
 		}

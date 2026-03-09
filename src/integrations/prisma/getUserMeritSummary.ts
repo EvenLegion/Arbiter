@@ -46,6 +46,19 @@ const LINKED_EVENTS_COUNT_ROW_SCHEMA = z.object({
 		return Number.parseInt(value, 10);
 	})
 });
+const TOTAL_MERITS_ROW_SCHEMA = z.object({
+	total: z.union([z.number(), z.bigint(), z.string()]).transform((value) => {
+		if (typeof value === 'number') {
+			return value;
+		}
+
+		if (typeof value === 'bigint') {
+			return Number(value);
+		}
+
+		return Number.parseInt(value, 10);
+	})
+});
 
 export async function getUserMeritSummary({ userDbUserId, page = 1, pageSize = 10 }: GetUserMeritSummaryParams): Promise<UserMeritSummary> {
 	const parsed = GET_USER_MERIT_SUMMARY_SCHEMA.parse({
@@ -55,14 +68,13 @@ export async function getUserMeritSummary({ userDbUserId, page = 1, pageSize = 1
 	});
 
 	return prisma.$transaction(async (tx) => {
-		const aggregate = await tx.merit.aggregate({
-			where: {
-				userId: parsed.userDbUserId
-			},
-			_sum: {
-				amount: true
-			}
-		});
+		const totalsRows = await tx.$queryRaw<Array<{ total: number | bigint | string }>>`
+			SELECT COALESCE(SUM("mt"."meritAmount"), 0) AS total
+			FROM "Merit" AS "m"
+			INNER JOIN "MeritType" AS "mt" ON "mt"."id" = "m"."meritTypeId"
+			WHERE "m"."userId" = ${parsed.userDbUserId}
+		`;
+		const totalMerits = TOTAL_MERITS_ROW_SCHEMA.parse(totalsRows[0] ?? { total: 0 }).total;
 		const totalAwards = await tx.merit.count({
 			where: {
 				userId: parsed.userDbUserId
@@ -89,9 +101,13 @@ export async function getUserMeritSummary({ userDbUserId, page = 1, pageSize = 1
 			take: parsed.pageSize,
 			select: {
 				id: true,
-				amount: true,
 				reason: true,
 				createdAt: true,
+				meritType: {
+					select: {
+						meritAmount: true
+					}
+				},
 				eventSession: {
 					select: {
 						id: true,
@@ -102,13 +118,19 @@ export async function getUserMeritSummary({ userDbUserId, page = 1, pageSize = 1
 		});
 
 		return {
-			totalMerits: aggregate._sum.amount ?? 0,
+			totalMerits,
 			totalAwards,
 			totalLinkedEvents: linkedEventsCountRow.count,
 			page: resolvedPage,
 			pageSize: parsed.pageSize,
 			totalPages,
-			entries
+			entries: entries.map((entry) => ({
+				id: entry.id,
+				amount: entry.meritType.meritAmount,
+				reason: entry.reason,
+				createdAt: entry.createdAt,
+				eventSession: entry.eventSession
+			}))
 		};
 	});
 }

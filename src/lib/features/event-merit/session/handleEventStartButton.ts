@@ -42,7 +42,11 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 		eventSessionId: parsedEventStartButton.eventSessionId,
 		include: {
 			hostUser: true,
-			eventTier: true,
+			eventTier: {
+				include: {
+					meritType: true
+				}
+			},
 			channels: true,
 			eventMessages: true
 		}
@@ -121,7 +125,11 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 			eventSessionId: eventSession.id,
 			include: {
 				hostUser: true,
-				eventTier: true,
+				eventTier: {
+					include: {
+						meritType: true
+					}
+				},
 				channels: true,
 				eventMessages: true
 			}
@@ -185,7 +193,11 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 			eventSessionId: eventSession.id,
 			include: {
 				hostUser: true,
-				eventTier: true,
+				eventTier: {
+					include: {
+						meritType: true
+					}
+				},
 				channels: true,
 				eventMessages: true
 			}
@@ -305,7 +317,11 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 		eventSessionId: eventSession.id,
 		include: {
 			hostUser: true,
-			eventTier: true,
+			eventTier: {
+				include: {
+					meritType: true
+				}
+			},
 			channels: true,
 			eventMessages: true
 		}

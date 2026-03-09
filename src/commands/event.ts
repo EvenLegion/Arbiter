@@ -117,7 +117,6 @@ export class EventCommand extends Subcommand {
 			if (subcommandName === 'start' && focused.name === 'tier_level') {
 				const query = String(focused.value).trim().toLowerCase();
 				const tiers = await findManyEventTiers({
-					isActive: true,
 					orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }]
 				});
 				const filtered = tiers.filter((tier) => {
@@ -134,7 +133,7 @@ export class EventCommand extends Subcommand {
 
 				await interaction.respond(
 					filtered.slice(0, 25).map((tier) => ({
-						name: `${tier.name} ${tier.description} (${tier.meritAmount} merits)`,
+						name: `${tier.name} ${tier.description} (${tier.meritType.meritAmount} merits)`,
 						value: String(tier.id)
 					}))
 				);

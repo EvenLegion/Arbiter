@@ -4,7 +4,7 @@ import { DivisionKind } from '@prisma/client';
 import type { GuildMember } from 'discord.js';
 
 import { ENV_DISCORD } from '../config/env';
-import { findManyEventSessions } from '../integrations/prisma';
+import { findManyEventSessions, findManyMeritTypes } from '../integrations/prisma';
 import { handleGiveMerit } from '../lib/features/merit/handleGiveMerit';
 import { handleMeritList } from '../lib/features/merit/handleMeritList';
 import { createExecutionContext } from '../lib/logging/executionContext';
@@ -37,8 +37,8 @@ export class MeritCommand extends Subcommand {
 							.addStringOption((option) =>
 								option.setName('player_name').setDescription('Player to award merits to.').setRequired(true).setAutocomplete(true)
 							)
-							.addIntegerOption((option) =>
-								option.setName('number_of_merits').setDescription('How many merits to award.').setRequired(true).setMinValue(1)
+							.addStringOption((option) =>
+								option.setName('merit_type').setDescription('Merit type to award.').setRequired(true).setAutocomplete(true)
 							)
 							.addStringOption((option) =>
 								option
@@ -179,6 +179,25 @@ export class MeritCommand extends Subcommand {
 			return;
 		}
 
+		if (subcommandName === 'give' && focused.name === 'merit_type') {
+			const query = String(focused.value).trim();
+			const meritTypes = await findManyMeritTypes({
+				query,
+				where: {
+					isManualAwardable: true
+				},
+				orderBy: [{ meritAmount: 'desc' }, { name: 'asc' }],
+				limit: 25
+			});
+			await interaction.respond(
+				meritTypes.map((type) => ({
+					name: `${type.name} (${formatSignedMeritAmount(type.meritAmount)} merits)`.slice(0, 100),
+					value: type.code
+				}))
+			);
+			return;
+		}
+
 		if (focused.name !== 'user_name' && focused.name !== 'player_name') {
 			await interaction.respond([]);
 			return;
@@ -253,4 +272,8 @@ function sortMembersByQuery({ a, b, query }: { a: GuildMember; b: GuildMember; q
 	}
 
 	return a.displayName.localeCompare(b.displayName);
+}
+
+function formatSignedMeritAmount(amount: number) {
+	return amount >= 0 ? `+${amount}` : `${amount}`;
 }

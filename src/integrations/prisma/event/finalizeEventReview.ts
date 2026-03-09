@@ -1,4 +1,4 @@
-import { EventReviewDecisionKind, EventSessionState, MeritSource } from '@prisma/client';
+import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../prisma';
 
@@ -44,7 +44,12 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 				state: true,
 				eventTier: {
 					select: {
-						meritAmount: true
+						meritTypeId: true,
+						meritType: {
+							select: {
+								meritAmount: true
+							}
+						}
 					}
 				}
 			}
@@ -117,36 +122,11 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			};
 		}
 
-		const preExistingMerits = await tx.merit.findMany({
-			where: {
-				eventSessionId: parsed.eventSessionId,
-				source: MeritSource.EVENT,
-				userId: {
-					in: meritDecisionRows.map((row) => row.targetUserId)
-				}
-			},
-			select: {
-				userId: true
-			}
-		});
-		const preExistingMeritUserIds = new Set(preExistingMerits.map((row) => row.userId));
-		const rowsToAward = meritDecisionRows.filter((row) => !preExistingMeritUserIds.has(row.targetUserId));
-		if (rowsToAward.length === 0) {
-			return {
-				finalized: true,
-				toState,
-				awardedCount: 0,
-				awardedMeritAmount: 0,
-				awardedUsers: []
-			};
-		}
-
 		const createManyResult = await tx.merit.createMany({
-			data: rowsToAward.map((row) => ({
+			data: meritDecisionRows.map((row) => ({
 				userId: row.targetUserId,
 				awardedByUserId: parsed.reviewerDbUserId,
-				amount: eventSession.eventTier.meritAmount,
-				source: MeritSource.EVENT,
+				meritTypeId: eventSession.eventTier.meritTypeId,
 				reason: `Awarded for attending`,
 				eventSessionId: parsed.eventSessionId
 			})),
@@ -157,8 +137,8 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			finalized: true,
 			toState,
 			awardedCount: createManyResult.count,
-			awardedMeritAmount: eventSession.eventTier.meritAmount,
-			awardedUsers: rowsToAward.map((row) => ({
+			awardedMeritAmount: eventSession.eventTier.meritType.meritAmount,
+			awardedUsers: meritDecisionRows.map((row) => ({
 				dbUserId: row.targetUserId,
 				discordUserId: row.targetUser.discordUserId
 			}))

@@ -67,8 +67,7 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 
 	const eventTier = await findFirstEventTier({
 		where: {
-			id: parsedEventTierId.data,
-			isActive: true
+			id: parsedEventTierId.data
 		}
 	});
 	if (!eventTier) {
@@ -143,7 +142,7 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 				eventSessionId: eventSession.id,
 				eventName: eventSession.name,
 				tierName: eventTier.name,
-				tierMeritAmount: eventTier.meritAmount,
+				tierMeritAmount: eventTier.meritType.meritAmount,
 				hostDiscordUserId: issuer.id,
 				trackedChannelIds: [primaryVoiceChannelId],
 				trackingThreadId: thread.id,
@@ -155,7 +154,7 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 			eventSessionId: eventSession.id,
 			eventName: eventSession.name,
 			tierName: eventTier.name,
-			tierMeritAmount: eventTier.meritAmount,
+			tierMeritAmount: eventTier.meritType.meritAmount,
 			hostDiscordUserId: issuer.id,
 			trackedChannelIds: [primaryVoiceChannelId],
 			trackingThreadId: thread.id,

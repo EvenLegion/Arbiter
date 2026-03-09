@@ -1,0 +1,42 @@
+enum MeritTypeCode {
+  TIER_0
+  TIER_1
+  TIER_2
+  TIER_3
+  COMMANDER_MERIT
+  TESSERARIUS_MERIT
+  DEMERIT
+}
+
+model MeritType {
+  id                Int           @id @default(autoincrement())
+  code              MeritTypeCode @unique
+  name              String        @unique
+  description       String
+  meritAmount       Int
+  isManualAwardable Boolean       @default(false)
+
+  eventTiers EventTier[]
+  merits     Merit[]
+}
+
+model Merit {
+  id              Int         @id @default(autoincrement())
+  userId          String
+  awardedByUserId String
+  meritTypeId     Int
+  reason          String?
+  eventSessionId  Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user          User          @relation("MeritRecipientUser", fields: [userId], references: [id], onDelete: Cascade)
+  awardedByUser User          @relation("MeritAwarderUser", fields: [awardedByUserId], references: [id], onDelete: Cascade)
+  meritType     MeritType     @relation(fields: [meritTypeId], references: [id], onDelete: Restrict)
+  eventSession  EventSession? @relation(fields: [eventSessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([userId, meritTypeId, createdAt])
+  @@index([meritTypeId, eventSessionId, userId])
+  @@index([eventSessionId])
+}

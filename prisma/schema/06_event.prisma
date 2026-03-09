@@ -18,9 +18,21 @@ enum EventSessionChannelKind {
   CHILD_VC
 }
 
-enum MeritSource {
-  MANUAL
-  EVENT
+model EventTier {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique
+  name         String   @unique
+  description  String
+  meritTypeId  Int
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  meritType     MeritType      @relation(fields: [meritTypeId], references: [id], onDelete: Restrict)
+  eventSessions EventSession[]
+
+  @@index([displayOrder])
+  @@index([meritTypeId])
 }
 
 model EventSession {
@@ -101,26 +113,4 @@ model EventReviewDecision {
   @@unique([eventSessionId, targetUserId])
   @@index([eventSessionId])
   @@index([eventSessionId, decision])
-}
-
-model Merit {
-  id              Int         @id @default(autoincrement())
-  userId          String
-  awardedByUserId String
-  amount          Int
-  source          MeritSource
-  reason          String?
-  eventSessionId  Int?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  user          User          @relation("MeritRecipientUser", fields: [userId], references: [id], onDelete: Cascade)
-  awardedByUser User          @relation("MeritAwarderUser", fields: [awardedByUserId], references: [id], onDelete: Cascade)
-  eventSession  EventSession? @relation(fields: [eventSessionId], references: [id], onDelete: SetNull)
-
-  @@unique([eventSessionId, userId, source])
-  @@index([userId, createdAt])
-  @@index([userId, source, createdAt])
-  @@index([source, eventSessionId, userId])
-  @@index([eventSessionId])
 }

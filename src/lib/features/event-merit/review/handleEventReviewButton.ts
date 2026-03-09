@@ -169,7 +169,11 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 				eventSessionId: parsedEventReviewButton.eventSessionId,
 				include: {
 					hostUser: true,
-					eventTier: true,
+					eventTier: {
+						include: {
+							meritType: true
+						}
+					},
 					channels: true,
 					eventMessages: true
 				}
@@ -198,7 +202,11 @@ export async function handleEventReviewButton({ interaction, parsedEventReviewBu
 					eventSessionId: parsedEventReviewButton.eventSessionId,
 					include: {
 						hostUser: true,
-						eventTier: true,
+						eventTier: {
+							include: {
+								meritType: true
+							}
+						},
 						channels: true,
 						eventMessages: true
 					}
@@ -284,7 +292,11 @@ async function postReviewSubmissionMessagesToTrackedVoiceChannels({
 		ReturnType<
 			typeof findUniqueEventSession<{
 				hostUser: true;
-				eventTier: true;
+				eventTier: {
+					include: {
+						meritType: true;
+					};
+				};
 				channels: true;
 				eventMessages: true;
 			}>
