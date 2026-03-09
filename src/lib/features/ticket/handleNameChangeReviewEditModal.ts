@@ -224,9 +224,14 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 	}
 
 	if (hasSendMethod(interaction.channel)) {
+		const previousRequestedName = trimForEmbed(existingRequest.requestedName, 100);
+		const nextRequestedName = trimForEmbed(updatedRequest.requestedName, 100);
 		await interaction.channel
 			.send({
-				content: `<@${interaction.user.id}> updated requested name from **${trimForEmbed(existingRequest.requestedName, 100)}** to **${trimForEmbed(updatedRequest.requestedName, 100)}**.`
+				content: `<@${interaction.user.id}> updated requested name from **${previousRequestedName}** to **${nextRequestedName}**.`,
+				allowedMentions: {
+					parse: []
+				}
 			})
 			.catch((error: unknown) => {
 				logger.warn(
@@ -252,7 +257,9 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 	await interaction.deleteReply().catch(() => null);
 }
 
-function hasSendMethod(value: unknown): value is { send: (options: { content: string }) => Promise<unknown> } {
+function hasSendMethod(value: unknown): value is {
+	send: (options: { content: string; allowedMentions?: { parse: readonly string[] } }) => Promise<unknown>;
+} {
 	return typeof value === 'object' && value !== null && 'send' in value && typeof value.send === 'function';
 }
 
