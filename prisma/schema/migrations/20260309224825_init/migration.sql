@@ -16,6 +16,9 @@ CREATE TYPE "EventSessionChannelKind" AS ENUM ('EVENT_THREAD', 'PARENT_VC', 'CHI
 -- CreateEnum
 CREATE TYPE "EventSessionMessageKind" AS ENUM ('ACTIVE', 'TRACKING_SUMMARY', 'TRACKING_SUMMARY_PARENT_VC', 'REVIEW');
 
+-- CreateEnum
+CREATE TYPE "MeritTypeCode" AS ENUM ('TIER_0', 'TIER_1', 'TIER_2', 'TIER_3', 'COMMANDER_MERIT', 'TESSERARIUS_MERIT', 'DEMERIT');
+
 -- CreateTable
 CREATE TABLE "Healthcheck" (
     "id" SERIAL NOT NULL,
@@ -86,10 +89,11 @@ CREATE TABLE "NameChangeRequest" (
 -- CreateTable
 CREATE TABLE "MeritType" (
     "id" SERIAL NOT NULL,
-    "code" TEXT NOT NULL,
+    "code" "MeritTypeCode" NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "meritAmount" INTEGER NOT NULL,
+    "isManualAwardable" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "MeritType_pkey" PRIMARY KEY ("id")
 );

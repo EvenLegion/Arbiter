@@ -1,9 +1,15 @@
-import { DivisionKind } from '@prisma/client';
+import { DivisionKind, MeritTypeCode } from '@prisma/client';
 import { type ChatInputCommandInteraction, type Guild, type GuildMember, MessageFlags } from 'discord.js';
 import { container } from '@sapphire/framework';
 import { z } from 'zod';
 
-import { awardManualMerit, findUniqueEventSession, getUserTotalMerits, upsertUser } from '../../../integrations/prisma';
+import {
+	awardManualMerit,
+	findUniqueEventSession,
+	getUserTotalMerits,
+	MeritTypeNotManualAwardableError,
+	upsertUser
+} from '../../../integrations/prisma';
 import { isNicknameTooLongError } from '../../errors/nicknameTooLongError';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
 import { notifyMeritRankUp } from './notifyMeritRankUp';
@@ -14,7 +20,7 @@ type HandleGiveMeritParams = {
 };
 
 const PLAYER_DISCORD_USER_ID_SCHEMA = z.string().trim().min(1);
-const NUMBER_OF_MERITS_SCHEMA = z.number().int().positive().max(1_000);
+const MANUAL_MERIT_TYPE_CODE_SCHEMA = z.nativeEnum(MeritTypeCode);
 const EVENT_SESSION_ID_SCHEMA = z.coerce.number().int().positive();
 
 export async function handleGiveMerit({ interaction, context }: HandleGiveMeritParams) {
@@ -49,11 +55,11 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 		return;
 	}
 
-	const merits = interaction.options.getInteger('number_of_merits', true);
-	const parsedMerits = NUMBER_OF_MERITS_SCHEMA.safeParse(merits);
-	if (!parsedMerits.success) {
+	const rawMeritTypeCode = interaction.options.getString('merit_type', true);
+	const parsedMeritTypeCode = MANUAL_MERIT_TYPE_CODE_SCHEMA.safeParse(rawMeritTypeCode);
+	if (!parsedMeritTypeCode.success) {
 		await interaction.editReply({
-			content: 'Invalid merit amount. Please provide a positive integer.'
+			content: 'Invalid merit type. Please select one of the provided options.'
 		});
 		return;
 	}
@@ -135,10 +141,22 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 	const award = await awardManualMerit({
 		recipientDbUserId: targetDbUser.id,
 		awardedByDbUserId: awarderDbUser.id,
-		amount: parsedMerits.data,
+		meritTypeCode: parsedMeritTypeCode.data,
 		reason,
 		eventSessionId: linkedEvent?.id ?? null
+	}).catch(async (error: unknown) => {
+		if (error instanceof MeritTypeNotManualAwardableError) {
+			await interaction.editReply({
+				content: 'Selected merit type can only be awarded through event finalization.'
+			});
+			return null;
+		}
+
+		throw error;
 	});
+	if (!award) {
+		return;
+	}
 
 	let recipientNicknameTooLong = false;
 	await container.utilities.member
@@ -190,7 +208,7 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 	const currentTotalMerits = await getUserTotalMerits({
 		userDbUserId: targetDbUser.id
 	});
-	const previousTotalMerits = Math.max(0, currentTotalMerits - parsedMerits.data);
+	const previousTotalMerits = Math.max(0, currentTotalMerits - award.meritType.meritAmount);
 	await notifyMeritRankUp({
 		member: targetMember,
 		previousTotalMerits,
@@ -198,12 +216,13 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 		logger
 	});
 
+	const meritChangeLabel = `${formatSignedMeritAmount(award.meritType.meritAmount)} ${
+		Math.abs(award.meritType.meritAmount) === 1 ? 'merit' : 'merits'
+	}`;
 	const dmEventLine = linkedEvent ? `\nEvent: ${linkedEvent.name}` : '';
 	const dmReasonLine = reason ? `\nReason: ${reason}` : '';
 	const dmSent = await targetMember.user
-		.send(
-			`You were awarded **${parsedMerits.data} merit${parsedMerits.data === 1 ? '' : 's'}** by **${awarderNicknameForDm}**.${dmEventLine}${dmReasonLine}`
-		)
+		.send(`Your merits were adjusted by **${meritChangeLabel}** by **${awarderNicknameForDm}**.${dmEventLine}${dmReasonLine}`)
 		.then(() => true)
 		.catch((error: unknown) => {
 			logger.warn(
@@ -224,14 +243,15 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 		? '\nNickname was not updated because the computed nickname exceeds Discord limits. Ask the user to shorten their base nickname.'
 		: '';
 	await interaction.editReply({
-		content: `Awarded **${parsedMerits.data} merits** to <@${targetMember.id}>${eventLine}${reasonLine}${dmLine}${nicknameWarningLine}`
+		content: `Applied **${meritChangeLabel}** (${award.meritType.name}) to <@${targetMember.id}>${eventLine}${reasonLine}${dmLine}${nicknameWarningLine}`
 	});
 
 	logger.info(
 		{
 			targetDiscordUserId: targetMember.id,
 			awarderDiscordUserId: interaction.user.id,
-			amount: parsedMerits.data,
+			amount: award.meritType.meritAmount,
+			meritTypeCode: award.meritType.code,
 			reason,
 			eventSessionId: linkedEvent?.id ?? null,
 			meritRecordId: award.id
@@ -278,4 +298,8 @@ function getMemberMatchCandidates(member: GuildMember) {
 
 function normalizeMemberMatchKey(value: string) {
 	return value.trim().toLowerCase();
+}
+
+function formatSignedMeritAmount(amount: number) {
+	return amount >= 0 ? `+${amount}` : `${amount}`;
 }
