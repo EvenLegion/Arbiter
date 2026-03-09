@@ -38,7 +38,7 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 	const caller = 'handleNameChangeReviewButton';
 	const logger = context.logger.child({
 		caller,
-		requestId: parsedNameChangeReviewButton.requestId,
+		nameChangeRequestId: parsedNameChangeReviewButton.requestId,
 		action: parsedNameChangeReviewButton.action
 	});
 
@@ -121,7 +121,7 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 				logger.error(
 					{
 						err: error,
-						requestId: request.id
+						nameChangeRequestId: request.id
 					},
 					'Failed to show edit name modal'
 				);
@@ -227,7 +227,7 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 			logger.error(
 				{
 					err: error,
-					requestId: parsedNameChangeReviewButton.requestId
+					nameChangeRequestId: parsedNameChangeReviewButton.requestId
 				},
 				'Failed to validate approved name change request nickname length'
 			);
@@ -275,7 +275,7 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 		logger.error(
 			{
 				err: error,
-				requestId: reviewed.id,
+				nameChangeRequestId: reviewed.id,
 				requesterDiscordUserId: reviewed.requesterUser.discordUserId
 			},
 			'Failed to apply approved name change nickname sync'
@@ -337,7 +337,7 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 				{
 					err: error,
 					channelId: interaction.channelId,
-					requestId: parsedNameChangeReviewButton.requestId
+					nameChangeRequestId: parsedNameChangeReviewButton.requestId
 				},
 				'Failed to archive reviewed name change request thread'
 			);
@@ -346,7 +346,7 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 
 	logger.info(
 		{
-			requestId: parsedNameChangeReviewButton.requestId,
+			nameChangeRequestId: parsedNameChangeReviewButton.requestId,
 			reviewerDiscordUserId: interaction.user.id,
 			reviewerDbUserId: reviewerDbUser.id,
 			status: reviewed.status,

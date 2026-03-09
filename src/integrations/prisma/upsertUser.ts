@@ -5,21 +5,33 @@ type UpsertUserParams = {
 	discordUsername: string;
 	discordNickname: string;
 	discordAvatarUrl: string;
+	overwriteDiscordNickname?: boolean;
 };
 
-export async function upsertUser({ discordUserId, discordUsername, discordNickname, discordAvatarUrl }: UpsertUserParams) {
-	const data = {
+export async function upsertUser({
+	discordUserId,
+	discordUsername,
+	discordNickname,
+	discordAvatarUrl,
+	overwriteDiscordNickname = false
+}: UpsertUserParams) {
+	const createData = {
 		discordUsername,
 		discordNickname,
 		discordAvatarUrl
 	};
+	const updateData = {
+		discordUsername,
+		discordAvatarUrl,
+		...(overwriteDiscordNickname ? { discordNickname } : {})
+	};
 
 	return prisma.user.upsert({
 		where: { discordUserId },
-		update: data,
+		update: updateData,
 		create: {
 			discordUserId,
-			...data
+			...createData
 		}
 	});
 }

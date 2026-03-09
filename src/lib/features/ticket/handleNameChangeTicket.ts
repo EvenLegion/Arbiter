@@ -245,7 +245,7 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 		logger.error(
 			{
 				err: error,
-				requestId: request.id,
+				nameChangeRequestId: request.id,
 				botRequestsChannelId: ENV_DISCORD.BOT_REQUESTS_CHANNEL_ID
 			},
 			'Failed to create review thread for name change request'
@@ -268,7 +268,7 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 		logger.error(
 			{
 				err: error,
-				requestId: request.id,
+				nameChangeRequestId: request.id,
 				reviewThreadId: threadResult.thread.id
 			},
 			'Failed to persist name change request review thread reference'
@@ -281,7 +281,7 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 
 	logger.info(
 		{
-			requestId: request.id,
+			nameChangeRequestId: request.id,
 			requesterDiscordUserId: interaction.user.id,
 			requestedName,
 			reviewThreadId: threadResult.thread.id

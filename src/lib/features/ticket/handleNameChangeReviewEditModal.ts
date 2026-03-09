@@ -26,7 +26,7 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 	const caller = 'handleNameChangeReviewEditModal';
 	const logger = context.logger.child({
 		caller,
-		requestId: parsedNameChangeReviewModal.requestId
+		nameChangeRequestId: parsedNameChangeReviewModal.requestId
 	});
 
 	await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -171,7 +171,7 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 		logger.error(
 			{
 				err: error,
-				requestId: parsedNameChangeReviewModal.requestId
+				nameChangeRequestId: parsedNameChangeReviewModal.requestId
 			},
 			'Failed to validate edited requested name'
 		);
@@ -188,7 +188,7 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 		logger.error(
 			{
 				err: error,
-				requestId: parsedNameChangeReviewModal.requestId
+				nameChangeRequestId: parsedNameChangeReviewModal.requestId
 			},
 			'Failed to update pending name change requested name'
 		);
@@ -216,7 +216,7 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 				logger.error(
 					{
 						err: error,
-						requestId: updatedRequest.id
+						nameChangeRequestId: updatedRequest.id
 					},
 					'Failed to update name change review message after requested name edit'
 				);
@@ -241,7 +241,7 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 
 	logger.info(
 		{
-			requestId: parsedNameChangeReviewModal.requestId,
+			nameChangeRequestId: parsedNameChangeReviewModal.requestId,
 			reviewerDiscordUserId: interaction.user.id,
 			oldRequestedName: existingRequest.requestedName,
 			newRequestedName: updatedRequest.requestedName
