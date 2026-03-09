@@ -119,8 +119,8 @@ Update env parsing so event config is first-class in v3:
     - add `EVENT_TRACKING_CHANNEL_ID`
     - add `EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT`
     - add `EVENT_MERIT_LIST_PAGE_SIZE`
-- `src/config/env/config.ts`:
-    - add `EVENT_TRACKING_TICK_SECONDS` (or reuse `VC_ACTIVITY_TICK_SECONDS`)
+- `src/config/env/discord.ts`:
+    - add `EVENT_TRACKING_INTERVAL_SECONDS`
 
 Keep defaults strict/validated with Zod.
 

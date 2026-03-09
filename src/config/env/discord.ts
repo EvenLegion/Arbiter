@@ -6,8 +6,6 @@ const DiscordSchema = z.object({
 	DISCORD_TOKEN: z.string().min(1, 'DISCORD_TOKEN is required'),
 	DISCORD_GUILD_ID: z.string().min(1, 'DISCORD_GUILD_ID is required'),
 
-	VC_ACTIVITY_TICK_SECONDS: z.coerce.number().int().min(1),
-
 	WELCOME_CHANNEL_ID: z.string().min(1, 'WELCOME_CHANNEL_ID is required'),
 	WELCOME_RULES_CHANNEL_ID: z.string().min(1, 'WELCOME_RULES_CHANNEL_ID is required'),
 	WELCOME_RECRUITMENT_CHANNEL_ID: z.string().min(1, 'WELCOME_RECRUITMENT_CHANNEL_ID is required'),
@@ -50,11 +48,6 @@ const DiscordSchema = z.object({
 
 	// Auxiliary role
 	AUX_ROLE_ID: z.string().min(1, 'AUX_ROLE_ID is required'),
-
-	// AUX VC credit config
-	AUX_VC_CREDIT_INTERVAL_SECONDS: z.coerce.number().int().min(1),
-	AUX_VC_REQUIRED_CREDITS: z.coerce.number().int().min(1),
-	AUX_VC_MIN_OTHER_QUALIFIED_MEMBERS: z.coerce.number().int().min(1),
 
 	// Event and merit tracking config
 	EVENT_TRACKING_CHANNEL_ID: z.string().min(1, 'EVENT_TRACKING_CHANNEL_ID is required'),
