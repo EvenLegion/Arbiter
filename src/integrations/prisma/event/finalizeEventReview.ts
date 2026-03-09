@@ -122,32 +122,8 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			};
 		}
 
-		const preExistingMerits = await tx.merit.findMany({
-			where: {
-				eventSessionId: parsed.eventSessionId,
-				meritTypeId: eventSession.eventTier.meritTypeId,
-				userId: {
-					in: meritDecisionRows.map((row) => row.targetUserId)
-				}
-			},
-			select: {
-				userId: true
-			}
-		});
-		const preExistingMeritUserIds = new Set(preExistingMerits.map((row) => row.userId));
-		const rowsToAward = meritDecisionRows.filter((row) => !preExistingMeritUserIds.has(row.targetUserId));
-		if (rowsToAward.length === 0) {
-			return {
-				finalized: true,
-				toState,
-				awardedCount: 0,
-				awardedMeritAmount: 0,
-				awardedUsers: []
-			};
-		}
-
 		const createManyResult = await tx.merit.createMany({
-			data: rowsToAward.map((row) => ({
+			data: meritDecisionRows.map((row) => ({
 				userId: row.targetUserId,
 				awardedByUserId: parsed.reviewerDbUserId,
 				meritTypeId: eventSession.eventTier.meritTypeId,
@@ -162,7 +138,7 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			toState,
 			awardedCount: createManyResult.count,
 			awardedMeritAmount: eventSession.eventTier.meritType.meritAmount,
-			awardedUsers: rowsToAward.map((row) => ({
+			awardedUsers: meritDecisionRows.map((row) => ({
 				dbUserId: row.targetUserId,
 				discordUserId: row.targetUser.discordUserId
 			}))
