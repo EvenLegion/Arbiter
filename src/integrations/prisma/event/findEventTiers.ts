@@ -52,6 +52,9 @@ export async function findManyEventTiers({ eventTierIds, eventTierId, isActive, 
 
 	return prisma.eventTier.findMany({
 		where: combinedWhere,
+		include: {
+			meritType: true
+		},
 		orderBy,
 		...(typeof parsed.limit === 'number' ? { take: Math.max(1, Math.floor(parsed.limit)) } : {})
 	});
@@ -63,7 +66,10 @@ export async function findFirstEventTier({ where }: { where: Prisma.EventTierWhe
 	});
 
 	return prisma.eventTier.findFirst({
-		where
+		where,
+		include: {
+			meritType: true
+		}
 	});
 }
 

@@ -1,4 +1,4 @@
-import { MeritSource } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from './prisma';
 
@@ -18,43 +18,131 @@ const AWARD_MANUAL_MERIT_SCHEMA = z.object({
 	eventSessionId: z.number().int().positive().nullable().optional()
 });
 
+const CANONICAL_MERIT_TYPE_CODE_BY_AMOUNT = new Map<number, string>([
+	[-1, 'DEMERIT'],
+	[0, 'TIER_0'],
+	[1, 'COMMANDER_MERIT'],
+	[2, 'TIER_2'],
+	[3, 'TIER_3'],
+	[4, 'TESSERARIUS_MERIT']
+]);
+
 export async function awardManualMerit(params: AwardManualMeritParams) {
 	const parsed = AWARD_MANUAL_MERIT_SCHEMA.parse(params);
 
-	if (parsed.eventSessionId) {
-		return prisma.merit.upsert({
-			where: {
-				eventSessionId_userId_source: {
-					eventSessionId: parsed.eventSessionId,
+	return prisma.$transaction(async (tx) => {
+		const meritTypeId = await resolveMeritTypeId({
+			tx,
+			amount: parsed.amount,
+			eventSessionId: parsed.eventSessionId ?? null
+		});
+
+		if (parsed.eventSessionId) {
+			return tx.merit.upsert({
+				where: {
+					eventSessionId_userId_meritTypeId: {
+						eventSessionId: parsed.eventSessionId,
+						userId: parsed.recipientDbUserId,
+						meritTypeId
+					}
+				},
+				create: {
 					userId: parsed.recipientDbUserId,
-					source: MeritSource.MANUAL
+					awardedByUserId: parsed.awardedByDbUserId,
+					meritTypeId,
+					amount: parsed.amount,
+					reason: parsed.reason ?? null,
+					eventSessionId: parsed.eventSessionId
+				},
+				update: {
+					amount: {
+						increment: parsed.amount
+					},
+					awardedByUserId: parsed.awardedByDbUserId,
+					...(parsed.reason ? { reason: parsed.reason } : {})
 				}
-			},
-			create: {
+			});
+		}
+
+		return tx.merit.create({
+			data: {
 				userId: parsed.recipientDbUserId,
 				awardedByUserId: parsed.awardedByDbUserId,
+				meritTypeId,
 				amount: parsed.amount,
-				source: MeritSource.MANUAL,
-				reason: parsed.reason ?? null,
-				eventSessionId: parsed.eventSessionId
-			},
-			update: {
-				amount: {
-					increment: parsed.amount
-				},
-				awardedByUserId: parsed.awardedByDbUserId,
-				...(parsed.reason ? { reason: parsed.reason } : {})
+				reason: parsed.reason ?? null
 			}
 		});
+	});
+}
+
+async function resolveMeritTypeId({ tx, amount, eventSessionId }: { tx: Prisma.TransactionClient; amount: number; eventSessionId: number | null }) {
+	if (eventSessionId) {
+		const eventSession = await tx.eventSession.findUnique({
+			where: {
+				id: eventSessionId
+			},
+			select: {
+				eventTier: {
+					select: {
+						meritTypeId: true,
+						meritType: {
+							select: {
+								meritAmount: true
+							}
+						}
+					}
+				}
+			}
+		});
+		if (eventSession && eventSession.eventTier.meritType.meritAmount === amount) {
+			return eventSession.eventTier.meritTypeId;
+		}
 	}
 
-	return prisma.merit.create({
-		data: {
-			userId: parsed.recipientDbUserId,
-			awardedByUserId: parsed.awardedByDbUserId,
-			amount: parsed.amount,
-			source: MeritSource.MANUAL,
-			reason: parsed.reason ?? null
+	const canonicalMeritTypeCode = CANONICAL_MERIT_TYPE_CODE_BY_AMOUNT.get(amount);
+	if (canonicalMeritTypeCode) {
+		const canonicalMeritType = await tx.meritType.findUnique({
+			where: {
+				code: canonicalMeritTypeCode
+			},
+			select: {
+				id: true
+			}
+		});
+		if (canonicalMeritType) {
+			return canonicalMeritType.id;
+		}
+	}
+
+	const customMeritType = await tx.meritType.upsert({
+		where: {
+			code: buildCustomMeritTypeCode(amount)
+		},
+		update: {
+			name: buildCustomMeritTypeName(amount),
+			description: `Custom manual merit type (${amount})`,
+			meritAmount: amount
+		},
+		create: {
+			code: buildCustomMeritTypeCode(amount),
+			name: buildCustomMeritTypeName(amount),
+			description: `Custom manual merit type (${amount})`,
+			meritAmount: amount
+		},
+		select: {
+			id: true
 		}
 	});
+
+	return customMeritType.id;
+}
+
+function buildCustomMeritTypeName(amount: number) {
+	const signPrefix = amount >= 0 ? '+' : '';
+	return `Custom Merit ${signPrefix}${amount}`;
+}
+
+function buildCustomMeritTypeCode(amount: number) {
+	return amount >= 0 ? `CUSTOM_P${amount}` : `CUSTOM_N${Math.abs(amount)}`;
 }

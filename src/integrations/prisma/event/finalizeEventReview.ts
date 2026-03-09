@@ -1,4 +1,4 @@
-import { EventReviewDecisionKind, EventSessionState, MeritSource } from '@prisma/client';
+import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../prisma';
 
@@ -44,7 +44,12 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 				state: true,
 				eventTier: {
 					select: {
-						meritAmount: true
+						meritTypeId: true,
+						meritType: {
+							select: {
+								meritAmount: true
+							}
+						}
 					}
 				}
 			}
@@ -120,7 +125,7 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 		const preExistingMerits = await tx.merit.findMany({
 			where: {
 				eventSessionId: parsed.eventSessionId,
-				source: MeritSource.EVENT,
+				meritTypeId: eventSession.eventTier.meritTypeId,
 				userId: {
 					in: meritDecisionRows.map((row) => row.targetUserId)
 				}
@@ -145,8 +150,8 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			data: rowsToAward.map((row) => ({
 				userId: row.targetUserId,
 				awardedByUserId: parsed.reviewerDbUserId,
-				amount: eventSession.eventTier.meritAmount,
-				source: MeritSource.EVENT,
+				meritTypeId: eventSession.eventTier.meritTypeId,
+				amount: eventSession.eventTier.meritType.meritAmount,
 				reason: `Awarded for attending`,
 				eventSessionId: parsed.eventSessionId
 			})),
@@ -157,7 +162,7 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			finalized: true,
 			toState,
 			awardedCount: createManyResult.count,
-			awardedMeritAmount: eventSession.eventTier.meritAmount,
+			awardedMeritAmount: eventSession.eventTier.meritType.meritAmount,
 			awardedUsers: rowsToAward.map((row) => ({
 				dbUserId: row.targetUserId,
 				discordUserId: row.targetUser.discordUserId

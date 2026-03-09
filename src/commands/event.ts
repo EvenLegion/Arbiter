@@ -134,7 +134,7 @@ export class EventCommand extends Subcommand {
 
 				await interaction.respond(
 					filtered.slice(0, 25).map((tier) => ({
-						name: `${tier.name} ${tier.description} (${tier.meritAmount} merits)`,
+						name: `${tier.name} ${tier.description} (${tier.meritType.meritAmount} merits)`,
 						value: String(tier.id)
 					}))
 				);

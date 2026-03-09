@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 
 import { seedDivisions } from './seeders/divisions';
 import { seedEventTiers } from './seeders/eventTiers';
+import { seedMeritTypes } from './seeders/meritTypes';
 import { requiredEnv } from './seeders/utils';
 
 async function main() {
@@ -18,6 +19,7 @@ async function main() {
 
 	try {
 		await seedDivisions(prisma);
+		await seedMeritTypes(prisma);
 		await seedEventTiers(prisma);
 	} finally {
 		await prisma.$disconnect();

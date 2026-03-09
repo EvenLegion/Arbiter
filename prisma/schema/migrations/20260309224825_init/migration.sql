@@ -14,9 +14,6 @@ CREATE TYPE "EventReviewDecisionKind" AS ENUM ('MERIT', 'NO_MERIT');
 CREATE TYPE "EventSessionChannelKind" AS ENUM ('EVENT_THREAD', 'PARENT_VC', 'CHILD_VC');
 
 -- CreateEnum
-CREATE TYPE "MeritSource" AS ENUM ('MANUAL', 'EVENT');
-
--- CreateEnum
 CREATE TYPE "EventSessionMessageKind" AS ENUM ('ACTIVE', 'TRACKING_SUMMARY', 'TRACKING_SUMMARY_PARENT_VC', 'REVIEW');
 
 -- CreateTable
@@ -87,6 +84,47 @@ CREATE TABLE "NameChangeRequest" (
 );
 
 -- CreateTable
+CREATE TABLE "MeritType" (
+    "id" SERIAL NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "meritAmount" INTEGER NOT NULL,
+
+    CONSTRAINT "MeritType_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Merit" (
+    "id" SERIAL NOT NULL,
+    "userId" TEXT NOT NULL,
+    "awardedByUserId" TEXT NOT NULL,
+    "meritTypeId" INTEGER NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "reason" TEXT,
+    "eventSessionId" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Merit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EventTier" (
+    "id" SERIAL NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "meritTypeId" INTEGER NOT NULL,
+    "displayOrder" INTEGER NOT NULL DEFAULT 0,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EventTier_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "EventSession" (
     "id" SERIAL NOT NULL,
     "hostUserId" TEXT NOT NULL,
@@ -142,36 +180,6 @@ CREATE TABLE "EventReviewDecision" (
 );
 
 -- CreateTable
-CREATE TABLE "Merit" (
-    "id" SERIAL NOT NULL,
-    "userId" TEXT NOT NULL,
-    "awardedByUserId" TEXT NOT NULL,
-    "amount" INTEGER NOT NULL,
-    "source" "MeritSource" NOT NULL,
-    "reason" TEXT,
-    "eventSessionId" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Merit_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "EventTier" (
-    "id" SERIAL NOT NULL,
-    "code" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT NOT NULL,
-    "meritAmount" INTEGER NOT NULL,
-    "displayOrder" INTEGER NOT NULL DEFAULT 0,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "EventTier_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "EventSessionMessage" (
     "id" SERIAL NOT NULL,
     "eventSessionId" INTEGER NOT NULL,
@@ -224,6 +232,39 @@ CREATE INDEX "NameChangeRequest_status_idx" ON "NameChangeRequest"("status");
 CREATE INDEX "NameChangeRequest_reviewThreadId_idx" ON "NameChangeRequest"("reviewThreadId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "MeritType_code_key" ON "MeritType"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MeritType_name_key" ON "MeritType"("name");
+
+-- CreateIndex
+CREATE INDEX "Merit_userId_createdAt_idx" ON "Merit"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Merit_userId_meritTypeId_createdAt_idx" ON "Merit"("userId", "meritTypeId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Merit_meritTypeId_eventSessionId_userId_idx" ON "Merit"("meritTypeId", "eventSessionId", "userId");
+
+-- CreateIndex
+CREATE INDEX "Merit_eventSessionId_idx" ON "Merit"("eventSessionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Merit_eventSessionId_userId_meritTypeId_key" ON "Merit"("eventSessionId", "userId", "meritTypeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EventTier_code_key" ON "EventTier"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EventTier_name_key" ON "EventTier"("name");
+
+-- CreateIndex
+CREATE INDEX "EventTier_isActive_displayOrder_idx" ON "EventTier"("isActive", "displayOrder");
+
+-- CreateIndex
+CREATE INDEX "EventTier_meritTypeId_idx" ON "EventTier"("meritTypeId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "EventSession_threadId_key" ON "EventSession"("threadId");
 
 -- CreateIndex
@@ -272,30 +313,6 @@ CREATE INDEX "EventReviewDecision_eventSessionId_decision_idx" ON "EventReviewDe
 CREATE UNIQUE INDEX "EventReviewDecision_eventSessionId_targetUserId_key" ON "EventReviewDecision"("eventSessionId", "targetUserId");
 
 -- CreateIndex
-CREATE INDEX "Merit_userId_createdAt_idx" ON "Merit"("userId", "createdAt");
-
--- CreateIndex
-CREATE INDEX "Merit_userId_source_createdAt_idx" ON "Merit"("userId", "source", "createdAt");
-
--- CreateIndex
-CREATE INDEX "Merit_source_eventSessionId_userId_idx" ON "Merit"("source", "eventSessionId", "userId");
-
--- CreateIndex
-CREATE INDEX "Merit_eventSessionId_idx" ON "Merit"("eventSessionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Merit_eventSessionId_userId_source_key" ON "Merit"("eventSessionId", "userId", "source");
-
--- CreateIndex
-CREATE UNIQUE INDEX "EventTier_code_key" ON "EventTier"("code");
-
--- CreateIndex
-CREATE UNIQUE INDEX "EventTier_name_key" ON "EventTier"("name");
-
--- CreateIndex
-CREATE INDEX "EventTier_isActive_displayOrder_idx" ON "EventTier"("isActive", "displayOrder");
-
--- CreateIndex
 CREATE UNIQUE INDEX "EventSessionMessage_eventSessionId_kind_key" ON "EventSessionMessage"("eventSessionId", "kind");
 
 -- CreateIndex
@@ -312,6 +329,21 @@ ALTER TABLE "NameChangeRequest" ADD CONSTRAINT "NameChangeRequest_requesterUserI
 
 -- AddForeignKey
 ALTER TABLE "NameChangeRequest" ADD CONSTRAINT "NameChangeRequest_reviewerUserId_fkey" FOREIGN KEY ("reviewerUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Merit" ADD CONSTRAINT "Merit_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Merit" ADD CONSTRAINT "Merit_awardedByUserId_fkey" FOREIGN KEY ("awardedByUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Merit" ADD CONSTRAINT "Merit_meritTypeId_fkey" FOREIGN KEY ("meritTypeId") REFERENCES "MeritType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Merit" ADD CONSTRAINT "Merit_eventSessionId_fkey" FOREIGN KEY ("eventSessionId") REFERENCES "EventSession"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EventTier" ADD CONSTRAINT "EventTier_meritTypeId_fkey" FOREIGN KEY ("meritTypeId") REFERENCES "MeritType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EventSession" ADD CONSTRAINT "EventSession_hostUserId_fkey" FOREIGN KEY ("hostUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -339,15 +371,6 @@ ALTER TABLE "EventReviewDecision" ADD CONSTRAINT "EventReviewDecision_eventSessi
 
 -- AddForeignKey
 ALTER TABLE "EventReviewDecision" ADD CONSTRAINT "EventReviewDecision_targetUserId_fkey" FOREIGN KEY ("targetUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Merit" ADD CONSTRAINT "Merit_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Merit" ADD CONSTRAINT "Merit_awardedByUserId_fkey" FOREIGN KEY ("awardedByUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Merit" ADD CONSTRAINT "Merit_eventSessionId_fkey" FOREIGN KEY ("eventSessionId") REFERENCES "EventSession"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EventSessionMessage" ADD CONSTRAINT "EventSessionMessage_eventSessionId_fkey" FOREIGN KEY ("eventSessionId") REFERENCES "EventSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;

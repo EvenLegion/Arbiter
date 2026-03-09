@@ -1,0 +1,33 @@
+model MeritType {
+  id          Int    @id @default(autoincrement())
+  code        String @unique
+  name        String @unique
+  description String
+  meritAmount Int
+
+  eventTiers EventTier[]
+  merits     Merit[]
+}
+
+model Merit {
+  id              Int         @id @default(autoincrement())
+  userId          String
+  awardedByUserId String
+  meritTypeId     Int
+  amount          Int
+  reason          String?
+  eventSessionId  Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user          User          @relation("MeritRecipientUser", fields: [userId], references: [id], onDelete: Cascade)
+  awardedByUser User          @relation("MeritAwarderUser", fields: [awardedByUserId], references: [id], onDelete: Cascade)
+  meritType     MeritType     @relation(fields: [meritTypeId], references: [id], onDelete: Restrict)
+  eventSession  EventSession? @relation(fields: [eventSessionId], references: [id], onDelete: SetNull)
+
+  @@unique([eventSessionId, userId, meritTypeId])
+  @@index([userId, createdAt])
+  @@index([userId, meritTypeId, createdAt])
+  @@index([meritTypeId, eventSessionId, userId])
+  @@index([eventSessionId])
+}

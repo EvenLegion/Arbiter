@@ -6,7 +6,11 @@ import { syncTrackingSummaryMessage } from './syncTrackingSummaryMessage';
 type EventSessionWithRelations = Prisma.EventSessionGetPayload<{
 	include: {
 		hostUser: true;
-		eventTier: true;
+		eventTier: {
+			include: {
+				meritType: true;
+			};
+		};
 		channels: true;
 		eventMessages: true;
 	};

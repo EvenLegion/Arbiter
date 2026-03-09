@@ -6,30 +6,37 @@ type EventTierSeed = {
 	code: string;
 	name: string;
 	description: string;
-	meritAmount: number;
+	meritTypeCode: string;
 	displayOrder: number;
 };
 
 const eventTierSeeds: EventTierSeed[] = [
 	{
+		code: 'TIER_0',
+		name: 'Tier 0',
+		description: 'Casual Op',
+		meritTypeCode: 'TIER_0',
+		displayOrder: 0
+	},
+	{
 		code: 'TIER_1',
 		name: 'Tier 1',
 		description: 'Experienced Op',
-		meritAmount: 1,
+		meritTypeCode: 'TIER_1',
 		displayOrder: 1
 	},
 	{
 		code: 'TIER_2',
 		name: 'Tier 2',
 		description: 'Advanced Op',
-		meritAmount: 2,
+		meritTypeCode: 'TIER_2',
 		displayOrder: 2
 	},
 	{
 		code: 'TIER_3',
 		name: 'Tier 3',
 		description: 'Elite Op',
-		meritAmount: 3,
+		meritTypeCode: 'TIER_3',
 		displayOrder: 3
 	}
 ];
@@ -41,7 +48,11 @@ export async function seedEventTiers(prisma: PrismaClient) {
 			update: {
 				name: tier.name,
 				description: tier.description,
-				meritAmount: tier.meritAmount,
+				meritType: {
+					connect: {
+						code: tier.meritTypeCode
+					}
+				},
 				displayOrder: tier.displayOrder,
 				isActive: true
 			},
@@ -49,7 +60,11 @@ export async function seedEventTiers(prisma: PrismaClient) {
 				code: tier.code,
 				name: tier.name,
 				description: tier.description,
-				meritAmount: tier.meritAmount,
+				meritType: {
+					connect: {
+						code: tier.meritTypeCode
+					}
+				},
 				displayOrder: tier.displayOrder,
 				isActive: true
 			}

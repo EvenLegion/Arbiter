@@ -6,7 +6,11 @@ import { buildEventTrackingSummaryPayload } from '../ui/buildEventTrackingSummar
 type EventSessionWithRelations = Prisma.EventSessionGetPayload<{
 	include: {
 		hostUser: true;
-		eventTier: true;
+		eventTier: {
+			include: {
+				meritType: true;
+			};
+		};
 		channels: true;
 		eventMessages: true;
 	};
@@ -29,7 +33,7 @@ export async function syncTrackingSummaryMessage({ guild, eventSession, logger }
 		eventSessionId: eventSession.id,
 		eventName: eventSession.name,
 		tierName: eventSession.eventTier.name,
-		tierMeritAmount: eventSession.eventTier.meritAmount,
+		tierMeritAmount: eventSession.eventTier.meritType.meritAmount,
 		hostDiscordUserId: eventSession.hostUser.discordUserId,
 		trackedChannelIds: trackedVoiceChannelIds,
 		trackingThreadId: eventSession.threadId,
