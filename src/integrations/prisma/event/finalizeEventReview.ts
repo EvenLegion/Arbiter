@@ -151,7 +151,6 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 				userId: row.targetUserId,
 				awardedByUserId: parsed.reviewerDbUserId,
 				meritTypeId: eventSession.eventTier.meritTypeId,
-				amount: eventSession.eventTier.meritType.meritAmount,
 				reason: `Awarded for attending`,
 				eventSessionId: parsed.eventSessionId
 			})),

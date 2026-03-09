@@ -100,7 +100,6 @@ CREATE TABLE "Merit" (
     "userId" TEXT NOT NULL,
     "awardedByUserId" TEXT NOT NULL,
     "meritTypeId" INTEGER NOT NULL,
-    "amount" INTEGER NOT NULL,
     "reason" TEXT,
     "eventSessionId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -248,9 +247,6 @@ CREATE INDEX "Merit_meritTypeId_eventSessionId_userId_idx" ON "Merit"("meritType
 
 -- CreateIndex
 CREATE INDEX "Merit_eventSessionId_idx" ON "Merit"("eventSessionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Merit_eventSessionId_userId_meritTypeId_key" ON "Merit"("eventSessionId", "userId", "meritTypeId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "EventTier_code_key" ON "EventTier"("code");

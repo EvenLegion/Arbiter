@@ -37,40 +37,13 @@ export async function awardManualMerit(params: AwardManualMeritParams) {
 			eventSessionId: parsed.eventSessionId ?? null
 		});
 
-		if (parsed.eventSessionId) {
-			return tx.merit.upsert({
-				where: {
-					eventSessionId_userId_meritTypeId: {
-						eventSessionId: parsed.eventSessionId,
-						userId: parsed.recipientDbUserId,
-						meritTypeId
-					}
-				},
-				create: {
-					userId: parsed.recipientDbUserId,
-					awardedByUserId: parsed.awardedByDbUserId,
-					meritTypeId,
-					amount: parsed.amount,
-					reason: parsed.reason ?? null,
-					eventSessionId: parsed.eventSessionId
-				},
-				update: {
-					amount: {
-						increment: parsed.amount
-					},
-					awardedByUserId: parsed.awardedByDbUserId,
-					...(parsed.reason ? { reason: parsed.reason } : {})
-				}
-			});
-		}
-
 		return tx.merit.create({
 			data: {
 				userId: parsed.recipientDbUserId,
 				awardedByUserId: parsed.awardedByDbUserId,
 				meritTypeId,
-				amount: parsed.amount,
-				reason: parsed.reason ?? null
+				reason: parsed.reason ?? null,
+				eventSessionId: parsed.eventSessionId ?? null
 			}
 		});
 	});

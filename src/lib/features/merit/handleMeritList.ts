@@ -320,7 +320,8 @@ function buildEntriesDescription({ entries }: { entries: MeritSummaryEntry[] }) 
 		const timestamp = `<t:${Math.floor(entry.createdAt.getTime() / 1_000)}:f>`;
 		const reason = trimForDisplay(entry.reason ?? 'No reason provided', 180);
 		const event = entry.eventSession ? `${entry.eventSession.name}` : 'No linked event';
-		const chunk = `**+${entry.amount} merits** ${timestamp}\nReason: ${reason}\nEvent: ${trimForDisplay(event, 140)}`;
+		const amountLabel = entry.amount >= 0 ? `+${entry.amount}` : `${entry.amount}`;
+		const chunk = `**${amountLabel} merits** ${timestamp}\nReason: ${reason}\nEvent: ${trimForDisplay(event, 140)}`;
 
 		const extraLength = chunks.length === 0 ? chunk.length : chunk.length + 2;
 		if (currentLength + extraLength > maxDescriptionLength) {
