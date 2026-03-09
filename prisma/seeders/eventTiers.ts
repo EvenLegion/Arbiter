@@ -12,28 +12,28 @@ type EventTierSeed = {
 
 const eventTierSeeds: EventTierSeed[] = [
 	{
-		code: 'TIER_0',
+		code: MeritTypeCode.TIER_0,
 		name: 'Tier 0',
 		description: 'Casual Op',
 		meritTypeCode: MeritTypeCode.TIER_0,
 		displayOrder: 0
 	},
 	{
-		code: 'TIER_1',
+		code: MeritTypeCode.TIER_1,
 		name: 'Tier 1',
 		description: 'Experienced Op',
 		meritTypeCode: MeritTypeCode.TIER_1,
 		displayOrder: 1
 	},
 	{
-		code: 'TIER_2',
+		code: MeritTypeCode.TIER_2,
 		name: 'Tier 2',
 		description: 'Advanced Op',
 		meritTypeCode: MeritTypeCode.TIER_2,
 		displayOrder: 2
 	},
 	{
-		code: 'TIER_3',
+		code: MeritTypeCode.TIER_3,
 		name: 'Tier 3',
 		description: 'Elite Op',
 		meritTypeCode: MeritTypeCode.TIER_3,
