@@ -14,7 +14,6 @@ model NameChangeRequest {
   reviewerUserId  String?
   reviewedAt      DateTime?
   reviewThreadId  String?
-  reviewMessageId String?
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt
 

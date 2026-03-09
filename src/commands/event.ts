@@ -19,7 +19,7 @@ import { createExecutionContext } from '../lib/logging/executionContext';
 			chatInputRun: 'chatInputStartEvent'
 		},
 		{
-			name: 'add-vc',
+			name: 'add_vc',
 			chatInputRun: 'chatInputAddVc'
 		}
 	]
@@ -49,7 +49,7 @@ export class EventCommand extends Subcommand {
 					)
 					.addSubcommand((subcommand) =>
 						subcommand
-							.setName('add-vc')
+							.setName('add_vc')
 							.setDescription('Add a voice channel as a child VC to a draft or active event.')
 							.addStringOption((option) =>
 								option
@@ -141,7 +141,7 @@ export class EventCommand extends Subcommand {
 				return;
 			}
 
-			if (subcommandName === 'add-vc' && focused.name === 'event_selection') {
+			if (subcommandName === 'add_vc' && focused.name === 'event_selection') {
 				const query = String(focused.value).trim();
 				// TODO Add caching support so we don't have to query the DB for each autocomplete request
 				const sessions = await findManyEventSessions({
@@ -162,7 +162,7 @@ export class EventCommand extends Subcommand {
 				return;
 			}
 
-			if (subcommandName === 'add-vc' && focused.name === 'voice_channel') {
+			if (subcommandName === 'add_vc' && focused.name === 'voice_channel') {
 				const guild = await this.container.utilities.guild.getOrThrow().catch((error: unknown) => {
 					this.container.logger.error(
 						{

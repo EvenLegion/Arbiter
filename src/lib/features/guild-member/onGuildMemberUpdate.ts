@@ -3,7 +3,6 @@ import type { Division } from '@prisma/client';
 
 import { container } from '@sapphire/framework';
 import { reconcileRolesAndMemberships } from './reconcileRolesAndMemberships';
-import { buildUserNickname } from './buildUserNickname';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
 
 type HandleGuildMemberUpdateParams = {
@@ -80,51 +79,53 @@ export async function handleGuildMemberUpdate({ oldMember, newMember, context }:
 		})
 	});
 
-	const { newUserNickname, reason } = await buildUserNickname({
-		discordUser,
-		context: createChildExecutionContext({
+	const nicknameSyncResult = await container.utilities.member
+		.syncComputedNickname({
+			member: discordUser,
 			context,
-			bindings: {
+			setReason: 'Guild member update nickname sync',
+			contextBindings: {
 				step: 'buildUserNickname'
 			}
 		})
-	});
+		.catch((err: unknown) => {
+			logger.error(
+				{
+					discordUserId: discordUser.id,
+					discordUsername: discordUser.user.username,
+					discordNickname: discordUser.nickname,
+					err
+				},
+				"Failed to sync user's discord nickname"
+			);
+			return null;
+		});
+	if (!nicknameSyncResult) {
+		return;
+	}
 
-	if (newUserNickname === null) {
+	if (nicknameSyncResult.outcome === 'skipped') {
 		logger.warn(
 			{
 				discordUsername: discordUser.user.username,
 				discordNickname: discordUser.nickname ?? discordUser.user.globalName ?? discordUser.user.username,
-				reason
+				reason: nicknameSyncResult.reason
 			},
 			'Skipping nickname update'
 		);
 		return;
 	}
 
-	try {
+	if (nicknameSyncResult.outcome === 'updated') {
 		logger.info(
 			{
 				discordUserId: discordUser.id,
 				discordUsername: discordUser.user.username,
 				discordNickname: discordUser.nickname,
-				newUserNickname
+				newUserNickname: nicknameSyncResult.computedNickname
 			},
 			"Updating user's discord nickname"
 		);
-		await discordUser.setNickname(newUserNickname);
-	} catch (err) {
-		logger.error(
-			{
-				discordUserId: discordUser.id,
-				discordUsername: discordUser.user.username,
-				discordNickname: discordUser.nickname,
-				newUserNickname,
-				err
-			},
-			"Failed to update user's discord nickname"
-		);
-		return;
 	}
 }
 
