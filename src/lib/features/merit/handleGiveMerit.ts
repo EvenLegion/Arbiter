@@ -20,7 +20,7 @@ type HandleGiveMeritParams = {
 };
 
 const PLAYER_DISCORD_USER_ID_SCHEMA = z.string().trim().min(1);
-const MANUAL_MERIT_TYPE_CODE_SCHEMA = z.nativeEnum(MeritTypeCode);
+const MANUAL_MERIT_TYPE_CODE_SCHEMA = z.enum(MeritTypeCode);
 const EVENT_SESSION_ID_SCHEMA = z.coerce.number().int().positive();
 
 export async function handleGiveMerit({ interaction, context }: HandleGiveMeritParams) {
