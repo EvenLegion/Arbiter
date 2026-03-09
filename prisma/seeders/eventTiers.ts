@@ -53,8 +53,7 @@ export async function seedEventTiers(prisma: PrismaClient) {
 						code: tier.meritTypeCode
 					}
 				},
-				displayOrder: tier.displayOrder,
-				isActive: true
+				displayOrder: tier.displayOrder
 			},
 			create: {
 				code: tier.code,
@@ -65,8 +64,7 @@ export async function seedEventTiers(prisma: PrismaClient) {
 						code: tier.meritTypeCode
 					}
 				},
-				displayOrder: tier.displayOrder,
-				isActive: true
+				displayOrder: tier.displayOrder
 			}
 		});
 	}

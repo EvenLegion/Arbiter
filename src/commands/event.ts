@@ -117,7 +117,6 @@ export class EventCommand extends Subcommand {
 			if (subcommandName === 'start' && focused.name === 'tier_level') {
 				const query = String(focused.value).trim().toLowerCase();
 				const tiers = await findManyEventTiers({
-					isActive: true,
 					orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }]
 				});
 				const filtered = tiers.filter((tier) => {

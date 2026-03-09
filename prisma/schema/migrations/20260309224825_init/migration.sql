@@ -116,7 +116,6 @@ CREATE TABLE "EventTier" (
     "description" TEXT NOT NULL,
     "meritTypeId" INTEGER NOT NULL,
     "displayOrder" INTEGER NOT NULL DEFAULT 0,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -255,7 +254,7 @@ CREATE UNIQUE INDEX "EventTier_code_key" ON "EventTier"("code");
 CREATE UNIQUE INDEX "EventTier_name_key" ON "EventTier"("name");
 
 -- CreateIndex
-CREATE INDEX "EventTier_isActive_displayOrder_idx" ON "EventTier"("isActive", "displayOrder");
+CREATE INDEX "EventTier_displayOrder_idx" ON "EventTier"("displayOrder");
 
 -- CreateIndex
 CREATE INDEX "EventTier_meritTypeId_idx" ON "EventTier"("meritTypeId");

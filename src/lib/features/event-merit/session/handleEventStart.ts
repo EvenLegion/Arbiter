@@ -67,8 +67,7 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 
 	const eventTier = await findFirstEventTier({
 		where: {
-			id: parsedEventTierId.data,
-			isActive: true
+			id: parsedEventTierId.data
 		}
 	});
 	if (!eventTier) {

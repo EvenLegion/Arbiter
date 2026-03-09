@@ -5,7 +5,6 @@ import { prisma } from '../prisma';
 type EventTierFilters = {
 	eventTierIds?: number[];
 	eventTierId?: number;
-	isActive?: boolean;
 	query?: string;
 	where?: Prisma.EventTierWhereInput;
 };
@@ -18,7 +17,6 @@ type FindManyEventTiersParams = EventTierFilters & {
 const FIND_MANY_EVENT_TIERS_SCHEMA = z.object({
 	eventTierIds: z.array(z.number().int().positive()).optional(),
 	eventTierId: z.number().int().positive().optional(),
-	isActive: z.boolean().optional(),
 	query: z.string().default(''),
 	limit: z.number().int().positive().optional()
 });
@@ -27,11 +25,10 @@ const FIND_FIRST_EVENT_TIER_SCHEMA = z.object({
 	where: z.record(z.string(), z.unknown())
 });
 
-export async function findManyEventTiers({ eventTierIds, eventTierId, isActive, query = '', where, orderBy, limit }: FindManyEventTiersParams = {}) {
+export async function findManyEventTiers({ eventTierIds, eventTierId, query = '', where, orderBy, limit }: FindManyEventTiersParams = {}) {
 	const parsed = FIND_MANY_EVENT_TIERS_SCHEMA.parse({
 		eventTierIds,
 		eventTierId,
-		isActive,
 		query,
 		limit
 	});
@@ -42,7 +39,6 @@ export async function findManyEventTiers({ eventTierIds, eventTierId, isActive, 
 	const derivedWhere = buildEventTierWhere({
 		eventTierIds: parsed.eventTierIds,
 		eventTierId: parsed.eventTierId,
-		isActive: parsed.isActive,
 		query: parsed.query
 	});
 	const combinedWhere = combineWhereConditions({
@@ -73,13 +69,12 @@ export async function findFirstEventTier({ where }: { where: Prisma.EventTierWhe
 	});
 }
 
-function buildEventTierWhere({ eventTierIds, eventTierId, isActive, query = '' }: Omit<EventTierFilters, 'where'>): Prisma.EventTierWhereInput {
+function buildEventTierWhere({ eventTierIds, eventTierId, query = '' }: Omit<EventTierFilters, 'where'>): Prisma.EventTierWhereInput {
 	const trimmedQuery = query.trim();
 
 	return {
 		...(eventTierIds ? { id: { in: eventTierIds } } : {}),
 		...(typeof eventTierId === 'number' ? { id: eventTierId } : {}),
-		...(typeof isActive === 'boolean' ? { isActive } : {}),
 		...(trimmedQuery.length > 0
 			? {
 					OR: [

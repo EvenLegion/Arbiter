@@ -25,14 +25,13 @@ model EventTier {
   description  String
   meritTypeId  Int
   displayOrder Int      @default(0)
-  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   meritType     MeritType      @relation(fields: [meritTypeId], references: [id], onDelete: Restrict)
   eventSessions EventSession[]
 
-  @@index([isActive, displayOrder])
+  @@index([displayOrder])
   @@index([meritTypeId])
 }
 
