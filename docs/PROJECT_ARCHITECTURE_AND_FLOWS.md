@@ -35,7 +35,7 @@ Boot sequence:
 5. `ready` listener runs (`src/listeners/ready.ts`):
 6. Runtime services are available (`container.utilities`, Redis, scheduled tasks backend).
 7. Division cache utility is refreshed from Postgres.
-8. AUX VC eligibility is reconciled once immediately.
+8. Scheduled tasks continue runtime processing (for example, event tracking and division cache refresh).
 
 ## 3) Data and state layers
 
@@ -55,11 +55,11 @@ Prisma integration lives in `src/integrations/prisma`.
 - Built in `src/integrations/prisma/divisionCache/initDivisionCache.ts`.
 - Exposed to the app through Sapphire utility `container.utilities.divisionCache` (`src/utilities/divisionCache.ts`).
 
-### Redis (AUX VC credit state)
+### Redis (event tracking runtime state)
 
-- Key space prefix: `arbiter:aux-vc-credit:*`.
-- Access layer: `src/integrations/redis/auxVcCredit/index.ts`.
-- Used for rolling AUX VC credit accrual state.
+- Key space prefix: `arbiter:event-tracking:*`.
+- Access layer: `src/integrations/redis/eventTracking/index.ts`.
+- Used for active event session attendance tracking and review locks.
 
 ## 4) Exposed features and flows
 
@@ -165,49 +165,7 @@ Nickname prefix priority (high to low):
 6. INDUSTRIAL
 7. LEGIONNAIRE
 
-## Feature E: AUX VC eligibility tracking, credit accrual, and AUX->LGN promotion
-
-Exposed surfaces:
-
-- `voiceStateUpdate` listener
-- scheduled task `auxVcActivityTick`
-
-Flow part 1: eligibility reconciliation
-
-1. `voiceStateUpdate` listener calls `handleAuxVcVoiceStateUpdate`.
-2. If channel/mute state changed, reconciliation is debounced using `@sapphire/timer-manager`.
-3. `reconcileEligibility` computes a set of eligible AUX user IDs and stores them in in-memory `monitorState`.
-4. Eligibility rules (`getEligibleAuxMemberIds.ts`):
-
-- Member is in voice channel.
-- Member has AUX role.
-- Member is not self/server muted.
-- Channel has at least `AUX_VC_MIN_OTHER_QUALIFIED_MEMBERS` other unmuted members who have any non-AUX division role.
-
-Flow part 2: credit accrual tick
-
-1. Scheduled task (`src/scheduled-tasks/auxVcActivityTick.ts`) runs every `VC_ACTIVITY_TICK_SECONDS`.
-2. It re-runs reconciliation, then iterates eligible members.
-3. For each member, `awardCreditToMember`:
-
-- Loads corresponding Postgres user.
-- Loads or creates Redis-backed credit row.
-- Updates accumulated time/credits.
-- If required credits reached, calls promotion flow.
-
-Flow part 3: promotion
-
-`promoteAuxMemberToLgn.ts`:
-
-1. Verifies member still has AUX role.
-2. Replaces Discord roles: removes AUX, adds LGN.
-3. Deletes Redis AUX VC credit row.
-4. Updates Postgres memberships:
-
-- remove division code `AUX`
-- add division code `LGN`
-
-## Feature F: Division cache refresh task
+## Feature E: Division cache refresh task
 
 Exposed scheduled task:
 

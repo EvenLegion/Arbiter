@@ -22,11 +22,10 @@ It follows Sapphire conventions for:
 - `@sapphire/plugin-utilities-store`
 - `@sapphire/plugin-scheduled-tasks`
 - `@sapphire/cron`
-- `@sapphire/timer-manager`
 - `pino` + `pino-pretty`
 - `@logtail/pino` (optional Better Stack transport when env is configured)
 - Prisma + PostgreSQL
-- Redis (AUX VC credit state + Sapphire scheduled tasks backend)
+- Redis (event tracking state + Sapphire scheduled tasks backend)
 
 ## Requirements
 
@@ -109,7 +108,7 @@ pnpm infra:down
 ## Notes
 
 - Slash commands are registered with Sapphire application command registries and scoped to `DISCORD_GUILD_ID`.
-- AUX VC ticker is implemented as a Sapphire scheduled task instead of a bespoke `setInterval`.
+- Event VC tracking ticker is implemented as a Sapphire scheduled task.
 - Division cache refresh is handled by a scheduled cron task and exposed through a Sapphire utility.
 - Discord access is done directly through Sapphire (`container.client`) instead of a custom Discord integration layer.
 - Logging uses a pino-backed Sapphire `ILogger` (`container.logger`) with optional Better Stack transport.
