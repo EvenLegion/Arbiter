@@ -17,11 +17,11 @@ const UNIFORMS_URL = 'https://www.evenlegion.space/uniforms';
 
 const SELECTABLE_DIVISIONS = {
 	NVY: [
-		'Navy is Even Legion’s space and air combat force. From high-speed fighter superiority to multi-crew gunship support and strategic transport, Navy projects power wherever the Legion needs it. These members secure the skies, escort friendly forces, move critical assets, and deliver overwhelming force across the battlespace.',
+		"Navy is Even Legion's space and air combat force. From high-speed fighter superiority to multi-crew gunship support and strategic transport, Navy projects power wherever the Legion needs it. These members secure the skies, escort friendly forces, move critical assets, and deliver overwhelming force across the battlespace.",
 		'In this Division, you might: fly fighters or interceptors, crew gunships, escort dropships and transports, provide air cover, conduct strike operations, move cargo or personnel, and support fleet or planetary combat operations.'
 	],
 	MRN: [
-		'Marines are Even Legion’s frontline assault force. They lead bunker breaches, fortified assaults, armored advances, and boots-on-the-ground operations to capture, clear, and hold key objectives. When the Legion needs disciplined force on the surface, Marines are first in.',
+		"Marines are Even Legion's frontline assault force. They lead bunker breaches, fortified assaults, armored advances, and boots-on-the-ground operations to capture, clear, and hold key objectives. When the Legion needs disciplined force on the surface, Marines are first in.",
 		'In this Division, you might: clear bunkers, assault hostile positions, operate tanks or ground vehicles, secure objectives, hold defensive lines, and fight in coordinated infantry or mechanized operations.'
 	],
 	SUP: [
