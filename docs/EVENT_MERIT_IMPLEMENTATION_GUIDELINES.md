@@ -31,7 +31,7 @@ Use this as the build plan while manually implementing the feature set.
 
 1. Shared bespoke `setInterval` ticker:
 
-- Old `startVcActivityTicker` coupled AUX + event tracking in one timer.
+- Old `startVcActivityTicker` coupled INT + event tracking in one timer.
 - v3 should use `@sapphire/plugin-scheduled-tasks` per concern.
 
 1. SQLite local tracking dependency:

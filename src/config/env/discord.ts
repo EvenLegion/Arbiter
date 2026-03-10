@@ -27,27 +27,21 @@ const DiscordSchema = z.object({
 	CENT_ROLE_ID: z.string().min(1, 'CENT_ROLE_ID is required'),
 
 	// Lancearius roles
-	HL_L_ROLE_ID: z.string().min(1, 'HL_L_ROLE_ID is required'),
-	HV_L_ROLE_ID: z.string().min(1, 'HV_L_ROLE_ID is required'),
-	VN_L_ROLE_ID: z.string().min(1, 'VN_L_ROLE_ID is required'),
+	NAVY_L_ROLE_ID: z.string().min(1, 'NAVY_L_ROLE_ID is required'),
+	MARINES_L_ROLE_ID: z.string().min(1, 'MARINES_L_ROLE_ID is required'),
+	SUPPORT_L_ROLE_ID: z.string().min(1, 'SUPPORT_L_ROLE_ID is required'),
 
-	// Combat division roles
-	HVK_ROLE_ID: z.string().min(1, 'HVK_ROLE_ID is required'),
-	VNG_ROLE_ID: z.string().min(1, 'VNG_ROLE_ID is required'),
-	HLO_ROLE_ID: z.string().min(1, 'HLO_ROLE_ID is required'),
-
-	// Industrial division roles
-	DRL_ROLE_ID: z.string().min(1, 'DRL_ROLE_ID is required'),
-	SCR_ROLE_ID: z.string().min(1, 'SCR_ROLE_ID is required'),
-	LOG_ROLE_ID: z.string().min(1, 'LOG_ROLE_ID is required'),
-	TRD_ROLE_ID: z.string().min(1, 'TRD_ROLE_ID is required'),
-	ARC_ROLE_ID: z.string().min(1, 'ARC_ROLE_ID is required'),
+	// Division roles
+	NAVY_ROLE_ID: z.string().min(1, 'NAVY_ROLE_ID is required'),
+	MARINES_ROLE_ID: z.string().min(1, 'MARINES_ROLE_ID is required'),
+	SUPPORT_ROLE_ID: z.string().min(1, 'SUPPORT_ROLE_ID is required'),
 
 	// Legionnaire role
 	LGN_ROLE_ID: z.string().min(1, 'LGN_ROLE_ID is required'),
 
-	// Auxiliary role
-	AUX_ROLE_ID: z.string().min(1, 'AUX_ROLE_ID is required'),
+	// Initiate and reserve roles
+	INT_ROLE_ID: z.string().min(1, 'INT_ROLE_ID is required'),
+	RES_ROLE_ID: z.string().min(1, 'RES_ROLE_ID is required'),
 
 	// Event and merit tracking config
 	EVENT_TRACKING_CHANNEL_ID: z.string().min(1, 'EVENT_TRACKING_CHANNEL_ID is required'),

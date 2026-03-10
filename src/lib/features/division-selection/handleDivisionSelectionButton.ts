@@ -112,7 +112,7 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 	}
 
 	const divisions = await container.utilities.divisionCache.get({
-		kinds: [DivisionKind.COMBAT, DivisionKind.INDUSTRIAL]
+		kinds: [DivisionKind.NAVY, DivisionKind.MARINES, DivisionKind.SUPPORT]
 	});
 
 	if (parsedDivisionSelection.action === 'join') {

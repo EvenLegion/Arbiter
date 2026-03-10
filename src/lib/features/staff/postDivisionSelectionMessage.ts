@@ -34,7 +34,7 @@ export async function handlePostDivisionMessage({ interaction, context }: Handle
 	try {
 		const divisionSelectionMessage = buildDivisionSelectionMessage({
 			divisions: await container.utilities.divisionCache.get({
-				kinds: [DivisionKind.COMBAT, DivisionKind.INDUSTRIAL]
+				kinds: [DivisionKind.NAVY, DivisionKind.MARINES, DivisionKind.SUPPORT]
 			})
 		});
 

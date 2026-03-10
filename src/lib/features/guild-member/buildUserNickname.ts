@@ -9,12 +9,14 @@ import type { ExecutionContext } from '../../logging/executionContext';
 import { getMeritRankSymbol, MAX_MERIT_RANK_LEVEL, resolveMeritRankLevel } from '../merit/meritRank';
 
 const PREFIX_PRIORITY: ((division: Division) => boolean)[] = [
-	(division) => division.kind === DivisionKind.AUXILIARY,
+	(division) => division.kind === DivisionKind.INITIATE,
+	(division) => division.kind === DivisionKind.RESERVE,
 	(division) => division.kind === DivisionKind.STAFF,
 	(division) => division.kind === DivisionKind.SPECIAL && division.code !== 'CENT',
 	(division) => division.kind === DivisionKind.LANCEARIUS,
-	(division) => division.kind === DivisionKind.COMBAT,
-	(division) => division.kind === DivisionKind.INDUSTRIAL,
+	(division) => division.kind === DivisionKind.NAVY,
+	(division) => division.kind === DivisionKind.MARINES,
+	(division) => division.kind === DivisionKind.SUPPORT,
 	(division) => division.kind === DivisionKind.LEGIONNAIRE
 ];
 

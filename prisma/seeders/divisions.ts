@@ -27,14 +27,24 @@ const divisions: DivisionSeed[] = [
 		discordRoleId: requiredEnv('LGN_ROLE_ID')
 	},
 	{
-		code: 'AUX',
-		name: 'Auxiliary',
-		kind: DivisionKind.AUXILIARY,
-		displayNamePrefix: 'AUX',
+		code: 'INT',
+		name: 'Initiate',
+		kind: DivisionKind.INITIATE,
+		displayNamePrefix: 'INT',
 		showRank: false,
-		emojiName: requiredEnv('AUX_EMOJI_NAME'),
-		emojiId: requiredEnv('AUX_EMOJI_ID'),
-		discordRoleId: requiredEnv('AUX_ROLE_ID')
+		emojiName: requiredEnv('INT_EMOJI_NAME'),
+		emojiId: requiredEnv('INT_EMOJI_ID'),
+		discordRoleId: requiredEnv('INT_ROLE_ID')
+	},
+	{
+		code: 'RES',
+		name: 'Reserve',
+		kind: DivisionKind.RESERVE,
+		displayNamePrefix: 'RES',
+		showRank: false,
+		emojiName: requiredEnv('RES_EMOJI_NAME'),
+		emojiId: requiredEnv('RES_EMOJI_ID'),
+		discordRoleId: requiredEnv('RES_ROLE_ID')
 	},
 	{
 		code: 'ANG',
@@ -106,114 +116,64 @@ const divisions: DivisionSeed[] = [
 		discordRoleId: requiredEnv('TIR_ROLE_ID')
 	},
 	{
-		code: 'HL-L',
-		name: 'H.A.L.O. Lancearius',
+		code: 'NVY-L',
+		name: 'Navy Lancearius',
 		kind: DivisionKind.LANCEARIUS,
-		displayNamePrefix: 'HL-L',
+		displayNamePrefix: 'NVY-L',
 		showRank: true,
-		emojiName: requiredEnv('HL_L_EMOJI_NAME'),
-		emojiId: requiredEnv('HL_L_EMOJI_ID'),
-		discordRoleId: requiredEnv('HL_L_ROLE_ID')
+		emojiName: requiredEnv('NAVY_L_EMOJI_NAME'),
+		emojiId: requiredEnv('NAVY_L_EMOJI_ID'),
+		discordRoleId: requiredEnv('NAVY_L_ROLE_ID')
 	},
 	{
-		code: 'HV-L',
-		name: 'H.A.V.O.K. Lancearius',
+		code: 'MRN-L',
+		name: 'Marines Lancearius',
 		kind: DivisionKind.LANCEARIUS,
-		displayNamePrefix: 'HV-L',
+		displayNamePrefix: 'MRN-L',
 		showRank: true,
-		emojiName: requiredEnv('HV_L_EMOJI_NAME'),
-		emojiId: requiredEnv('HV_L_EMOJI_ID'),
-		discordRoleId: requiredEnv('HV_L_ROLE_ID')
+		emojiName: requiredEnv('MARINES_L_EMOJI_NAME'),
+		emojiId: requiredEnv('MARINES_L_EMOJI_ID'),
+		discordRoleId: requiredEnv('MARINES_L_ROLE_ID')
 	},
 	{
-		code: 'VN-L',
-		name: 'V.A.N.G.U.A.R.D. Lancearius',
+		code: 'SUP-L',
+		name: 'Support Lancearius',
 		kind: DivisionKind.LANCEARIUS,
-		displayNamePrefix: 'VN-L',
+		displayNamePrefix: 'SUP-L',
 		showRank: true,
-		emojiName: requiredEnv('VN_L_EMOJI_NAME'),
-		emojiId: requiredEnv('VN_L_EMOJI_ID'),
-		discordRoleId: requiredEnv('VN_L_ROLE_ID')
+		emojiName: requiredEnv('SUPPORT_L_EMOJI_NAME'),
+		emojiId: requiredEnv('SUPPORT_L_EMOJI_ID'),
+		discordRoleId: requiredEnv('SUPPORT_L_ROLE_ID')
 	},
 	{
-		code: 'HLO',
-		name: 'H.A.L.O.',
-		kind: DivisionKind.COMBAT,
-		displayNamePrefix: 'HLO',
+		code: 'NVY',
+		name: 'Navy',
+		kind: DivisionKind.NAVY,
+		displayNamePrefix: 'NVY',
 		showRank: true,
-		emojiName: requiredEnv('HLO_EMOJI_NAME'),
-		emojiId: requiredEnv('HLO_EMOJI_ID'),
-		discordRoleId: requiredEnv('HLO_ROLE_ID')
+		emojiName: requiredEnv('NAVY_EMOJI_NAME'),
+		emojiId: requiredEnv('NAVY_EMOJI_ID'),
+		discordRoleId: requiredEnv('NAVY_ROLE_ID')
 	},
 	{
-		code: 'VNG',
-		name: 'V.A.N.G.U.A.R.D.',
-		kind: DivisionKind.COMBAT,
-		displayNamePrefix: 'VNG',
+		code: 'MRN',
+		name: 'Marines',
+		kind: DivisionKind.MARINES,
+		displayNamePrefix: 'MRN',
 		showRank: true,
-		emojiName: requiredEnv('VNG_EMOJI_NAME'),
-		emojiId: requiredEnv('VNG_EMOJI_ID'),
-		discordRoleId: requiredEnv('VNG_ROLE_ID')
+		emojiName: requiredEnv('MARINES_EMOJI_NAME'),
+		emojiId: requiredEnv('MARINES_EMOJI_ID'),
+		discordRoleId: requiredEnv('MARINES_ROLE_ID')
 	},
 	{
-		code: 'HVK',
-		name: 'H.A.V.O.K.',
-		kind: DivisionKind.COMBAT,
-		displayNamePrefix: 'HVK',
+		code: 'SUP',
+		name: 'Support',
+		kind: DivisionKind.SUPPORT,
+		displayNamePrefix: 'SUP',
 		showRank: true,
-		emojiName: requiredEnv('HVK_EMOJI_NAME'),
-		emojiId: requiredEnv('HVK_EMOJI_ID'),
-		discordRoleId: requiredEnv('HVK_ROLE_ID')
-	},
-	{
-		code: 'DRL',
-		name: 'D.R.I.L.L.',
-		kind: DivisionKind.INDUSTRIAL,
-		displayNamePrefix: 'DRL',
-		showRank: true,
-		emojiName: requiredEnv('DRL_EMOJI_NAME'),
-		emojiId: requiredEnv('DRL_EMOJI_ID'),
-		discordRoleId: requiredEnv('DRL_ROLE_ID')
-	},
-	{
-		code: 'SCR',
-		name: 'S.C.R.A.P.',
-		kind: DivisionKind.INDUSTRIAL,
-		displayNamePrefix: 'SCR',
-		showRank: true,
-		emojiName: requiredEnv('SCR_EMOJI_NAME'),
-		emojiId: requiredEnv('SCR_EMOJI_ID'),
-		discordRoleId: requiredEnv('SCR_ROLE_ID')
-	},
-	{
-		code: 'LOG',
-		name: 'L.O.G.I.',
-		kind: DivisionKind.INDUSTRIAL,
-		displayNamePrefix: 'LOG',
-		showRank: true,
-		emojiName: requiredEnv('LOG_EMOJI_NAME'),
-		emojiId: requiredEnv('LOG_EMOJI_ID'),
-		discordRoleId: requiredEnv('LOG_ROLE_ID')
-	},
-	{
-		code: 'TRD',
-		name: 'T.R.A.D.E.',
-		kind: DivisionKind.INDUSTRIAL,
-		displayNamePrefix: 'TRD',
-		showRank: true,
-		emojiName: requiredEnv('TRD_EMOJI_NAME'),
-		emojiId: requiredEnv('TRD_EMOJI_ID'),
-		discordRoleId: requiredEnv('TRD_ROLE_ID')
-	},
-	{
-		code: 'ARC',
-		name: 'A.R.C.H.',
-		kind: DivisionKind.INDUSTRIAL,
-		displayNamePrefix: 'ARC',
-		showRank: true,
-		emojiName: requiredEnv('ARC_EMOJI_NAME'),
-		emojiId: requiredEnv('ARC_EMOJI_ID'),
-		discordRoleId: requiredEnv('ARC_ROLE_ID')
+		emojiName: requiredEnv('SUPPORT_EMOJI_NAME'),
+		emojiId: requiredEnv('SUPPORT_EMOJI_ID'),
+		discordRoleId: requiredEnv('SUPPORT_ROLE_ID')
 	}
 ];
 

@@ -1,13 +1,13 @@
 import { type ButtonInteraction } from 'discord.js';
 import { container } from '@sapphire/framework';
 
-import { Division, DivisionKind } from '@prisma/client';
+import { Division } from '@prisma/client';
 import type { ExecutionContext } from '../../logging/executionContext';
 
 type HandleLeaveDivisionParams = {
 	userDbId: string;
 	interaction: ButtonInteraction;
-	parsedDivisionSelection: { action: 'leave'; code: 'combat' | 'industrial' };
+	parsedDivisionSelection: { action: 'leave'; code: string };
 	divisions: Division[];
 	context: ExecutionContext;
 };
@@ -65,12 +65,27 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 		return;
 	}
 
-	const targetKind = parsedDivisionSelection.code.toUpperCase() as DivisionKind;
-	const sameKindRoleIds = divisions
-		.filter((division) => division.kind === targetKind && division.discordRoleId)
-		.map((division) => division.discordRoleId!) as string[];
-	const userKindRoleIds = sameKindRoleIds.filter((roleId) => guildMember.roles.cache.has(roleId));
-	if (userKindRoleIds.length === 0) {
+	const targetDivisionCode = parsedDivisionSelection.code.toUpperCase();
+	const selectedDivision = divisions.find((division) => division.code === targetDivisionCode);
+	if (!selectedDivision || !selectedDivision.discordRoleId) {
+		logger.error(
+			{
+				userDbId,
+				discordMessageId: interaction.id,
+				discordUserId: interaction.user.id,
+				discordUsername: interaction.user.username,
+				customButtonId: interaction.customId,
+				targetDivisionCode
+			},
+			'Selected division not found while handling leave'
+		);
+		interaction.editReply({
+			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
+		});
+		return;
+	}
+
+	if (!guildMember.roles.cache.has(selectedDivision.discordRoleId)) {
 		logger.warn(
 			{
 				userDbId,
@@ -78,15 +93,15 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 				discordUserId: interaction.user.id,
 				discordUsername: interaction.user.username,
 				customButtonId: interaction.customId,
-				parsedDivisionSelection
+				targetDivisionCode
 			},
-			'User does not have division role for this kind'
+			'User does not have selected division role'
 		);
-		interaction.editReply({ content: `You are not a member of any ${parsedDivisionSelection.code} division.` });
+		interaction.editReply({ content: `You are not a member of the ${selectedDivision.name} division.` });
 		return;
 	}
 
-	await guildMember.roles.remove(userKindRoleIds, `Left ${parsedDivisionSelection.code} division via button selection`);
+	await guildMember.roles.remove(selectedDivision.discordRoleId, `Left ${selectedDivision.name} division via button selection`);
 	logger.info(
 		{
 			userDbId,
@@ -94,18 +109,14 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 			discordUserId: interaction.user.id,
 			discordUsername: interaction.user.username,
 			customButtonId: interaction.customId,
-			removedRoles: userKindRoleIds.map((roleId) => ({
-				roleId,
-				roleName: getDivisionNameByDiscordRoleId({ divisions, discordRoleId: roleId })
-			}))
+			removedRole: {
+				roleId: selectedDivision.discordRoleId,
+				roleName: selectedDivision.name
+			}
 		},
 		'Removed division role(s) from user'
 	);
 
-	interaction.editReply({ content: `Removed your ${parsedDivisionSelection.code} division membership.` });
+	interaction.editReply({ content: `Removed your ${selectedDivision.name} division membership.` });
 	return;
-}
-
-function getDivisionNameByDiscordRoleId({ divisions, discordRoleId }: { divisions: Division[]; discordRoleId: string }) {
-	return divisions.find((division) => division.discordRoleId === discordRoleId)?.name;
 }

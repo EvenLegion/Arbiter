@@ -102,12 +102,10 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 		return;
 	}
 
-	const sameKindDivisionRoleIds = divisions
-		.filter((division) => division.kind === selectedDivision.kind && division.discordRoleId)
-		.map((division) => division.discordRoleId!) as string[];
+	const selectableDivisionRoleIds = divisions.filter((division) => division.discordRoleId).map((division) => division.discordRoleId!) as string[];
 
-	const existingSameKindRoleIds = sameKindDivisionRoleIds.filter((roleId) => guildMember.roles.cache.has(roleId));
-	if (existingSameKindRoleIds.length > 0) {
+	const existingSelectedFlowRoleIds = selectableDivisionRoleIds.filter((roleId) => guildMember.roles.cache.has(roleId));
+	if (existingSelectedFlowRoleIds.length > 0) {
 		logger.warn(
 			{
 				userDbId,
@@ -118,12 +116,12 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 				selectedDivisionKind: selectedDivision.kind,
 				selectedDivisionName: selectedDivision.name,
 				selectedDivisionId: selectedDivision.id,
-				existingSameKindRoleIds
+				existingSelectedFlowRoleIds
 			},
-			'User already has division role(s) for this kind. Replacing existing role(s)'
+			'User already has another selectable division role. Replacing existing role(s)'
 		);
 
-		await guildMember.roles.remove(existingSameKindRoleIds, `Replacing ${selectedDivision.kind} division role via button selection`);
+		await guildMember.roles.remove(existingSelectedFlowRoleIds, `Replacing selectable division role via button selection`);
 	}
 
 	await guildMember.roles.add(selectedDivision.discordRoleId, `Joined ${selectedDivision.name} division via button selection`);

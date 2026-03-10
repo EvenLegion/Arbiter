@@ -75,7 +75,7 @@ Flow:
 2. Preconditions run: `GuildOnly` and `StaffOnly`.
 3. `StaffOnly` (`src/preconditions/StaffOnly.ts`) fetches member and verifies they have a `DivisionKind.STAFF` role via `memberHasDivisionKindRole`.
 4. Handler (`src/lib/features/staff/postDivisionSelectionMessage.ts`) defers ephemeral reply.
-5. It fetches COMBAT + INDUSTRIAL divisions from `container.utilities.divisionCache`.
+5. It fetches NAVY + MARINES + SUPPORT divisions from `container.utilities.divisionCache`.
 6. It builds embeds/buttons using `buildDivisionSelectionMessage` (`src/lib/features/division-selection/buildDivisionSelectionMessage.ts`).
 7. It posts the message into the command channel.
 8. It updates the ephemeral response with success or failure.
@@ -86,8 +86,7 @@ Exposed interaction surface:
 
 - Button custom IDs matching:
 - `division:join:<CODE>`
-- `division:leave:combat`
-- `division:leave:industrial`
+- `division:leave:<CODE>`
 
 Flow:
 
@@ -101,17 +100,17 @@ Flow:
 - Member must have `DivisionKind.LEGIONNAIRE`.
 
 5. User row is fetched/created in Postgres (`findUniqueUser` / `upsertUser`).
-6. COMBAT + INDUSTRIAL divisions are loaded from division cache utility.
+6. NAVY + MARINES + SUPPORT divisions are loaded from division cache utility.
 7. Join path (`handleJoinDivision.ts`):
 
 - Validates selected division.
-- Removes any existing role in the same division kind.
+- Removes any existing selectable division role.
 - Adds selected division role.
 
 8. Leave path (`handleLeaveDivision.ts`):
 
-- Resolves requested kind (`combat` or `industrial`).
-- Removes the user’s role(s) of that kind.
+- Resolves requested division code.
+- Removes the user’s role for that division.
 
 9. Ephemeral result is returned to the user.
 
@@ -157,13 +156,15 @@ Flow:
 
 Nickname prefix priority (high to low):
 
-1. AUXILIARY
-2. STAFF
-3. SPECIAL (except `CENT`)
-4. LANCEARIUS
-5. COMBAT
-6. INDUSTRIAL
-7. LEGIONNAIRE
+1. INITIATE
+2. RESERVE
+3. STAFF
+4. SPECIAL (except `CENT`)
+5. LANCEARIUS
+6. NAVY
+7. MARINES
+8. SUPPORT
+9. LEGIONNAIRE
 
 ## Feature E: Division cache refresh task
 
