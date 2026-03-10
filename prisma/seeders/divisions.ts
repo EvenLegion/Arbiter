@@ -41,7 +41,7 @@ const divisions: DivisionSeed[] = [
 		name: 'Reserve',
 		kind: DivisionKind.RESERVE,
 		displayNamePrefix: 'RES',
-		showRank: false,
+		showRank: true,
 		emojiName: requiredEnv('RES_EMOJI_NAME'),
 		emojiId: requiredEnv('RES_EMOJI_ID'),
 		discordRoleId: requiredEnv('RES_ROLE_ID')
