@@ -65,27 +65,10 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 		return;
 	}
 
-	const targetDivisionCode = parsedDivisionSelection.code.toUpperCase();
-	const selectedDivision = divisions.find((division) => division.code === targetDivisionCode);
-	if (!selectedDivision || !selectedDivision.discordRoleId) {
-		logger.error(
-			{
-				userDbId,
-				discordMessageId: interaction.id,
-				discordUserId: interaction.user.id,
-				discordUsername: interaction.user.username,
-				customButtonId: interaction.customId,
-				targetDivisionCode
-			},
-			'Selected division not found while handling leave'
-		);
-		await interaction.editReply({
-			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
-		});
-		return;
-	}
-
-	if (!guildMember.roles.cache.has(selectedDivision.discordRoleId)) {
+	const selectableDivisionRoles = divisions.filter(
+		(division) => division.discordRoleId !== null && guildMember.roles.cache.has(division.discordRoleId)
+	);
+	if (selectableDivisionRoles.length === 0) {
 		logger.warn(
 			{
 				userDbId,
@@ -93,15 +76,16 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 				discordUserId: interaction.user.id,
 				discordUsername: interaction.user.username,
 				customButtonId: interaction.customId,
-				targetDivisionCode
+				parsedDivisionSelection
 			},
-			'User does not have selected division role'
+			'User does not have any selectable division role'
 		);
-		await interaction.editReply({ content: `You are not a member of the ${selectedDivision.name} division.` });
+		await interaction.editReply({ content: 'You are not currently a member of any division.' });
 		return;
 	}
 
-	await guildMember.roles.remove(selectedDivision.discordRoleId, `Left ${selectedDivision.name} division via button selection`);
+	const selectableDivisionRoleIds = selectableDivisionRoles.map((division) => division.discordRoleId!) as string[];
+	await guildMember.roles.remove(selectableDivisionRoleIds, 'Left division via button selection');
 	logger.info(
 		{
 			userDbId,
@@ -109,14 +93,14 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 			discordUserId: interaction.user.id,
 			discordUsername: interaction.user.username,
 			customButtonId: interaction.customId,
-			removedRole: {
-				roleId: selectedDivision.discordRoleId,
-				roleName: selectedDivision.name
-			}
+			removedRoles: selectableDivisionRoles.map((division) => ({
+				roleId: division.discordRoleId,
+				roleName: division.name
+			}))
 		},
 		'Removed division role(s) from user'
 	);
 
-	await interaction.editReply({ content: `Removed your ${selectedDivision.name} division membership.` });
+	await interaction.editReply({ content: 'Removed your division membership.' });
 	return;
 }
