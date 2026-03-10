@@ -155,7 +155,7 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 		'Unknown division selection action'
 	);
 
-	interaction.editReply({
+	await interaction.editReply({
 		content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 	});
 	return;

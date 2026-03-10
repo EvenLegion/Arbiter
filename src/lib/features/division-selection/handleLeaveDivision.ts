@@ -36,7 +36,7 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 			},
 			'Guild not found for interaction'
 		);
-		interaction.editReply({
+		await interaction.editReply({
 			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
@@ -59,7 +59,7 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 			},
 			'Guild member not found'
 		);
-		interaction.editReply({
+		await interaction.editReply({
 			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
@@ -79,7 +79,7 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 			},
 			'Selected division not found while handling leave'
 		);
-		interaction.editReply({
+		await interaction.editReply({
 			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
@@ -97,7 +97,7 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 			},
 			'User does not have selected division role'
 		);
-		interaction.editReply({ content: `You are not a member of the ${selectedDivision.name} division.` });
+		await interaction.editReply({ content: `You are not a member of the ${selectedDivision.name} division.` });
 		return;
 	}
 
@@ -117,6 +117,6 @@ export async function handleLeaveDivision({ userDbId, interaction, parsedDivisio
 		'Removed division role(s) from user'
 	);
 
-	interaction.editReply({ content: `Removed your ${selectedDivision.name} division membership.` });
+	await interaction.editReply({ content: `Removed your ${selectedDivision.name} division membership.` });
 	return;
 }

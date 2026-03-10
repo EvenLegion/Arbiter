@@ -35,7 +35,7 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			},
 			'Guild not found for interaction'
 		);
-		interaction.editReply({
+		await interaction.editReply({
 			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
@@ -59,7 +59,7 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			},
 			'Guild member not found'
 		);
-		interaction.editReply({
+		await interaction.editReply({
 			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
@@ -79,7 +79,7 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			},
 			'Selected division not found'
 		);
-		interaction.editReply({
+		await interaction.editReply({
 			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
@@ -98,7 +98,7 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			},
 			'User already has selected division role'
 		);
-		interaction.editReply({ content: `You are already a member of the ${selectedDivision.name} division.` });
+		await interaction.editReply({ content: `You are already a member of the ${selectedDivision.name} division.` });
 		return;
 	}
 
@@ -141,6 +141,6 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 		'Added division role to user'
 	);
 
-	interaction.editReply({ content: `You have joined the ${selectedDivision.name} division.` });
+	await interaction.editReply({ content: `You have joined the ${selectedDivision.name} division.` });
 	return;
 }
