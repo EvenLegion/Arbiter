@@ -2,10 +2,12 @@ enum DivisionKind {
   STAFF
   SPECIAL
   LANCEARIUS
-  COMBAT
-  INDUSTRIAL
+  NAVY
+  MARINES
+  SUPPORT
+  RESERVE
   LEGIONNAIRE
-  AUXILIARY
+  INITIATE
 }
 
 model Division {

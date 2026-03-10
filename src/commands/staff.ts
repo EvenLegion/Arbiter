@@ -23,7 +23,7 @@ export class StaffCommand extends Subcommand {
 					.setName('staff')
 					.setDescription('Staff commands.')
 					.addSubcommand((subcommand) =>
-						subcommand.setName('post_division_message').setDescription('Post combat and industrial division selection message.')
+						subcommand.setName('post_division_message').setDescription('Post Navy, Marines, and Support division selection message.')
 					),
 			{
 				guildIds: [ENV_DISCORD.DISCORD_GUILD_ID]

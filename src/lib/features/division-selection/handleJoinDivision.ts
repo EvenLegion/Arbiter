@@ -35,7 +35,7 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			},
 			'Guild not found for interaction'
 		);
-		interaction.editReply({
+		await interaction.editReply({
 			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
@@ -59,7 +59,7 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			},
 			'Guild member not found'
 		);
-		interaction.editReply({
+		await interaction.editReply({
 			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
@@ -79,7 +79,7 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			},
 			'Selected division not found'
 		);
-		interaction.editReply({
+		await interaction.editReply({
 			content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
 		});
 		return;
@@ -98,16 +98,14 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 			},
 			'User already has selected division role'
 		);
-		interaction.editReply({ content: `You are already a member of the ${selectedDivision.name} division.` });
+		await interaction.editReply({ content: `You are already a member of the ${selectedDivision.name} division.` });
 		return;
 	}
 
-	const sameKindDivisionRoleIds = divisions
-		.filter((division) => division.kind === selectedDivision.kind && division.discordRoleId)
-		.map((division) => division.discordRoleId!) as string[];
+	const selectableDivisionRoleIds = divisions.filter((division) => division.discordRoleId).map((division) => division.discordRoleId!) as string[];
 
-	const existingSameKindRoleIds = sameKindDivisionRoleIds.filter((roleId) => guildMember.roles.cache.has(roleId));
-	if (existingSameKindRoleIds.length > 0) {
+	const existingSelectedRoleIds = selectableDivisionRoleIds.filter((roleId) => guildMember.roles.cache.has(roleId));
+	if (existingSelectedRoleIds.length > 0) {
 		logger.warn(
 			{
 				userDbId,
@@ -118,12 +116,12 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 				selectedDivisionKind: selectedDivision.kind,
 				selectedDivisionName: selectedDivision.name,
 				selectedDivisionId: selectedDivision.id,
-				existingSameKindRoleIds
+				existingSelectedRoleIds
 			},
-			'User already has division role(s) for this kind. Replacing existing role(s)'
+			'User already has another selectable division role. Replacing existing role(s)'
 		);
 
-		await guildMember.roles.remove(existingSameKindRoleIds, `Replacing ${selectedDivision.kind} division role via button selection`);
+		await guildMember.roles.remove(existingSelectedRoleIds, `Replacing selectable division role via button selection`);
 	}
 
 	await guildMember.roles.add(selectedDivision.discordRoleId, `Joined ${selectedDivision.name} division via button selection`);
@@ -143,6 +141,6 @@ export async function handleJoinDivision({ userDbId, interaction, parsedDivision
 		'Added division role to user'
 	);
 
-	interaction.editReply({ content: `You have joined the ${selectedDivision.name} division.` });
+	await interaction.editReply({ content: `You have joined the ${selectedDivision.name} division.` });
 	return;
 }

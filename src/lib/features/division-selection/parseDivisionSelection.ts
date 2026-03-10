@@ -2,7 +2,7 @@ type ParseDivisionSelectionParams = {
 	customId: string;
 };
 
-export type ParseDivisionSelectionResult = { action: 'join'; code: string } | { action: 'leave'; code: 'combat' | 'industrial' } | null;
+export type ParseDivisionSelectionResult = { action: 'join'; code: string } | { action: 'leave'; code: string } | null;
 
 export function parseDivisionSelection({ customId }: ParseDivisionSelectionParams): ParseDivisionSelectionResult {
 	const [scope, action, code] = customId.split(':');
@@ -15,12 +15,8 @@ export function parseDivisionSelection({ customId }: ParseDivisionSelectionParam
 		return { action: 'join', code };
 	}
 
-	if (action === 'leave' && code === 'combat') {
-		return { action: 'leave', code: 'combat' };
-	}
-
-	if (action === 'leave' && code === 'industrial') {
-		return { action: 'leave', code: 'industrial' };
+	if (action === 'leave') {
+		return { action: 'leave', code };
 	}
 
 	return null;
