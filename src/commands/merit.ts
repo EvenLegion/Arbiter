@@ -1,10 +1,10 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { DivisionKind } from '@prisma/client';
-import type { GuildMember } from 'discord.js';
 
 import { ENV_DISCORD } from '../config/env';
 import { findManyEventSessions, findManyMeritTypes } from '../integrations/prisma';
+import { sortMembersByQuery } from '../lib/discord/memberSearch';
 import { handleGiveMerit } from '../lib/features/merit/handleGiveMerit';
 import { handleMeritList } from '../lib/features/merit/handleMeritList';
 import { createExecutionContext } from '../lib/logging/executionContext';
@@ -258,20 +258,6 @@ function formatRelativeDayLabel(value: Date) {
 		return 'Yesterday';
 	}
 	return `${dayDiff} days ago`;
-}
-
-function sortMembersByQuery({ a, b, query }: { a: GuildMember; b: GuildMember; query: string }) {
-	if (query.length === 0) {
-		return a.displayName.localeCompare(b.displayName);
-	}
-
-	const aStarts = a.displayName.toLowerCase().startsWith(query);
-	const bStarts = b.displayName.toLowerCase().startsWith(query);
-	if (aStarts !== bStarts) {
-		return aStarts ? -1 : 1;
-	}
-
-	return a.displayName.localeCompare(b.displayName);
 }
 
 function formatSignedMeritAmount(amount: number) {

@@ -16,14 +16,19 @@ type HaveDiscordRolesChangedParams = Pick<HandleGuildMemberUpdateParams, 'oldMem
 export async function handleGuildMemberUpdate({ oldMember, newMember, context }: HandleGuildMemberUpdateParams) {
 	const caller = 'handleGuildMemberUpdate';
 	const logger = context.logger.child({ caller });
+	const oldMemberIsPartial = oldMember.partial;
 
-	const { haveRolesChanged, oldRoleIds, newRoleIds } = haveDiscordRolesChanged({ oldMember, newMember });
+	const { haveRolesChanged, oldRoleIds, newRoleIds } = oldMemberIsPartial
+		? {
+				haveRolesChanged: true,
+				oldRoleIds: [] as string[],
+				newRoleIds: newMember.roles.cache.map((role) => role.id)
+			}
+		: haveDiscordRolesChanged({ oldMember, newMember });
 	const addedRoleIds = newRoleIds.filter((newRoleId) => !oldRoleIds.includes(newRoleId));
 	const removedRoleIds = oldRoleIds.filter((oldRoleId) => !newRoleIds.includes(oldRoleId));
 
-	const divisions = await container.utilities.divisionCache.get({});
-
-	if (!haveRolesChanged) {
+	if (!oldMemberIsPartial && !haveRolesChanged) {
 		logger.trace(
 			{
 				discordUserId: newMember.user.id,
@@ -34,24 +39,36 @@ export async function handleGuildMemberUpdate({ oldMember, newMember, context }:
 		);
 		return;
 	}
+	if (oldMemberIsPartial) {
+		logger.trace(
+			{
+				discordUserId: newMember.user.id,
+				discordUsername: newMember.user.username,
+				discordNickname: newMember.nickname
+			},
+			'Old guildMemberUpdate payload is partial; reconciling from current Discord roles'
+		);
+	} else {
+		const divisions = await container.utilities.divisionCache.get({});
 
-	logger.debug(
-		{
-			caller,
-			discordUserId: newMember.user.id,
-			discordUsername: newMember.user.username,
-			discordNickname: newMember.nickname,
-			addedRoles: addedRoleIds.map((roleId) => ({
-				roleId,
-				roleName: getDivisionNameByDiscordRoleId({ divisions, discordRoleId: roleId })
-			})),
-			removedRoles: removedRoleIds.map((roleId) => ({
-				roleId,
-				roleName: getDivisionNameByDiscordRoleId({ divisions, discordRoleId: roleId })
-			}))
-		},
-		'guildMemberUpdate detected role changes'
-	);
+		logger.debug(
+			{
+				caller,
+				discordUserId: newMember.user.id,
+				discordUsername: newMember.user.username,
+				discordNickname: newMember.nickname,
+				addedRoles: addedRoleIds.map((roleId) => ({
+					roleId,
+					roleName: getDivisionNameByDiscordRoleId({ divisions, discordRoleId: roleId })
+				})),
+				removedRoles: removedRoleIds.map((roleId) => ({
+					roleId,
+					roleName: getDivisionNameByDiscordRoleId({ divisions, discordRoleId: roleId })
+				}))
+			},
+			'guildMemberUpdate detected role changes'
+		);
+	}
 
 	let discordUser: GuildMember;
 	try {
