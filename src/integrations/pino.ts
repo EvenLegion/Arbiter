@@ -16,8 +16,6 @@ const SAPPHIRE_TO_PINO_LEVEL: Record<LogLevel, PinoLevel> = {
 
 type TransportTarget = NonNullable<TransportMultiOptions['targets']>[number];
 const BETTER_STACK_LOG_LEVEL: PinoLevel = 'warn';
-const ROOT_LOG_LEVEL = resolveLowestPinoLevel([ENV_CONFIG.LOG_LEVEL, ENV_CONFIG.LOCAL_FILE_LOG_LEVEL, BETTER_STACK_LOG_LEVEL]);
-
 const transportTargets: TransportTarget[] = [
 	{
 		target: 'pino-pretty',
@@ -35,6 +33,7 @@ const transportTargets: TransportTarget[] = [
 		}
 	}
 ];
+const enabledTargetLevels: PinoLevel[] = [ENV_CONFIG.LOG_LEVEL, ENV_CONFIG.LOCAL_FILE_LOG_LEVEL];
 
 if (ENV_CONFIG.BETTER_STACK_SOURCE_TOKEN && ENV_CONFIG.BETTER_STACK_INGESTING_HOST) {
 	transportTargets.push({
@@ -45,7 +44,9 @@ if (ENV_CONFIG.BETTER_STACK_SOURCE_TOKEN && ENV_CONFIG.BETTER_STACK_INGESTING_HO
 			options: { endpoint: ENV_CONFIG.BETTER_STACK_INGESTING_HOST }
 		}
 	});
+	enabledTargetLevels.push(BETTER_STACK_LOG_LEVEL);
 }
+const ROOT_LOG_LEVEL = resolveLowestPinoLevel(enabledTargetLevels);
 
 export const PINO_LOGGER = pino({
 	level: ROOT_LOG_LEVEL,
