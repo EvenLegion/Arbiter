@@ -26,7 +26,7 @@ COPY prisma.config.ts ./
 COPY src ./src
 RUN pnpm db:generate
 RUN pnpm build
-RUN pnpm prune --prod
+RUN pnpm prune --prod --ignore-scripts
 
 FROM base AS runtime
 ENV NODE_ENV=production
