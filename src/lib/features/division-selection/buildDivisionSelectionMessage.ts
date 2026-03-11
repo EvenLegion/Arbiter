@@ -12,24 +12,21 @@ type BuildDivisionSelectionMessageParams = {
 	divisions: Division[];
 };
 
-const DIVISION_DISPLAY_COLOR = 0x3b82f6;
-const UNIFORMS_URL = 'https://www.evenlegion.space/uniforms';
-
 const SELECTABLE_DIVISIONS = {
 	NVY: [
-		`<@&${ENV_DISCORD.NVY_ROLE_ID}> **is Even Legion's space and air combat force**.`,
-		'From high-speed fighter superiority to multi-crew gunship support and strategic transport, Navy projects power wherever the Legion needs it. These members secure the skies, escort friendly forces, move critical assets, and deliver overwhelming force across the battlespace.',
-		'In this Division, you might: fly fighters or interceptors, crew gunships, escort dropships and transports, provide air cover, conduct strike operations, move cargo or personnel, and support fleet or planetary combat operations.'
+		"**The Legion's aerospace combat force**",
+		`<@&${ENV_DISCORD.NVY_ROLE_ID}> secure and dominate the battlespace above the fight through fighter cover, gunship firepower, escort, interdiction, and rapid transport where it matters most.`,
+		'In this Division, you might: fly fighters/interceptors, crew gunships, escort dropships/transports, provide close air support, run strike missions, and move personnel or cargo under threat.'
 	],
 	MRN: [
-		`<@&${ENV_DISCORD.MRN_ROLE_ID}> **are Even Legion's frontline assault force**.`,
-		'They lead bunker breaches, fortified assaults, armored advances, and boots-on-the-ground operations to capture, clear, and hold key objectives. When the Legion needs disciplined force on the surface, Marines are first in.',
-		'In this Division, you might: clear bunkers, assault hostile positions, operate tanks or ground vehicles, secure objectives, hold defensive lines, and fight in coordinated infantry or mechanized operations.'
+		"**The Legion's ground assault force**",
+		`<@&${ENV_DISCORD.MRN_ROLE_ID}> seize and hold objectives through coordinated infantry and armored action, from bunker clears to hard-point pushes in contested zones.`,
+		'In this Division, you might: breach bunkers, assault fortified positions, operate tanks/ground vehicles, secure objectives, hold defensive lines, and execute mechanized infantry operations.'
 	],
 	SUP: [
-		`<@&${ENV_DISCORD.SUP_ROLE_ID}> **keeps Even Legion fighting, building, and growing**.`,
-		'This branch powers the organization through mining, salvage, cargo transport, trade, engineering, repair, refueling, and future construction systems. Whether extracting raw resources, reclaiming battlefield wreckage, moving critical supplies, or optimizing profitable routes, Support ensures the Legion stays supplied and self-sustaining.',
-		'In this Division, you might: mine and refine resources, salvage wrecks, haul cargo, coordinate logistics, run trade routes, repair and maintain ships, refuel friendly forces, and contribute to future crafting, engineering, and infrastructure efforts'
+		"**The Legion's logistics and sustainment force**",
+		`<@&${ENV_DISCORD.SUP_ROLE_ID}> keeps the Legion operational by supplying fuel, materials, repairs, and economic throughput across mining, salvage, transport, trade, and engineering.`,
+		'In this Division, you might: mine/refine resources, salvage wrecks, haul cargo, coordinate logistics, run trade routes, maintain/repair ships, refuel forces, and support infrastructure/crafting operations.'
 	]
 };
 
@@ -37,30 +34,30 @@ export function buildDivisionSelectionMessage({ divisions }: BuildDivisionSelect
 	const divisionsEmbed: APIEmbed = {
 		title: 'DIVISION SELECTION',
 		description: `_Only <@&${ENV_DISCORD.LGN_ROLE_ID}> may select. You may choose **ONE** division._\n\n`,
-		color: DIVISION_DISPLAY_COLOR,
+		color: 0x3b82f6,
 		fields: [{ name: '\u200B', value: '', inline: false }]
 	};
 	const divisionButtons: APIButtonComponent[] = [];
 
 	const instructionsEmbed: APIEmbed = {
 		title: '📌 DIVISION SELECTION INSTRUCTIONS',
+		color: 0xf59e0b,
 		description: [
 			'✅ Click a division button to join your division.',
 			'',
 			'🔄 Click a different division button to switch divisions.',
 			'',
 			'❌ Click _Leave Division_ to leave your division.',
-			'',
-			'ℹ️ Click the _View Uniforms_ button to view approved Legion armor sets.'
+			''
 		].join('\n')
 	};
 
 	divisions.forEach((division) => {
 		if (Object.prototype.hasOwnProperty.call(SELECTABLE_DIVISIONS, division.code)) {
-			const [description, activities] = SELECTABLE_DIVISIONS[division.code as keyof typeof SELECTABLE_DIVISIONS];
+			const [overview, summary, activities] = SELECTABLE_DIVISIONS[division.code as keyof typeof SELECTABLE_DIVISIONS];
 			divisionsEmbed.fields!.push({
 				name: `${division.emojiName ? `<:${division.emojiName}:${division.emojiId}> ` : ''}**Division: ${division.name}**`,
-				value: `${description}\n\n${activities}`,
+				value: [overview, summary, activities].filter(Boolean).join('\n\n'),
 				inline: false
 			});
 
@@ -91,27 +88,21 @@ export function buildDivisionSelectionMessage({ divisions }: BuildDivisionSelect
 
 function toRows(divisionButtons: APIButtonComponent[]): APIActionRowComponent<APIButtonComponent>[] {
 	const rows: APIActionRowComponent<APIButtonComponent>[] = [];
+	const leaveDivisionButton: APIButtonComponent = {
+		type: 2,
+		style: 4, // DANGER (red)
+		custom_id: 'division:leave:any',
+		label: 'Leave Division'
+	};
 
 	if (divisionButtons.length > 0) {
-		rows.push({ type: 1, components: divisionButtons });
+		rows.push({ type: 1, components: [...divisionButtons, leaveDivisionButton] });
+		return rows;
 	}
 
 	rows.push({
 		type: 1,
-		components: [
-			{
-				type: 2,
-				style: 4, // DANGER (red)
-				custom_id: 'division:leave:any',
-				label: 'Leave Division'
-			},
-			{
-				type: 2,
-				style: 5, // LINK
-				label: 'View Uniforms',
-				url: UNIFORMS_URL
-			}
-		]
+		components: [leaveDivisionButton]
 	});
 
 	return rows;
