@@ -15,9 +15,8 @@ const SAPPHIRE_TO_PINO_LEVEL: Record<LogLevel, PinoLevel> = {
 };
 
 type TransportTarget = NonNullable<TransportMultiOptions['targets']>[number];
-const LOCAL_FILE_LOG_LEVEL: PinoLevel = 'debug';
 const BETTER_STACK_LOG_LEVEL: PinoLevel = 'warn';
-const ROOT_LOG_LEVEL: PinoLevel = ENV_CONFIG.LOG_LEVEL === 'trace' ? 'trace' : 'debug';
+const ROOT_LOG_LEVEL = resolveLowestPinoLevel([ENV_CONFIG.LOG_LEVEL, ENV_CONFIG.LOCAL_FILE_LOG_LEVEL, BETTER_STACK_LOG_LEVEL]);
 
 const transportTargets: TransportTarget[] = [
 	{
@@ -29,7 +28,7 @@ const transportTargets: TransportTarget[] = [
 	},
 	{
 		target: 'pino/file',
-		level: LOCAL_FILE_LOG_LEVEL,
+		level: ENV_CONFIG.LOCAL_FILE_LOG_LEVEL,
 		options: {
 			destination: ENV_CONFIG.LOCAL_LOG_FILE_PATH,
 			mkdir: true
@@ -125,3 +124,24 @@ export class SapphirePinoLogger implements ILogger {
 }
 
 export const SAPPHIRE_LOGGER = new SapphirePinoLogger(PINO_LOGGER);
+
+function resolveLowestPinoLevel(levels: readonly PinoLevel[]): PinoLevel {
+	const LOG_LEVEL_PRIORITY: Record<PinoLevel, number> = {
+		trace: 10,
+		debug: 20,
+		info: 30,
+		warn: 40,
+		error: 50,
+		fatal: 60,
+		silent: 70
+	};
+
+	let lowestLevel = levels[0] ?? 'info';
+	for (const level of levels) {
+		if (LOG_LEVEL_PRIORITY[level] < LOG_LEVEL_PRIORITY[lowestLevel]) {
+			lowestLevel = level;
+		}
+	}
+
+	return lowestLevel;
+}

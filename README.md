@@ -1,127 +1,180 @@
-# Arbiter v3 (Sapphire)
+# Arbiter v3
 
-Arbiter v3 is a Sapphire-first rewrite of the Arbiter bot.
+## Table of Contents
 
-Project walkthrough:
-
-- [docs/PROJECT_ARCHITECTURE_AND_FLOWS.md](docs/PROJECT_ARCHITECTURE_AND_FLOWS.md)
-
-It follows Sapphire conventions for:
-
-- command routing (`/src/commands`)
-- event handling (`/src/listeners`)
-- button interaction handling (`/src/interaction-handlers`)
-- recurring jobs (`/src/scheduled-tasks`)
-- shared runtime helpers (`/src/utilities`)
-- preconditions (`/src/preconditions`)
+- [Arbiter v3](#arbiter-v3)
+    - [Table of Contents](#table-of-contents)
+    - [Stack](#stack)
+    - [Requirements](#requirements)
+    - [Local Development](#local-development)
+    - [Script Reference](#script-reference)
+    - [Environment Variables](#environment-variables)
+    - [Logging Behavior](#logging-behavior)
+    - [Production Deployment (VPS)](#production-deployment-vps)
+        - [1) One-Time VPS Hardening](#1-one-time-vps-hardening)
+        - [2) Prepare Persistent Host Directories](#2-prepare-persistent-host-directories)
+        - [3) First Production Deploy](#3-first-production-deploy)
+        - [4) Ongoing Deploys and New Migrations](#4-ongoing-deploys-and-new-migrations)
+        - [5) Runtime Verification and Operations](#5-runtime-verification-and-operations)
+    - [Migration Folder Purpose](#migration-folder-purpose)
 
 ## Stack
 
-- `@sapphire/framework`
-- `@sapphire/plugin-subcommands`
-- `@sapphire/plugin-utilities-store`
-- `@sapphire/plugin-scheduled-tasks`
-- `@sapphire/cron`
-- `pino` + `pino-pretty`
-- `@logtail/pino` (optional Better Stack transport when env is configured)
+- Sapphire framework (`@sapphire/framework` + subcommands/scheduled-tasks/utilities-store)
+- Discord.js v14
 - Prisma + PostgreSQL
-- Redis (event tracking state + Sapphire scheduled tasks backend)
+- Redis (event tracking + scheduled tasks backend)
+- Pino logging (`pino`, `pino-pretty`, optional Better Stack via `@logtail/pino`)
 
 ## Requirements
 
-- Node 18+
-- Docker + Docker Compose plugin (recommended for local infra)
-- Discord bot token + guild config in `.env`
+- Node.js 22+ recommended for local development
+- pnpm 10.11.0 (pinned via `packageManager` in `package.json`)
+- Docker + Docker Compose plugin
+- Discord bot token + guild configuration in `.env`
 
-## Setup
+## Local Development
 
-1. Install deps:
+1. Install dependencies.
 
 ```sh
 pnpm install
 ```
 
-2. Copy env template and fill values:
+2. Create local env file.
 
 ```sh
 cp .env.example .env
 ```
 
-3. Generate Prisma client:
+3. Start local Postgres and Redis.
 
 ```sh
-pnpm db:generate
+pnpm db:up
+pnpm redis:up
 ```
 
-4. Start local Postgres + Redis with Docker:
-
-```sh
-pnpm infra:up
-```
-
-5. Run migrations:
+4. Apply Prisma migrations.
 
 ```sh
 pnpm db:migrate
 ```
 
-## Run
-
-Development:
+5. Run the bot.
 
 ```sh
 pnpm dev
 ```
 
-Build + run compiled output:
+Optional local helpers:
 
 ```sh
-pnpm build
-pnpm start
+pnpm typecheck
+pnpm lint
+pnpm db:studio
 ```
 
-## Docker Infra
-
-Postgres for local development:
+Stop local infra:
 
 ```sh
-pnpm db:up
 pnpm db:down
-pnpm db:reset
-```
-
-Redis for local development and production (VPS):
-
-```sh
-pnpm redis:up
 pnpm redis:down
-pnpm redis:logs
 ```
 
-Start/stop both services locally:
+Reset local infra volumes:
 
 ```sh
-pnpm infra:up
-pnpm infra:down
+pnpm db:reset
+pnpm redis:reset
 ```
 
-## Production Docker (VPS)
+## Script Reference
+
+App/runtime:
+
+- `pnpm dev` - run bot from TypeScript source
+- `pnpm build` - compile TypeScript
+- `pnpm start` - run compiled bot (`dist/index.js`)
+- `pnpm typecheck` - TypeScript type-check only
+- `pnpm lint` - eslint
+
+Database and seeding:
+
+- `pnpm db:generate` - Prisma client generate
+- `pnpm db:migrate` - `prisma migrate deploy`
+- `pnpm db:seed` - main Prisma seed
+- `pnpm db:seed:guild-members`
+- `pnpm db:seed:events`
+- `pnpm db:seed:event-merits`
+- `pnpm db:seed:non-event-merits`
+
+Migration data utilities:
+
+- `pnpm db:fetch:guild-members`
+- `pnpm db:fetch:event-sessions`
+- `pnpm db:verify:merit-rank`
+- `pnpm db:migrate:users` (fetch + seed guild members)
+
+Local docker services:
+
+- `pnpm db:up | db:down | db:reset`
+- `pnpm redis:up | redis:down | redis:reset | redis:logs`
+
+Production docker helpers:
+
+- `pnpm prod:build | prod:up | prod:down | prod:logs`
+
+## Environment Variables
+
+Use `.env.example` as the source of truth for all keys.
+
+Minimum required to run the bot:
+
+- `DISCORD_TOKEN`
+- `DISCORD_GUILD_ID`
+- `DATABASE_URL`
+- Discord role/channel IDs referenced by command and feature logic
+
+Important operational values:
+
+- `NODE_ENV` (`development` or `production`)
+- `LOG_LEVEL` (console log level)
+- `LOCAL_FILE_LOG_LEVEL` (local file log level)
+- `LOCAL_LOG_FILE_PATH`
+- `BETTER_STACK_SOURCE_TOKEN`, `BETTER_STACK_INGESTING_HOST` (optional)
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB`
+
+## Logging Behavior
+
+The logger is multi-target:
+
+- Console (`pino-pretty`) uses `LOG_LEVEL`
+- Local file (`pino/file`) uses `LOCAL_FILE_LOG_LEVEL` and writes to `LOCAL_LOG_FILE_PATH`
+- Better Stack (`@logtail/pino`) sends only `warn` and above, and is enabled only when both `BETTER_STACK_SOURCE_TOKEN` and `BETTER_STACK_INGESTING_HOST` are set
+
+Operational notes:
+
+- `LOG_LEVEL` only affects console output
+- If `LOG_LEVEL=debug` locally, debug and above appear in console
+- File logs do not rotate automatically in-app; use host-level rotation and/or increase `LOCAL_FILE_LOG_LEVEL`
+
+## Production Deployment (VPS)
 
 This repo includes:
 
-- `Dockerfile` for packaging the bot
-- `docker-compose.prod.yml` for running bot + Redis
+- `Dockerfile` (multi-stage: `migrate` + runtime)
+- `docker-compose.prod.yml` (services: `arbiter-migrate`, `arbiter-bot`, `arbiter-redis`)
 
-### VPS prerequisites and hardening
+### 1) One-Time VPS Hardening
 
-Install baseline packages:
+Install baseline tools:
 
 ```sh
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg lsb-release git ufw
+sudo apt-get install -y ca-certificates curl gnupg lsb-release git ufw ripgrep
 ```
 
-Install Docker Engine + Docker Compose plugin (Ubuntu/Debian):
+Install Docker Engine + Compose plugin (Ubuntu/Debian):
 
 ```sh
 sudo install -m 0755 -d /etc/apt/keyrings
@@ -135,21 +188,21 @@ sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
 
-Create a non-root deploy user and grant Docker access:
+Create non-root deploy user and grant Docker access:
 
 ```sh
 sudo adduser deploy
 sudo usermod -aG docker deploy
 ```
 
-Log out/in after group changes, then verify:
+Re-login and verify:
 
 ```sh
 docker --version
 docker compose version
 ```
 
-Configure firewall (adjust SSH port if needed):
+Configure firewall:
 
 ```sh
 sudo ufw default deny incoming
@@ -159,71 +212,104 @@ sudo ufw enable
 sudo ufw status
 ```
 
-Set timezone and ensure time sync (important for logs/scheduled tasks):
+Set timezone and NTP (important for log/event timestamps):
 
 ```sh
 timedatectl set-timezone UTC
+timedatectl set-ntp true
 timedatectl status
 ```
 
-Create persistent host directories used by compose:
+### 2) Prepare Persistent Host Directories
 
 ```sh
 sudo mkdir -p /opt/arbiter/redis-data /opt/arbiter/bot-logs
-sudo chown -R deploy:deploy /opt/arbiter/redis-data /opt/arbiter/bot-logs
 ```
 
-Recommended VPS flow:
+By default, compose maps users as:
 
+- bot: `BOT_UID:BOT_GID` defaults to `1000:1000`
+- redis: `REDIS_UID:REDIS_GID` defaults to `999:999`
+
+Set ownership accordingly:
+
+```sh
+sudo chown -R 1000:1000 /opt/arbiter/bot-logs
+sudo chown -R 999:999 /opt/arbiter/redis-data
 ```
+
+Verify resolved compose users + current ownership:
+
+```sh
+docker compose -f docker-compose.prod.yml config | rg "user:"
+stat -c "%u:%g %n" /opt/arbiter/bot-logs /opt/arbiter/redis-data
+```
+
+If you override `BOT_UID`/`BOT_GID`/`REDIS_UID`/`REDIS_GID` in `.env`, use those values for ownership instead.
+
+### 3) First Production Deploy
+
+```sh
 git pull
 cp .env.example .env   # first time only
-# edit .env with real values
+chmod 600 .env
+# edit .env with production values
+# take a DB backup/snapshot before applying migrations
 docker compose -f docker-compose.prod.yml build --pull
+docker compose -f docker-compose.prod.yml run --rm arbiter-migrate
 docker compose -f docker-compose.prod.yml up -d
 docker compose -f docker-compose.prod.yml logs -f arbiter-bot
 ```
 
-1. Prepare `.env` with production values:
-    - `NODE_ENV=production`
-    - `DATABASE_URL` (your production Postgres URL)
-    - `DISCORD_TOKEN`, `DISCORD_GUILD_ID`, and required role/channel envs
-    - optional limits: `BOT_MEM_LIMIT`, `BOT_CPUS`, `REDIS_MEM_LIMIT`, `REDIS_CPUS`
-    - optional Redis host path: `REDIS_DATA_DIR` (default `/opt/arbiter/redis-data`)
-2. Build and start:
+Required production `.env` values include:
+
+- `NODE_ENV=production`
+- `DATABASE_URL`
+- `DISCORD_TOKEN`
+- `DISCORD_GUILD_ID`
+- required Discord role/channel IDs used by the bot
+
+Useful optional production `.env` values:
+
+- `REDIS_DATA_DIR`, `BOT_LOGS_DIR`
+- `BOT_UID`, `BOT_GID`, `REDIS_UID`, `REDIS_GID`
+- `BOT_MEM_LIMIT`, `BOT_CPUS`, `REDIS_MEM_LIMIT`, `REDIS_CPUS`
+
+### 4) Ongoing Deploys and New Migrations
+
+Use this every time new migrations are added:
 
 ```sh
-docker compose -f docker-compose.prod.yml build
+# take a DB backup/snapshot before applying migrations
+docker compose -f docker-compose.prod.yml build --pull
+docker compose -f docker-compose.prod.yml run --rm arbiter-migrate
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-3. Check logs:
+This is why `arbiter-migrate` exists: runtime stays slim while Prisma CLI remains available in the migration service. You can keep `prisma` in `devDependencies` and still run production migrations safely.
+
+### 5) Runtime Verification and Operations
+
+Check effective container users after startup:
+
+```sh
+docker compose -f docker-compose.prod.yml exec arbiter-bot id
+docker compose -f docker-compose.prod.yml exec arbiter-redis id
+```
+
+Tail logs:
 
 ```sh
 docker compose -f docker-compose.prod.yml logs -f arbiter-bot
 docker compose -f docker-compose.prod.yml logs -f arbiter-redis
 ```
 
-4. Stop:
+Stop services:
 
 ```sh
 docker compose -f docker-compose.prod.yml down
 ```
 
-## Notes
+## Migration Folder Purpose
 
-- Slash commands are registered with Sapphire application command registries and scoped to `DISCORD_GUILD_ID`.
-- Event VC tracking ticker is implemented as a Sapphire scheduled task.
-- Division cache refresh is handled by a scheduled cron task and exposed through a Sapphire utility.
-- Discord access is done directly through Sapphire (`container.client`) instead of a custom Discord integration layer.
-- Logging uses a pino-backed Sapphire `ILogger` (`container.logger`) with multi-target transports:
-    - Console (`pino-pretty`) uses `LOG_LEVEL`
-    - Local file (`LOCAL_LOG_FILE_PATH`) always receives `debug` and above
-    - Better Stack (`@logtail/pino`) receives only `warn` and above when `BETTER_STACK_SOURCE_TOKEN` and `BETTER_STACK_INGESTING_HOST` are set
-
-## Logging Gotchas
-
-- `LOG_LEVEL` controls console output only. It does not reduce local file logging below `debug`.
-- If you set `LOG_LEVEL=debug` locally, you will still see debug+ logs in the console.
-- In Docker production, file logs are written inside the container at `LOCAL_LOG_FILE_PATH` (default: `logs/arbiter.log` under `/app`).
-- If you want file logs persisted on the VPS host, mount a host directory and point `LOCAL_LOG_FILE_PATH` to that mount path (for example `/app/logs/arbiter.log`).
+`prisma/migration` scripts are data migration utilities used to import legacy data into the new schema. They are separate from Prisma schema migrations and should be run intentionally as part of migration workflows, not on every bot deploy.

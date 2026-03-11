@@ -25,3 +25,5 @@ package-lock.json
 
 data/
 dev.dump
+.tmp/
+.pnpm-store/

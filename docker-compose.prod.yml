@@ -1,4 +1,18 @@
 services:
+  arbiter-migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    image: arbiter-v3-migrate:${ARBITER_IMAGE_TAG:-latest}
+    container_name: arbiter-v3-migrate
+    restart: 'no'
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    command: ['pnpm', 'db:migrate']
+
   arbiter-bot:
     build:
       context: .
@@ -13,6 +27,7 @@ services:
       REDIS_HOST: arbiter-redis
       REDIS_PORT: 6379
       LOCAL_LOG_FILE_PATH: /app/logs/arbiter.log
+    user: ${BOT_UID:-1000}:${BOT_GID:-1000}
     volumes:
       - ${BOT_LOGS_DIR:-/opt/arbiter/bot-logs}:/app/logs
     depends_on:
@@ -25,6 +40,7 @@ services:
     image: ${REDIS_DOCKER_VERSION:-redis:7-alpine}
     container_name: arbiter-v3-redis
     restart: unless-stopped
+    user: ${REDIS_UID:-999}:${REDIS_GID:-999}
     volumes:
       - ${REDIS_DATA_DIR:-/opt/arbiter/redis-data}:/data
     environment:
