@@ -21,10 +21,10 @@ dist/
 package-lock.json
 
 # Environment variables
-.env
-.env.prod
+.env*
+!.env.example
 
 data/
-dev.dump
+*.dump
 .tmp/
 .pnpm-store/
