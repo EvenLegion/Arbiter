@@ -192,12 +192,7 @@ function isUnknownGuildMemberError(error: unknown): boolean {
 	}
 
 	const code = (error as { code?: unknown }).code;
-	if (code === 10007) {
-		return true;
-	}
-
-	const status = (error as { status?: unknown }).status;
-	return status === 404;
+	return code === 10007 || code === '10007';
 }
 
 declare module '@sapphire/plugin-utilities-store' {
