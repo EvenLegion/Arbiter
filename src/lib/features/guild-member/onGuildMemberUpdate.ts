@@ -16,12 +16,20 @@ type HaveDiscordRolesChangedParams = Pick<HandleGuildMemberUpdateParams, 'oldMem
 export async function handleGuildMemberUpdate({ oldMember, newMember, context }: HandleGuildMemberUpdateParams) {
 	const caller = 'handleGuildMemberUpdate';
 	const logger = context.logger.child({ caller });
+	if (oldMember.partial) {
+		logger.trace(
+			{
+				discordUserId: newMember.user.id,
+				discordUsername: newMember.user.username
+			},
+			'Skipping guild member update because old member payload is partial'
+		);
+		return;
+	}
 
 	const { haveRolesChanged, oldRoleIds, newRoleIds } = haveDiscordRolesChanged({ oldMember, newMember });
 	const addedRoleIds = newRoleIds.filter((newRoleId) => !oldRoleIds.includes(newRoleId));
 	const removedRoleIds = oldRoleIds.filter((oldRoleId) => !newRoleIds.includes(oldRoleId));
-
-	const divisions = await container.utilities.divisionCache.get({});
 
 	if (!haveRolesChanged) {
 		logger.trace(
@@ -34,6 +42,7 @@ export async function handleGuildMemberUpdate({ oldMember, newMember, context }:
 		);
 		return;
 	}
+	const divisions = await container.utilities.divisionCache.get({});
 
 	logger.debug(
 		{

@@ -61,7 +61,8 @@ export const buildUserNickname = async ({
 			return {
 				newUserNickname: appendMeritRankSuffix({
 					nickname: `${priorityDivision.displayNamePrefix} | ${baseNickname}`,
-					meritRankLevel
+					meritRankLevel,
+					shouldShowRank: priorityDivision.showRank
 				})
 			};
 		}
@@ -70,14 +71,23 @@ export const buildUserNickname = async ({
 	return {
 		newUserNickname: appendMeritRankSuffix({
 			nickname: baseNickname,
-			meritRankLevel
+			meritRankLevel,
+			shouldShowRank: true
 		})
 	};
 };
 
-function appendMeritRankSuffix({ nickname, meritRankLevel }: { nickname: string; meritRankLevel: number | null }) {
+function appendMeritRankSuffix({
+	nickname,
+	meritRankLevel,
+	shouldShowRank
+}: {
+	nickname: string;
+	meritRankLevel: number | null;
+	shouldShowRank: boolean;
+}) {
 	const sanitizedNickname = stripTrailingMeritRankSuffix(nickname);
-	if (!meritRankLevel) {
+	if (!meritRankLevel || !shouldShowRank) {
 		if (sanitizedNickname.length > DISCORD_MAX_NICKNAME_LENGTH) {
 			throw new NicknameTooLongError({
 				computedNickname: sanitizedNickname,

@@ -3,6 +3,7 @@ export { prisma, closeDb } from './prisma';
 export { upsertUser } from './upsertUser';
 export { updateUserNickname } from './updateUserNickname';
 export { findUniqueUser } from './findUniqueUser';
+export { findManyUsers } from './findManyUsers';
 export { createNameChangeRequest } from './createNameChangeRequest';
 export { findUniqueNameChangeRequest, isPendingNameChangeRequestStatus } from './findUniqueNameChangeRequest';
 export { reviewNameChangeRequest } from './reviewNameChangeRequest';

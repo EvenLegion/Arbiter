@@ -1,7 +1,7 @@
 import { Utility } from '@sapphire/plugin-utilities-store';
-import { findUniqueUser } from '../integrations/prisma';
+import { findManyUsers, findUniqueUser } from '../integrations/prisma';
 
-type GetOrThrowParams =
+type GetParams =
 	| {
 			discordUserId: string;
 			dbUserId?: never;
@@ -11,6 +11,11 @@ type GetOrThrowParams =
 			discordUserId?: never;
 	  };
 
+type FindManyParams = {
+	dbUserIds?: string[];
+	discordUserIds?: string[];
+};
+
 export class UserDirectoryUtility extends Utility {
 	public constructor(context: Utility.LoaderContext, options: Utility.Options) {
 		super(context, {
@@ -19,9 +24,17 @@ export class UserDirectoryUtility extends Utility {
 		});
 	}
 
-	public async getOrThrow(params: GetOrThrowParams) {
+	public async get(params: GetParams) {
 		const user = await findUniqueUser(params);
+		return user ?? null;
+	}
 
+	public async findMany(params: FindManyParams = {}) {
+		return findManyUsers(params);
+	}
+
+	public async getOrThrow(params: GetParams) {
+		const user = await this.get(params);
 		if (!user) {
 			const identifier = 'discordUserId' in params ? `discordUserId=${params.discordUserId}` : `dbUserId=${params.dbUserId}`;
 			throw new Error(`User not found in database: ${identifier}`);
