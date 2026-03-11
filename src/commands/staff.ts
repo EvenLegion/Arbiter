@@ -4,6 +4,7 @@ import { DivisionKind } from '@prisma/client';
 import { EmbedBuilder, MessageFlags, type GuildMember } from 'discord.js';
 
 import { ENV_CONFIG, ENV_DISCORD } from '../config/env';
+import { resolveDiscordUserIdOptionValue, sortMembersByQuery } from '../lib/discord/memberSearch';
 import { handlePostDivisionMessage } from '../lib/features/staff/postDivisionSelectionMessage';
 import { createChildExecutionContext, createExecutionContext } from '../lib/logging/executionContext';
 
@@ -168,27 +169,65 @@ export class StaffCommand extends Subcommand {
 					});
 					return;
 				}
-				const guildMembersById = await this.container.utilities.member.listAll({ guild }).catch(async (error: unknown) => {
-					logger.error(
+				const guildMembersById = new Map<string, GuildMember>();
+				if (requestedDiscordUserId) {
+					const singleMember = await this.container.utilities.member
+						.get({
+							guild,
+							discordUserId: requestedDiscordUserId
+						})
+						.catch(async (error: unknown) => {
+							logger.error(
+								{
+									err: error,
+									requestedDiscordUserId
+								},
+								'Failed to load guild member for single-user staff nickname sync command'
+							);
+							await interaction.editReply({
+								content: `Failed to load guild member for nickname sync. requestId=\`${context.requestId}\``
+							});
+							return undefined;
+						});
+					if (singleMember === undefined) {
+						return;
+					}
+					if (singleMember) {
+						guildMembersById.set(singleMember.id, singleMember);
+					}
+					logger.info(
 						{
-							err: error
+							requestedDiscordUserId,
+							guildMemberCount: guildMembersById.size
 						},
-						'Failed to load guild members for staff nickname sync command'
+						'Loaded guild member for single-user staff nickname sync command'
 					);
-					await interaction.editReply({
-						content: `Failed to load guild members for nickname sync. requestId=\`${context.requestId}\``
+				} else {
+					const allMembers = await this.container.utilities.member.listAll({ guild }).catch(async (error: unknown) => {
+						logger.error(
+							{
+								err: error
+							},
+							'Failed to load guild members for staff nickname sync command'
+						);
+						await interaction.editReply({
+							content: `Failed to load guild members for nickname sync. requestId=\`${context.requestId}\``
+						});
+						return null;
 					});
-					return null;
-				});
-				if (!guildMembersById) {
-					return;
+					if (!allMembers) {
+						return;
+					}
+					for (const [memberId, member] of allMembers) {
+						guildMembersById.set(memberId, member);
+					}
+					logger.info(
+						{
+							guildMemberCount: guildMembersById.size
+						},
+						'Loaded guild members for staff nickname sync command'
+					);
 				}
-				logger.info(
-					{
-						guildMemberCount: guildMembersById.size
-					},
-					'Loaded guild members for staff nickname sync command'
-				);
 
 				let attempted = 0;
 				let updated = 0;
@@ -489,32 +528,4 @@ export class StaffCommand extends Subcommand {
 			discordNickname: user.discordNickname
 		}));
 	}
-}
-
-function resolveDiscordUserIdOptionValue(value: string | null): string | undefined {
-	if (!value) {
-		return undefined;
-	}
-
-	const trimmed = value.trim();
-	const mentionMatch = /^<@!?(\d+)>$/.exec(trimmed);
-	if (mentionMatch) {
-		return mentionMatch[1];
-	}
-
-	return /^\d{17,20}$/.test(trimmed) ? trimmed : undefined;
-}
-
-function sortMembersByQuery({ a, b, query }: { a: GuildMember; b: GuildMember; query: string }) {
-	if (query.length === 0) {
-		return a.displayName.localeCompare(b.displayName);
-	}
-
-	const aStarts = a.displayName.toLowerCase().startsWith(query);
-	const bStarts = b.displayName.toLowerCase().startsWith(query);
-	if (aStarts !== bStarts) {
-		return aStarts ? -1 : 1;
-	}
-
-	return a.displayName.localeCompare(b.displayName);
 }

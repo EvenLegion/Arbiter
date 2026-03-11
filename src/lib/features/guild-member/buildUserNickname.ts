@@ -6,7 +6,8 @@ import { findManyUsersDivisions, getUserTotalMerits } from '../../../integration
 import { DISCORD_MAX_NICKNAME_LENGTH } from '../../constants';
 import { NicknameTooLongError } from '../../errors/nicknameTooLongError';
 import type { ExecutionContext } from '../../logging/executionContext';
-import { getMeritRankSymbol, MAX_MERIT_RANK_LEVEL, resolveMeritRankLevel } from '../merit/meritRank';
+import { getMeritRankSymbol, resolveMeritRankLevel } from '../merit/meritRank';
+import { stripTrailingMeritRankSuffix } from './stripTrailingMeritRankSuffix';
 
 const PREFIX_PRIORITY: ((division: Division) => boolean)[] = [
 	(division) => division.kind === DivisionKind.INITIATE,
@@ -112,22 +113,4 @@ function appendMeritRankSuffix({
 		computedNickname: `${sanitizedNickname}${suffix}`,
 		computedLength: sanitizedNickname.length + suffix.length
 	});
-}
-
-function stripTrailingMeritRankSuffix(value: string) {
-	const trimmed = value.trimEnd();
-
-	for (let level = 1; level <= MAX_MERIT_RANK_LEVEL; level++) {
-		const meritRankSymbol = getMeritRankSymbol(level);
-		if (!meritRankSymbol) {
-			continue;
-		}
-
-		const suffix = ` ${meritRankSymbol}`;
-		if (trimmed.endsWith(suffix)) {
-			return trimmed.slice(0, -suffix.length).trimEnd();
-		}
-	}
-
-	return trimmed;
 }

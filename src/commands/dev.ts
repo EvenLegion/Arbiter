@@ -4,9 +4,10 @@ import { EmbedBuilder, MessageFlags, type GuildMember } from 'discord.js';
 
 import { ENV_CONFIG, ENV_DISCORD } from '../config/env';
 import { upsertUser } from '../integrations/prisma';
+import { resolveDiscordUserIdOptionValue, sortMembersByQuery } from '../lib/discord/memberSearch';
 import { reconcileRolesAndMemberships } from '../lib/features/guild-member/reconcileRolesAndMemberships';
+import { stripTrailingMeritRankSuffix } from '../lib/features/guild-member/stripTrailingMeritRankSuffix';
 import { DISCORD_MAX_NICKNAME_LENGTH } from '../lib/constants';
-import { getMeritRankSymbol, MAX_MERIT_RANK_LEVEL } from '../lib/features/merit/meritRank';
 import { createChildExecutionContext, createExecutionContext } from '../lib/logging/executionContext';
 
 type FailedMember = {
@@ -531,27 +532,65 @@ export class DevCommand extends Subcommand {
 					},
 					'Loaded nickname targets for dev nickname command'
 				);
-				const guildMembersById = await this.container.utilities.member.listAll({ guild }).catch(async (error: unknown) => {
-					logger.error(
+				const guildMembersById = new Map<string, GuildMember>();
+				if (requestedDiscordUserId) {
+					const singleMember = await this.container.utilities.member
+						.get({
+							guild,
+							discordUserId: requestedDiscordUserId
+						})
+						.catch(async (error: unknown) => {
+							logger.error(
+								{
+									err: error,
+									requestedDiscordUserId
+								},
+								'Failed to load guild member for single-user dev nickname command'
+							);
+							await interaction.editReply({
+								content: `Failed to load guild member for dev nickname command. requestId=\`${context.requestId}\``
+							});
+							return undefined;
+						});
+					if (singleMember === undefined) {
+						return;
+					}
+					if (singleMember) {
+						guildMembersById.set(singleMember.id, singleMember);
+					}
+					logger.info(
 						{
-							err: error
+							requestedDiscordUserId,
+							guildMemberCount: guildMembersById.size
 						},
-						'Failed to load guild members for dev nickname command'
+						'Loaded guild member for single-user dev nickname command'
 					);
-					await interaction.editReply({
-						content: `Failed to load guild members for dev nickname command. requestId=\`${context.requestId}\``
+				} else {
+					const allMembers = await this.container.utilities.member.listAll({ guild }).catch(async (error: unknown) => {
+						logger.error(
+							{
+								err: error
+							},
+							'Failed to load guild members for dev nickname command'
+						);
+						await interaction.editReply({
+							content: `Failed to load guild members for dev nickname command. requestId=\`${context.requestId}\``
+						});
+						return null;
 					});
-					return null;
-				});
-				if (!guildMembersById) {
-					return;
+					if (!allMembers) {
+						return;
+					}
+					for (const [memberId, member] of allMembers) {
+						guildMembersById.set(memberId, member);
+					}
+					logger.info(
+						{
+							guildMemberCount: guildMembersById.size
+						},
+						'Loaded guild members for dev nickname command'
+					);
 				}
-				logger.info(
-					{
-						guildMemberCount: guildMembersById.size
-					},
-					'Loaded guild members for dev nickname command'
-				);
 
 				let updated = 0;
 				let unchanged = 0;
@@ -784,20 +823,6 @@ export class DevCommand extends Subcommand {
 	}
 }
 
-function resolveDiscordUserIdOptionValue(value: string | null): string | undefined {
-	if (!value) {
-		return undefined;
-	}
-
-	const trimmed = value.trim();
-	const mentionMatch = /^<@!?(\d+)>$/.exec(trimmed);
-	if (mentionMatch) {
-		return mentionMatch[1];
-	}
-
-	return /^\d{17,20}$/.test(trimmed) ? trimmed : undefined;
-}
-
 function resolveSetReason(mode: NicknameTransformMode): string {
 	switch (mode) {
 		case 'remove-prefix':
@@ -833,36 +858,4 @@ function computeTransformedNickname({
 function stripLeadingPrefixSegments(value: string): string {
 	const trimmed = value.trim();
 	return trimmed.replace(/^(?:[^|]+\|\s*)+/u, '').trim();
-}
-
-function stripTrailingMeritRankSuffix(value: string): string {
-	const trimmed = value.trimEnd();
-
-	for (let level = 1; level <= MAX_MERIT_RANK_LEVEL; level++) {
-		const meritRankSymbol = getMeritRankSymbol(level);
-		if (!meritRankSymbol) {
-			continue;
-		}
-
-		const suffix = ` ${meritRankSymbol}`;
-		if (trimmed.endsWith(suffix)) {
-			return trimmed.slice(0, -suffix.length).trimEnd();
-		}
-	}
-
-	return trimmed;
-}
-
-function sortMembersByQuery({ a, b, query }: { a: GuildMember; b: GuildMember; query: string }) {
-	if (query.length === 0) {
-		return a.displayName.localeCompare(b.displayName);
-	}
-
-	const aStarts = a.displayName.toLowerCase().startsWith(query);
-	const bStarts = b.displayName.toLowerCase().startsWith(query);
-	if (aStarts !== bStarts) {
-		return aStarts ? -1 : 1;
-	}
-
-	return a.displayName.localeCompare(b.displayName);
 }
