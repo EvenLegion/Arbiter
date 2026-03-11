@@ -12,7 +12,7 @@ ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 ENV HUSKY=0
 COPY package.json pnpm-lock.yaml ./
 COPY .npmrc ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 FROM deps AS migrate
 COPY prisma ./prisma
