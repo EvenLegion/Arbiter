@@ -15,14 +15,24 @@ const SAPPHIRE_TO_PINO_LEVEL: Record<LogLevel, PinoLevel> = {
 };
 
 type TransportTarget = NonNullable<TransportMultiOptions['targets']>[number];
+const LOCAL_FILE_LOG_LEVEL: PinoLevel = 'debug';
+const BETTER_STACK_LOG_LEVEL: PinoLevel = 'warn';
+const ROOT_LOG_LEVEL: PinoLevel = ENV_CONFIG.LOG_LEVEL === 'trace' ? 'trace' : 'debug';
 
 const transportTargets: TransportTarget[] = [
 	{
 		target: 'pino-pretty',
 		level: ENV_CONFIG.LOG_LEVEL,
 		options: {
-			colorize: true,
-			minimumLevel: ENV_CONFIG.LOG_LEVEL
+			colorize: true
+		}
+	},
+	{
+		target: 'pino/file',
+		level: LOCAL_FILE_LOG_LEVEL,
+		options: {
+			destination: ENV_CONFIG.LOCAL_LOG_FILE_PATH,
+			mkdir: true
 		}
 	}
 ];
@@ -30,7 +40,7 @@ const transportTargets: TransportTarget[] = [
 if (ENV_CONFIG.BETTER_STACK_SOURCE_TOKEN && ENV_CONFIG.BETTER_STACK_INGESTING_HOST) {
 	transportTargets.push({
 		target: '@logtail/pino',
-		level: ENV_CONFIG.LOG_LEVEL,
+		level: BETTER_STACK_LOG_LEVEL,
 		options: {
 			sourceToken: ENV_CONFIG.BETTER_STACK_SOURCE_TOKEN,
 			options: { endpoint: ENV_CONFIG.BETTER_STACK_INGESTING_HOST }
@@ -39,7 +49,7 @@ if (ENV_CONFIG.BETTER_STACK_SOURCE_TOKEN && ENV_CONFIG.BETTER_STACK_INGESTING_HO
 }
 
 export const PINO_LOGGER = pino({
-	level: ENV_CONFIG.LOG_LEVEL,
+	level: ROOT_LOG_LEVEL,
 	transport: {
 		targets: transportTargets
 	}

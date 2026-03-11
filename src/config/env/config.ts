@@ -6,6 +6,7 @@ import { env } from './env';
 const ConfigSchema = z.object({
 	NODE_ENV: z.enum(['development', 'production']).default('development'),
 	LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
+	LOCAL_LOG_FILE_PATH: z.string().min(1).default('logs/arbiter.log'),
 
 	BETTER_STACK_SOURCE_TOKEN: z.string().optional(),
 	BETTER_STACK_INGESTING_HOST: z.string().optional(),

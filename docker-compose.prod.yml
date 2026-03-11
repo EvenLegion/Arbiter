@@ -1,0 +1,50 @@
+services:
+  arbiter-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: arbiter-v3:${ARBITER_IMAGE_TAG:-latest}
+    container_name: arbiter-v3-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      REDIS_HOST: arbiter-redis
+      REDIS_PORT: 6379
+      LOCAL_LOG_FILE_PATH: /app/logs/arbiter.log
+    volumes:
+      - ${BOT_LOGS_DIR:-/opt/arbiter/bot-logs}:/app/logs
+    depends_on:
+      arbiter-redis:
+        condition: service_healthy
+    mem_limit: ${BOT_MEM_LIMIT:-768m}
+    cpus: ${BOT_CPUS:-1.0}
+
+  arbiter-redis:
+    image: ${REDIS_DOCKER_VERSION:-redis:7-alpine}
+    container_name: arbiter-v3-redis
+    restart: unless-stopped
+    volumes:
+      - ${REDIS_DATA_DIR:-/opt/arbiter/redis-data}:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: >-
+      sh -c '
+      if [ -n "$${REDIS_PASSWORD}" ]; then
+        exec redis-server --appendonly yes --save 60 1000 --requirepass "$${REDIS_PASSWORD}";
+      else
+        exec redis-server --appendonly yes --save 60 1000;
+      fi'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'if [ -n "$${REDIS_PASSWORD}" ]; then redis-cli -a "$${REDIS_PASSWORD}" ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi'
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: ${REDIS_MEM_LIMIT:-256m}
+    cpus: ${REDIS_CPUS:-0.5}
