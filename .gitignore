@@ -22,5 +22,9 @@ package-lock.json
 
 # Environment variables
 .env
+.env.prod
 
 data/
+dev.dump
+.tmp/
+.pnpm-store/

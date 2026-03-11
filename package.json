@@ -1,6 +1,7 @@
 {
 	"name": "arbiter",
 	"version": "0.1.0",
+	"packageManager": "pnpm@10.11.0",
 	"main": "dist/index.js",
 	"type": "commonjs",
 	"dependencies": {
@@ -74,6 +75,10 @@
 		"redis:down": "docker compose -f docker-compose.redis.yml down",
 		"redis:reset": "docker compose -f docker-compose.redis.yml down -v",
 		"redis:logs": "docker compose -f docker-compose.redis.yml logs -f",
+		"prod:build": "docker compose -f docker-compose.prod.yml build",
+		"prod:up": "docker compose -f docker-compose.prod.yml up -d",
+		"prod:down": "docker compose -f docker-compose.prod.yml down",
+		"prod:logs": "docker compose -f docker-compose.prod.yml logs -f",
 		"format": "prettier --write \"src/\"",
 		"prettier:check": "prettier --check .",
 		"prettier:fix": "prettier --write ."
