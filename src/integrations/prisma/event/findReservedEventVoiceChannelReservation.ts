@@ -18,7 +18,7 @@ export async function findReservedEventVoiceChannelReservation({ channelId, excl
 		excludeEventSessionId
 	});
 
-	return prisma.eventSessionChannel.findFirst({
+	return prisma.eventChannel.findFirst({
 		where: {
 			channelId: parsed.channelId,
 			kind: {

@@ -6,7 +6,7 @@ import { prisma } from '../prisma';
  * including both parent and child VC associations.
  */
 export async function findManyReservedEventVoiceChannelIds() {
-	const rows = await prisma.eventSessionChannel.findMany({
+	const rows = await prisma.eventChannel.findMany({
 		where: {
 			kind: {
 				in: [EventSessionChannelKind.PARENT_VC, EventSessionChannelKind.CHILD_VC]

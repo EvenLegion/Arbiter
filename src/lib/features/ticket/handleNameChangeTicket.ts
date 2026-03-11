@@ -382,5 +382,5 @@ function trimForEmbed(value: string, maxLength: number) {
 }
 
 function getStaffRoleIds() {
-	return [...new Set([ENV_DISCORD.SEC_ROLE_ID, ENV_DISCORD.CMDR_ROLE_ID, ENV_DISCORD.TIR_ROLE_ID])];
+	return [...new Set([ENV_DISCORD.SEC_ROLE_ID, ENV_DISCORD.CMD_ROLE_ID, ENV_DISCORD.TIR_ROLE_ID])];
 }

@@ -29,7 +29,7 @@ const meritTypeSeeds: MeritTypeSeed[] = [
 		code: MeritTypeCode.TIER_2,
 		name: 'Tier 2',
 		description: 'Advanced Op',
-		meritAmount: 2,
+		meritAmount: 1,
 		isManualAwardable: false
 	},
 	{
@@ -40,10 +40,24 @@ const meritTypeSeeds: MeritTypeSeed[] = [
 		isManualAwardable: false
 	},
 	{
+		code: MeritTypeCode.TRAINING,
+		name: 'Training',
+		description: 'Training Op',
+		meritAmount: 2,
+		isManualAwardable: false
+	},
+	{
 		code: MeritTypeCode.COMMANDER_MERIT,
 		name: 'Commander Merit',
 		description: 'Commander merit',
 		meritAmount: 1,
+		isManualAwardable: true
+	},
+	{
+		code: MeritTypeCode.CENTURION_HOST_MERIT,
+		name: 'Centurion Host Merit',
+		description: 'Centurion host merit',
+		meritAmount: 2,
 		isManualAwardable: true
 	},
 	{

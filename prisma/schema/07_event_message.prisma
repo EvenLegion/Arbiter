@@ -5,7 +5,7 @@ enum EventSessionMessageKind {
   REVIEW
 }
 
-model EventSessionMessage {
+model EventMessage {
   id             Int                     @id @default(autoincrement())
   eventSessionId Int
   kind           EventSessionMessageKind
@@ -14,7 +14,7 @@ model EventSessionMessage {
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
 
-  eventSession EventSession @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
+  eventSession Event @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
 
   @@unique([eventSessionId, kind])
   @@unique([channelId, messageId])

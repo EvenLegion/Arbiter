@@ -19,7 +19,7 @@ export async function deleteManyEventSessionChannels({ eventSessionId, kinds }: 
 		kinds
 	});
 
-	const result = await prisma.eventSessionChannel.deleteMany({
+	const result = await prisma.eventChannel.deleteMany({
 		where: {
 			eventSessionId: parsed.eventSessionId,
 			...(parsed.kinds && parsed.kinds.length > 0 ? { kind: { in: parsed.kinds } } : {})

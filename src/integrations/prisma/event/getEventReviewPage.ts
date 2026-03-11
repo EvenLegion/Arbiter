@@ -47,7 +47,7 @@ export async function getEventReviewPage({ eventSessionId, page = 1, pageSize }:
 		pageSize
 	});
 
-	const eventSession = await prisma.eventSession.findUnique({
+	const eventSession = await prisma.event.findUnique({
 		where: {
 			id: parsed.eventSessionId
 		},

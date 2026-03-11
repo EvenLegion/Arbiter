@@ -3,7 +3,7 @@ import { type ButtonInteraction, type Guild } from 'discord.js';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { syncTrackingSummaryMessage } from './syncTrackingSummaryMessage';
 
-type EventSessionWithRelations = Prisma.EventSessionGetPayload<{
+type EventSessionWithRelations = Prisma.EventGetPayload<{
 	include: {
 		hostUser: true;
 		eventTier: {

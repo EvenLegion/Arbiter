@@ -3,7 +3,9 @@ enum MeritTypeCode {
   TIER_1
   TIER_2
   TIER_3
+  TRAINING
   COMMANDER_MERIT
+  CENTURION_HOST_MERIT
   TESSERARIUS_MERIT
   DEMERIT
 }
@@ -33,7 +35,7 @@ model Merit {
   user          User          @relation("MeritRecipientUser", fields: [userId], references: [id], onDelete: Cascade)
   awardedByUser User          @relation("MeritAwarderUser", fields: [awardedByUserId], references: [id], onDelete: Cascade)
   meritType     MeritType     @relation(fields: [meritTypeId], references: [id], onDelete: Restrict)
-  eventSession  EventSession? @relation(fields: [eventSessionId], references: [id], onDelete: SetNull)
+  eventSession  Event? @relation(fields: [eventSessionId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([userId, meritTypeId, createdAt])

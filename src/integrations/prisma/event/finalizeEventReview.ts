@@ -35,7 +35,7 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 	const now = new Date();
 
 	return prisma.$transaction(async (tx) => {
-		const eventSession = await tx.eventSession.findUnique({
+		const eventSession = await tx.event.findUnique({
 			where: {
 				id: parsed.eventSessionId
 			},
@@ -65,7 +65,7 @@ export async function finalizeEventReview(params: FinalizeEventReviewParams): Pr
 			};
 		}
 
-		const updated = await tx.eventSession.updateMany({
+		const updated = await tx.event.updateMany({
 			where: {
 				id: parsed.eventSessionId,
 				state: EventSessionState.ENDED_PENDING_REVIEW

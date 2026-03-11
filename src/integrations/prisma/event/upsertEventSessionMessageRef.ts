@@ -25,7 +25,7 @@ export async function upsertEventSessionMessageRef({ eventSessionId, kind, chann
 		messageId
 	});
 
-	return prisma.eventSessionMessage.upsert({
+	return prisma.eventMessage.upsert({
 		where: {
 			eventSessionId_kind: {
 				eventSessionId: parsed.eventSessionId,

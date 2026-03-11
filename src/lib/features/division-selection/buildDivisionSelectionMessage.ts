@@ -17,17 +17,17 @@ const UNIFORMS_URL = 'https://www.evenlegion.space/uniforms';
 
 const SELECTABLE_DIVISIONS = {
 	NVY: [
-		`<@&${ENV_DISCORD.NAVY_ROLE_ID}> **is Even Legion's space and air combat force**.`,
+		`<@&${ENV_DISCORD.NVY_ROLE_ID}> **is Even Legion's space and air combat force**.`,
 		'From high-speed fighter superiority to multi-crew gunship support and strategic transport, Navy projects power wherever the Legion needs it. These members secure the skies, escort friendly forces, move critical assets, and deliver overwhelming force across the battlespace.',
 		'In this Division, you might: fly fighters or interceptors, crew gunships, escort dropships and transports, provide air cover, conduct strike operations, move cargo or personnel, and support fleet or planetary combat operations.'
 	],
 	MRN: [
-		`<@&${ENV_DISCORD.MARINES_ROLE_ID}> **are Even Legion's frontline assault force**.`,
+		`<@&${ENV_DISCORD.MRN_ROLE_ID}> **are Even Legion's frontline assault force**.`,
 		'They lead bunker breaches, fortified assaults, armored advances, and boots-on-the-ground operations to capture, clear, and hold key objectives. When the Legion needs disciplined force on the surface, Marines are first in.',
 		'In this Division, you might: clear bunkers, assault hostile positions, operate tanks or ground vehicles, secure objectives, hold defensive lines, and fight in coordinated infantry or mechanized operations.'
 	],
 	SUP: [
-		`<@&${ENV_DISCORD.SUPPORT_ROLE_ID}> **keeps Even Legion fighting, building, and growing**.`,
+		`<@&${ENV_DISCORD.SUP_ROLE_ID}> **keeps Even Legion fighting, building, and growing**.`,
 		'This branch powers the organization through mining, salvage, cargo transport, trade, engineering, repair, refueling, and future construction systems. Whether extracting raw resources, reclaiming battlefield wreckage, moving critical supplies, or optimizing profitable routes, Support ensures the Legion stays supplied and self-sustaining.',
 		'In this Division, you might: mine and refine resources, salvage wrecks, haul cargo, coordinate logistics, run trade routes, repair and maintain ships, refuel friendly forces, and contribute to future crafting, engineering, and infrastructure efforts'
 	]
