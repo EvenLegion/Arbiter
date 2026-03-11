@@ -14,9 +14,9 @@ model User {
   nameChangeRequests         NameChangeRequest[] @relation("NameChangeRequestRequesterUser")
   reviewedNameChangeRequests NameChangeRequest[] @relation("NameChangeRequestReviewerUser")
 
-  hostedEventSessions       EventSession[]         @relation("EventSessionHostUser")
-  finalizedEventSessions    EventSession[]         @relation("EventSessionFinalizedByUser")
-  addedEventSessionChannels EventSessionChannel[]  @relation("EventSessionChannelAddedByUser")
+  hostedEventSessions       Event[]         @relation("EventSessionHostUser")
+  finalizedEventSessions    Event[]         @relation("EventSessionFinalizedByUser")
+  addedEventSessionChannels EventChannel[]  @relation("EventSessionChannelAddedByUser")
   eventParticipantStats     EventParticipantStat[] @relation("EventParticipantStatUser")
   targetEventDecisions      EventReviewDecision[]  @relation("EventReviewDecisionTargetUser")
 

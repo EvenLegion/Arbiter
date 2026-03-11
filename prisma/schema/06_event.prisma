@@ -28,14 +28,14 @@ model EventTier {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  meritType     MeritType      @relation(fields: [meritTypeId], references: [id], onDelete: Restrict)
-  eventSessions EventSession[]
+  meritType MeritType @relation(fields: [meritTypeId], references: [id], onDelete: Restrict)
+  events    Event[]
 
   @@index([displayOrder])
   @@index([meritTypeId])
 }
 
-model EventSession {
+model Event {
   id                      Int               @id @default(autoincrement())
   hostUserId              String
   eventTierId             Int
@@ -49,11 +49,11 @@ model EventSession {
   createdAt               DateTime          @default(now())
   updatedAt               DateTime          @updatedAt
 
-  hostUser              User                   @relation("EventSessionHostUser", fields: [hostUserId], references: [id], onDelete: Cascade)
-  reviewFinalizedByUser User?                  @relation("EventSessionFinalizedByUser", fields: [reviewFinalizedByUserId], references: [id], onDelete: SetNull)
-  eventTier             EventTier              @relation(fields: [eventTierId], references: [id], onDelete: Restrict)
-  channels              EventSessionChannel[]
-  eventMessages         EventSessionMessage[]
+  hostUser              User                 @relation("EventSessionHostUser", fields: [hostUserId], references: [id], onDelete: Cascade)
+  reviewFinalizedByUser User?                @relation("EventSessionFinalizedByUser", fields: [reviewFinalizedByUserId], references: [id], onDelete: SetNull)
+  eventTier             EventTier            @relation(fields: [eventTierId], references: [id], onDelete: Restrict)
+  channels              EventChannel[]
+  eventMessages         EventMessage[]
   participantStats      EventParticipantStat[]
   reviewDecisions       EventReviewDecision[]
   meritAwards           Merit[]
@@ -65,7 +65,7 @@ model EventSession {
   @@index([reviewFinalizedByUserId])
 }
 
-model EventSessionChannel {
+model EventChannel {
   id             Int                     @id @default(autoincrement())
   eventSessionId Int
   channelId      String
@@ -74,8 +74,8 @@ model EventSessionChannel {
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
 
-  eventSession EventSession @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
-  addedByUser  User         @relation("EventSessionChannelAddedByUser", fields: [addedByUserId], references: [id], onDelete: Cascade)
+  eventSession Event @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
+  addedByUser  User  @relation("EventSessionChannelAddedByUser", fields: [addedByUserId], references: [id], onDelete: Cascade)
 
   @@unique([eventSessionId, channelId])
   @@index([eventSessionId])
@@ -91,8 +91,8 @@ model EventParticipantStat {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  eventSession EventSession @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
-  user         User         @relation("EventParticipantStatUser", fields: [userId], references: [id], onDelete: Cascade)
+  eventSession Event @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
+  user         User  @relation("EventParticipantStatUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([eventSessionId, userId])
   @@index([eventSessionId, attendedSeconds])
@@ -107,8 +107,8 @@ model EventReviewDecision {
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
 
-  eventSession EventSession @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
-  targetUser   User         @relation("EventReviewDecisionTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  eventSession Event @relation(fields: [eventSessionId], references: [id], onDelete: Cascade)
+  targetUser   User  @relation("EventReviewDecisionTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
 
   @@unique([eventSessionId, targetUserId])
   @@index([eventSessionId])

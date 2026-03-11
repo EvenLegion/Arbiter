@@ -3,7 +3,7 @@ import type { Guild } from 'discord.js';
 import { findManyEventSessionMessages } from '../../../../integrations/prisma';
 import { buildEventTrackingSummaryPayload } from '../ui/buildEventTrackingSummaryPayload';
 
-type EventSessionWithRelations = Prisma.EventSessionGetPayload<{
+type EventSessionWithRelations = Prisma.EventGetPayload<{
 	include: {
 		hostUser: true;
 		eventTier: {

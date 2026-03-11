@@ -66,6 +66,15 @@ const divisions: DivisionSeed[] = [
 		discordRoleId: requiredEnv('CENT_ROLE_ID')
 	},
 	{
+		code: 'AMB',
+		name: 'Ambassador',
+		kind: DivisionKind.SPECIAL,
+		showRank: false,
+		emojiName: requiredEnv('AMB_EMOJI_NAME'),
+		emojiId: requiredEnv('AMB_EMOJI_ID'),
+		discordRoleId: requiredEnv('AMB_ROLE_ID')
+	},
+	{
 		code: 'EXEC',
 		name: 'Executive',
 		kind: DivisionKind.STAFF,
@@ -74,6 +83,16 @@ const divisions: DivisionSeed[] = [
 		emojiName: requiredEnv('EXEC_EMOJI_NAME'),
 		emojiId: requiredEnv('EXEC_EMOJI_ID'),
 		discordRoleId: requiredEnv('EXEC_ROLE_ID')
+	},
+	{
+		code: 'PRA',
+		name: 'CMD ★',
+		kind: DivisionKind.STAFF,
+		displayNamePrefix: 'CMD ★',
+		showRank: false,
+		emojiName: requiredEnv('PRA_EMOJI_NAME'),
+		emojiId: requiredEnv('PRA_EMOJI_ID'),
+		discordRoleId: requiredEnv('PRA_ROLE_ID')
 	},
 	{
 		code: 'SEC',
@@ -96,14 +115,24 @@ const divisions: DivisionSeed[] = [
 		discordRoleId: requiredEnv('TECH_ROLE_ID')
 	},
 	{
-		code: 'CMDR',
+		code: 'CMD',
 		name: 'Commander',
 		kind: DivisionKind.STAFF,
-		displayNamePrefix: 'CMDR',
+		displayNamePrefix: 'CMD',
 		showRank: false,
-		emojiName: requiredEnv('CMDR_EMOJI_NAME'),
-		emojiId: requiredEnv('CMDR_EMOJI_ID'),
-		discordRoleId: requiredEnv('CMDR_ROLE_ID')
+		emojiName: requiredEnv('CMD_EMOJI_NAME'),
+		emojiId: requiredEnv('CMD_EMOJI_ID'),
+		discordRoleId: requiredEnv('CMD_ROLE_ID')
+	},
+	{
+		code: 'QRM',
+		name: 'Quartermaster',
+		kind: DivisionKind.STAFF,
+		displayNamePrefix: 'QRM',
+		showRank: false,
+		emojiName: requiredEnv('QRM_EMOJI_NAME'),
+		emojiId: requiredEnv('QRM_EMOJI_ID'),
+		discordRoleId: requiredEnv('QRM_ROLE_ID')
 	},
 	{
 		code: 'TIR',
@@ -121,9 +150,9 @@ const divisions: DivisionSeed[] = [
 		kind: DivisionKind.LANCEARIUS,
 		displayNamePrefix: 'NVY-L',
 		showRank: true,
-		emojiName: requiredEnv('NAVY_L_EMOJI_NAME'),
-		emojiId: requiredEnv('NAVY_L_EMOJI_ID'),
-		discordRoleId: requiredEnv('NAVY_L_ROLE_ID')
+		emojiName: requiredEnv('NVY_L_EMOJI_NAME'),
+		emojiId: requiredEnv('NVY_L_EMOJI_ID'),
+		discordRoleId: requiredEnv('NVY_L_ROLE_ID')
 	},
 	{
 		code: 'MRN-L',
@@ -131,9 +160,9 @@ const divisions: DivisionSeed[] = [
 		kind: DivisionKind.LANCEARIUS,
 		displayNamePrefix: 'MRN-L',
 		showRank: true,
-		emojiName: requiredEnv('MARINES_L_EMOJI_NAME'),
-		emojiId: requiredEnv('MARINES_L_EMOJI_ID'),
-		discordRoleId: requiredEnv('MARINES_L_ROLE_ID')
+		emojiName: requiredEnv('MRN_L_EMOJI_NAME'),
+		emojiId: requiredEnv('MRN_L_EMOJI_ID'),
+		discordRoleId: requiredEnv('MRN_L_ROLE_ID')
 	},
 	{
 		code: 'SUP-L',
@@ -141,9 +170,9 @@ const divisions: DivisionSeed[] = [
 		kind: DivisionKind.LANCEARIUS,
 		displayNamePrefix: 'SUP-L',
 		showRank: true,
-		emojiName: requiredEnv('SUPPORT_L_EMOJI_NAME'),
-		emojiId: requiredEnv('SUPPORT_L_EMOJI_ID'),
-		discordRoleId: requiredEnv('SUPPORT_L_ROLE_ID')
+		emojiName: requiredEnv('SUP_L_EMOJI_NAME'),
+		emojiId: requiredEnv('SUP_L_EMOJI_ID'),
+		discordRoleId: requiredEnv('SUP_L_ROLE_ID')
 	},
 	{
 		code: 'NVY',
@@ -151,9 +180,9 @@ const divisions: DivisionSeed[] = [
 		kind: DivisionKind.NAVY,
 		displayNamePrefix: 'NVY',
 		showRank: true,
-		emojiName: requiredEnv('NAVY_EMOJI_NAME'),
-		emojiId: requiredEnv('NAVY_EMOJI_ID'),
-		discordRoleId: requiredEnv('NAVY_ROLE_ID')
+		emojiName: requiredEnv('NVY_EMOJI_NAME'),
+		emojiId: requiredEnv('NVY_EMOJI_ID'),
+		discordRoleId: requiredEnv('NVY_ROLE_ID')
 	},
 	{
 		code: 'MRN',
@@ -161,9 +190,9 @@ const divisions: DivisionSeed[] = [
 		kind: DivisionKind.MARINES,
 		displayNamePrefix: 'MRN',
 		showRank: true,
-		emojiName: requiredEnv('MARINES_EMOJI_NAME'),
-		emojiId: requiredEnv('MARINES_EMOJI_ID'),
-		discordRoleId: requiredEnv('MARINES_ROLE_ID')
+		emojiName: requiredEnv('MRN_EMOJI_NAME'),
+		emojiId: requiredEnv('MRN_EMOJI_ID'),
+		discordRoleId: requiredEnv('MRN_ROLE_ID')
 	},
 	{
 		code: 'SUP',
@@ -171,9 +200,9 @@ const divisions: DivisionSeed[] = [
 		kind: DivisionKind.SUPPORT,
 		displayNamePrefix: 'SUP',
 		showRank: true,
-		emojiName: requiredEnv('SUPPORT_EMOJI_NAME'),
-		emojiId: requiredEnv('SUPPORT_EMOJI_ID'),
-		discordRoleId: requiredEnv('SUPPORT_ROLE_ID')
+		emojiName: requiredEnv('SUP_EMOJI_NAME'),
+		emojiId: requiredEnv('SUP_EMOJI_ID'),
+		discordRoleId: requiredEnv('SUP_ROLE_ID')
 	}
 ];
 

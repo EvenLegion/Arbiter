@@ -19,7 +19,7 @@ const DiscordSchema = z.object({
 	EXEC_ROLE_ID: z.string().min(1, 'EXEC_ROLE_ID is required'),
 	SEC_ROLE_ID: z.string().min(1, 'SEC_ROLE_ID is required'),
 	TECH_ROLE_ID: z.string().min(1, 'TECH_ROLE_ID is required'),
-	CMDR_ROLE_ID: z.string().min(1, 'CMDR_ROLE_ID is required'),
+	CMD_ROLE_ID: z.string().min(1, 'CMD_ROLE_ID is required'),
 	TIR_ROLE_ID: z.string().min(1, 'TIR_ROLE_ID is required'),
 
 	// Special roles
@@ -27,14 +27,14 @@ const DiscordSchema = z.object({
 	CENT_ROLE_ID: z.string().min(1, 'CENT_ROLE_ID is required'),
 
 	// Lancearius roles
-	NAVY_L_ROLE_ID: z.string().min(1, 'NAVY_L_ROLE_ID is required'),
-	MARINES_L_ROLE_ID: z.string().min(1, 'MARINES_L_ROLE_ID is required'),
-	SUPPORT_L_ROLE_ID: z.string().min(1, 'SUPPORT_L_ROLE_ID is required'),
+	NVY_L_ROLE_ID: z.string().min(1, 'NVY_L_ROLE_ID is required'),
+	MRN_L_ROLE_ID: z.string().min(1, 'MRN_L_ROLE_ID is required'),
+	SUP_L_ROLE_ID: z.string().min(1, 'SUP_L_ROLE_ID is required'),
 
 	// Division roles
-	NAVY_ROLE_ID: z.string().min(1, 'NAVY_ROLE_ID is required'),
-	MARINES_ROLE_ID: z.string().min(1, 'MARINES_ROLE_ID is required'),
-	SUPPORT_ROLE_ID: z.string().min(1, 'SUPPORT_ROLE_ID is required'),
+	NVY_ROLE_ID: z.string().min(1, 'NVY_ROLE_ID is required'),
+	MRN_ROLE_ID: z.string().min(1, 'MRN_ROLE_ID is required'),
+	SUP_ROLE_ID: z.string().min(1, 'SUP_ROLE_ID is required'),
 
 	// Legionnaire role
 	LGN_ROLE_ID: z.string().min(1, 'LGN_ROLE_ID is required'),

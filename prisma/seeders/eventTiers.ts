@@ -38,6 +38,13 @@ const eventTierSeeds: EventTierSeed[] = [
 		description: 'Elite Op',
 		meritTypeCode: MeritTypeCode.TIER_3,
 		displayOrder: 3
+	},
+	{
+		code: MeritTypeCode.TRAINING,
+		name: 'Training',
+		description: 'Training Op',
+		meritTypeCode: MeritTypeCode.TRAINING,
+		displayOrder: 4
 	}
 ];
 

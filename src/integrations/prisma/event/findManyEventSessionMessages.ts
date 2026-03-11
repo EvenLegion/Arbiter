@@ -19,7 +19,7 @@ export async function findManyEventSessionMessages({ eventSessionId, kinds }: Fi
 		kinds
 	});
 
-	return prisma.eventSessionMessage.findMany({
+	return prisma.eventMessage.findMany({
 		where: {
 			eventSessionId: parsed.eventSessionId,
 			...(parsed.kinds && parsed.kinds.length > 0 ? { kind: { in: parsed.kinds } } : {})

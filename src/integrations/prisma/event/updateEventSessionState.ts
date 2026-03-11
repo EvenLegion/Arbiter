@@ -80,12 +80,12 @@ type UpdateEventSessionStateParams = z.infer<typeof UPDATE_EVENT_SESSION_STATE_S
 
 export async function updateEventSessionState(params: UpdateEventSessionStateParams) {
 	const parsed = UPDATE_EVENT_SESSION_STATE_SCHEMA.parse(params);
-	const mutationData: Prisma.EventSessionUncheckedUpdateManyInput = {
+	const mutationData: Prisma.EventUncheckedUpdateManyInput = {
 		state: parsed.toState,
 		...(parsed.data ?? {})
 	};
 
-	const result = await prisma.eventSession.updateMany({
+	const result = await prisma.event.updateMany({
 		where: {
 			id: parsed.eventSessionId,
 			state: Array.isArray(parsed.fromState) ? { in: parsed.fromState } : parsed.fromState

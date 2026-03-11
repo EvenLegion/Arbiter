@@ -1,4 +1,4 @@
-import { EventSessionState, type EventSession, type Prisma } from '@prisma/client';
+import { EventSessionState, type Event, type Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../prisma';
 
@@ -6,27 +6,27 @@ type EventSessionFilters = {
 	eventSessionIds?: number[];
 	states?: EventSessionState[];
 	query?: string;
-	where?: Prisma.EventSessionWhereInput;
+	where?: Prisma.EventWhereInput;
 };
 
-type FindManyEventSessionsParams<TInclude extends Prisma.EventSessionInclude | undefined = undefined> = EventSessionFilters & {
+type FindManyEventSessionsParams<TInclude extends Prisma.EventInclude | undefined = undefined> = EventSessionFilters & {
 	include?: TInclude;
-	orderBy?: Prisma.EventSessionOrderByWithRelationInput[];
+	orderBy?: Prisma.EventOrderByWithRelationInput[];
 	limit?: number;
 };
 
-type FindManyEventSessionsResult<TInclude extends Prisma.EventSessionInclude | undefined> = TInclude extends Prisma.EventSessionInclude
-	? Prisma.EventSessionGetPayload<{ include: TInclude }>[]
-	: EventSession[];
+type FindManyEventSessionsResult<TInclude extends Prisma.EventInclude | undefined> = TInclude extends Prisma.EventInclude
+	? Prisma.EventGetPayload<{ include: TInclude }>[]
+	: Event[];
 
-type FindUniqueEventSessionParams<TInclude extends Prisma.EventSessionInclude | undefined = undefined> = {
+type FindUniqueEventSessionParams<TInclude extends Prisma.EventInclude | undefined = undefined> = {
 	eventSessionId: number;
 	include?: TInclude;
 };
 
-type FindUniqueEventSessionResult<TInclude extends Prisma.EventSessionInclude | undefined> = TInclude extends Prisma.EventSessionInclude
-	? Prisma.EventSessionGetPayload<{ include: TInclude }> | null
-	: EventSession | null;
+type FindUniqueEventSessionResult<TInclude extends Prisma.EventInclude | undefined> = TInclude extends Prisma.EventInclude
+	? Prisma.EventGetPayload<{ include: TInclude }> | null
+	: Event | null;
 
 const EVENT_SESSION_STATE_SCHEMA = z.enum(EventSessionState);
 const FIND_MANY_EVENT_SESSIONS_SCHEMA = z.object({
@@ -40,7 +40,7 @@ const FIND_UNIQUE_EVENT_SESSION_SCHEMA = z.object({
 	eventSessionId: z.number().int().positive()
 });
 
-export async function findManyEventSessions<TInclude extends Prisma.EventSessionInclude | undefined = undefined>({
+export async function findManyEventSessions<TInclude extends Prisma.EventInclude | undefined = undefined>({
 	eventSessionIds,
 	states,
 	query = '',
@@ -70,7 +70,7 @@ export async function findManyEventSessions<TInclude extends Prisma.EventSession
 		where
 	});
 
-	const sessions = await prisma.eventSession.findMany({
+	const sessions = await prisma.event.findMany({
 		where: combinedWhere,
 		include,
 		orderBy,
@@ -80,7 +80,7 @@ export async function findManyEventSessions<TInclude extends Prisma.EventSession
 	return sessions as FindManyEventSessionsResult<TInclude>;
 }
 
-export async function findUniqueEventSession<TInclude extends Prisma.EventSessionInclude | undefined = undefined>({
+export async function findUniqueEventSession<TInclude extends Prisma.EventInclude | undefined = undefined>({
 	eventSessionId,
 	include
 }: FindUniqueEventSessionParams<TInclude>): Promise<FindUniqueEventSessionResult<TInclude>> {
@@ -88,7 +88,7 @@ export async function findUniqueEventSession<TInclude extends Prisma.EventSessio
 		eventSessionId
 	});
 
-	const session = await prisma.eventSession.findUnique({
+	const session = await prisma.event.findUnique({
 		where: {
 			id: parsed.eventSessionId
 		},
@@ -98,7 +98,7 @@ export async function findUniqueEventSession<TInclude extends Prisma.EventSessio
 	return session as FindUniqueEventSessionResult<TInclude>;
 }
 
-function buildEventSessionWhere({ eventSessionIds, states, query = '' }: Omit<EventSessionFilters, 'where'>): Prisma.EventSessionWhereInput {
+function buildEventSessionWhere({ eventSessionIds, states, query = '' }: Omit<EventSessionFilters, 'where'>): Prisma.EventWhereInput {
 	const trimmedQuery = query.trim();
 
 	return {
@@ -131,9 +131,9 @@ function combineWhereConditions({
 	derivedWhere,
 	where
 }: {
-	derivedWhere: Prisma.EventSessionWhereInput;
-	where?: Prisma.EventSessionWhereInput;
-}): Prisma.EventSessionWhereInput | undefined {
+	derivedWhere: Prisma.EventWhereInput;
+	where?: Prisma.EventWhereInput;
+}): Prisma.EventWhereInput | undefined {
 	if (!where) {
 		return derivedWhere;
 	}

@@ -37,7 +37,7 @@ export async function createDraftEventSession({
 		addedByDbUserId
 	});
 
-	return prisma.eventSession.create({
+	return prisma.event.create({
 		data: {
 			hostUserId: parsed.hostDbUserId,
 			eventTierId: parsed.eventTierId,

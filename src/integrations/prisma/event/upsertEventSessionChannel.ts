@@ -25,7 +25,7 @@ export async function upsertEventSessionChannel({ eventSessionId, channelId, kin
 		addedByDbUserId
 	});
 
-	return prisma.eventSessionChannel.upsert({
+	return prisma.eventChannel.upsert({
 		where: {
 			eventSessionId_channelId: {
 				eventSessionId: parsed.eventSessionId,
