@@ -16,6 +16,7 @@
         - [3) First Production Deploy](#3-first-production-deploy)
         - [4) Ongoing Deploys and New Migrations](#4-ongoing-deploys-and-new-migrations)
         - [5) Runtime Verification and Operations](#5-runtime-verification-and-operations)
+        - [6) Start/Stop Bot Container Only](#6-startstop-bot-container-only)
     - [Migration Folder Purpose](#migration-folder-purpose)
 
 ## Stack
@@ -150,11 +151,11 @@ The logger is multi-target:
 
 - Console (`pino-pretty`) uses `LOG_LEVEL`
 - Local file (`pino/file`) uses `LOCAL_FILE_LOG_LEVEL` and writes to `LOCAL_LOG_FILE_PATH`
-- Better Stack (`@logtail/pino`) sends only `warn` and above, and is enabled only when both `BETTER_STACK_SOURCE_TOKEN` and `BETTER_STACK_INGESTING_HOST` are set
+- Better Stack (`@logtail/pino`) uses `LOG_LEVEL` and is enabled only when both `BETTER_STACK_SOURCE_TOKEN` and `BETTER_STACK_INGESTING_HOST` are set
 
 Operational notes:
 
-- `LOG_LEVEL` only affects console output
+- `LOG_LEVEL` affects both console and Better Stack output
 - If `LOG_LEVEL=debug` locally, debug and above appear in console
 - File logs do not rotate automatically in-app; use host-level rotation and/or increase `LOCAL_FILE_LOG_LEVEL`
 
@@ -257,9 +258,16 @@ chmod 600 .env
 # take a DB backup/snapshot before applying migrations
 docker compose -f docker-compose.prod.yml build --pull
 docker compose -f docker-compose.prod.yml run --rm arbiter-migrate
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d --force-recreate
 docker compose -f docker-compose.prod.yml logs -f arbiter-bot
 ```
+
+When to use:
+
+- `docker compose -f docker-compose.prod.yml up -d --force-recreate`:
+  use after image/env changes, or when a container is in a bad/restart-loop state and you want a clean recreate.
+- `docker compose -f docker-compose.prod.yml logs -f arbiter-bot`:
+  use immediately after deploy/restart to confirm boot, command registration, and runtime initialization.
 
 Required production `.env` values include:
 
@@ -283,7 +291,8 @@ Use this every time new migrations are added:
 # take a DB backup/snapshot before applying migrations
 docker compose -f docker-compose.prod.yml build --pull
 docker compose -f docker-compose.prod.yml run --rm arbiter-migrate
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d --force-recreate
+docker compose -f docker-compose.prod.yml logs -f arbiter-bot
 ```
 
 This is why `arbiter-migrate` exists: runtime stays slim while Prisma CLI remains available in the migration service. You can keep `prisma` in `devDependencies` and still run production migrations safely.
@@ -308,6 +317,40 @@ Stop services:
 
 ```sh
 docker compose -f docker-compose.prod.yml down
+```
+
+### 6) Start/Stop Bot Container Only
+
+Use these when you only want to operate the bot container and leave Redis running.
+
+Start bot container:
+
+```sh
+docker compose -f docker-compose.prod.yml up -d arbiter-bot
+```
+
+Stop bot container:
+
+```sh
+docker compose -f docker-compose.prod.yml stop arbiter-bot
+```
+
+Restart bot container:
+
+```sh
+docker compose -f docker-compose.prod.yml restart arbiter-bot
+```
+
+Recreate bot container (without touching other services):
+
+```sh
+docker compose -f docker-compose.prod.yml up -d --force-recreate arbiter-bot
+```
+
+Tail bot logs:
+
+```sh
+docker compose -f docker-compose.prod.yml logs -f arbiter-bot
 ```
 
 ## Migration Folder Purpose
