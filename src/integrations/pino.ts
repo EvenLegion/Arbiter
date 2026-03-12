@@ -15,7 +15,7 @@ const SAPPHIRE_TO_PINO_LEVEL: Record<LogLevel, PinoLevel> = {
 };
 
 type TransportTarget = NonNullable<TransportMultiOptions['targets']>[number];
-const BETTER_STACK_LOG_LEVEL: PinoLevel = 'warn';
+const BETTER_STACK_LOG_LEVEL: PinoLevel = ENV_CONFIG.LOG_LEVEL;
 const transportTargets: TransportTarget[] = [
 	{
 		target: 'pino-pretty',
