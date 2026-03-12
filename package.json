@@ -65,6 +65,7 @@
 		"db:seed:event-merits": "tsx prisma/migration/seedEventMerits.ts",
 		"db:seed:non-event-merits": "tsx prisma/migration/seedNonEventMerits.ts",
 		"db:verify:merit-rank": "tsx prisma/migration/verifyMeritRank.ts",
+		"db:fix:sequences": "tsx prisma/migration/fixSequences.ts",
 		"db:migrate:users": "pnpm db:fetch:guild-members && pnpm db:seed:guild-members",
 		"db:up": "docker compose -f docker-compose.db.yml up -d",
 		"db:down": "docker compose -f docker-compose.db.yml down",
