@@ -17,6 +17,7 @@
         - [4) Ongoing Deploys and New Migrations](#4-ongoing-deploys-and-new-migrations)
         - [5) Runtime Verification and Operations](#5-runtime-verification-and-operations)
         - [6) Start/Stop Bot Container Only](#6-startstop-bot-container-only)
+        - [7) Apply a Code Upgrade](#7-apply-a-code-upgrade)
     - [Migration Folder Purpose](#migration-folder-purpose)
 
 ## Stack
@@ -351,6 +352,16 @@ Tail bot logs:
 
 ```sh
 docker compose -f docker-compose.prod.yml logs -f arbiter-bot
+```
+
+### 7) Apply a Code Upgrade
+
+Use this when you want to deploy the latest bot code and recreate only the bot container:
+
+```sh
+git pull origin main
+docker compose -f docker-compose.prod.yml build --pull
+docker compose -f docker-compose.prod.yml up -d --force-recreate arbiter-bot
 ```
 
 ## Migration Folder Purpose
