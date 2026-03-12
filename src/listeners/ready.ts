@@ -2,6 +2,7 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Listener } from '@sapphire/framework';
 import type { Client } from 'discord.js';
 import { ENV_CONFIG, ENV_DISCORD } from '../config/env';
+import { initializeDivisionCache } from '../integrations/prisma';
 
 @ApplyOptions<Listener.Options>({ event: 'clientReady', once: true })
 export class ReadyListener extends Listener {
@@ -15,7 +16,9 @@ export class ReadyListener extends Listener {
 				'Discord gateway ready'
 			);
 
-			await this.container.utilities.divisionCache.refresh();
+			// Utilities are exposed in a post-login hook, which can run after `clientReady`.
+			// Initialize the cache directly here to avoid startup race conditions.
+			await initializeDivisionCache();
 
 			this.container.logger.info(
 				{
