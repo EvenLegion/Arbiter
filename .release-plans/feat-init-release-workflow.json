@@ -1,0 +1,32 @@
+{
+	"schemaVersion": 1,
+	"branch": "feat/init-release-workflow",
+	"baseRef": "origin/dev",
+	"mergeBase": "a0746b486492bb0bdc28d713049e862c49fc3714",
+	"headRef": "c58dd2c48318cab3de823d1bd025985785f6f98a",
+	"generatedAt": "2026-03-13T19:31:46.043Z",
+	"bump": "minor",
+	"targetVersion": "2.1.0",
+	"commits": [
+		{
+			"sha": "faebbc22b55d27a4fea56d60880593b4922f2266",
+			"subject": "feat: Add automated release patch notes",
+			"committedAt": "2026-03-13T09:19:04-10:00",
+			"type": "feat",
+			"scope": null,
+			"description": "Add automated release patch notes",
+			"breaking": false,
+			"section": "Features"
+		},
+		{
+			"sha": "c58dd2c48318cab3de823d1bd025985785f6f98a",
+			"subject": "feat: Add automated commit/pr attribution for patch notes",
+			"committedAt": "2026-03-13T09:31:38-10:00",
+			"type": "feat",
+			"scope": null,
+			"description": "Add automated commit/pr attribution for patch notes",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}

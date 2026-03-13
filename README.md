@@ -8,6 +8,7 @@
     - [Requirements](#requirements)
     - [Local Development](#local-development)
     - [Script Reference](#script-reference)
+    - [Release Workflow](#release-workflow)
     - [Environment Variables](#environment-variables)
     - [Logging Behavior](#logging-behavior)
     - [Production Deployment (VPS)](#production-deployment-vps)
@@ -117,6 +118,11 @@ Migration data utilities:
 - `pnpm db:verify:merit-rank`
 - `pnpm db:migrate:users` (fetch + seed guild members)
 
+Release utilities:
+
+- `pnpm release:plan` - scan current branch commits since `dev`, prompt for bump, and write a release plan file into `.release-plans/`
+- `pnpm release:publish` - consume accumulated release plans, bump `package.json`, update `CHANGELOG.md`, and generate release notes output
+
 Local docker services:
 
 - `pnpm db:up | db:down | db:reset`
@@ -125,6 +131,108 @@ Local docker services:
 Production docker helpers:
 
 - `pnpm prod:build | prod:up | prod:down | prod:logs`
+
+## Release Workflow
+
+This repo uses committed release plan files plus GitHub Actions on `main`.
+
+Why this exists:
+
+- release notes are generated from actual Conventional Commit messages, not handwritten summaries
+- release metadata is captured before a PR merges into `dev`, so release intent is explicit and reviewable in git
+- `dev` becomes the accumulation branch for upcoming release notes
+- `main` becomes the release trigger branch: when changes land there, pending release plans are consumed into a release PR, and merging that PR creates the tagged GitHub Release
+
+This is a single-version app release flow. The app version lives in [package.json](./package.json), and releases are tagged like `v2.0.0`, `v2.0.1`, etc.
+
+Branch flow:
+
+1. Work on a normal branch with Conventional Commit messages such as `feat:`, `fix:`, `perf:`, `refactor:`, `docs:`, `test:`, `build:`, `ci:`, or `chore:`.
+2. Before opening a PR into `dev`, run:
+
+```sh
+pnpm release:plan
+```
+
+3. The script:
+    - finds commits on your current branch that are not yet in `dev`
+    - filters to Conventional Commit subjects
+    - prompts you for the release bump (`patch`, `minor`, or `major`)
+    - writes the plan file into `.release-plans/`
+    - stages only that plan file
+    - creates a dedicated release-plan commit automatically
+4. Open the PR into `dev`.
+
+What `pnpm release:plan` actually does:
+
+- compares your current branch against `dev`
+- finds commits that are on your branch but not yet in `dev`
+- keeps only commits whose subject matches the Conventional Commits format
+- prompts you to choose the release bump for this branch: `patch`, `minor`, or `major`
+- writes a release plan file into `.release-plans/`
+- stages and commits that file as `chore(release): add release plan for <branch>`
+
+That release plan file is intentionally committed to git. It is the branch's release metadata and will be merged into `dev` with the rest of the branch.
+
+Example contributor flow:
+
+```sh
+git checkout -b feat/improve-event-review
+git commit -m "feat(event): improve event review navigation"
+git commit -m "fix(event): handle empty attendee page"
+pnpm release:plan
+```
+
+At that point, the branch contains both:
+
+- the code changes
+- the release plan describing how those commits should contribute to the next release
+
+Release note grouping:
+
+- `feat` -> Features
+- `fix` -> Fixes
+- `perf` -> Performance
+- `refactor` -> Refactors
+- `docs`, `test`, `build`, `ci`, `chore`, `style` -> Maintenance
+
+When release generation runs in GitHub Actions, the notes are enriched with GitHub metadata:
+
+- planned commits are mapped back to their merged PRs when possible
+- release notes collapse to one line per PR instead of one line per commit
+- each line includes the PR author and a link to the PR
+- if GitHub metadata cannot be resolved for a commit, the release notes fall back to the raw commit-based entry instead of failing the release
+
+Release flow:
+
+1. Release plan files accumulate naturally as PRs merge into `dev`.
+2. When `dev` is merged into `main`, the GitHub Action in [release-pr.yml](/.github/workflows/release-pr.yml) runs automatically.
+3. That workflow:
+    - reads all pending `.release-plans/*.json` files
+    - computes the highest requested bump
+    - bumps [package.json](/package.json)
+    - updates `CHANGELOG.md`
+    - opens or updates a release PR back into `main`
+    - removes the consumed release plan files in that release PR
+4. When that release PR is merged, the GitHub Action in [release-publish.yml](/.github/workflows/release-publish.yml):
+    - creates a git tag such as `v2.0.1`
+    - publishes a GitHub Release using the generated notes committed in the release PR
+
+The app version now starts from `v2.0.0`.
+
+Contributor expectations:
+
+- use Conventional Commit subjects consistently
+- run `pnpm release:plan` before opening a PR into `dev`
+- let `pnpm release:plan` create the dedicated release-plan commit
+- if you add more Conventional Commit commits after generating the plan, rerun `pnpm release:plan` so the file stays current
+
+Notes:
+
+- the release bump is chosen manually because branch intent is not always safe to infer automatically
+- release note content is still derived from commit messages, so commit subject quality matters
+- commits that do not follow Conventional Commits are ignored by the release planner
+- this PR-based release flow is intended to work with protected `main` branches because the automation no longer pushes release commits directly to `main`
 
 ## Environment Variables
 

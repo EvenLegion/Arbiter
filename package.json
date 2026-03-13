@@ -1,6 +1,6 @@
 {
 	"name": "arbiter",
-	"version": "0.1.0",
+	"version": "2.0.0",
 	"packageManager": "pnpm@10.11.0",
 	"main": "dist/index.js",
 	"type": "commonjs",
@@ -67,6 +67,8 @@
 		"db:verify:merit-rank": "tsx prisma/migration/verifyMeritRank.ts",
 		"db:fix:sequences": "tsx prisma/migration/fixSequences.ts",
 		"db:migrate:users": "pnpm db:fetch:guild-members && pnpm db:seed:guild-members",
+		"release:plan": "node scripts/release/plan.mjs",
+		"release:publish": "node scripts/release/publish.mjs",
 		"db:up": "docker compose -f docker-compose.db.yml up -d",
 		"db:down": "docker compose -f docker-compose.db.yml down",
 		"db:reset": "docker compose -f docker-compose.db.yml down -v",
