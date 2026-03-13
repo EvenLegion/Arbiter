@@ -206,17 +206,17 @@ When release generation runs in GitHub Actions, the notes are enriched with GitH
 Release flow:
 
 1. Release plan files accumulate naturally as PRs merge into `dev`.
-2. When a PR is opened or updated from `dev` into `main`, the GitHub Action in [release-pr.yml](/Users/whyit/code/EvenLegion/arbiter-v3/.github/workflows/release-pr.yml) runs automatically.
+2. When a PR is opened or updated from `dev` into `main`, the GitHub Action in [release-pr.yml](./.github/workflows/release-pr.yml) runs automatically.
 3. That workflow:
     - reads all pending `.release-plans/*.json` files
     - computes the highest requested bump
-    - bumps [package.json](/package.json)
-    - updates `CHANGELOG.md`
+    - bumps [package.json](./package.json)
+    - updates [CHANGELOG.md](./CHANGELOG.md)
     - writes the generated release notes into `.release-output/`
     - removes the consumed release plan files from `dev`
     - commits those generated release changes back to `dev`
     - updates the `dev` -> `main` PR body to the consolidated release notes entry
-4. When that `dev` -> `main` PR is merged, the GitHub Action in [release-publish.yml](/Users/whyit/code/EvenLegion/arbiter-v3/.github/workflows/release-publish.yml):
+4. When that `dev` -> `main` PR is merged, the GitHub Action in [release-publish.yml](./.github/workflows/release-publish.yml):
     - creates a git tag such as `v2.0.1`
     - publishes a GitHub Release using the generated notes already merged into `main`
 
