@@ -1,0 +1,47 @@
+name: Release Publish
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  publish_release:
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'dev'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout merged main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Resolve release metadata
+        id: release_meta
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
+          NOTES_PATH=".release-output/release-notes-${TAG}.md"
+          echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "release_version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_notes_path=${NOTES_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.release_meta.outputs.release_tag }}"
+          git push origin "${{ steps.release_meta.outputs.release_tag }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.release_tag }}
+          name: ${{ steps.release_meta.outputs.release_tag }}
+          body_path: ${{ steps.release_meta.outputs.release_notes_path }}

@@ -1,0 +1,115 @@
+name: Release Prep
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-prep-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  prepare_release:
+    if: github.actor != 'github-actions[bot]' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'dev'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR head branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Prepare release artifacts
+        id: prepare_release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: pnpm release:publish
+
+      - name: Capture consolidated release notes
+        if: steps.prepare_release.outputs.release_created == 'true'
+        id: release_notes
+        run: |
+          {
+            echo "content<<EOF"
+            cat "${{ steps.prepare_release.outputs.release_notes_path }}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create or update release prep PR into dev
+        if: steps.prepare_release.outputs.release_created == 'true'
+        id: release_prep_pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'chore(release): prepare ${{ steps.prepare_release.outputs.release_tag }}'
+          branch: release-prep/pr-${{ github.event.pull_request.number }}
+          delete-branch: true
+          title: 'chore(release): prepare ${{ steps.prepare_release.outputs.release_tag }}'
+          body: |
+            Automated release prep for `${{ steps.prepare_release.outputs.release_tag }}`.
+
+            This PR was generated from the `dev` -> `main` release workflow because `dev` is protected from direct pushes.
+
+            Merging this PR into `dev` will bring in:
+            - version bump in `package.json`
+            - consolidated changelog entry in `CHANGELOG.md`
+            - generated release notes in `.release-output/`
+            - removal of consumed `.release-plans/*.json` files
+          base: dev
+          add-paths: |
+            package.json
+            CHANGELOG.md
+            .release-plans
+            .release-output
+
+      - name: Update PR body with consolidated release notes
+        if: steps.prepare_release.outputs.release_created == 'true'
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.prepare_release.outputs.release_tag }}
+          RELEASE_NOTES_CONTENT: ${{ steps.release_notes.outputs.content }}
+          RELEASE_PREP_PR_URL: ${{ steps.release_prep_pr.outputs.pull-request-url }}
+        with:
+          script: |
+            const releaseTag = process.env.RELEASE_TAG;
+            const releasePrepPrUrl = process.env.RELEASE_PREP_PR_URL;
+            const notes = (process.env.RELEASE_NOTES_CONTENT || '').trim();
+            const body = [
+              `Automated release prep for \`${releaseTag}\`.`,
+              '',
+              'This PR body is generated from the consolidated changelog entry produced from pending release plans on `dev`.',
+              releasePrepPrUrl ? `Merge the linked release prep PR before merging this PR: ${releasePrepPrUrl}` : null,
+              '',
+              notes
+            ].filter(Boolean).join('\n');
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              body
+            });
