@@ -52,7 +52,6 @@ jobs:
           body_path: ${{ steps.release_meta.outputs.release_notes_path }}
 
       - name: Post release to Discord
-        if: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL != '' }}
         env:
           DISCORD_RELEASE_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
           RELEASE_NOTES_PATH: ${{ steps.release_meta.outputs.release_notes_path }}
@@ -64,6 +63,11 @@ jobs:
 
           async function main() {
           	const webhookUrl = process.env.DISCORD_RELEASE_WEBHOOK_URL;
+          	if (!webhookUrl) {
+          		console.log('DISCORD_RELEASE_WEBHOOK_URL is not set; skipping Discord release notification.');
+          		return;
+          	}
+
           	const releaseTag = process.env.RELEASE_TAG;
           	const repository = process.env.GITHUB_REPOSITORY;
           	const releaseNotesPath = process.env.RELEASE_NOTES_PATH;
