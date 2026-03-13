@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "feat/discord-webhook",
+	"baseRef": "origin/dev",
+	"mergeBase": "ea4272d9b64cf5c7a1ac15bca8af05dc89b36951",
+	"headRef": "dda0648352f30422e9ad4040c388f00ac370acfc",
+	"generatedAt": "2026-03-13T21:37:22.858Z",
+	"bump": "minor",
+	"targetVersion": "2.2.0",
+	"commits": [
+		{
+			"sha": "dda0648352f30422e9ad4040c388f00ac370acfc",
+			"subject": "feat: Github release now post to a discord channel",
+			"committedAt": "2026-03-13T11:36:48-10:00",
+			"committedAtMs": 1773437808000,
+			"type": "feat",
+			"scope": null,
+			"description": "Github release now post to a discord channel",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
