@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import pLimit from 'p-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +81,10 @@ export function bumpVersion(version, bump) {
 	const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
 	if (!match) {
 		throw new Error(`Unsupported package version format: ${version}`);
+	}
+
+	if (!BUMP_ORDER.includes(bump)) {
+		throw new Error(`Unsupported bump type: ${String(bump)}. Expected one of: ${BUMP_ORDER.join(', ')}`);
 	}
 
 	const [, rawMajor, rawMinor, rawPatch] = match;
@@ -256,15 +261,11 @@ export function getTrackedPlanFileNames() {
 		return [];
 	}
 
-	return execFileSync('find', [RELEASE_PLANS_DIR, '-maxdepth', '1', '-type', 'f'], {
-		cwd: REPO_ROOT,
-		encoding: 'utf8'
-	})
-		.trim()
-		.split('\n')
-		.map((filePath) => filePath.trim())
-		.filter(Boolean)
-		.map((filePath) => path.basename(filePath))
+	const entries = readdirSync(RELEASE_PLANS_DIR, { withFileTypes: true });
+
+	return entries
+		.filter((dirent) => dirent.isFile())
+		.map((dirent) => dirent.name)
 		.filter((fileName) => fileName.endsWith('.json'))
 		.sort();
 }
@@ -409,25 +410,29 @@ async function resolvePullRequestEntries({ entries, githubContext }) {
 	const pullRequestsByNumber = new Map();
 	const commitOnlyEntries = [];
 
-	const results = await Promise.all(
-		entries.map(async (entry) => {
-			const pullRequest = await fetchAssociatedPullRequest({
-				sha: entry.sha,
-				githubContext
-			}).catch((error) => {
-				console.warn(
-					`Warning: unable to resolve PR metadata for commit ${entry.sha.slice(0, 7)}: ${
-						error instanceof Error ? error.message : String(error)
-					}`
-				);
-				return null;
-			});
+	const limit = pLimit(5);
 
-			return {
-				entry,
-				pullRequest
-			};
-		})
+	const results = await Promise.all(
+		entries.map((entry) =>
+			limit(async () => {
+				const pullRequest = await fetchAssociatedPullRequest({
+					sha: entry.sha,
+					githubContext
+				}).catch((error) => {
+					console.warn(
+						`Warning: unable to resolve PR metadata for commit ${entry.sha.slice(0, 7)}: ${
+							error instanceof Error ? error.message : String(error)
+						}`
+					);
+					return null;
+				});
+
+				return {
+					entry,
+					pullRequest
+				};
+			})
+		)
 	);
 
 	for (const { entry, pullRequest } of results) {

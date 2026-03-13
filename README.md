@@ -143,7 +143,7 @@ Why this exists:
 - `dev` becomes the accumulation branch for upcoming release notes
 - the `dev` -> `main` PR becomes the release preparation point: pending release plans are consumed there, and merging that PR creates the tagged GitHub Release
 
-This is a single-version app release flow. The app version lives in [package.json](/Users/whyit/code/EvenLegion/arbiter-v3/package.json), and releases are tagged like `v2.0.0`, `v2.0.1`, etc.
+This is a single-version app release flow. The app version lives in [package.json](./package.json), and releases are tagged like `v2.0.0`, `v2.0.1`, etc.
 
 Branch flow:
 
@@ -210,7 +210,7 @@ Release flow:
 3. That workflow:
     - reads all pending `.release-plans/*.json` files
     - computes the highest requested bump
-    - bumps [package.json](/Users/whyit/code/EvenLegion/arbiter-v3/package.json)
+    - bumps [package.json](/package.json)
     - updates `CHANGELOG.md`
     - writes the generated release notes into `.release-output/`
     - removes the consumed release plan files from `dev`
