@@ -1,0 +1,67 @@
+name: Release PR
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release_pr:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare release artifacts
+        id: prepare_release
+        run: pnpm release:publish
+
+      - name: Create release pull request
+        if: steps.prepare_release.outputs.release_created == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'chore: release ${{ steps.prepare_release.outputs.release_tag }}'
+          branch: release/${{ steps.prepare_release.outputs.release_tag }}
+          delete-branch: true
+          title: 'chore: release ${{ steps.prepare_release.outputs.release_tag }}'
+          body: |
+            Automated release PR for `${{ steps.prepare_release.outputs.release_tag }}`.
+
+            This PR was generated from committed release plan files accumulated on `dev` and merged into `main`.
+
+            Included changes:
+            - version bump in `package.json`
+            - changelog update
+            - consumption of pending `.release-plans/*.json` files
+
+            Release notes source:
+            - `${{ steps.prepare_release.outputs.release_notes_path }}`
+          labels: |
+            release
+          add-paths: |
+            package.json
+            CHANGELOG.md
+            .release-plans
+            .release-output
