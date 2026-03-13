@@ -22,6 +22,11 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.merge_commit_sha }}
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Resolve release metadata
         id: release_meta
         run: |
@@ -45,3 +50,57 @@ jobs:
           tag_name: ${{ steps.release_meta.outputs.release_tag }}
           name: ${{ steps.release_meta.outputs.release_tag }}
           body_path: ${{ steps.release_meta.outputs.release_notes_path }}
+
+      - name: Post release to Discord
+        if: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL != '' }}
+        env:
+          DISCORD_RELEASE_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
+          RELEASE_NOTES_PATH: ${{ steps.release_meta.outputs.release_notes_path }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.release_tag }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          node <<'EOF'
+          const fs = require('node:fs');
+
+          async function main() {
+          	const webhookUrl = process.env.DISCORD_RELEASE_WEBHOOK_URL;
+          	const releaseTag = process.env.RELEASE_TAG;
+          	const repository = process.env.GITHUB_REPOSITORY;
+          	const releaseNotesPath = process.env.RELEASE_NOTES_PATH;
+          	const releaseUrl = `https://github.com/${repository}/releases/tag/${releaseTag}`;
+          	const rawNotes = fs.readFileSync(releaseNotesPath, 'utf8').trim();
+          	const descriptionLimit = 4000;
+          	const description =
+          		rawNotes.length > descriptionLimit ? `${rawNotes.slice(0, descriptionLimit - 3)}...` : rawNotes;
+
+          	const response = await fetch(webhookUrl, {
+          		method: 'POST',
+          		headers: {
+          			'Content-Type': 'application/json'
+          		},
+          		body: JSON.stringify({
+          			content: `New release published: **${releaseTag}**\n${releaseUrl}`,
+          			allowed_mentions: {
+          				parse: []
+          			},
+          			embeds: [
+          				{
+          					title: releaseTag,
+          					url: releaseUrl,
+          					description
+          				}
+          			]
+          		})
+          	});
+
+          	if (!response.ok) {
+          		const body = await response.text();
+          		throw new Error(`Discord webhook failed: ${response.status} ${response.statusText} ${body}`);
+          	}
+          }
+
+          main().catch((error) => {
+          	console.error(error);
+          	process.exit(1);
+          });
+          EOF
