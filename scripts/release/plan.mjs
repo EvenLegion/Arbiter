@@ -12,6 +12,7 @@ import {
 } from './lib.mjs';
 
 const RELEASE_BUMP_OPTIONS = ['patch', 'minor', 'major'];
+const RELEASE_PLAN_COMMIT_PREFIX = 'chore(release): add release plan';
 
 async function main() {
 	const currentBranch = git(['branch', '--show-current']);
@@ -29,9 +30,7 @@ async function main() {
 
 	if (planCommits.length === 0) {
 		const commitPreview = commits.map((commit) => `- ${commit.subject}`).join('\n') || '(no commits found)';
-		throw new Error(
-			`No Conventional Commit messages were found between ${mergeBase} and HEAD.\nChecked commits:\n${commitPreview}`
-		);
+		throw new Error(`No Conventional Commit messages were found between ${mergeBase} and HEAD.\nChecked commits:\n${commitPreview}`);
 	}
 
 	const packageJson = readPackageJson();
@@ -52,12 +51,16 @@ async function main() {
 	};
 
 	writeReleasePlanFile({ fileName, plan });
+	stageReleasePlanFile(fileName);
+	const releasePlanCommitMessage = buildReleasePlanCommitMessage(currentBranch);
+	commitReleasePlanFile({ fileName, commitMessage: releasePlanCommitMessage });
 
 	console.log(`Base ref: ${baseRef}`);
 	console.log(`Current version: v${packageJson.version}`);
 	console.log(`Selected bump: ${bump}`);
 	console.log(`Planned version: v${nextVersion}`);
 	console.log(`Release plan written: .release-plans/${fileName}`);
+	console.log(`Release plan committed: ${releasePlanCommitMessage}`);
 	console.log('');
 	console.log('Matched commits:');
 	for (const commit of planCommits) {
@@ -85,6 +88,42 @@ async function promptForReleaseBump(currentVersion) {
 		return selected;
 	} finally {
 		rl.close();
+	}
+}
+
+function buildReleasePlanCommitMessage(currentBranch) {
+	return `${RELEASE_PLAN_COMMIT_PREFIX} for ${currentBranch}`;
+}
+
+function getReleasePlanPath(fileName) {
+	return `.release-plans/${fileName}`;
+}
+
+function stageReleasePlanFile(fileName) {
+	git(['add', '--', getReleasePlanPath(fileName)]);
+}
+
+function commitReleasePlanFile({ fileName, commitMessage }) {
+	try {
+		git(['commit', '--only', '-m', commitMessage, '--', getReleasePlanPath(fileName)]);
+	} catch (error) {
+		const changed = hasReleasePlanChanges(fileName);
+		if (!changed) {
+			console.log('Release plan file is already committed and up to date.');
+			return;
+		}
+
+		throw error;
+	}
+}
+
+function hasReleasePlanChanges(fileName) {
+	try {
+		git(['diff', '--cached', '--quiet', '--', getReleasePlanPath(fileName)]);
+		git(['diff', '--quiet', '--', getReleasePlanPath(fileName)]);
+		return false;
+	} catch {
+		return true;
 	}
 }
 

@@ -36,6 +36,9 @@ jobs:
 
       - name: Prepare release artifacts
         id: prepare_release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: pnpm release:publish
 
       - name: Create release pull request

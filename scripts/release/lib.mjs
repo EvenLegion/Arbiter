@@ -14,6 +14,7 @@ export const RELEASE_OUTPUT_DIR = path.join(REPO_ROOT, '.release-output');
 
 export const BUMP_ORDER = ['patch', 'minor', 'major'];
 export const SECTION_ORDER = ['Features', 'Fixes', 'Performance', 'Refactors', 'Maintenance', 'Other'];
+const SECTION_PRIORITY = new Map(SECTION_ORDER.map((section, index) => [section, index]));
 
 const TYPE_TO_SECTION = {
 	feat: 'Features',
@@ -29,8 +30,7 @@ const TYPE_TO_SECTION = {
 	revert: 'Fixes'
 };
 
-const CONVENTIONAL_COMMIT_SUBJECT =
-	/^(?<type>[a-z]+)(?:\((?<scope>[^)]+)\))?(?<breaking>!)?: (?<description>.+)$/i;
+const CONVENTIONAL_COMMIT_SUBJECT = /^(?<type>[a-z]+)(?:\((?<scope>[^)]+)\))?(?<breaking>!)?: (?<description>.+)$/i;
 
 export function ensureDirectory(directoryPath) {
 	if (!existsSync(directoryPath)) {
@@ -171,9 +171,17 @@ export function buildPlanCommits(commits) {
 }
 
 export function formatEntryLabel(entry) {
+	if (entry.releaseNoteLabel) {
+		return formatReleaseNoteAttribution(entry);
+	}
+
 	const scopePrefix = entry.scope ? `**${entry.scope}:** ` : '';
 	const breakingPrefix = entry.breaking ? 'BREAKING: ' : '';
-	return `${scopePrefix}${breakingPrefix}${entry.description}`;
+	const label = `${scopePrefix}${breakingPrefix}${entry.description}`;
+	return formatReleaseNoteAttribution({
+		...entry,
+		releaseNoteLabel: label
+	});
 }
 
 export function buildReleaseNotes({ version, entries, releaseDate = new Date() }) {
@@ -320,6 +328,24 @@ export function aggregatePlanEntries(plans) {
 	});
 }
 
+export async function aggregateReleaseEntries(plans) {
+	const commitEntries = aggregatePlanEntries(plans);
+	const githubContext = resolveGitHubContext();
+	if (!githubContext) {
+		return commitEntries;
+	}
+
+	const pullRequestEntries = await resolvePullRequestEntries({
+		entries: commitEntries,
+		githubContext
+	});
+	if (pullRequestEntries.length === 0) {
+		return commitEntries;
+	}
+
+	return pullRequestEntries;
+}
+
 export function writeGithubOutput(name, value) {
 	const githubOutputPath = process.env.GITHUB_OUTPUT;
 	if (!githubOutputPath) {
@@ -329,4 +355,195 @@ export function writeGithubOutput(name, value) {
 	writeFileSync(githubOutputPath, `${name}=${value}\n`, {
 		flag: 'a'
 	});
+}
+
+function formatReleaseNoteAttribution(entry) {
+	const parts = [entry.releaseNoteLabel];
+	if (entry.authorLogin) {
+		parts.push(`by @${entry.authorLogin}`);
+	}
+
+	if (entry.pullRequestUrl && entry.pullRequestNumber) {
+		parts.push(`in [#${entry.pullRequestNumber}](${entry.pullRequestUrl})`);
+	} else if (entry.pullRequestUrl) {
+		parts.push(`in [pull request](${entry.pullRequestUrl})`);
+	}
+
+	return parts.join(' ');
+}
+
+function resolveGitHubContext() {
+	const repository = process.env.GITHUB_REPOSITORY?.trim() ?? parseGitHubRepositoryFromOrigin();
+	if (!repository || !repository.includes('/')) {
+		return null;
+	}
+
+	return {
+		repository,
+		token: process.env.GITHUB_TOKEN?.trim() || null
+	};
+}
+
+function parseGitHubRepositoryFromOrigin() {
+	let remoteUrl = '';
+	try {
+		remoteUrl = git(['config', '--get', 'remote.origin.url']);
+	} catch {
+		return null;
+	}
+
+	const sshMatch = /^git@github\.com:(?<repo>.+?)(?:\.git)?$/.exec(remoteUrl);
+	if (sshMatch?.groups?.repo) {
+		return sshMatch.groups.repo;
+	}
+
+	const httpsMatch = /^https:\/\/github\.com\/(?<repo>.+?)(?:\.git)?$/.exec(remoteUrl);
+	if (httpsMatch?.groups?.repo) {
+		return httpsMatch.groups.repo;
+	}
+
+	return null;
+}
+
+async function resolvePullRequestEntries({ entries, githubContext }) {
+	const pullRequestsByNumber = new Map();
+	const commitOnlyEntries = [];
+
+	const results = await Promise.all(
+		entries.map(async (entry) => {
+			const pullRequest = await fetchAssociatedPullRequest({
+				sha: entry.sha,
+				githubContext
+			}).catch((error) => {
+				console.warn(
+					`Warning: unable to resolve PR metadata for commit ${entry.sha.slice(0, 7)}: ${
+						error instanceof Error ? error.message : String(error)
+					}`
+				);
+				return null;
+			});
+
+			return {
+				entry,
+				pullRequest
+			};
+		})
+	);
+
+	for (const { entry, pullRequest } of results) {
+		if (!pullRequest?.number) {
+			commitOnlyEntries.push(entry);
+			continue;
+		}
+
+		const existing = pullRequestsByNumber.get(pullRequest.number);
+		if (existing) {
+			existing.commits.push(entry);
+			if (entry.committedAt < existing.firstCommittedAt) {
+				existing.firstCommittedAt = entry.committedAt;
+			}
+			continue;
+		}
+
+		pullRequestsByNumber.set(pullRequest.number, {
+			pullRequest,
+			commits: [entry],
+			firstCommittedAt: entry.committedAt
+		});
+	}
+
+	const aggregatedPullRequestEntries = [...pullRequestsByNumber.values()]
+		.map(({ pullRequest, commits, firstCommittedAt }) => buildPullRequestReleaseEntry({ pullRequest, commits, firstCommittedAt }))
+		.sort((left, right) => {
+			if (left.committedAt === right.committedAt) {
+				const leftNumber = left.pullRequestNumber ?? 0;
+				const rightNumber = right.pullRequestNumber ?? 0;
+				return leftNumber - rightNumber;
+			}
+
+			return left.committedAt.localeCompare(right.committedAt);
+		});
+
+	if (commitOnlyEntries.length === 0) {
+		return aggregatedPullRequestEntries;
+	}
+
+	return [...aggregatedPullRequestEntries, ...commitOnlyEntries].sort((left, right) => {
+		if (left.committedAt === right.committedAt) {
+			const leftKey = left.pullRequestNumber ? String(left.pullRequestNumber) : left.sha;
+			const rightKey = right.pullRequestNumber ? String(right.pullRequestNumber) : right.sha;
+			return leftKey.localeCompare(rightKey);
+		}
+
+		return left.committedAt.localeCompare(right.committedAt);
+	});
+}
+
+async function fetchAssociatedPullRequest({ sha, githubContext }) {
+	const url = `https://api.github.com/repos/${githubContext.repository}/commits/${sha}/pulls`;
+	const response = await fetch(url, {
+		headers: buildGitHubHeaders(githubContext.token)
+	});
+	if (!response.ok) {
+		throw new Error(`GitHub API ${response.status} ${response.statusText}`);
+	}
+
+	const pullRequests = await response.json();
+	if (!Array.isArray(pullRequests) || pullRequests.length === 0) {
+		return null;
+	}
+
+	const mergedPullRequest = pullRequests.find((pullRequest) => pullRequest?.merged_at) ?? pullRequests[0];
+	return {
+		number: mergedPullRequest.number,
+		title: mergedPullRequest.title,
+		url: mergedPullRequest.html_url,
+		authorLogin: mergedPullRequest.user?.login ?? null
+	};
+}
+
+function buildGitHubHeaders(token) {
+	const headers = {
+		Accept: 'application/vnd.github+json',
+		'X-GitHub-Api-Version': '2022-11-28',
+		'User-Agent': 'arbiter-release-bot'
+	};
+
+	if (token) {
+		headers.Authorization = `Bearer ${token}`;
+	}
+
+	return headers;
+}
+
+function buildPullRequestReleaseEntry({ pullRequest, commits, firstCommittedAt }) {
+	const parsedTitle = parseConventionalCommit(pullRequest.title ?? '');
+	const chosenSection = parsedTitle?.section ?? resolveSectionForEntries(commits);
+	const firstCommit = commits[0];
+
+	return {
+		sha: firstCommit.sha,
+		committedAt: firstCommittedAt,
+		type: parsedTitle?.type ?? firstCommit.type,
+		scope: parsedTitle?.scope ?? firstCommit.scope,
+		description: parsedTitle?.description ?? firstCommit.description,
+		breaking: parsedTitle?.breaking ?? commits.some((commit) => commit.breaking),
+		section: chosenSection,
+		releaseNoteLabel: pullRequest.title ?? firstCommit.subject,
+		pullRequestNumber: pullRequest.number,
+		pullRequestUrl: pullRequest.url,
+		authorLogin: pullRequest.authorLogin
+	};
+}
+
+function resolveSectionForEntries(entries) {
+	return (
+		[...entries]
+			.sort((left, right) => {
+				return (
+					(SECTION_PRIORITY.get(left.section) ?? Number.MAX_SAFE_INTEGER) - (SECTION_PRIORITY.get(right.section) ?? Number.MAX_SAFE_INTEGER)
+				);
+			})
+			.at(0)?.section ?? 'Other'
+	);
 }

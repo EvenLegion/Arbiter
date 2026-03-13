@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {
 	REPO_ROOT,
-	aggregatePlanEntries,
+	aggregateReleaseEntries,
 	bumpVersion,
 	buildReleaseNotes,
 	readPackageJson,
@@ -25,7 +25,7 @@ async function main() {
 	const packageJson = readPackageJson();
 	const highestBump = resolveHighestBump(plans);
 	const nextVersion = bumpVersion(packageJson.version, highestBump);
-	const releaseEntries = aggregatePlanEntries(plans);
+	const releaseEntries = await aggregateReleaseEntries(plans);
 	const releaseNotes = buildReleaseNotes({
 		version: nextVersion,
 		entries: releaseEntries

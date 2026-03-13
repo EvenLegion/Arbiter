@@ -158,8 +158,10 @@ pnpm release:plan
     - finds commits on your current branch that are not yet in `dev`
     - filters to Conventional Commit subjects
     - prompts you for the release bump (`patch`, `minor`, or `major`)
-    - writes a committed plan file into `.release-plans/`
-4. Commit that release plan file as part of your branch, then open the PR into `dev`.
+    - writes the plan file into `.release-plans/`
+    - stages only that plan file
+    - creates a dedicated release-plan commit automatically
+4. Open the PR into `dev`.
 
 What `pnpm release:plan` actually does:
 
@@ -168,6 +170,7 @@ What `pnpm release:plan` actually does:
 - keeps only commits whose subject matches the Conventional Commits format
 - prompts you to choose the release bump for this branch: `patch`, `minor`, or `major`
 - writes a release plan file into `.release-plans/`
+- stages and commits that file as `chore(release): add release plan for <branch>`
 
 That release plan file is intentionally committed to git. It is the branch's release metadata and will be merged into `dev` with the rest of the branch.
 
@@ -178,8 +181,6 @@ git checkout -b feat/improve-event-review
 git commit -m "feat(event): improve event review navigation"
 git commit -m "fix(event): handle empty attendee page"
 pnpm release:plan
-git add .release-plans/
-git commit -m "chore: add release plan"
 ```
 
 At that point, the branch contains both:
@@ -194,6 +195,13 @@ Release note grouping:
 - `perf` -> Performance
 - `refactor` -> Refactors
 - `docs`, `test`, `build`, `ci`, `chore`, `style` -> Maintenance
+
+When release generation runs in GitHub Actions, the notes are enriched with GitHub metadata:
+
+- planned commits are mapped back to their merged PRs when possible
+- release notes collapse to one line per PR instead of one line per commit
+- each line includes the PR author and a link to the PR
+- if GitHub metadata cannot be resolved for a commit, the release notes fall back to the raw commit-based entry instead of failing the release
 
 Release flow:
 
@@ -216,7 +224,7 @@ Contributor expectations:
 
 - use Conventional Commit subjects consistently
 - run `pnpm release:plan` before opening a PR into `dev`
-- commit the generated file in `.release-plans/`
+- let `pnpm release:plan` create the dedicated release-plan commit
 - if you add more Conventional Commit commits after generating the plan, rerun `pnpm release:plan` so the file stays current
 
 Notes:
