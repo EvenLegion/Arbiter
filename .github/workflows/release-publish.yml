@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   publish_release:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'dev'
     runs-on: ubuntu-latest
 
     steps:
@@ -24,8 +24,8 @@ jobs:
       - name: Resolve release metadata
         id: release_meta
         run: |
-          TAG="${{ github.event.pull_request.head.ref#release/ }}"
-          VERSION="${TAG#v}"
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
           NOTES_PATH=".release-output/release-notes-${TAG}.md"
           echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "release_version=${VERSION}" >> "$GITHUB_OUTPUT"
