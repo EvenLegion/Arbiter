@@ -2,7 +2,6 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import pLimit from 'p-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -143,7 +142,8 @@ export function getBranchCommits({ baseRef }) {
 				sha,
 				subject: subject ?? '',
 				body: body ?? '',
-				committedAt: committedAt ?? ''
+				committedAt: committedAt ?? '',
+				committedAtMs: resolveCommittedAtMs(committedAt ?? '')
 			};
 		});
 
@@ -165,6 +165,7 @@ export function buildPlanCommits(commits) {
 				sha: commit.sha,
 				subject: commit.subject,
 				committedAt: commit.committedAt,
+				committedAtMs: resolveCommittedAtMs(commit.committedAt),
 				type: parsed.type,
 				scope: parsed.scope,
 				description: parsed.description,
@@ -321,11 +322,12 @@ export function aggregatePlanEntries(plans) {
 	}
 
 	return [...bySha.values()].sort((left, right) => {
-		if (left.committedAt === right.committedAt) {
+		const committedAtComparison = compareCommittedAt(left, right);
+		if (committedAtComparison === 0) {
 			return left.sha.localeCompare(right.sha);
 		}
 
-		return left.committedAt.localeCompare(right.committedAt);
+		return committedAtComparison;
 	});
 }
 
@@ -410,30 +412,24 @@ async function resolvePullRequestEntries({ entries, githubContext }) {
 	const pullRequestsByNumber = new Map();
 	const commitOnlyEntries = [];
 
-	const limit = pLimit(5);
+	const results = await mapWithConcurrencyLimit(entries, 5, async (entry) => {
+		const pullRequest = await fetchAssociatedPullRequest({
+			sha: entry.sha,
+			githubContext
+		}).catch((error) => {
+			console.warn(
+				`Warning: unable to resolve PR metadata for commit ${entry.sha.slice(0, 7)}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			);
+			return null;
+		});
 
-	const results = await Promise.all(
-		entries.map((entry) =>
-			limit(async () => {
-				const pullRequest = await fetchAssociatedPullRequest({
-					sha: entry.sha,
-					githubContext
-				}).catch((error) => {
-					console.warn(
-						`Warning: unable to resolve PR metadata for commit ${entry.sha.slice(0, 7)}: ${
-							error instanceof Error ? error.message : String(error)
-						}`
-					);
-					return null;
-				});
-
-				return {
-					entry,
-					pullRequest
-				};
-			})
-		)
-	);
+		return {
+			entry,
+			pullRequest
+		};
+	});
 
 	for (const { entry, pullRequest } of results) {
 		if (!pullRequest?.number) {
@@ -444,8 +440,9 @@ async function resolvePullRequestEntries({ entries, githubContext }) {
 		const existing = pullRequestsByNumber.get(pullRequest.number);
 		if (existing) {
 			existing.commits.push(entry);
-			if (entry.committedAt < existing.firstCommittedAt) {
+			if (compareCommittedAt(entry, { committedAt: existing.firstCommittedAt, committedAtMs: existing.firstCommittedAtMs }) < 0) {
 				existing.firstCommittedAt = entry.committedAt;
+				existing.firstCommittedAtMs = resolveCommittedAtMs(entry.committedAt, entry.committedAtMs);
 			}
 			continue;
 		}
@@ -453,20 +450,22 @@ async function resolvePullRequestEntries({ entries, githubContext }) {
 		pullRequestsByNumber.set(pullRequest.number, {
 			pullRequest,
 			commits: [entry],
-			firstCommittedAt: entry.committedAt
+			firstCommittedAt: entry.committedAt,
+			firstCommittedAtMs: resolveCommittedAtMs(entry.committedAt, entry.committedAtMs)
 		});
 	}
 
 	const aggregatedPullRequestEntries = [...pullRequestsByNumber.values()]
 		.map(({ pullRequest, commits, firstCommittedAt }) => buildPullRequestReleaseEntry({ pullRequest, commits, firstCommittedAt }))
 		.sort((left, right) => {
-			if (left.committedAt === right.committedAt) {
+			const committedAtComparison = compareCommittedAt(left, right);
+			if (committedAtComparison === 0) {
 				const leftNumber = left.pullRequestNumber ?? 0;
 				const rightNumber = right.pullRequestNumber ?? 0;
 				return leftNumber - rightNumber;
 			}
 
-			return left.committedAt.localeCompare(right.committedAt);
+			return committedAtComparison;
 		});
 
 	if (commitOnlyEntries.length === 0) {
@@ -474,13 +473,14 @@ async function resolvePullRequestEntries({ entries, githubContext }) {
 	}
 
 	return [...aggregatedPullRequestEntries, ...commitOnlyEntries].sort((left, right) => {
-		if (left.committedAt === right.committedAt) {
+		const committedAtComparison = compareCommittedAt(left, right);
+		if (committedAtComparison === 0) {
 			const leftKey = left.pullRequestNumber ? String(left.pullRequestNumber) : left.sha;
 			const rightKey = right.pullRequestNumber ? String(right.pullRequestNumber) : right.sha;
 			return leftKey.localeCompare(rightKey);
 		}
 
-		return left.committedAt.localeCompare(right.committedAt);
+		return committedAtComparison;
 	});
 }
 
@@ -529,6 +529,7 @@ function buildPullRequestReleaseEntry({ pullRequest, commits, firstCommittedAt }
 	return {
 		sha: firstCommit.sha,
 		committedAt: firstCommittedAt,
+		committedAtMs: resolveCommittedAtMs(firstCommittedAt, firstCommit.committedAtMs),
 		type: parsedTitle?.type ?? firstCommit.type,
 		scope: parsedTitle?.scope ?? firstCommit.scope,
 		description: parsedTitle?.description ?? firstCommit.description,
@@ -551,4 +552,40 @@ function resolveSectionForEntries(entries) {
 			})
 			.at(0)?.section ?? 'Other'
 	);
+}
+
+function resolveCommittedAtMs(committedAt, fallback = null) {
+	if (typeof fallback === 'number' && Number.isFinite(fallback)) {
+		return fallback;
+	}
+
+	const parsed = Date.parse(committedAt);
+	return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
+}
+
+function compareCommittedAt(left, right) {
+	const leftMs = resolveCommittedAtMs(left.committedAt, left.committedAtMs);
+	const rightMs = resolveCommittedAtMs(right.committedAt, right.committedAtMs);
+	return leftMs - rightMs;
+}
+
+async function mapWithConcurrencyLimit(items, concurrency, mapper) {
+	const results = new Array(items.length);
+	let nextIndex = 0;
+
+	async function worker() {
+		while (true) {
+			const currentIndex = nextIndex;
+			nextIndex += 1;
+			if (currentIndex >= items.length) {
+				return;
+			}
+
+			results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+		}
+	}
+
+	const workerCount = Math.max(1, Math.min(concurrency, items.length));
+	await Promise.all(Array.from({ length: workerCount }, () => worker()));
+	return results;
 }
