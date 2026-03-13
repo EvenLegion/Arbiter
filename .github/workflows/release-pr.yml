@@ -1,7 +1,11 @@
-name: Release PR
+name: Release Prep
 
 on:
-  push:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
     branches:
       - main
 
@@ -9,16 +13,21 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: release-prep-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
-  release_pr:
-    if: github.actor != 'github-actions[bot]'
+  prepare_release:
+    if: github.actor != 'github-actions[bot]' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'dev'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout PR head branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -41,38 +50,39 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: pnpm release:publish
 
-      - name: Force-add release notes
+      - name: Commit release updates to dev
         if: steps.prepare_release.outputs.release_created == 'true'
         run: |
-          NOTES_PATH="${{ steps.prepare_release.outputs.release_notes_path }}"
-          if [ -n "$NOTES_PATH" ] && [ -f "$NOTES_PATH" ]; then
-            git add -f "$NOTES_PATH"
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json CHANGELOG.md .release-plans .release-output
+          git commit -m "chore(release): prepare ${{ steps.prepare_release.outputs.release_tag }}"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
-      - name: Create release pull request
+      - name: Update PR body with consolidated release notes
         if: steps.prepare_release.outputs.release_created == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.prepare_release.outputs.release_tag }}
+          RELEASE_NOTES_PATH: ${{ steps.prepare_release.outputs.release_notes_path }}
         with:
-          commit-message: 'chore: release ${{ steps.prepare_release.outputs.release_tag }}'
-          branch: release/${{ steps.prepare_release.outputs.release_tag }}
-          delete-branch: true
-          title: 'chore: release ${{ steps.prepare_release.outputs.release_tag }}'
-          body: |
-            Automated release PR for `${{ steps.prepare_release.outputs.release_tag }}`.
+          script: |
+            const fs = require('node:fs');
 
-            This PR was generated from committed release plan files accumulated on `dev` and merged into `main`.
+            const notesPath = process.env.RELEASE_NOTES_PATH;
+            const releaseTag = process.env.RELEASE_TAG;
+            const notes = fs.readFileSync(notesPath, 'utf8').trim();
+            const body = [
+              `Automated release prep for \`${releaseTag}\`.`,
+              '',
+              'This PR body is generated from the consolidated changelog entry produced from pending release plans on `dev`.',
+              '',
+              notes
+            ].join('\n');
 
-            Included changes:
-            - version bump in `package.json`
-            - changelog update
-            - consumption of pending `.release-plans/*.json` files
-
-            Release notes source:
-            - `${{ steps.prepare_release.outputs.release_notes_path }}`
-          labels: |
-            release
-          add-paths: |
-            package.json
-            CHANGELOG.md
-            .release-plans
-            .release-output
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              body
+            });
