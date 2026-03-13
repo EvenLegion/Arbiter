@@ -28,4 +28,3 @@ data/
 *.dump
 .tmp/
 .pnpm-store/
-.release-output/
