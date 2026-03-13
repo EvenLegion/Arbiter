@@ -20,11 +20,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Resolve release metadata
         id: release_meta
         run: |
-          TAG="${{ github.event.pull_request.head.ref#release/ }}"
+          TAG="${{ replace(github.event.pull_request.head.ref, 'release/', '') }}"
           VERSION="${TAG#v}"
           NOTES_PATH=".release-output/release-notes-${TAG}.md"
           echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"

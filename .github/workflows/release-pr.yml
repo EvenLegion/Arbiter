@@ -41,6 +41,14 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: pnpm release:publish
 
+      - name: Force-add release notes
+        if: steps.prepare_release.outputs.release_created == 'true'
+        run: |
+          NOTES_PATH="${{ steps.prepare_release.outputs.release_notes_path }}"
+          if [ -n "$NOTES_PATH" ] && [ -f "$NOTES_PATH" ]; then
+            git add -f "$NOTES_PATH"
+          fi
+
       - name: Create release pull request
         if: steps.prepare_release.outputs.release_created == 'true'
         uses: peter-evans/create-pull-request@v7

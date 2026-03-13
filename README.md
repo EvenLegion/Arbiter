@@ -143,7 +143,7 @@ Why this exists:
 - `dev` becomes the accumulation branch for upcoming release notes
 - `main` becomes the release trigger branch: when changes land there, pending release plans are consumed into a release PR, and merging that PR creates the tagged GitHub Release
 
-This is a single-version app release flow. The app version lives in [package.json](/Users/whyit/code/EvenLegion/arbiter-v3/package.json), and releases are tagged like `v2.0.0`, `v2.0.1`, etc.
+This is a single-version app release flow. The app version lives in [package.json](./package.json), and releases are tagged like `v2.0.0`, `v2.0.1`, etc.
 
 Branch flow:
 
@@ -206,15 +206,15 @@ When release generation runs in GitHub Actions, the notes are enriched with GitH
 Release flow:
 
 1. Release plan files accumulate naturally as PRs merge into `dev`.
-2. When `dev` is merged into `main`, the GitHub Action in [release-pr.yml](/Users/whyit/code/EvenLegion/arbiter-v3/.github/workflows/release-pr.yml) runs automatically.
+2. When `dev` is merged into `main`, the GitHub Action in [release-pr.yml](/.github/workflows/release-pr.yml) runs automatically.
 3. That workflow:
     - reads all pending `.release-plans/*.json` files
     - computes the highest requested bump
-    - bumps [package.json](/Users/whyit/code/EvenLegion/arbiter-v3/package.json)
+    - bumps [package.json](/package.json)
     - updates `CHANGELOG.md`
     - opens or updates a release PR back into `main`
     - removes the consumed release plan files in that release PR
-4. When that release PR is merged, the GitHub Action in [release-publish.yml](/Users/whyit/code/EvenLegion/arbiter-v3/.github/workflows/release-publish.yml):
+4. When that release PR is merged, the GitHub Action in [release-publish.yml](/.github/workflows/release-publish.yml):
     - creates a git tag such as `v2.0.1`
     - publishes a GitHub Release using the generated notes committed in the release PR
 
