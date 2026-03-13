@@ -213,9 +213,9 @@ Release flow:
     - bumps [package.json](./package.json)
     - updates [CHANGELOG.md](./CHANGELOG.md)
     - writes the generated release notes into `.release-output/`
-    - removes the consumed release plan files from `dev`
-    - commits those generated release changes back to `dev`
-    - updates the `dev` -> `main` PR body to the consolidated release notes entry
+    - removes the consumed release plan files from the generated release prep branch
+    - opens or updates a release prep PR into `dev` with those generated release changes
+    - updates the `dev` -> `main` PR body to the consolidated release notes entry and links the release prep PR
 4. When that `dev` -> `main` PR is merged, the GitHub Action in [release-publish.yml](./.github/workflows/release-publish.yml):
     - creates a git tag such as `v2.0.1`
     - publishes a GitHub Release using the generated notes already merged into `main`
@@ -235,7 +235,8 @@ Notes:
 - release note content is still derived from commit messages, so commit subject quality matters
 - commits that do not follow Conventional Commits are ignored by the release planner
 - this PR-based release flow is intended to work with protected `main` branches because the automation no longer pushes release commits directly to `main`
-- the release prep workflow pushes only to `dev`, so it requires write access to `dev` but not bypass access on `main`
+- if `dev` also requires pull-request-only changes, the workflow opens a release prep PR into `dev` instead of pushing directly
+- merge the generated release prep PR into `dev` before merging `dev` into `main`, otherwise the prepared version/changelog/release-note files will not reach `main`
 
 ## Environment Variables
 

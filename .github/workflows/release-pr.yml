@@ -50,14 +50,33 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: pnpm release:publish
 
-      - name: Commit release updates to dev
+      - name: Create or update release prep PR into dev
         if: steps.prepare_release.outputs.release_created == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json CHANGELOG.md .release-plans .release-output
-          git commit -m "chore(release): prepare ${{ steps.prepare_release.outputs.release_tag }}"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+        id: release_prep_pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'chore(release): prepare ${{ steps.prepare_release.outputs.release_tag }}'
+          branch: release-prep/pr-${{ github.event.pull_request.number }}
+          delete-branch: true
+          title: 'chore(release): prepare ${{ steps.prepare_release.outputs.release_tag }}'
+          body: |
+            Automated release prep for `${{ steps.prepare_release.outputs.release_tag }}`.
+
+            This PR was generated from the `dev` -> `main` release workflow because `dev` is protected from direct pushes.
+
+            Merging this PR into `dev` will bring in:
+            - version bump in `package.json`
+            - consolidated changelog entry in `CHANGELOG.md`
+            - generated release notes in `.release-output/`
+            - removal of consumed `.release-plans/*.json` files
+          base: dev
+          labels: |
+            release
+          add-paths: |
+            package.json
+            CHANGELOG.md
+            .release-plans
+            .release-output
 
       - name: Update PR body with consolidated release notes
         if: steps.prepare_release.outputs.release_created == 'true'
@@ -65,20 +84,23 @@ jobs:
         env:
           RELEASE_TAG: ${{ steps.prepare_release.outputs.release_tag }}
           RELEASE_NOTES_PATH: ${{ steps.prepare_release.outputs.release_notes_path }}
+          RELEASE_PREP_PR_URL: ${{ steps.release_prep_pr.outputs.pull-request-url }}
         with:
           script: |
             const fs = require('node:fs');
 
             const notesPath = process.env.RELEASE_NOTES_PATH;
             const releaseTag = process.env.RELEASE_TAG;
+            const releasePrepPrUrl = process.env.RELEASE_PREP_PR_URL;
             const notes = fs.readFileSync(notesPath, 'utf8').trim();
             const body = [
               `Automated release prep for \`${releaseTag}\`.`,
               '',
               'This PR body is generated from the consolidated changelog entry produced from pending release plans on `dev`.',
+              releasePrepPrUrl ? `Merge the linked release prep PR before merging this PR: ${releasePrepPrUrl}` : null,
               '',
               notes
-            ].join('\n');
+            ].filter(Boolean).join('\n');
 
             await github.rest.pulls.update({
               owner: context.repo.owner,
