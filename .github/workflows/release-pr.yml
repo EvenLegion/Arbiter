@@ -80,8 +80,6 @@ jobs:
             - generated release notes in `.release-output/`
             - removal of consumed `.release-plans/*.json` files
           base: dev
-          labels: |
-            release
           add-paths: |
             package.json
             CHANGELOG.md
