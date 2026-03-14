@@ -22,6 +22,7 @@ import { DISCORD_MAX_NICKNAME_LENGTH } from '../../constants';
 import { isNicknameTooLongError } from '../../errors/nicknameTooLongError';
 import type { ExecutionContext } from '../../logging/executionContext';
 import type { ParsedNameChangeReviewButton } from './nameChangeReviewButtons';
+import { reviewNameChangeDecision } from './nameChangeReviewService';
 import {
 	buildNameChangeReviewActionRow,
 	buildNameChangeReviewEditModalCustomId,
@@ -162,97 +163,113 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 		return;
 	}
 
-	if (parsedNameChangeReviewButton.action === 'approve') {
-		const request = await findUniqueNameChangeRequest({
-			requestId: parsedNameChangeReviewButton.requestId
-		}).catch((error: unknown) => {
-			logger.error(
-				{
-					err: error
+	let reviewResult: Awaited<ReturnType<typeof reviewNameChangeDecision>>;
+	try {
+		reviewResult = await reviewNameChangeDecision(
+			{
+				findRequest: findUniqueNameChangeRequest,
+				validateApproval: async (request) => {
+					const requesterMember = await container.utilities.member
+						.getOrThrow({
+							guild,
+							discordUserId: request.requesterUser.discordUserId
+						})
+						.catch((error: unknown) => {
+							logger.error(
+								{
+									err: error,
+									requesterDiscordUserId: request.requesterUser.discordUserId
+								},
+								'Failed to resolve requester member while validating approved name change request'
+							);
+							return null;
+						});
+					if (!requesterMember) {
+						throw new NameChangeReviewValidationError('requester-member-not-found');
+					}
+
+					try {
+						await container.utilities.member.computeNickname({
+							member: requesterMember,
+							context,
+							baseDiscordNicknameOverride: request.requestedName,
+							contextBindings: {
+								step: 'validateApprovedNameNicknameLength'
+							}
+						});
+						return {
+							ok: true
+						} as const;
+					} catch (error) {
+						if (isNicknameTooLongError(error)) {
+							return {
+								ok: false,
+								reason: 'nickname-too-long'
+							} as const;
+						}
+
+						logger.error(
+							{
+								err: error,
+								nameChangeRequestId: parsedNameChangeReviewButton.requestId
+							},
+							'Failed to validate approved name change request nickname length'
+						);
+						throw new NameChangeReviewValidationError('approval-validation-failed');
+					}
 				},
-				'Failed to resolve name change request before approval validation'
-			);
-			return null;
-		});
-		if (!request || !isPendingNameChangeRequestStatus(request.status)) {
-			await interaction.followUp({
-				content: 'This request has already been reviewed.',
-				flags: MessageFlags.Ephemeral
-			});
-			return;
-		}
-
-		const requesterMember = await container.utilities.member
-			.getOrThrow({
-				guild,
-				discordUserId: request.requesterUser.discordUserId
-			})
-			.catch((error: unknown) => {
-				logger.error(
-					{
-						err: error,
-						requesterDiscordUserId: request.requesterUser.discordUserId
-					},
-					'Failed to resolve requester member while validating approved name change request'
-				);
-				return null;
-			});
-		if (!requesterMember) {
-			await interaction.followUp({
-				content: `Could not resolve requester member for validation. Please contact TECH with: requestId=${context.requestId}`,
-				flags: MessageFlags.Ephemeral
-			});
-			return;
-		}
-
-		try {
-			await container.utilities.member.computeNickname({
-				member: requesterMember,
-				context,
-				baseDiscordNicknameOverride: request.requestedName,
-				contextBindings: {
-					step: 'validateApprovedNameNicknameLength'
+				reviewRequest: reviewNameChangeRequest,
+				updatePersistedNickname: async (params) => {
+					await updateUserNickname(params);
+				},
+				syncApprovedNickname: async (reviewed) => {
+					await applyApprovedNameChangeNicknameSync({
+						guild,
+						reviewed,
+						context,
+						logger
+					});
 				}
-			});
-		} catch (error) {
-			if (isNicknameTooLongError(error)) {
+			},
+			{
+				requestId: parsedNameChangeReviewButton.requestId,
+				reviewerDbUserId: reviewerDbUser.id,
+				decision: parsedNameChangeReviewButton.action
+			}
+		);
+	} catch (error) {
+		if (error instanceof NameChangeReviewValidationError) {
+			if (error.reason === 'requester-member-not-found') {
 				await interaction.followUp({
-					content:
-						'Cannot approve this request because the resulting nickname would exceed Discord limits after organization formatting/rank is applied. Ask the requester for a shorter name.',
+					content: `Could not resolve requester member for validation. Please contact TECH with: requestId=${context.requestId}`,
 					flags: MessageFlags.Ephemeral
 				});
 				return;
 			}
 
-			logger.error(
-				{
-					err: error,
-					nameChangeRequestId: parsedNameChangeReviewButton.requestId
-				},
-				'Failed to validate approved name change request nickname length'
-			);
 			await interaction.followUp({
 				content: `Could not validate the requested name. Please contact TECH with: requestId=${context.requestId}`,
 				flags: MessageFlags.Ephemeral
 			});
 			return;
 		}
-	}
 
-	const reviewed = await reviewNameChangeRequest({
-		requestId: parsedNameChangeReviewButton.requestId,
-		reviewerDbUserId: reviewerDbUser.id,
-		decision: parsedNameChangeReviewButton.action
-	}).catch((error: unknown) => {
 		logger.error(
 			{
 				err: error
 			},
-			'Failed to update name change request review state'
+			'Failed to review name change request'
 		);
-		return null;
-	});
-	if (!reviewed) {
+		await interaction
+			.followUp({
+				content: `Could not review this request. Please contact TECH with: requestId=${context.requestId}`,
+				flags: MessageFlags.Ephemeral
+			})
+			.catch(() => null);
+		return;
+	}
+
+	if (reviewResult.outcome === 'already-reviewed') {
 		await interaction
 			.followUp({
 				content: 'This request has already been reviewed.',
@@ -261,6 +278,17 @@ export async function handleNameChangeReviewButton({ interaction, parsedNameChan
 			.catch(() => null);
 		return;
 	}
+
+	if (reviewResult.outcome === 'nickname-too-long') {
+		await interaction.followUp({
+			content:
+				'Cannot approve this request because the resulting nickname would exceed Discord limits after organization formatting/rank is applied. Ask the requester for a shorter name.',
+			flags: MessageFlags.Ephemeral
+		});
+		return;
+	}
+
+	const reviewed = reviewResult.reviewed;
 
 	const reviewStatusLabel = reviewed.status === NameChangeRequestStatus.APPROVED ? 'Approved' : 'Denied';
 	const decisionVerb = reviewed.status === NameChangeRequestStatus.APPROVED ? 'approved' : 'denied';
@@ -371,11 +399,6 @@ async function applyApprovedNameChangeNicknameSync({
 		return;
 	}
 
-	await updateUserNickname({
-		discordUserId: reviewed.requesterUser.discordUserId,
-		discordNickname: reviewed.requestedName
-	});
-
 	const requesterMember = await container.utilities.member.getOrThrow({
 		guild,
 		discordUserId: reviewed.requesterUser.discordUserId
@@ -400,6 +423,13 @@ async function applyApprovedNameChangeNicknameSync({
 		},
 		'Applied approved name change request nickname sync'
 	);
+}
+
+class NameChangeReviewValidationError extends Error {
+	public constructor(public readonly reason: 'requester-member-not-found' | 'approval-validation-failed') {
+		super(reason);
+		this.name = 'NameChangeReviewValidationError';
+	}
 }
 
 function hasSendMethod(value: unknown): value is { send: (options: { content: string }) => Promise<unknown> } {

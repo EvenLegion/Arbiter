@@ -1,6 +1,6 @@
 import { container } from '@sapphire/framework';
 import Redis from 'ioredis';
-import { ENV_CONFIG } from '../../config/env';
+import { ENV_CONFIG } from '../../config/env/config';
 
 let redisClient: Redis | null = null;
 
@@ -26,4 +26,20 @@ export function getRedisClient() {
 	});
 
 	return redisClient;
+}
+
+export async function closeRedisClient() {
+	if (!redisClient) {
+		return;
+	}
+
+	const client = redisClient;
+	redisClient = null;
+	client.removeAllListeners('error');
+
+	try {
+		await client.quit();
+	} catch {
+		client.disconnect();
+	}
 }
