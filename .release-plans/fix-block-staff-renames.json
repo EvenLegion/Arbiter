@@ -31,17 +31,6 @@
 			"section": "Features"
 		},
 		{
-			"sha": "82332b2190709c808da90625756595ddb2cd4a95",
-			"subject": "chore(release): add release plan for fix/block-staff-renames",
-			"committedAt": "2026-03-14T21:16:35-10:00",
-			"committedAtMs": 1773558995000,
-			"type": "chore",
-			"scope": "release",
-			"description": "add release plan for fix/block-staff-renames",
-			"breaking": false,
-			"section": "Maintenance"
-		},
-		{
 			"sha": "72f4c32708fa494bc6a65d15147336cb22dc9589",
 			"subject": "feat: Add staff division membership add and remove cmds",
 			"committedAt": "2026-03-14T21:52:07-10:00",
