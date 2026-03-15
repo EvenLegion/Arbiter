@@ -69,10 +69,21 @@ const divisions: DivisionSeed[] = [
 		code: 'AMB',
 		name: 'Ambassador',
 		kind: DivisionKind.SPECIAL,
+		displayNamePrefix: 'AMB',
 		showRank: false,
 		emojiName: optionalEnv('AMB_EMOJI_NAME'),
 		emojiId: optionalEnv('AMB_EMOJI_ID'),
 		discordRoleId: requiredEnv('AMB_ROLE_ID')
+	},
+	{
+		code: 'AFK',
+		name: 'On Leave of Absence',
+		kind: DivisionKind.SPECIAL,
+		displayNamePrefix: 'AFK',
+		showRank: true,
+		emojiName: optionalEnv('ON_LEAVE_OF_ABSENCE_EMOJI_NAME'),
+		emojiId: optionalEnv('ON_LEAVE_OF_ABSENCE_EMOJI_ID'),
+		discordRoleId: requiredEnv('ON_LEAVE_OF_ABSENCE_ROLE_ID')
 	},
 	{
 		code: 'EXEC',
@@ -115,6 +126,16 @@ const divisions: DivisionSeed[] = [
 		discordRoleId: requiredEnv('TECH_ROLE_ID')
 	},
 	{
+		code: 'TECHDEPT',
+		name: 'Tech Department',
+		kind: DivisionKind.STAFF,
+		displayNamePrefix: 'TECH',
+		showRank: false,
+		emojiName: optionalEnv('TECH_DEPARTMENT_EMOJI_NAME'),
+		emojiId: optionalEnv('TECH_DEPARTMENT_EMOJI_ID'),
+		discordRoleId: requiredEnv('TECH_DEPARTMENT_ROLE_ID')
+	},
+	{
 		code: 'CMD',
 		name: 'Commander',
 		kind: DivisionKind.STAFF,
@@ -123,6 +144,36 @@ const divisions: DivisionSeed[] = [
 		emojiName: optionalEnv('CMD_EMOJI_NAME'),
 		emojiId: optionalEnv('CMD_EMOJI_ID'),
 		discordRoleId: requiredEnv('CMD_ROLE_ID')
+	},
+	{
+		code: 'CMDN',
+		name: 'Navy Commander',
+		kind: DivisionKind.STAFF,
+		displayNamePrefix: 'CMD-N',
+		showRank: false,
+		emojiName: optionalEnv('CMD_NAVY_EMOJI_NAME'),
+		emojiId: optionalEnv('CMD_NAVY_EMOJI_ID'),
+		discordRoleId: requiredEnv('CMD_NAVY_ROLE_ID')
+	},
+	{
+		code: 'CMDM',
+		name: 'Marines Commander',
+		kind: DivisionKind.STAFF,
+		displayNamePrefix: 'CMD-M',
+		showRank: false,
+		emojiName: optionalEnv('CMD_MARINES_EMOJI_NAME'),
+		emojiId: optionalEnv('CMD_MARINES_EMOJI_ID'),
+		discordRoleId: requiredEnv('CMD_MARINES_ROLE_ID')
+	},
+	{
+		code: 'CMDS',
+		name: 'Support Commander',
+		kind: DivisionKind.STAFF,
+		displayNamePrefix: 'CMD-S',
+		showRank: false,
+		emojiName: optionalEnv('CMD_SUPPORT_EMOJI_NAME'),
+		emojiId: optionalEnv('CMD_SUPPORT_EMOJI_ID'),
+		discordRoleId: requiredEnv('CMD_SUPPORT_ROLE_ID')
 	},
 	{
 		code: 'QRM',
@@ -143,6 +194,16 @@ const divisions: DivisionSeed[] = [
 		emojiName: optionalEnv('TIR_EMOJI_NAME'),
 		emojiId: optionalEnv('TIR_EMOJI_ID'),
 		discordRoleId: requiredEnv('TIR_ROLE_ID')
+	},
+	{
+		code: 'SOL',
+		name: 'Staff on Leave',
+		kind: DivisionKind.STAFF,
+		displayNamePrefix: 'SOL',
+		showRank: false,
+		emojiName: optionalEnv('STAFF_ON_LEAVE_EMOJI_NAME'),
+		emojiId: optionalEnv('STAFF_ON_LEAVE_EMOJI_ID'),
+		discordRoleId: requiredEnv('STAFF_ON_LEAVE_ROLE_ID')
 	},
 	{
 		code: 'NVY-L',
