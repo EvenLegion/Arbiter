@@ -3,8 +3,8 @@
 	"branch": "fix/block-staff-renames",
 	"baseRef": "origin/dev",
 	"mergeBase": "f4162b6aa408b6dc2469f100e891547b4db96620",
-	"headRef": "98e52e699007c01d806f6028271ad2578b18033e",
-	"generatedAt": "2026-03-15T07:16:35.201Z",
+	"headRef": "72f4c32708fa494bc6a65d15147336cb22dc9589",
+	"generatedAt": "2026-03-15T07:52:19.659Z",
 	"bump": "minor",
 	"targetVersion": "2.3.0",
 	"commits": [
@@ -27,6 +27,28 @@
 			"type": "feat",
 			"scope": null,
 			"description": "Add new divisions: On Leave of Absence, Tech Department, Staff on Leave, Navy Commander, Marines Commander, and Support Commander",
+			"breaking": false,
+			"section": "Features"
+		},
+		{
+			"sha": "82332b2190709c808da90625756595ddb2cd4a95",
+			"subject": "chore(release): add release plan for fix/block-staff-renames",
+			"committedAt": "2026-03-14T21:16:35-10:00",
+			"committedAtMs": 1773558995000,
+			"type": "chore",
+			"scope": "release",
+			"description": "add release plan for fix/block-staff-renames",
+			"breaking": false,
+			"section": "Maintenance"
+		},
+		{
+			"sha": "72f4c32708fa494bc6a65d15147336cb22dc9589",
+			"subject": "feat: Add staff division membership add and remove cmds",
+			"committedAt": "2026-03-14T21:52:07-10:00",
+			"committedAtMs": 1773561127000,
+			"type": "feat",
+			"scope": null,
+			"description": "Add staff division membership add and remove cmds",
 			"breaking": false,
 			"section": "Features"
 		}
