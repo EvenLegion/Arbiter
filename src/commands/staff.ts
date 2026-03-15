@@ -1,7 +1,6 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import type { Division } from '@prisma/client';
-import { DivisionKind } from '@prisma/client';
 import { EmbedBuilder, MessageFlags, type GuildMember } from 'discord.js';
 
 import { ENV_CONFIG, ENV_DISCORD } from '../config/env';
@@ -332,33 +331,6 @@ export class StaffCommand extends Subcommand {
 						continue;
 					}
 
-					const hasStaffRole = await this.container.utilities.divisionRolePolicy
-						.memberHasDivisionKindRole({
-							member,
-							requiredRoleKinds: [DivisionKind.STAFF]
-						})
-						.catch((error: unknown) => {
-							failed++;
-							logger.error(
-								{
-									err: error,
-									targetDbUserId: target.id,
-									targetDiscordUserId: target.discordUserId
-								},
-								'Failed to resolve staff role status for nickname sync target'
-							);
-							return null;
-						});
-					if (hasStaffRole === null) {
-						logProgressIfNeeded();
-						continue;
-					}
-					if (hasStaffRole && !includeStaff) {
-						skippedStaff++;
-						logProgressIfNeeded();
-						continue;
-					}
-
 					attempted++;
 					const targetContext = createChildExecutionContext({
 						context,
@@ -395,7 +367,11 @@ export class StaffCommand extends Subcommand {
 					}
 
 					if (syncResult.outcome === 'skipped') {
-						skippedByRule++;
+						if (syncResult.reason === 'User has a staff role') {
+							skippedStaff++;
+						} else {
+							skippedByRule++;
+						}
 						logger.warn(
 							{
 								targetDbUserId: target.id,
