@@ -21,6 +21,8 @@ const PREFIX_PRIORITY: ((division: Division) => boolean)[] = [
 	(division) => division.kind === DivisionKind.LEGIONNAIRE
 ];
 
+const DIVISION_CODE_PRIORITY = ['QRM', 'CMDN', 'CMDM', 'CMDS', 'CMD'];
+
 type BuildUserNicknameParams = {
 	discordUser: GuildMember;
 	context: ExecutionContext;
@@ -57,8 +59,8 @@ export const buildUserNickname = async ({
 	const meritRankLevel = resolveMeritRankLevel(totalMerits);
 
 	for (const hasPriority of PREFIX_PRIORITY) {
-		const priorityDivision = usersDivisions.find(hasPriority);
-		if (priorityDivision?.displayNamePrefix) {
+		const priorityDivision = selectPriorityDivision(usersDivisions, hasPriority);
+		if (priorityDivision) {
 			return {
 				newUserNickname: appendMeritRankSuffix({
 					nickname: `${priorityDivision.displayNamePrefix} | ${baseNickname}`,
@@ -77,6 +79,19 @@ export const buildUserNickname = async ({
 		})
 	};
 };
+
+function selectPriorityDivision(divisions: Division[], hasPriority: (division: Division) => boolean) {
+	const matchingDivisions = divisions.filter((division) => hasPriority(division) && division.displayNamePrefix);
+
+	for (const divisionCode of DIVISION_CODE_PRIORITY) {
+		const prioritizedDivision = matchingDivisions.find((division) => division.code === divisionCode);
+		if (prioritizedDivision) {
+			return prioritizedDivision;
+		}
+	}
+
+	return matchingDivisions[0] ?? null;
+}
 
 function appendMeritRankSuffix({
 	nickname,
