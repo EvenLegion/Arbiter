@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "fix/staff-prefix-hierarchy",
+	"baseRef": "origin/dev",
+	"mergeBase": "dc8371ece2dd627a25f7d42ee68694c31a71d013",
+	"headRef": "779ab62b95ae71a5a65c4ba95935bf11c07075db",
+	"generatedAt": "2026-03-15T08:34:32.141Z",
+	"bump": "patch",
+	"targetVersion": "2.3.1",
+	"commits": [
+		{
+			"sha": "779ab62b95ae71a5a65c4ba95935bf11c07075db",
+			"subject": "fix: Add helper to determine staff nickname prefix hierarchy",
+			"committedAt": "2026-03-14T22:34:24-10:00",
+			"committedAtMs": 1773563664000,
+			"type": "fix",
+			"scope": null,
+			"description": "Add helper to determine staff nickname prefix hierarchy",
+			"breaking": false,
+			"section": "Fixes"
+		}
+	]
+}
