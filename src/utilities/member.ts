@@ -1,3 +1,4 @@
+import { DivisionKind } from '@prisma/client';
 import { Utility } from '@sapphire/plugin-utilities-store';
 import type { Guild, GuildMember } from 'discord.js';
 
@@ -19,6 +20,7 @@ type SyncComputedNicknameParams = {
 	member: GuildMember;
 	context: ExecutionContext;
 	setReason?: string;
+	includeStaff?: boolean;
 	totalMeritsOverride?: number;
 	contextBindings?: Record<string, unknown>;
 };
@@ -150,9 +152,26 @@ export class MemberUtility extends Utility {
 		member,
 		context,
 		setReason = 'Nickname sync',
+		includeStaff = false,
 		totalMeritsOverride,
 		contextBindings
 	}: SyncComputedNicknameParams): Promise<SyncComputedNicknameResult> {
+		if (!includeStaff) {
+			const hasStaffRole = await this.container.utilities.divisionRolePolicy.memberHasDivisionKindRole({
+				member,
+				requiredRoleKinds: [DivisionKind.STAFF]
+			});
+
+			if (hasStaffRole) {
+				return {
+					outcome: 'skipped',
+					member,
+					computedNickname: null,
+					reason: 'User has a staff role'
+				};
+			}
+		}
+
 		const nicknameResult = await this.computeNickname({
 			member,
 			context,

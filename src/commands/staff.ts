@@ -317,6 +317,7 @@ export class StaffCommand extends Subcommand {
 							member,
 							context: targetContext,
 							setReason: 'Staff nickname sync',
+							includeStaff,
 							contextBindings: {
 								step: 'buildUserNickname'
 							}
