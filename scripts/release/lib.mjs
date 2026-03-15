@@ -14,7 +14,6 @@ export const RELEASE_OUTPUT_DIR = path.join(REPO_ROOT, '.release-output');
 
 export const BUMP_ORDER = ['patch', 'minor', 'major'];
 export const SECTION_ORDER = ['Features', 'Fixes', 'Performance', 'Refactors', 'Maintenance', 'Other'];
-const SECTION_PRIORITY = new Map(SECTION_ORDER.map((section, index) => [section, index]));
 
 const TYPE_TO_SECTION = {
 	feat: 'Features',
@@ -31,6 +30,7 @@ const TYPE_TO_SECTION = {
 };
 
 const CONVENTIONAL_COMMIT_SUBJECT = /^(?<type>[a-z]+)(?:\((?<scope>[^)]+)\))?(?<breaking>!)?: (?<description>.+)$/i;
+const IGNORED_RELEASE_AUTOMATION_COMMIT_PREFIXES = ['chore(release): add release plan', 'release plan for ', 'chore(release): prepare '];
 
 export function ensureDirectory(directoryPath) {
 	if (!existsSync(directoryPath)) {
@@ -156,6 +156,10 @@ export function getBranchCommits({ baseRef }) {
 export function buildPlanCommits(commits) {
 	return commits
 		.map((commit) => {
+			if (isIgnoredReleaseAutomationCommit(commit.subject)) {
+				return null;
+			}
+
 			const parsed = parseConventionalCommit(commit.subject, commit.body);
 			if (!parsed) {
 				return null;
@@ -174,6 +178,11 @@ export function buildPlanCommits(commits) {
 			};
 		})
 		.filter(Boolean);
+}
+
+function isIgnoredReleaseAutomationCommit(subject) {
+	const normalizedSubject = subject.trim().toLowerCase();
+	return IGNORED_RELEASE_AUTOMATION_COMMIT_PREFIXES.some((prefix) => normalizedSubject.startsWith(prefix));
 }
 
 export function formatEntryLabel(entry) {
@@ -409,9 +418,6 @@ function parseGitHubRepositoryFromOrigin() {
 }
 
 async function resolvePullRequestEntries({ entries, githubContext }) {
-	const pullRequestsByNumber = new Map();
-	const commitOnlyEntries = [];
-
 	const results = await mapWithConcurrencyLimit(entries, 5, async (entry) => {
 		const pullRequest = await fetchAssociatedPullRequest({
 			sha: entry.sha,
@@ -431,56 +437,17 @@ async function resolvePullRequestEntries({ entries, githubContext }) {
 		};
 	});
 
-	for (const { entry, pullRequest } of results) {
+	return results.map(({ entry, pullRequest }) => {
 		if (!pullRequest?.number) {
-			commitOnlyEntries.push(entry);
-			continue;
+			return entry;
 		}
 
-		const existing = pullRequestsByNumber.get(pullRequest.number);
-		if (existing) {
-			existing.commits.push(entry);
-			if (compareCommittedAt(entry, { committedAt: existing.firstCommittedAt, committedAtMs: existing.firstCommittedAtMs }) < 0) {
-				existing.firstCommittedAt = entry.committedAt;
-				existing.firstCommittedAtMs = resolveCommittedAtMs(entry.committedAt, entry.committedAtMs);
-			}
-			continue;
-		}
-
-		pullRequestsByNumber.set(pullRequest.number, {
-			pullRequest,
-			commits: [entry],
-			firstCommittedAt: entry.committedAt,
-			firstCommittedAtMs: resolveCommittedAtMs(entry.committedAt, entry.committedAtMs)
-		});
-	}
-
-	const aggregatedPullRequestEntries = [...pullRequestsByNumber.values()]
-		.map(({ pullRequest, commits, firstCommittedAt }) => buildPullRequestReleaseEntry({ pullRequest, commits, firstCommittedAt }))
-		.sort((left, right) => {
-			const committedAtComparison = compareCommittedAt(left, right);
-			if (committedAtComparison === 0) {
-				const leftNumber = left.pullRequestNumber ?? 0;
-				const rightNumber = right.pullRequestNumber ?? 0;
-				return leftNumber - rightNumber;
-			}
-
-			return committedAtComparison;
-		});
-
-	if (commitOnlyEntries.length === 0) {
-		return aggregatedPullRequestEntries;
-	}
-
-	return [...aggregatedPullRequestEntries, ...commitOnlyEntries].sort((left, right) => {
-		const committedAtComparison = compareCommittedAt(left, right);
-		if (committedAtComparison === 0) {
-			const leftKey = left.pullRequestNumber ? String(left.pullRequestNumber) : left.sha;
-			const rightKey = right.pullRequestNumber ? String(right.pullRequestNumber) : right.sha;
-			return leftKey.localeCompare(rightKey);
-		}
-
-		return committedAtComparison;
+		return {
+			...entry,
+			pullRequestNumber: pullRequest.number,
+			pullRequestUrl: pullRequest.url,
+			authorLogin: pullRequest.authorLogin
+		};
 	});
 }
 
@@ -519,39 +486,6 @@ function buildGitHubHeaders(token) {
 	}
 
 	return headers;
-}
-
-function buildPullRequestReleaseEntry({ pullRequest, commits, firstCommittedAt }) {
-	const parsedTitle = parseConventionalCommit(pullRequest.title ?? '');
-	const chosenSection = parsedTitle?.section ?? resolveSectionForEntries(commits);
-	const firstCommit = commits[0];
-
-	return {
-		sha: firstCommit.sha,
-		committedAt: firstCommittedAt,
-		committedAtMs: resolveCommittedAtMs(firstCommittedAt, firstCommit.committedAtMs),
-		type: parsedTitle?.type ?? firstCommit.type,
-		scope: parsedTitle?.scope ?? firstCommit.scope,
-		description: parsedTitle?.description ?? firstCommit.description,
-		breaking: parsedTitle?.breaking ?? commits.some((commit) => commit.breaking),
-		section: chosenSection,
-		releaseNoteLabel: pullRequest.title ?? firstCommit.subject,
-		pullRequestNumber: pullRequest.number,
-		pullRequestUrl: pullRequest.url,
-		authorLogin: pullRequest.authorLogin
-	};
-}
-
-function resolveSectionForEntries(entries) {
-	return (
-		[...entries]
-			.sort((left, right) => {
-				return (
-					(SECTION_PRIORITY.get(left.section) ?? Number.MAX_SAFE_INTEGER) - (SECTION_PRIORITY.get(right.section) ?? Number.MAX_SAFE_INTEGER)
-				);
-			})
-			.at(0)?.section ?? 'Other'
-	);
 }
 
 function resolveCommittedAtMs(committedAt, fallback = null) {
