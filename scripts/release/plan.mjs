@@ -12,7 +12,7 @@ import {
 } from './lib.mjs';
 
 const RELEASE_BUMP_OPTIONS = ['patch', 'minor', 'major'];
-const RELEASE_PLAN_COMMIT_PREFIX = 'chore(release): add release plan';
+const RELEASE_PLAN_COMMIT_PREFIX = 'Release plan';
 
 async function main() {
 	const currentBranch = git(['branch', '--show-current']);

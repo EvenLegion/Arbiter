@@ -170,7 +170,7 @@ What `pnpm release:plan` actually does:
 - keeps only commits whose subject matches the Conventional Commits format
 - prompts you to choose the release bump for this branch: `patch`, `minor`, or `major`
 - writes a release plan file into `.release-plans/`
-- stages and commits that file as `chore(release): add release plan for <branch>`
+- stages and commits that file as `Release plan for <branch>`
 
 That release plan file is intentionally committed to git. It is the branch's release metadata and will be merged into `dev` with the rest of the branch.
 
@@ -234,6 +234,7 @@ Notes:
 - the release bump is chosen manually because branch intent is not always safe to infer automatically
 - release note content is still derived from commit messages, so commit subject quality matters
 - commits that do not follow Conventional Commits are ignored by the release planner
+- release automation commits such as `Release plan for ...` and `chore(release): prepare ...` are also ignored by the release planner
 - this PR-based release flow is intended to work with protected `main` branches because the automation no longer pushes release commits directly to `main`
 - if `dev` also requires pull-request-only changes, the workflow opens a release prep PR into `dev` instead of pushing directly
 - merge the generated release prep PR into `dev` before merging `dev` into `main`, otherwise the prepared version/changelog/release-note files will not reach `main`

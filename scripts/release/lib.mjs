@@ -30,6 +30,7 @@ const TYPE_TO_SECTION = {
 };
 
 const CONVENTIONAL_COMMIT_SUBJECT = /^(?<type>[a-z]+)(?:\((?<scope>[^)]+)\))?(?<breaking>!)?: (?<description>.+)$/i;
+const IGNORED_RELEASE_AUTOMATION_COMMIT_PREFIXES = ['chore(release): add release plan', 'release plan for ', 'chore(release): prepare '];
 
 export function ensureDirectory(directoryPath) {
 	if (!existsSync(directoryPath)) {
@@ -155,6 +156,10 @@ export function getBranchCommits({ baseRef }) {
 export function buildPlanCommits(commits) {
 	return commits
 		.map((commit) => {
+			if (isIgnoredReleaseAutomationCommit(commit.subject)) {
+				return null;
+			}
+
 			const parsed = parseConventionalCommit(commit.subject, commit.body);
 			if (!parsed) {
 				return null;
@@ -173,6 +178,11 @@ export function buildPlanCommits(commits) {
 			};
 		})
 		.filter(Boolean);
+}
+
+function isIgnoredReleaseAutomationCommit(subject) {
+	const normalizedSubject = subject.trim().toLowerCase();
+	return IGNORED_RELEASE_AUTOMATION_COMMIT_PREFIXES.some((prefix) => normalizedSubject.startsWith(prefix));
 }
 
 export function formatEntryLabel(entry) {
