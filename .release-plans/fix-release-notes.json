@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "fix/release-notes",
+	"baseRef": "origin/dev",
+	"mergeBase": "520209d08eb59717fc5bcb0b814e2c682a7b0257",
+	"headRef": "f1af58aa9edf7428f4a29815f688891e6f388e52",
+	"generatedAt": "2026-03-15T08:52:22.043Z",
+	"bump": "patch",
+	"targetVersion": "2.3.2",
+	"commits": [
+		{
+			"sha": "f1af58aa9edf7428f4a29815f688891e6f388e52",
+			"subject": "fix: release notes so they include commit summary",
+			"committedAt": "2026-03-14T22:51:48-10:00",
+			"committedAtMs": 1773564708000,
+			"type": "fix",
+			"scope": null,
+			"description": "release notes so they include commit summary",
+			"breaking": false,
+			"section": "Fixes"
+		}
+	]
+}
