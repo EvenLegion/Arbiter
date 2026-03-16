@@ -1,5 +1,6 @@
 import { EventSessionState } from '@prisma/client';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { buildEventStartButtonId } from '../session/parseEventStartButton';
 import { buildEventTrackingSummaryEmbed } from './buildEventTrackingSummaryEmbed';
 
 type BuildEventTrackingSummaryPayloadParams = {
@@ -36,8 +37,14 @@ export function buildEventTrackingSummaryPayload({
 
 	if (state === EventSessionState.DRAFT) {
 		const controls = new ActionRowBuilder<ButtonBuilder>().addComponents(
-			new ButtonBuilder().setCustomId(`event:start:confirm:${eventSessionId}`).setLabel('Start Event').setStyle(ButtonStyle.Success),
-			new ButtonBuilder().setCustomId(`event:start:cancel:${eventSessionId}`).setLabel('Cancel Event').setStyle(ButtonStyle.Danger)
+			new ButtonBuilder()
+				.setCustomId(buildEventStartButtonId({ action: 'confirm', eventSessionId }))
+				.setLabel('Start Event')
+				.setStyle(ButtonStyle.Success),
+			new ButtonBuilder()
+				.setCustomId(buildEventStartButtonId({ action: 'cancel', eventSessionId }))
+				.setLabel('Cancel Event')
+				.setStyle(ButtonStyle.Danger)
 		);
 		return {
 			embeds: [embed],
@@ -47,7 +54,10 @@ export function buildEventTrackingSummaryPayload({
 
 	if (state === EventSessionState.ACTIVE) {
 		const controls = new ActionRowBuilder<ButtonBuilder>().addComponents(
-			new ButtonBuilder().setCustomId(`event:start:end:${eventSessionId}`).setLabel('End Event').setStyle(ButtonStyle.Danger)
+			new ButtonBuilder()
+				.setCustomId(buildEventStartButtonId({ action: 'end', eventSessionId }))
+				.setLabel('End Event')
+				.setStyle(ButtonStyle.Danger)
 		);
 		return {
 			embeds: [embed],

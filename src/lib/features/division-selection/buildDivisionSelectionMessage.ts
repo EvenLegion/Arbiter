@@ -2,6 +2,7 @@ import type { APIActionRowComponent, APIButtonComponent, APIEmbed } from 'discor
 import { type Division } from '@prisma/client';
 
 import { ENV_DISCORD } from '../../../config/env/discord';
+import { buildDivisionSelectionCustomId } from './parseDivisionSelection';
 
 type DivisionSelectionMessage = {
 	embeds: APIEmbed[];
@@ -69,7 +70,7 @@ export function buildDivisionSelectionMessage({ divisions }: BuildDivisionSelect
 
 			divisionButtons.push({
 				type: 2,
-				custom_id: `division:join:${division.code}`,
+				custom_id: buildDivisionSelectionCustomId({ action: 'join', code: division.code }),
 				label: division.name,
 				style: 1, // PRIMARY (blurple)
 				emoji: {
@@ -91,7 +92,7 @@ function toRows(divisionButtons: APIButtonComponent[]): APIActionRowComponent<AP
 	const leaveDivisionButton: APIButtonComponent = {
 		type: 2,
 		style: 4, // DANGER (red)
-		custom_id: 'division:leave:any',
+		custom_id: buildDivisionSelectionCustomId({ action: 'leave', code: 'any' }),
 		label: 'Leave Division'
 	};
 

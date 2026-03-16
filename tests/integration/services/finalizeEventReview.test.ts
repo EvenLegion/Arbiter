@@ -8,8 +8,8 @@ describe('finalizeEventReview integration', () => {
 	let databaseUrl: string;
 	let postgresContainer: Awaited<ReturnType<typeof startPostgresTestContainer>>['postgres'];
 	let standalone: StandalonePrisma;
-	let finalizeEventReview: typeof import('../../../src/integrations/prisma/event/finalizeEventReview').finalizeEventReview;
-	let closeDb: typeof import('../../../src/integrations/prisma/prisma').closeDb;
+	let eventReviewRepository: typeof import('../../../src/integrations/prisma/repositories').eventReviewRepository;
+	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 
 	beforeAll(async () => {
 		const { postgres, databaseUrl: nextDatabaseUrl } = await startPostgresTestContainer();
@@ -19,8 +19,8 @@ describe('finalizeEventReview integration', () => {
 		pushPrismaSchema(databaseUrl);
 		standalone = createStandalonePrisma(databaseUrl);
 		vi.resetModules();
-		({ finalizeEventReview } = await import('../../../src/integrations/prisma/event/finalizeEventReview'));
-		({ closeDb } = await import('../../../src/integrations/prisma/prisma'));
+		({ eventReviewRepository } = await import('../../../src/integrations/prisma/repositories'));
+		({ closeDb } = await import('../../../src/integrations/prisma'));
 	});
 
 	beforeEach(async () => {
@@ -84,7 +84,7 @@ describe('finalizeEventReview integration', () => {
 			]
 		});
 
-		const result = await finalizeEventReview({
+		const result = await eventReviewRepository.finalizeReview({
 			eventSessionId: eventSession.id,
 			reviewerDbUserId: reviewer.id,
 			mode: 'with'
@@ -148,7 +148,7 @@ describe('finalizeEventReview integration', () => {
 			}
 		});
 
-		const result = await finalizeEventReview({
+		const result = await eventReviewRepository.finalizeReview({
 			eventSessionId: eventSession.id,
 			reviewerDbUserId: reviewer.id,
 			mode: 'without'
@@ -189,7 +189,7 @@ describe('finalizeEventReview integration', () => {
 			}
 		});
 
-		const result = await finalizeEventReview({
+		const result = await eventReviewRepository.finalizeReview({
 			eventSessionId: eventSession.id,
 			reviewerDbUserId: reviewer.id,
 			mode: 'with'

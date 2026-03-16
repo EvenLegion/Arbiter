@@ -1,8 +1,9 @@
 import { EventSessionMessageKind } from '@prisma/client';
 import type { Guild } from 'discord.js';
-import { getEventReviewPage, findManyEventSessionMessages, upsertEventSessionMessageRef } from '../../../../integrations/prisma';
+import { eventRepository, eventReviewRepository } from '../../../../integrations/prisma/repositories';
 import { buildEventReviewPayload } from './buildEventReviewPayload';
 import { computeEventDurationSeconds } from './computeEventDurationSeconds';
+import { loadEventReviewPage } from '../../../services/event-review/eventReviewService';
 
 type SyncEventReviewMessageParams = {
 	guild: Guild;
@@ -14,13 +15,23 @@ type SyncEventReviewMessageParams = {
 };
 
 export async function syncEventReviewMessage({ guild, eventSessionId, page = 1, logger }: SyncEventReviewMessageParams) {
-	const reviewPage = await getEventReviewPage({
-		eventSessionId,
-		page
-	});
-	if (!reviewPage) {
+	const reviewPageResult = await loadEventReviewPage(
+		{
+			getReviewPage: async ({ eventSessionId: lookupEventSessionId, page: reviewPageNumber }) =>
+				eventReviewRepository.getReviewPage({
+					eventSessionId: lookupEventSessionId,
+					page: reviewPageNumber
+				})
+		},
+		{
+			eventSessionId,
+			page
+		}
+	);
+	if (reviewPageResult.kind !== 'page_ready') {
 		return false;
 	}
+	const reviewPage = reviewPageResult.reviewPage;
 
 	const threadChannel =
 		guild.channels.cache.get(reviewPage.eventSession.threadId) ??
@@ -53,7 +64,7 @@ export async function syncEventReviewMessage({ guild, eventSessionId, page = 1, 
 
 	const existingReviewRef =
 		(
-			await findManyEventSessionMessages({
+			await eventRepository.listSessionMessages({
 				eventSessionId: reviewPage.eventSession.id,
 				kinds: [EventSessionMessageKind.REVIEW]
 			})
@@ -95,7 +106,7 @@ export async function syncEventReviewMessage({ guild, eventSessionId, page = 1, 
 		return false;
 	}
 
-	await upsertEventSessionMessageRef({
+	await eventRepository.upsertSessionMessageRef({
 		eventSessionId: reviewPage.eventSession.id,
 		kind: EventSessionMessageKind.REVIEW,
 		channelId: reviewMessage.channelId,

@@ -1,11 +1,9 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import { DivisionKind } from '@prisma/client';
 
 import { ENV_DISCORD } from '../config/env';
-import { findManyEventSessions, findManyMeritTypes } from '../integrations/prisma';
-import { sortMembersByQuery } from '../lib/discord/memberSearch';
 import { handleGiveMerit } from '../lib/features/merit/handleGiveMerit';
+import { handleMeritAutocomplete } from '../lib/features/merit/meritAutocompleteProvider';
 import { handleMeritList } from '../lib/features/merit/handleMeritList';
 import { createExecutionContext } from '../lib/logging/executionContext';
 
@@ -108,158 +106,9 @@ export class MeritCommand extends Subcommand {
 	}
 
 	public override async autocompleteRun(interaction: Subcommand.AutocompleteInteraction) {
-		const subcommandName = interaction.options.getSubcommand(false);
-		const focused = interaction.options.getFocused(true);
-		if (subcommandName !== 'list' && subcommandName !== 'give') {
-			await interaction.respond([]);
-			return;
-		}
-
-		const guild = await this.container.utilities.guild.getOrThrow().catch((error: unknown) => {
-			this.container.logger.error(
-				{
-					err: error,
-					commandName: this.name,
-					subcommandName,
-					focusedOptionName: focused.name
-				},
-				'Failed to resolve configured guild during merit command autocomplete'
-			);
-			return null;
+		return handleMeritAutocomplete({
+			interaction,
+			commandName: this.name
 		});
-		if (!guild) {
-			await interaction.respond([]);
-			return;
-		}
-
-		const requesterMember = await this.container.utilities.member
-			.getOrThrow({
-				guild,
-				discordUserId: interaction.user.id
-			})
-			.catch(() => null);
-		if (!requesterMember) {
-			await interaction.respond([]);
-			return;
-		}
-
-		const requesterIsStaff = await this.container.utilities.divisionRolePolicy.memberHasDivisionKindRole({
-			member: requesterMember,
-			requiredRoleKinds: [DivisionKind.STAFF]
-		});
-
-		if (subcommandName === 'give' && !requesterIsStaff) {
-			await interaction.respond([]);
-			return;
-		}
-
-		if (subcommandName === 'give' && focused.name === 'existing_event') {
-			const query = String(focused.value).trim();
-			const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
-			const sessions = await findManyEventSessions({
-				where: {
-					createdAt: {
-						gte: fiveDaysAgo
-					}
-				},
-				include: {
-					eventTier: true
-				},
-				orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-				query,
-				limit: 25
-			});
-
-			await interaction.respond(
-				sessions.map((session) => ({
-					name: `${formatRelativeDayLabel(session.createdAt)} | ${session.eventTier.name} | ${session.name}`.slice(0, 100),
-					value: String(session.id)
-				}))
-			);
-			return;
-		}
-
-		if (subcommandName === 'give' && focused.name === 'merit_type') {
-			const query = String(focused.value).trim();
-			const meritTypes = await findManyMeritTypes({
-				query,
-				where: {
-					isManualAwardable: true
-				},
-				orderBy: [{ meritAmount: 'desc' }, { name: 'asc' }],
-				limit: 25
-			});
-			await interaction.respond(
-				meritTypes.map((type) => ({
-					name: `${type.name} (${formatSignedMeritAmount(type.meritAmount)} merits)`.slice(0, 100),
-					value: type.code
-				}))
-			);
-			return;
-		}
-
-		if (focused.name !== 'user_name' && focused.name !== 'player_name') {
-			await interaction.respond([]);
-			return;
-		}
-
-		if (!requesterIsStaff) {
-			await interaction.respond([
-				{
-					name: `${requesterMember.displayName}`.slice(0, 100),
-					value: requesterMember.id
-				}
-			]);
-			return;
-		}
-
-		const query = String(focused.value).trim().toLowerCase();
-		const cacheMatches = [...guild.members.cache.values()]
-			.filter((member) => !member.user.bot)
-			.filter((member) => {
-				if (query.length === 0) {
-					return true;
-				}
-
-				const displayName = member.displayName.toLowerCase();
-				return displayName.includes(query);
-			})
-			.sort((a, b) => sortMembersByQuery({ a, b, query }));
-
-		const members =
-			cacheMatches.length > 0 || query.length === 0
-				? cacheMatches
-				: await guild.members
-						.fetch({
-							query,
-							limit: 25
-						})
-						.then((collection) =>
-							[...collection.values()].filter((member) => !member.user.bot).sort((a, b) => sortMembersByQuery({ a, b, query }))
-						)
-						.catch(() => []);
-
-		await interaction.respond(
-			members.slice(0, 25).map((member) => ({
-				name: `${member.displayName}`.slice(0, 100),
-				value: member.id
-			}))
-		);
 	}
-}
-
-function formatRelativeDayLabel(value: Date) {
-	const now = new Date();
-	const dayDiff = Math.floor((now.getTime() - value.getTime()) / (24 * 60 * 60 * 1000));
-	if (dayDiff <= 0) {
-		return 'Today';
-	}
-	if (dayDiff === 1) {
-		return 'Yesterday';
-	}
-	return `${dayDiff} days ago`;
-}
-
-function formatSignedMeritAmount(amount: number) {
-	return amount >= 0 ? `+${amount}` : `${amount}`;
 }

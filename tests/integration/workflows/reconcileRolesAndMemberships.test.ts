@@ -13,7 +13,7 @@ describe('reconcileRolesAndMemberships integration', () => {
 	let postgresContainer: Awaited<ReturnType<typeof startPostgresTestContainer>>['postgres'];
 	let standalone: StandalonePrisma;
 	let reconcileRolesAndMemberships: typeof import('../../../src/lib/features/guild-member/reconcileRolesAndMemberships').reconcileRolesAndMemberships;
-	let closeDb: typeof import('../../../src/integrations/prisma/prisma').closeDb;
+	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 	const divisionCacheGet = vi.fn();
 
 	beforeAll(async () => {
@@ -31,7 +31,7 @@ describe('reconcileRolesAndMemberships integration', () => {
 		};
 		vi.resetModules();
 		({ reconcileRolesAndMemberships } = await import('../../../src/lib/features/guild-member/reconcileRolesAndMemberships'));
-		({ closeDb } = await import('../../../src/integrations/prisma/prisma'));
+		({ closeDb } = await import('../../../src/integrations/prisma'));
 	});
 
 	beforeEach(async () => {

@@ -7,10 +7,8 @@ describe('user record integration', () => {
 	let databaseUrl: string;
 	let postgresContainer: Awaited<ReturnType<typeof startPostgresTestContainer>>['postgres'];
 	let standalone: StandalonePrisma;
-	let upsertUser: typeof import('../../../src/integrations/prisma/upsertUser').upsertUser;
-	let findUniqueUser: typeof import('../../../src/integrations/prisma/findUniqueUser').findUniqueUser;
-	let updateUserNickname: typeof import('../../../src/integrations/prisma/updateUserNickname').updateUserNickname;
-	let closeDb: typeof import('../../../src/integrations/prisma/prisma').closeDb;
+	let userRepository: typeof import('../../../src/integrations/prisma/repositories').userRepository;
+	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 
 	beforeAll(async () => {
 		const { postgres, databaseUrl: nextDatabaseUrl } = await startPostgresTestContainer();
@@ -20,10 +18,8 @@ describe('user record integration', () => {
 		pushPrismaSchema(databaseUrl);
 		standalone = createStandalonePrisma(databaseUrl);
 		vi.resetModules();
-		({ upsertUser } = await import('../../../src/integrations/prisma/upsertUser'));
-		({ findUniqueUser } = await import('../../../src/integrations/prisma/findUniqueUser'));
-		({ updateUserNickname } = await import('../../../src/integrations/prisma/updateUserNickname'));
-		({ closeDb } = await import('../../../src/integrations/prisma/prisma'));
+		({ userRepository } = await import('../../../src/integrations/prisma/repositories'));
+		({ closeDb } = await import('../../../src/integrations/prisma'));
 	});
 
 	beforeEach(async () => {
@@ -44,7 +40,7 @@ describe('user record integration', () => {
 	});
 
 	it('creates a user and resolves it by both Discord ID and DB ID', async () => {
-		const created = await upsertUser({
+		const created = await userRepository.upsert({
 			discordUserId: '4101',
 			discordUsername: 'first-user',
 			discordNickname: 'FirstUser',
@@ -52,7 +48,7 @@ describe('user record integration', () => {
 		});
 
 		await expect(
-			findUniqueUser({
+			userRepository.get({
 				discordUserId: created.discordUserId
 			})
 		).resolves.toMatchObject({
@@ -61,7 +57,7 @@ describe('user record integration', () => {
 			discordNickname: 'FirstUser'
 		});
 		await expect(
-			findUniqueUser({
+			userRepository.get({
 				dbUserId: created.id
 			})
 		).resolves.toMatchObject({
@@ -71,14 +67,14 @@ describe('user record integration', () => {
 	});
 
 	it('does not overwrite the persisted nickname unless explicitly requested', async () => {
-		const created = await upsertUser({
+		const created = await userRepository.upsert({
 			discordUserId: '4102',
 			discordUsername: 'existing-user',
 			discordNickname: 'ExistingNick',
 			discordAvatarUrl: 'https://example.com/4102-a.png'
 		});
 
-		const updated = await upsertUser({
+		const updated = await userRepository.upsert({
 			discordUserId: '4102',
 			discordUsername: 'renamed-user',
 			discordNickname: 'NewNicknameShouldNotPersist',
@@ -92,27 +88,27 @@ describe('user record integration', () => {
 	});
 
 	it('overwrites the persisted nickname when explicitly requested and supports standalone nickname updates', async () => {
-		const created = await upsertUser({
+		const created = await userRepository.upsert({
 			discordUserId: '4103',
 			discordUsername: 'nickname-user',
 			discordNickname: 'OriginalNick',
 			discordAvatarUrl: 'https://example.com/4103-a.png'
 		});
 
-		await upsertUser({
+		await userRepository.upsert({
 			discordUserId: created.discordUserId,
 			discordUsername: 'nickname-user',
 			discordNickname: 'OverwrittenNick',
 			discordAvatarUrl: 'https://example.com/4103-b.png',
 			overwriteDiscordNickname: true
 		});
-		await updateUserNickname({
+		await userRepository.updateNickname({
 			discordUserId: created.discordUserId,
 			discordNickname: 'FinalNick'
 		});
 
 		await expect(
-			findUniqueUser({
+			userRepository.get({
 				discordUserId: created.discordUserId
 			})
 		).resolves.toMatchObject({

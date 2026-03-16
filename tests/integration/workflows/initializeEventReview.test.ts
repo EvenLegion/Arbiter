@@ -20,7 +20,7 @@ describe('initializeEventReview integration', () => {
 	let startTrackingSession: typeof import('../../../src/integrations/redis/eventTracking').startTrackingSession;
 	let applyTrackingTick: typeof import('../../../src/integrations/redis/eventTracking').applyTrackingTick;
 	let getTrackingParticipantsSnapshot: typeof import('../../../src/integrations/redis/eventTracking').getTrackingParticipantsSnapshot;
-	let closeDb: typeof import('../../../src/integrations/prisma/prisma').closeDb;
+	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 	let closeRedisClient: typeof import('../../../src/integrations/redis/client').closeRedisClient;
 	const syncEventReviewMessage = vi.fn();
 
@@ -39,7 +39,7 @@ describe('initializeEventReview integration', () => {
 		({ initializeEventReview } = await import('../../../src/lib/features/event-merit/review/initializeEventReview'));
 		({ startTrackingSession, applyTrackingTick, getTrackingParticipantsSnapshot } =
 			await import('../../../src/integrations/redis/eventTracking'));
-		({ closeDb } = await import('../../../src/integrations/prisma/prisma'));
+		({ closeDb } = await import('../../../src/integrations/prisma'));
 		({ closeRedisClient } = await import('../../../src/integrations/redis/client'));
 	});
 

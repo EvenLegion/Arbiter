@@ -1,7 +1,7 @@
 import type { GuildMember } from 'discord.js';
 
 import { buildWelcomeMessage } from './buildWelcomeMessage';
-import { upsertUser } from '../../../integrations/prisma/upsertUser';
+import { userRepository } from '../../../integrations/prisma/repositories';
 import { ENV_DISCORD } from '../../../config/env/discord';
 import type { ExecutionContext } from '../../logging/executionContext';
 
@@ -24,7 +24,7 @@ export async function handleGuildMemberAdd({ member, context }: HandleGuildMembe
 	);
 
 	try {
-		await upsertUser({
+		await userRepository.upsert({
 			discordUserId: member.user.id,
 			discordUsername: member.user.username,
 			discordNickname: member.nickname ?? member.user.globalName ?? member.user.username,

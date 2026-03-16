@@ -1,6 +1,6 @@
 import { EventSessionChannelKind, EventSessionMessageKind, type Prisma } from '@prisma/client';
 import type { Guild } from 'discord.js';
-import { findManyEventSessionMessages } from '../../../../integrations/prisma';
+import { eventRepository } from '../../../../integrations/prisma/repositories';
 import { buildEventTrackingSummaryPayload } from '../ui/buildEventTrackingSummaryPayload';
 
 type EventSessionWithRelations = Prisma.EventGetPayload<{
@@ -40,7 +40,7 @@ export async function syncTrackingSummaryMessage({ guild, eventSession, logger }
 		state: eventSession.state
 	});
 
-	const summaryMessageRefs = await findManyEventSessionMessages({
+	const summaryMessageRefs = await eventRepository.listSessionMessages({
 		eventSessionId: eventSession.id,
 		kinds: [EventSessionMessageKind.TRACKING_SUMMARY, EventSessionMessageKind.TRACKING_SUMMARY_PARENT_VC]
 	});

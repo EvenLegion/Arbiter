@@ -9,12 +9,9 @@ describe('merit summary query integration', () => {
 	let databaseUrl: string;
 	let postgresContainer: Awaited<ReturnType<typeof startPostgresTestContainer>>['postgres'];
 	let standalone: StandalonePrisma;
-	let awardManualMerit: typeof import('../../../src/integrations/prisma/awardManualMerit').awardManualMerit;
-	let MeritTypeNotManualAwardableError: typeof import('../../../src/integrations/prisma/awardManualMerit').MeritTypeNotManualAwardableError;
-	let getUserMeritSummary: typeof import('../../../src/integrations/prisma/getUserMeritSummary').getUserMeritSummary;
-	let getUserTotalMerits: typeof import('../../../src/integrations/prisma/getUserTotalMerits').getUserTotalMerits;
-	let getUsersTotalMerits: typeof import('../../../src/integrations/prisma/getUsersTotalMerits').getUsersTotalMerits;
-	let closeDb: typeof import('../../../src/integrations/prisma/prisma').closeDb;
+	let meritRepository: typeof import('../../../src/integrations/prisma/repositories').meritRepository;
+	let MeritTypeNotManualAwardableError: typeof import('../../../src/integrations/prisma/repositories').MeritTypeNotManualAwardableError;
+	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 
 	beforeAll(async () => {
 		const { postgres, databaseUrl: nextDatabaseUrl } = await startPostgresTestContainer();
@@ -24,11 +21,8 @@ describe('merit summary query integration', () => {
 		pushPrismaSchema(databaseUrl);
 		standalone = createStandalonePrisma(databaseUrl);
 		vi.resetModules();
-		({ awardManualMerit, MeritTypeNotManualAwardableError } = await import('../../../src/integrations/prisma/awardManualMerit'));
-		({ getUserMeritSummary } = await import('../../../src/integrations/prisma/getUserMeritSummary'));
-		({ getUserTotalMerits } = await import('../../../src/integrations/prisma/getUserTotalMerits'));
-		({ getUsersTotalMerits } = await import('../../../src/integrations/prisma/getUsersTotalMerits'));
-		({ closeDb } = await import('../../../src/integrations/prisma/prisma'));
+		({ meritRepository, MeritTypeNotManualAwardableError } = await import('../../../src/integrations/prisma/repositories'));
+		({ closeDb } = await import('../../../src/integrations/prisma'));
 	});
 
 	beforeEach(async () => {
@@ -69,27 +63,27 @@ describe('merit summary query integration', () => {
 		});
 
 		await expect(
-			awardManualMerit({
+			meritRepository.awardManualMerit({
 				recipientDbUserId: recipient.id,
 				awardedByDbUserId: awarder.id,
 				meritTypeCode: MeritTypeCode.TIER_1
 			})
 		).rejects.toBeInstanceOf(MeritTypeNotManualAwardableError);
 
-		const firstAward = await awardManualMerit({
+		const firstAward = await meritRepository.awardManualMerit({
 			recipientDbUserId: recipient.id,
 			awardedByDbUserId: awarder.id,
 			meritTypeCode: MeritTypeCode.COMMANDER_MERIT,
 			reason: 'Leadership',
 			eventSessionId: linkedEvent.id
 		});
-		const secondAward = await awardManualMerit({
+		const secondAward = await meritRepository.awardManualMerit({
 			recipientDbUserId: recipient.id,
 			awardedByDbUserId: awarder.id,
 			meritTypeCode: MeritTypeCode.DEMERIT,
 			reason: 'Penalty'
 		});
-		await awardManualMerit({
+		await meritRepository.awardManualMerit({
 			recipientDbUserId: otherRecipient.id,
 			awardedByDbUserId: awarder.id,
 			meritTypeCode: MeritTypeCode.TESSERARIUS_MERIT,
@@ -114,7 +108,7 @@ describe('merit summary query integration', () => {
 		});
 
 		await expect(
-			getUserMeritSummary({
+			meritRepository.getUserMeritSummary({
 				userDbUserId: recipient.id,
 				page: 1,
 				pageSize: 1
@@ -138,12 +132,12 @@ describe('merit summary query integration', () => {
 		});
 
 		await expect(
-			getUserTotalMerits({
+			meritRepository.getUserTotalMerits({
 				userDbUserId: recipient.id
 			})
 		).resolves.toBe(0);
 		await expect(
-			getUsersTotalMerits({
+			meritRepository.getUsersTotalMerits({
 				userDbUserIds: [recipient.id, otherRecipient.id, 'missing-user']
 			})
 		).resolves.toEqual(

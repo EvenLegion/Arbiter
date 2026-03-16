@@ -10,10 +10,8 @@ describe('event session state integration', () => {
 	let databaseUrl: string;
 	let postgresContainer: Awaited<ReturnType<typeof startPostgresTestContainer>>['postgres'];
 	let standalone: StandalonePrisma;
-	let createDraftEventSession: typeof import('../../../src/integrations/prisma/event/createDraftEventSession').createDraftEventSession;
-	let updateEventSessionState: typeof import('../../../src/integrations/prisma/event/updateEventSessionState').updateEventSessionState;
-	let findUniqueEventSession: typeof import('../../../src/integrations/prisma/event/findEventSessions').findUniqueEventSession;
-	let closeDb: typeof import('../../../src/integrations/prisma/prisma').closeDb;
+	let eventRepository: typeof import('../../../src/integrations/prisma/repositories').eventRepository;
+	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 
 	beforeAll(async () => {
 		const { postgres, databaseUrl: nextDatabaseUrl } = await startPostgresTestContainer();
@@ -23,10 +21,8 @@ describe('event session state integration', () => {
 		pushPrismaSchema(databaseUrl);
 		standalone = createStandalonePrisma(databaseUrl);
 		vi.resetModules();
-		({ createDraftEventSession } = await import('../../../src/integrations/prisma/event/createDraftEventSession'));
-		({ updateEventSessionState } = await import('../../../src/integrations/prisma/event/updateEventSessionState'));
-		({ findUniqueEventSession } = await import('../../../src/integrations/prisma/event/findEventSessions'));
-		({ closeDb } = await import('../../../src/integrations/prisma/prisma'));
+		({ eventRepository } = await import('../../../src/integrations/prisma/repositories'));
+		({ closeDb } = await import('../../../src/integrations/prisma'));
 	});
 
 	beforeEach(async () => {
@@ -56,7 +52,7 @@ describe('event session state integration', () => {
 			discordUsername: 'event-reviewer'
 		});
 
-		const draft = await createDraftEventSession({
+		const draft = await eventRepository.createDraftSession({
 			hostDbUserId: hostUser.id,
 			eventTierId: (
 				await standalone.prisma.eventTier.findUniqueOrThrow({
@@ -76,7 +72,7 @@ describe('event session state integration', () => {
 
 		const startedAt = new Date('2026-03-14T18:00:00.000Z');
 		expect(
-			await updateEventSessionState({
+			await eventRepository.updateSessionState({
 				eventSessionId: draft.id,
 				fromState: EventSessionState.DRAFT,
 				toState: EventSessionState.ACTIVE,
@@ -88,7 +84,7 @@ describe('event session state integration', () => {
 
 		const endedAt = new Date('2026-03-14T19:00:00.000Z');
 		expect(
-			await updateEventSessionState({
+			await eventRepository.updateSessionState({
 				eventSessionId: draft.id,
 				fromState: EventSessionState.ACTIVE,
 				toState: EventSessionState.ENDED_PENDING_REVIEW,
@@ -100,7 +96,7 @@ describe('event session state integration', () => {
 
 		const finalizedAt = new Date('2026-03-14T19:15:00.000Z');
 		expect(
-			await updateEventSessionState({
+			await eventRepository.updateSessionState({
 				eventSessionId: draft.id,
 				fromState: EventSessionState.ENDED_PENDING_REVIEW,
 				toState: EventSessionState.FINALIZED_WITH_MERITS,
@@ -112,7 +108,7 @@ describe('event session state integration', () => {
 		).toBe(true);
 
 		await expect(
-			findUniqueEventSession({
+			eventRepository.getSession({
 				eventSessionId: draft.id
 			})
 		).resolves.toMatchObject({
@@ -139,7 +135,7 @@ describe('event session state integration', () => {
 		});
 
 		await expect(
-			updateEventSessionState({
+			eventRepository.updateSessionState({
 				eventSessionId: eventSession.id,
 				fromState: EventSessionState.DRAFT,
 				toState: EventSessionState.ACTIVE,
@@ -164,7 +160,7 @@ describe('event session state integration', () => {
 		});
 
 		await expect(
-			updateEventSessionState({
+			eventRepository.updateSessionState({
 				eventSessionId: eventSession.id,
 				fromState: EventSessionState.DRAFT,
 				toState: EventSessionState.FINALIZED_NO_MERITS,
@@ -176,7 +172,7 @@ describe('event session state integration', () => {
 		).rejects.toBeInstanceOf(ZodError);
 
 		await expect(
-			findUniqueEventSession({
+			eventRepository.getSession({
 				eventSessionId: eventSession.id
 			})
 		).resolves.toMatchObject({

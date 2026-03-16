@@ -11,10 +11,8 @@ describe('division membership integration', () => {
 	let databaseUrl: string;
 	let postgresContainer: Awaited<ReturnType<typeof startPostgresTestContainer>>['postgres'];
 	let standalone: StandalonePrisma;
-	let createManyDivisionMembership: typeof import('../../../src/integrations/prisma/createManyDivisionMembership').createManyDivisionMembership;
-	let deleteManyDivisionMembership: typeof import('../../../src/integrations/prisma/deleteManyDivisionMembership').deleteManyDivisionMembership;
-	let findManyUsersDivisions: typeof import('../../../src/integrations/prisma/findManyUsersDivisions').findManyUsersDivisions;
-	let closeDb: typeof import('../../../src/integrations/prisma/prisma').closeDb;
+	let divisionRepository: typeof import('../../../src/integrations/prisma/repositories').divisionRepository;
+	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 
 	beforeAll(async () => {
 		const { postgres, databaseUrl: nextDatabaseUrl } = await startPostgresTestContainer();
@@ -25,10 +23,8 @@ describe('division membership integration', () => {
 		standalone = createStandalonePrisma(databaseUrl);
 		(container as { logger?: unknown }).logger = createMockLogger();
 		vi.resetModules();
-		({ createManyDivisionMembership } = await import('../../../src/integrations/prisma/createManyDivisionMembership'));
-		({ deleteManyDivisionMembership } = await import('../../../src/integrations/prisma/deleteManyDivisionMembership'));
-		({ findManyUsersDivisions } = await import('../../../src/integrations/prisma/findManyUsersDivisions'));
-		({ closeDb } = await import('../../../src/integrations/prisma/prisma'));
+		({ divisionRepository } = await import('../../../src/integrations/prisma/repositories'));
+		({ closeDb } = await import('../../../src/integrations/prisma'));
 	});
 
 	beforeEach(async () => {
@@ -69,17 +65,17 @@ describe('division membership integration', () => {
 			discordRoleId: 'role-tech-test'
 		});
 
-		await createManyDivisionMembership({
+		await divisionRepository.addMemberships({
 			userId: user.id,
 			divisionIds: [navyDivision.id]
 		});
-		await createManyDivisionMembership({
+		await divisionRepository.addMemberships({
 			discordUserId: user.discordUserId,
 			divisionIds: [staffDivision.id, navyDivision.id]
 		});
 
 		await expect(
-			findManyUsersDivisions({
+			divisionRepository.listUserDivisions({
 				discordUserId: user.discordUserId
 			})
 		).resolves.toEqual([
@@ -125,13 +121,13 @@ describe('division membership integration', () => {
 			]
 		});
 
-		await deleteManyDivisionMembership({
+		await divisionRepository.removeMemberships({
 			discordUserId: user.discordUserId,
 			divisionIds: [supportDivision.id]
 		});
 
 		await expect(
-			findManyUsersDivisions({
+			divisionRepository.listUserDivisions({
 				userId: user.id
 			})
 		).resolves.toEqual([

@@ -1,18 +1,6 @@
 import type { GuildMember } from 'discord.js';
 
-export function resolveDiscordUserIdOptionValue(value: string | null): string | undefined {
-	if (!value) {
-		return undefined;
-	}
-
-	const trimmed = value.trim();
-	const mentionMatch = /^<@!?(\d+)>$/.exec(trimmed);
-	if (mentionMatch) {
-		return mentionMatch[1];
-	}
-
-	return /^\d{17,20}$/.test(trimmed) ? trimmed : undefined;
-}
+export { parseDiscordUserIdInput as resolveDiscordUserIdOptionValue } from './memberDirectory';
 
 export function sortMembersByQuery({ a, b, query }: { a: GuildMember; b: GuildMember; query: string }) {
 	if (query.length === 0) {

@@ -1,6 +1,6 @@
 import type { GuildMember } from 'discord.js';
 
-import { createManyDivisionMembership, deleteManyDivisionMembership, findManyUsersDivisions } from '../../../integrations/prisma';
+import { divisionRepository } from '../../../integrations/prisma/repositories';
 import { container } from '@sapphire/framework';
 import type { ExecutionContext } from '../../logging/executionContext';
 
@@ -32,7 +32,7 @@ export const reconcileRolesAndMemberships = async ({ discordUser, context }: Rec
 		.filter((division) => division.discordRoleId && currentRoleIds.has(division.discordRoleId))
 		.map((division) => division.id);
 
-	const existingMembershipDivisions = await findManyUsersDivisions({
+	const existingMembershipDivisions = await divisionRepository.listUserDivisions({
 		discordUserId: discordUser.id
 	});
 	const existingMembershipDivisionIds = new Set(existingMembershipDivisions.map((division) => division.id));
@@ -63,7 +63,7 @@ export const reconcileRolesAndMemberships = async ({ discordUser, context }: Rec
 			},
 			'Adding division memberships to user'
 		);
-		await createManyDivisionMembership({
+		await divisionRepository.addMemberships({
 			discordUserId: discordUser.id,
 			divisionIds: divisionIdsToAdd
 		});
@@ -93,7 +93,7 @@ export const reconcileRolesAndMemberships = async ({ discordUser, context }: Rec
 			},
 			'Removing division memberships from user'
 		);
-		await deleteManyDivisionMembership({
+		await divisionRepository.removeMemberships({
 			discordUserId: discordUser.id,
 			divisionIds: divisionIdsToRemove
 		});

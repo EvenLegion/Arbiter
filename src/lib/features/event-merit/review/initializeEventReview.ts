@@ -1,10 +1,6 @@
-import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
-import { prisma, findUniqueEventSession, upsertManyEventParticipantStats, upsertManyEventReviewDecisions } from '../../../../integrations/prisma';
-import { clearTrackingSession, getTrackingParticipantsSnapshot } from '../../../../integrations/redis/eventTracking';
-import { ENV_DISCORD } from '../../../../config/env/discord';
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { computeEventDurationSeconds } from './computeEventDurationSeconds';
-import { syncEventReviewMessage } from './syncEventReviewMessage';
+import { initializeEventReviewState } from '../../../services/event-lifecycle/eventLifecycleService';
+import { createInitializeEventReviewStateDeps } from './eventReviewInitializationAdapters';
 
 type InitializeEventReviewParams = {
 	guild: import('discord.js').Guild;
@@ -19,127 +15,38 @@ export async function initializeEventReview({ guild, eventSessionId, context }: 
 		eventSessionId
 	});
 
-	const eventSession = await findUniqueEventSession({
-		eventSessionId
-	});
-	if (!eventSession) {
+	const result = await initializeEventReviewState(
+		createInitializeEventReviewStateDeps({
+			guild,
+			logger
+		}),
+		{
+			eventSessionId
+		}
+	);
+
+	if (result.kind === 'event_not_found') {
 		throw new Error(`Event session not found while initializing review: eventSessionId=${eventSessionId}`);
 	}
-
-	if (eventSession.state !== EventSessionState.ENDED_PENDING_REVIEW) {
+	if (result.kind === 'invalid_state') {
 		logger.warn(
 			{
-				state: eventSession.state
+				state: result.currentState
 			},
 			'Skipping event review initialization because event is not ENDED_PENDING_REVIEW'
 		);
 		return;
 	}
-
-	const durationSeconds = computeEventDurationSeconds({
-		startedAt: eventSession.startedAt,
-		endedAt: eventSession.endedAt
-	});
-	const participantSnapshots = await getTrackingParticipantsSnapshot({
-		eventSessionId
-	});
-	const discordUserIds = [...new Set(participantSnapshots.map((snapshot) => snapshot.discordUserId))];
-
-	const users =
-		discordUserIds.length > 0
-			? await prisma.user.findMany({
-					where: {
-						discordUserId: {
-							in: discordUserIds
-						}
-					},
-					select: {
-						id: true,
-						discordUserId: true
-					}
-				})
-			: [];
-	const dbUserIdByDiscordUserId = new Map(users.map((user) => [user.discordUserId, user.id]));
-
-	const participantsForUpsert: Array<{
-		dbUserId: string;
-		attendedSeconds: number;
-	}> = [];
-
-	for (const participant of participantSnapshots) {
-		const dbUserId = dbUserIdByDiscordUserId.get(participant.discordUserId);
-		if (!dbUserId) {
-			logger.warn(
-				{
-					discordUserId: participant.discordUserId
-				},
-				'Skipping event participant because Discord user does not exist in database'
-			);
-			continue;
-		}
-
-		participantsForUpsert.push({
-			dbUserId,
-			attendedSeconds: clampAttendedSeconds(participant.attendedSeconds, durationSeconds)
-		});
-	}
-
-	await upsertManyEventParticipantStats({
-		eventSessionId,
-		participants: participantsForUpsert
-	});
-
-	await upsertManyEventReviewDecisions({
-		eventSessionId,
-		decisions: participantsForUpsert.map((participant) => ({
-			targetDbUserId: participant.dbUserId,
-			decision: resolveDefaultDecision({
-				attendedSeconds: participant.attendedSeconds,
-				durationSeconds
-			})
-		})),
-		overwriteExisting: false
-	});
-
-	await clearTrackingSession({
-		eventSessionId
-	});
-
-	const synced = await syncEventReviewMessage({
-		guild,
-		eventSessionId,
-		page: 1,
-		logger
-	});
-	if (!synced) {
+	if (result.kind === 'review_initialized_sync_failed') {
 		throw new Error(`Failed to create or update review message for eventSessionId=${eventSessionId}`);
 	}
 
 	logger.info(
 		{
-			durationSeconds,
-			snapshotParticipantCount: participantSnapshots.length,
-			persistedParticipantCount: participantsForUpsert.length
+			durationSeconds: result.durationSeconds,
+			snapshotParticipantCount: result.snapshotParticipantCount,
+			persistedParticipantCount: result.persistedParticipantCount
 		},
 		'Initialized post-event merit review'
 	);
-}
-
-function clampAttendedSeconds(attendedSeconds: number, durationSeconds: number) {
-	const safeAttendedSeconds = Math.max(0, attendedSeconds);
-	if (durationSeconds <= 0) {
-		return safeAttendedSeconds;
-	}
-
-	return Math.min(durationSeconds, safeAttendedSeconds);
-}
-
-function resolveDefaultDecision({ attendedSeconds, durationSeconds }: { attendedSeconds: number; durationSeconds: number }) {
-	if (durationSeconds <= 0) {
-		return EventReviewDecisionKind.NO_MERIT;
-	}
-
-	return attendedSeconds / durationSeconds >= ENV_DISCORD.EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT / 100
-		? EventReviewDecisionKind.MERIT
-		: EventReviewDecisionKind.NO_MERIT;
 }

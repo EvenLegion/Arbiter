@@ -8,8 +8,8 @@ describe('reviewNameChangeRequest integration', () => {
 	let databaseUrl: string;
 	let postgresContainer: Awaited<ReturnType<typeof startPostgresTestContainer>>['postgres'];
 	let standalone: StandalonePrisma;
-	let reviewNameChangeRequest: typeof import('../../../src/integrations/prisma/reviewNameChangeRequest').reviewNameChangeRequest;
-	let closeDb: typeof import('../../../src/integrations/prisma/prisma').closeDb;
+	let nameChangeRepository: typeof import('../../../src/integrations/prisma/repositories').nameChangeRepository;
+	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 
 	beforeAll(async () => {
 		const { postgres, databaseUrl: nextDatabaseUrl } = await startPostgresTestContainer();
@@ -19,8 +19,8 @@ describe('reviewNameChangeRequest integration', () => {
 		pushPrismaSchema(databaseUrl);
 		standalone = createStandalonePrisma(databaseUrl);
 		vi.resetModules();
-		({ reviewNameChangeRequest } = await import('../../../src/integrations/prisma/reviewNameChangeRequest'));
-		({ closeDb } = await import('../../../src/integrations/prisma/prisma'));
+		({ nameChangeRepository } = await import('../../../src/integrations/prisma/repositories'));
+		({ closeDb } = await import('../../../src/integrations/prisma'));
 	});
 
 	beforeEach(async () => {
@@ -58,7 +58,7 @@ describe('reviewNameChangeRequest integration', () => {
 			}
 		});
 
-		const result = await reviewNameChangeRequest({
+		const result = await nameChangeRepository.reviewRequest({
 			requestId: request.id,
 			reviewerDbUserId: reviewer.id,
 			decision: 'approve'
@@ -101,7 +101,7 @@ describe('reviewNameChangeRequest integration', () => {
 			}
 		});
 
-		const result = await reviewNameChangeRequest({
+		const result = await nameChangeRepository.reviewRequest({
 			requestId: request.id,
 			reviewerDbUserId: reviewer.id,
 			decision: 'deny'
@@ -132,7 +132,7 @@ describe('reviewNameChangeRequest integration', () => {
 			}
 		});
 
-		const result = await reviewNameChangeRequest({
+		const result = await nameChangeRepository.reviewRequest({
 			requestId: request.id,
 			reviewerDbUserId: reviewer.id,
 			decision: 'deny'

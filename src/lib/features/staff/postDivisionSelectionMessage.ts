@@ -3,6 +3,7 @@ import { DivisionKind } from '@prisma/client';
 
 import { buildDivisionSelectionMessage } from '../division-selection/buildDivisionSelectionMessage';
 import { container } from '@sapphire/framework';
+import { createInteractionResponder } from '../../discord/interactionResponder';
 import type { ExecutionContext } from '../../logging/executionContext';
 
 type HandlePostDivisionMessageParams = {
@@ -13,19 +14,25 @@ type HandlePostDivisionMessageParams = {
 export async function handlePostDivisionMessage({ interaction, context }: HandlePostDivisionMessageParams) {
 	const caller = 'handlePostDivisionMessage';
 	const logger = context.logger.child({ caller });
+	const responder = createInteractionResponder({
+		interaction,
+		context,
+		logger,
+		caller
+	});
 
-	await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+	await responder.deferReply({ flags: MessageFlags.Ephemeral });
 
 	const channel = interaction.channel;
 	if (!channel) {
-		await interaction.editReply({
+		await responder.safeEditReply({
 			content: `Channel not found. Please notify TECH with: discordChannelId=${interaction.channelId}`
 		});
 		return;
 	}
 
 	if (!channel.isSendable()) {
-		await interaction.editReply({
+		await responder.safeEditReply({
 			content: `Unable to send messages to this channel. Please notify TECH with: discordChannelId=${interaction.channelId}`
 		});
 		return;
@@ -51,7 +58,7 @@ export async function handlePostDivisionMessage({ interaction, context }: Handle
 			'posted division selection message to channel'
 		);
 
-		await interaction.editReply({
+		await responder.safeEditReply({
 			content: 'Division selection message posted successfully.'
 		});
 	} catch (error) {
@@ -68,7 +75,7 @@ export async function handlePostDivisionMessage({ interaction, context }: Handle
 
 		const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'An unknown error occurred';
 
-		await interaction.editReply({
+		await responder.safeEditReply({
 			content: `Failed to post division selection message: ${errorMessage}`
 		});
 	}

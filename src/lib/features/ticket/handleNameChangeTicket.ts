@@ -1,23 +1,12 @@
-import {
-	ChannelType,
-	EmbedBuilder,
-	MessageFlags,
-	TextChannel,
-	ThreadAutoArchiveDuration,
-	type ActionRowBuilder,
-	type ButtonBuilder,
-	type ChatInputCommandInteraction,
-	type ForumChannel,
-	type Guild
-} from 'discord.js';
-import { container } from '@sapphire/framework';
+import { type ChatInputCommandInteraction } from 'discord.js';
 
-import { ENV_DISCORD } from '../../../config/env';
-import { createNameChangeRequest, saveNameChangeRequestReviewThread } from '../../../integrations/prisma';
-import { isNicknameTooLongError } from '../../errors/nicknameTooLongError';
+import { createInteractionResponder } from '../../discord/interactionResponder';
+import { resolveConfiguredGuild } from '../../discord/interactionPreflight';
 import type { ExecutionContext } from '../../logging/executionContext';
-import { buildNameChangeReviewActionRow } from './nameChangeReviewButtons';
-import { normalizeRequestedName } from './normalizeRequestedName';
+import { submitNameChangeRequest } from '../../services/name-change/nameChangeService';
+import { createSubmitNameChangeRequestDeps } from './nameChangeServiceAdapters';
+import { buildInitialNameChangeReviewEmbed } from './nameChangeTicketPresenter';
+import { buildNameChangeReviewActionRow } from './nameChangeReviewPresenter';
 
 type HandleNameChangeTicketParams = {
 	interaction: ChatInputCommandInteraction;
@@ -27,360 +16,146 @@ type HandleNameChangeTicketParams = {
 export async function handleNameChangeTicket({ interaction, context }: HandleNameChangeTicketParams) {
 	const caller = 'handleNameChangeTicket';
 	const logger = context.logger.child({ caller });
+	const responder = createInteractionResponder({
+		interaction,
+		context,
+		logger,
+		caller
+	});
 
 	const rawRequestedName = interaction.options.getString('requested_name', true).trim();
 	const reason = interaction.options.getString('reason', true).trim();
 	if (!rawRequestedName || !reason) {
-		await interaction.reply({
-			content: 'Requested name and reason are required.',
-			flags: MessageFlags.Ephemeral
-		});
+		await responder.fail('Requested name and reason are required.');
 		return;
 	}
 
-	await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+	await responder.deferEphemeralReply();
 
-	let guild: Guild;
+	const guild = await resolveConfiguredGuild({
+		interaction,
+		responder,
+		logger,
+		logMessage: 'Failed to resolve configured guild while handling name change ticket',
+		failureMessage: 'Could not resolve configured guild. Please contact TECH with:',
+		requestId: true
+	});
+	if (!guild) {
+		return;
+	}
+
+	let result: Awaited<ReturnType<typeof submitNameChangeRequest>>;
 	try {
-		guild = await container.utilities.guild.getOrThrow();
+		result = await submitNameChangeRequest(
+			createSubmitNameChangeRequestDeps({
+				guild,
+				context,
+				fallbackUsername: interaction.user.username,
+				buildReviewEmbed: buildInitialNameChangeReviewEmbed,
+				buildReviewActionRow: ({ requestId }) => buildNameChangeReviewActionRow({ requestId })
+			}),
+			{
+				actor: {
+					discordUserId: interaction.user.id,
+					dbUserId: null,
+					capabilities: {
+						isStaff: false,
+						isCenturion: false
+					}
+				},
+				rawRequestedName,
+				reason,
+				requesterTag: interaction.user.tag
+			}
+		);
 	} catch (error) {
 		logger.error(
 			{
-				err: error
+				err: error,
+				discordUserId: interaction.user.id
 			},
-			'Failed to resolve configured guild while handling name change ticket'
+			'Failed to submit name change request'
 		);
-		await interaction.editReply({
-			content: `Could not resolve configured guild. Please contact TECH with: requestId=${context.requestId}`
+		await responder.fail('Failed to create name change request. Please contact staff with:', {
+			requestId: true
 		});
 		return;
 	}
 
-	const divisions = await container.utilities.divisionCache.get().catch((error: unknown) => {
-		logger.error(
-			{
-				err: error
-			},
-			'Failed to resolve divisions while normalizing name change request'
-		);
-		return null;
-	});
-	if (!divisions) {
-		await interaction.editReply({
-			content: `Could not validate requested name. Please contact TECH with: requestId=${context.requestId}`
+	if (result.kind === 'requester_not_found') {
+		await responder.fail('User not found in database. Please contact staff with:', {
+			requestId: true
+		});
+		return;
+	}
+	if (result.kind === 'invalid_requested_name') {
+		await responder.safeEditReply({
+			content: result.errorMessage
+		});
+		return;
+	}
+	if (result.kind === 'requester_member_not_found') {
+		await responder.fail('Could not resolve your member record. Please contact staff with:', {
+			requestId: true
+		});
+		return;
+	}
+	if (result.kind === 'nickname_too_long') {
+		await responder.safeEditReply({
+			content:
+				'Requested name is too long after organization formatting/rank is applied. Please submit a shorter name that fits Discord nickname limits.'
+		});
+		return;
+	}
+	if (result.kind === 'validation_failed') {
+		await responder.fail('Could not validate requested name. Please contact staff with:', {
+			requestId: true
+		});
+		return;
+	}
+	if (result.kind === 'request_creation_failed') {
+		await responder.fail('Failed to create name change request. Please contact staff with:', {
+			requestId: true
+		});
+		return;
+	}
+	if (result.kind === 'review_thread_failed') {
+		await responder.safeEditReply({
+			content: `Request created but failed to create review thread. Please contact staff with: requestId=${result.requestId}`
+		});
+		return;
+	}
+	if (result.kind === 'review_thread_reference_failed') {
+		await responder.safeEditReply({
+			content: `Name change request thread was created, but I could not persist its review reference. Please contact staff with: requestId=${result.requestId}`
 		});
 		return;
 	}
 
-	const divisionPrefixes = divisions
-		.flatMap((division) => [division.displayNamePrefix, division.code])
-		.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
-	const normalizedResult = normalizeRequestedName({
-		rawRequestedName,
-		divisionPrefixes
-	});
-	if (!normalizedResult.success) {
-		await interaction.editReply({
-			content: normalizedResult.errorMessage
-		});
-		return;
-	}
-	const requestedName = normalizedResult.normalizedRequestedName;
-	if (normalizedResult.strippedDivisionPrefix) {
+	if (result.strippedDivisionPrefix) {
 		logger.info(
 			{
 				rawRequestedName,
-				normalizedRequestedName: requestedName,
-				strippedDivisionPrefix: normalizedResult.strippedDivisionPrefix
+				normalizedRequestedName: result.requestedName,
+				strippedDivisionPrefix: result.strippedDivisionPrefix
 			},
 			'Detected and stripped division prefix from requested name'
 		);
 	}
 
-	const requesterDbUser = await container.utilities.userDirectory.getOrThrow({ discordUserId: interaction.user.id }).catch((error: unknown) => {
-		logger.error(
-			{
-				err: error,
-				discordUserId: interaction.user.id
-			},
-			'Failed to resolve requester user in database for name change ticket'
-		);
-		return null;
-	});
-	if (!requesterDbUser) {
-		await interaction.editReply({
-			content: `User not found in database. Please contact staff with: requestId=${context.requestId}`
-		});
-		return;
-	}
-
-	const requesterMember = await container.utilities.member
-		.getOrThrow({
-			guild,
-			discordUserId: interaction.user.id
-		})
-		.catch((error: unknown) => {
-			logger.error(
-				{
-					err: error,
-					discordUserId: interaction.user.id
-				},
-				'Failed to resolve requester member while validating name change ticket'
-			);
-			return null;
-		});
-	if (!requesterMember) {
-		await interaction.editReply({
-			content: `Could not resolve your member record. Please contact staff with: requestId=${context.requestId}`
-		});
-		return;
-	}
-
-	try {
-		await container.utilities.member.computeNickname({
-			member: requesterMember,
-			context,
-			baseDiscordNicknameOverride: requestedName,
-			contextBindings: {
-				step: 'validateRequestedNameNicknameLength'
-			}
-		});
-	} catch (error) {
-		if (isNicknameTooLongError(error)) {
-			await interaction.editReply({
-				content:
-					'Requested name is too long after organization formatting/rank is applied. Please submit a shorter name that fits Discord nickname limits.'
-			});
-			return;
-		}
-
-		logger.error(
-			{
-				err: error,
-				discordUserId: interaction.user.id
-			},
-			'Failed to validate requested name for name change ticket'
-		);
-		await interaction.editReply({
-			content: `Could not validate requested name. Please contact staff with: requestId=${context.requestId}`
-		});
-		return;
-	}
-
-	const currentName = requesterDbUser.discordNickname || requesterDbUser.discordUsername || interaction.user.username;
-	const request = await createNameChangeRequest({
-		requesterDbUserId: requesterDbUser.id,
-		currentName,
-		requestedName,
-		reason
-	}).catch((error: unknown) => {
-		logger.error(
-			{
-				err: error,
-				requesterDbUserId: requesterDbUser.id
-			},
-			'Failed to create name change request'
-		);
-		return null;
-	});
-	if (!request) {
-		await interaction.editReply({
-			content: `Failed to create name change request. Please contact staff with: requestId=${context.requestId}`
-		});
-		return;
-	}
-
-	const botRequestsChannel = await resolveBotRequestsChannel(guild);
-	if (!botRequestsChannel) {
-		await interaction.editReply({
-			content: 'Requests channel could not be resolved or is not thread-capable.'
-		});
-		return;
-	}
-
-	const initialEmbed = new EmbedBuilder()
-		.setTitle('Name Change Request')
-		.setColor(0xf59e0b)
-		.addFields(
-			{
-				name: 'Requester',
-				value: `<@${interaction.user.id}>`,
-				inline: false
-			},
-			{
-				name: 'Current Name',
-				value: trimForEmbed(currentName, 100),
-				inline: false
-			},
-			{
-				name: 'Requested Name',
-				value: trimForEmbed(requestedName, 100),
-				inline: false
-			},
-			{
-				name: 'Reason',
-				value: trimForEmbed(reason, 1_000),
-				inline: false
-			},
-			{
-				name: 'Status',
-				value: 'Pending',
-				inline: true
-			}
-		)
-		.setFooter({
-			text: `Request ID: ${request.id}`
-		})
-		.setTimestamp(new Date());
-
-	const threadResult = await createReviewThread({
-		channel: botRequestsChannel,
-		requestedName,
-		requestId: request.id,
-		requesterTag: interaction.user.tag,
-		requesterDiscordUserId: interaction.user.id,
-		embed: initialEmbed,
-		components: [buildNameChangeReviewActionRow({ requestId: request.id })]
-	}).catch((error: unknown) => {
-		logger.error(
-			{
-				err: error,
-				nameChangeRequestId: request.id,
-				botRequestsChannelId: ENV_DISCORD.BOT_REQUESTS_CHANNEL_ID
-			},
-			'Failed to create review thread for name change request'
-		);
-		return null;
-	});
-	if (!threadResult) {
-		await interaction.editReply({
-			content: `Request created but failed to create review thread. Please contact staff with: requestId=${request.id}`
-		});
-		return;
-	}
-
-	try {
-		await saveNameChangeRequestReviewThread({
-			requestId: request.id,
-			reviewThreadId: threadResult.thread.id
-		});
-	} catch (error) {
-		logger.error(
-			{
-				err: error,
-				nameChangeRequestId: request.id,
-				reviewThreadId: threadResult.thread.id
-			},
-			'Failed to persist name change request review thread reference'
-		);
-		await interaction.editReply({
-			content: `Name change request thread was created, but I could not persist its review reference. Please contact staff with: requestId=${request.id}`
-		});
-		return;
-	}
-
 	logger.info(
 		{
-			nameChangeRequestId: request.id,
+			nameChangeRequestId: result.requestId,
 			requesterDiscordUserId: interaction.user.id,
-			requestedName,
-			reviewThreadId: threadResult.thread.id
+			requestedName: result.requestedName,
+			reviewThreadId: result.reviewThreadId
 		},
 		'Created name change ticket'
 	);
 
-	await interaction.editReply({
-		content: `Name change request created.\nReview thread: <#${threadResult.thread.id}>${
-			normalizedResult.strippedDivisionPrefix ? '\nNote: I removed your division prefix from the requested name.' : ''
+	await responder.safeEditReply({
+		content: `Name change request created.\nReview thread: <#${result.reviewThreadId}>${
+			result.strippedDivisionPrefix ? '\nNote: I removed your division prefix from the requested name.' : ''
 		}`
 	});
-}
-
-async function resolveBotRequestsChannel(guild: Guild): Promise<ForumChannel | TextChannel | null> {
-	const channel =
-		guild.channels.cache.get(ENV_DISCORD.BOT_REQUESTS_CHANNEL_ID) ??
-		(await guild.channels.fetch(ENV_DISCORD.BOT_REQUESTS_CHANNEL_ID).catch(() => null));
-	if (!channel) {
-		return null;
-	}
-
-	if (channel.type === ChannelType.GuildForum || channel.type === ChannelType.GuildText) {
-		return channel;
-	}
-
-	return null;
-}
-
-async function createReviewThread({
-	channel,
-	requestedName,
-	requestId,
-	requesterTag,
-	requesterDiscordUserId,
-	embed,
-	components
-}: {
-	channel: ForumChannel | TextChannel;
-	requestedName: string;
-	requestId: number;
-	requesterTag: string;
-	requesterDiscordUserId: string;
-	embed: EmbedBuilder;
-	components: ActionRowBuilder<ButtonBuilder>[];
-}) {
-	const threadName = `Name Change Request - ${requestedName}`.slice(0, 100);
-	const reason = `Name change request review for request ${requestId} by ${requesterTag} (${requesterDiscordUserId})`;
-	const staffRoleIds = getStaffRoleIds();
-	const mentionContent = staffRoleIds.map((roleId) => `<@&${roleId}>`).join(' ');
-
-	if (channel.type === ChannelType.GuildForum) {
-		const thread = await channel.threads.create({
-			name: threadName,
-			autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
-			message: {
-				content: mentionContent,
-				embeds: [embed],
-				components,
-				allowedMentions: {
-					roles: staffRoleIds
-				}
-			},
-			reason
-		});
-		await thread.fetchStarterMessage().catch(() => null);
-		return {
-			thread
-		};
-	}
-
-	const thread = await channel.threads.create({
-		name: threadName,
-		autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
-		reason
-	});
-	await thread.send({
-		content: mentionContent,
-		embeds: [embed],
-		components,
-		allowedMentions: {
-			roles: staffRoleIds
-		}
-	});
-
-	return {
-		thread
-	};
-}
-
-function trimForEmbed(value: string, maxLength: number) {
-	const trimmed = value.trim();
-	if (trimmed.length <= maxLength) {
-		return trimmed;
-	}
-
-	return `${trimmed.slice(0, Math.max(0, maxLength - 3))}...`;
-}
-
-function getStaffRoleIds() {
-	return [...new Set([ENV_DISCORD.SEC_ROLE_ID, ENV_DISCORD.CMD_ROLE_ID, ENV_DISCORD.TIR_ROLE_ID])];
 }

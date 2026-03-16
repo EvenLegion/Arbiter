@@ -1,12 +1,12 @@
-import { MessageFlags, type ButtonInteraction, type GuildMember } from 'discord.js';
+import { type ButtonInteraction } from 'discord.js';
 import { DivisionKind } from '@prisma/client';
 
-import { ENV_DISCORD } from '../../../config/env/discord';
 import { container } from '@sapphire/framework';
-import { findUniqueUser, upsertUser } from '../../../integrations/prisma';
+import { createInteractionResponder } from '../../discord/interactionResponder';
+import { resolveConfiguredGuild, resolveGuildMember } from '../../discord/interactionPreflight';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
-import { handleJoinDivision } from './handleJoinDivision';
-import { handleLeaveDivision } from './handleLeaveDivision';
+import { applyDivisionSelection } from '../../services/division-selection/divisionSelectionService';
+import { buildDivisionSelectionReply } from './buildDivisionSelectionReply';
 import type { ParseDivisionSelectionResult } from './parseDivisionSelection';
 
 type HandleDivisionSelectionButtonParams = {
@@ -18,6 +18,12 @@ type HandleDivisionSelectionButtonParams = {
 export async function handleDivisionSelectionButton({ interaction, parsedDivisionSelection, context }: HandleDivisionSelectionButtonParams) {
 	const caller = 'handleDivisionSelectionButton';
 	const logger = context.logger.child({ caller });
+	const responder = createInteractionResponder({
+		interaction,
+		context,
+		logger,
+		caller
+	});
 
 	logger.trace(
 		{
@@ -29,34 +35,29 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 		'Handling division selection button'
 	);
 
-	await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+	await responder.deferEphemeralReply();
 
-	const guild = await container.utilities.guild.getOrThrow().catch((error: unknown) => {
-		logger.error(
-			{
-				err: error
-			},
-			'Failed to resolve configured guild while handling division selection button'
-		);
-		return null;
+	const guild = await resolveConfiguredGuild({
+		interaction,
+		responder,
+		logger,
+		logMessage: 'Failed to resolve configured guild while handling division selection button',
+		failureMessage: 'This action can only be used in a server.'
 	});
 	if (!guild) {
-		await interaction.editReply({
-			content: 'This action can only be used in a server.'
-		});
 		return;
 	}
 
-	let guildMember: GuildMember;
-	try {
-		guildMember = await container.utilities.member.getOrThrow({
-			guild,
-			discordUserId: interaction.user.id
-		});
-	} catch {
-		await interaction.editReply({
-			content: `Could not resolve your member record. Please contact TECH with: requestId=${context.requestId}`
-		});
+	const guildMember = await resolveGuildMember({
+		guild,
+		discordUserId: interaction.user.id,
+		responder,
+		logger,
+		logMessage: 'Failed to resolve member while handling division selection button',
+		failureMessage: 'Could not resolve your member record. Please contact TECH with:',
+		requestId: true
+	});
+	if (!guildMember) {
 		return;
 	}
 
@@ -64,22 +65,6 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 		member: guildMember,
 		requiredRoleKinds: [DivisionKind.LEGIONNAIRE]
 	});
-	if (!isLegionnaire) {
-		logger.error(
-			{
-				discordMessageId: interaction.id,
-				discordUserId: interaction.user.id,
-				discordUsername: interaction.user.username,
-				customButtonId: interaction.customId
-			},
-			'User is not a Legionnaire'
-		);
-
-		await interaction.editReply({
-			content: `Only <@&${ENV_DISCORD.LGN_ROLE_ID}> members can select a division. Please contact a TECH member with the following: requestId=${context.requestId}`
-		});
-		return;
-	}
 
 	logger.info(
 		{
@@ -91,72 +76,62 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 		'processing division button interaction'
 	);
 
-	let dbUser = await findUniqueUser({ discordUserId: interaction.user.id });
-	if (!dbUser) {
-		logger.warn(
+	const flowContext = createChildExecutionContext({
+		context,
+		bindings: {
+			flowAction: parsedDivisionSelection.action === 'join' ? 'joinDivision' : 'leaveDivision'
+		}
+	});
+
+	try {
+		const result = await applyDivisionSelection(
+			{
+				listSelectableDivisions: () =>
+					container.utilities.divisionCache.get({
+						kinds: [DivisionKind.NAVY, DivisionKind.MARINES, DivisionKind.SUPPORT]
+					}),
+				memberHasRole: (roleId: string) => guildMember.roles.cache.has(roleId),
+				removeRoles: (roleIds: string[], reason: string) => guildMember.roles.remove(roleIds, reason).then(() => undefined),
+				addRole: (roleId: string, reason: string) => guildMember.roles.add(roleId, reason).then(() => undefined)
+			},
+			{
+				action: parsedDivisionSelection.action,
+				selectedDivisionCode: parsedDivisionSelection.code,
+				isLegionnaire
+			}
+		);
+
+		flowContext.logger.info(
 			{
 				discordMessageId: interaction.id,
 				discordUserId: interaction.user.id,
 				discordUsername: interaction.user.username,
-				customButtonId: interaction.customId
+				customButtonId: interaction.customId,
+				result
 			},
-			'Discord user not found in database. Upserting user'
+			'Processed division selection button'
 		);
 
-		dbUser = await upsertUser({
-			discordUserId: interaction.user.id,
-			discordUsername: interaction.user.username,
-			discordNickname: interaction.user.globalName ?? interaction.user.username,
-			discordAvatarUrl: interaction.user.displayAvatarURL()
-		});
-	}
-
-	const divisions = await container.utilities.divisionCache.get({
-		kinds: [DivisionKind.NAVY, DivisionKind.MARINES, DivisionKind.SUPPORT]
-	});
-
-	if (parsedDivisionSelection.action === 'join') {
-		return handleJoinDivision({
-			userDbId: dbUser.id,
-			interaction,
-			parsedDivisionSelection: { action: 'join', code: parsedDivisionSelection.code },
-			divisions,
-			context: createChildExecutionContext({
-				context,
-				bindings: {
-					flowAction: 'joinDivision'
-				}
+		await responder.safeEditReply({
+			content: buildDivisionSelectionReply({
+				result,
+				requestId: context.requestId
 			})
 		});
-	} else if (parsedDivisionSelection.action === 'leave') {
-		return handleLeaveDivision({
-			userDbId: dbUser.id,
-			interaction,
-			parsedDivisionSelection: { action: 'leave', code: parsedDivisionSelection.code },
-			divisions,
-			context: createChildExecutionContext({
-				context,
-				bindings: {
-					flowAction: 'leaveDivision'
-				}
-			})
+	} catch (error: unknown) {
+		flowContext.logger.error(
+			{
+				err: error,
+				discordMessageId: interaction.id,
+				discordUserId: interaction.user.id,
+				discordUsername: interaction.user.username,
+				customButtonId: interaction.customId,
+				action: parsedDivisionSelection.action
+			},
+			'Failed to process division selection button'
+		);
+		await responder.fail('There was an error processing your selection. Please contact a TECH member with the following:', {
+			requestId: true
 		});
 	}
-
-	logger.error(
-		{
-			userDbId: dbUser.id,
-			discordMessageId: interaction.id,
-			discordUserId: interaction.user.id,
-			discordUsername: interaction.user.username,
-			customButtonId: interaction.customId,
-			parsedDivisionSelection
-		},
-		'Unknown division selection action'
-	);
-
-	await interaction.editReply({
-		content: `There was an error processing your selection. Please contact a TECH member with the following: requestId=${context.requestId}`
-	});
-	return;
 }

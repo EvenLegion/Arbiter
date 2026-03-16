@@ -1,5 +1,5 @@
 import { Utility } from '@sapphire/plugin-utilities-store';
-import { findManyUsers, findUniqueUser } from '../integrations/prisma';
+import { userRepository } from '../integrations/prisma/repositories';
 
 type GetParams =
 	| {
@@ -25,12 +25,12 @@ export class UserDirectoryUtility extends Utility {
 	}
 
 	public async get(params: GetParams) {
-		const user = await findUniqueUser(params);
+		const user = await userRepository.get(params);
 		return user ?? null;
 	}
 
 	public async findMany(params: FindManyParams = {}) {
-		return findManyUsers(params);
+		return userRepository.list(params);
 	}
 
 	public async getOrThrow(params: GetParams) {

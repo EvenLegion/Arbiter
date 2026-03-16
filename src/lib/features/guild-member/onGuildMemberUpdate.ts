@@ -4,6 +4,8 @@ import type { Division } from '@prisma/client';
 import { container } from '@sapphire/framework';
 import { reconcileRolesAndMemberships } from './reconcileRolesAndMemberships';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
+import { syncNicknameForUser } from '../../services/nickname/nicknameService';
+import { createGuildNicknameServiceDeps } from './nicknameServiceAdapters';
 
 type HandleGuildMemberUpdateParams = {
 	oldMember: GuildMember | PartialGuildMember;
@@ -96,28 +98,42 @@ export async function handleGuildMemberUpdate({ oldMember, newMember, context }:
 		})
 	});
 
-	const nicknameSyncResult = await container.utilities.member
-		.syncComputedNickname({
-			member: discordUser,
-			context,
+	const nicknameSyncResult = await syncNicknameForUser(
+		createGuildNicknameServiceDeps({
+			guild: discordUser.guild,
+			context
+		}),
+		{
+			discordUserId: discordUser.id,
 			setReason: 'Guild member update nickname sync',
 			contextBindings: {
 				step: 'buildUserNickname'
 			}
-		})
-		.catch((err: unknown) => {
-			logger.error(
-				{
-					discordUserId: discordUser.id,
-					discordUsername: discordUser.user.username,
-					discordNickname: discordUser.nickname,
-					err
-				},
-				"Failed to sync user's discord nickname"
-			);
-			return null;
-		});
+		}
+	).catch((err: unknown) => {
+		logger.error(
+			{
+				discordUserId: discordUser.id,
+				discordUsername: discordUser.user.username,
+				discordNickname: discordUser.nickname,
+				err
+			},
+			"Failed to sync user's discord nickname"
+		);
+		return null;
+	});
 	if (!nicknameSyncResult) {
+		return;
+	}
+	if (nicknameSyncResult.kind !== 'synced') {
+		logger.warn(
+			{
+				discordUserId: discordUser.id,
+				discordUsername: discordUser.user.username,
+				nicknameSyncKind: nicknameSyncResult.kind
+			},
+			'Skipping nickname update because nickname sync did not complete successfully'
+		);
 		return;
 	}
 

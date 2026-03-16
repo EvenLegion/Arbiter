@@ -3,25 +3,21 @@ import { Utility } from '@sapphire/plugin-utilities-store';
 import type { Guild } from 'discord.js';
 
 import { ENV_DISCORD } from '../config/env/discord';
-import { findManyEventSessions } from '../integrations/prisma';
+import { eventRepository } from '../integrations/prisma/repositories';
 import { applyTrackingTick, listActiveTrackingSessionIds, stopTrackingSession } from '../integrations/redis/eventTracking';
 import type { ExecutionContext } from '../lib/logging/executionContext';
 import { createChildExecutionContext } from '../lib/logging/executionContext';
+import { MissingTrackedChannelWarningStore } from './eventTracking/missingTrackedChannelWarningStore';
+import { reconcileTrackedSessions } from './eventTracking/reconcileTrackedSessions';
+import { resolveTrackedAttendeeDiscordUserIds } from './eventTracking/resolveTrackedAttendees';
+import type { ActiveTrackedEventSession } from './eventTracking/eventTrackingTypes';
 
 type TickAllActiveSessionsParams = {
 	context: ExecutionContext;
 };
 
-type ActiveEventSession = Awaited<
-	ReturnType<
-		typeof findManyEventSessions<{
-			channels: true;
-		}>
-	>
->[number];
-
 export class EventTrackingUtility extends Utility {
-	private readonly missingTrackedChannelWarnings = new Set<string>();
+	private readonly missingTrackedChannelWarnings = new MissingTrackedChannelWarningStore();
 
 	public constructor(context: Utility.LoaderContext, options: Utility.Options) {
 		super(context, {
@@ -33,7 +29,7 @@ export class EventTrackingUtility extends Utility {
 	public async tickAllActiveSessions({ context }: TickAllActiveSessionsParams) {
 		const logger = context.logger.child({ caller: 'EventTrackingUtility.tickAllActiveSessions' });
 		const eventSessionIds = await listActiveTrackingSessionIds();
-		this.cleanupMissingTrackedChannelWarningsForInactiveSessions({
+		this.missingTrackedChannelWarnings.reconcileActiveSessionIds({
 			activeEventSessionIds: eventSessionIds
 		});
 		if (eventSessionIds.length === 0) {
@@ -41,31 +37,37 @@ export class EventTrackingUtility extends Utility {
 			return;
 		}
 
-		const activeSessions = await findManyEventSessions({
+		const activeSessions = await eventRepository.listSessions({
 			eventSessionIds,
 			states: [EventSessionState.ACTIVE],
 			include: {
 				channels: true
 			}
 		});
-		const activeSessionById = new Map(activeSessions.map((session) => [session.id, session]));
+		const { activeSessionById, staleEventSessionIds } = reconcileTrackedSessions({
+			eventSessionIds,
+			activeSessions
+		});
 		const guild = await this.container.utilities.guild.getOrThrow();
+
+		for (const eventSessionId of staleEventSessionIds) {
+			await stopTrackingSession({
+				eventSessionId
+			});
+			this.missingTrackedChannelWarnings.clearSession({
+				eventSessionId
+			});
+			logger.warn(
+				{
+					eventSessionId
+				},
+				'Stopped stale Redis tracking session (not active in database)'
+			);
+		}
 
 		for (const eventSessionId of eventSessionIds) {
 			const session = activeSessionById.get(eventSessionId);
 			if (!session) {
-				await stopTrackingSession({
-					eventSessionId
-				});
-				this.clearMissingTrackedChannelWarningsForSession({
-					eventSessionId
-				});
-				logger.warn(
-					{
-						eventSessionId
-					},
-					'Stopped stale Redis tracking session (not active in database)'
-				);
 				continue;
 			}
 
@@ -83,17 +85,25 @@ export class EventTrackingUtility extends Utility {
 		}
 	}
 
-	private async tickSession({ guild, session, context }: { guild: Guild; session: ActiveEventSession; context: ExecutionContext }) {
+	private async tickSession({ guild, session, context }: { guild: Guild; session: ActiveTrackedEventSession; context: ExecutionContext }) {
 		const logger = context.logger.child({ caller: 'EventTrackingUtility.tickSession' });
 		const trackedVoiceChannelIds = session.channels
 			.filter((channel) => channel.kind === EventSessionChannelKind.PARENT_VC || channel.kind === EventSessionChannelKind.CHILD_VC)
 			.map((channel) => channel.channelId);
 
-		const attendeeDiscordUserIds = await this.resolveAttendeeDiscordUserIds({
+		const attendeeDiscordUserIds = await resolveTrackedAttendeeDiscordUserIds({
 			guild,
 			eventSessionId: session.id,
 			trackedVoiceChannelIds,
-			context
+			context,
+			warningStore: this.missingTrackedChannelWarnings,
+			resolveVoiceChannel: ({ guild: resolvedGuild, channelId }) =>
+				this.container.utilities.guild
+					.getVoiceBasedChannelOrThrow({
+						guild: resolvedGuild,
+						channelId
+					})
+					.catch(() => null)
 		});
 
 		const result = await applyTrackingTick({
@@ -111,111 +121,6 @@ export class EventTrackingUtility extends Utility {
 			},
 			'Applied event tracking tick'
 		);
-	}
-
-	private async resolveAttendeeDiscordUserIds({
-		guild,
-		eventSessionId,
-		trackedVoiceChannelIds,
-		context
-	}: {
-		guild: Guild;
-		eventSessionId: number;
-		trackedVoiceChannelIds: string[];
-		context: ExecutionContext;
-	}) {
-		const logger = context.logger.child({ caller: 'EventTrackingUtility.resolveAttendeeDiscordUserIds' });
-		const attendeeDiscordUserIds = new Set<string>();
-
-		for (const channelId of trackedVoiceChannelIds) {
-			const channel = await this.container.utilities.guild
-				.getVoiceBasedChannelOrThrow({
-					guild,
-					channelId
-				})
-				.catch(() => null);
-			if (!channel) {
-				const dedupeKey = this.getMissingTrackedChannelKey({
-					eventSessionId,
-					channelId
-				});
-				if (!this.missingTrackedChannelWarnings.has(dedupeKey)) {
-					this.missingTrackedChannelWarnings.add(dedupeKey);
-					logger.warn(
-						{
-							channelId
-						},
-						'Tracked event channel is missing or not voice-based; skipping until it is available again'
-					);
-				} else {
-					logger.trace(
-						{
-							channelId
-						},
-						'Skipping missing tracked event channel'
-					);
-				}
-				continue;
-			}
-
-			const dedupeKey = this.getMissingTrackedChannelKey({
-				eventSessionId,
-				channelId
-			});
-			this.missingTrackedChannelWarnings.delete(dedupeKey);
-
-			for (const member of channel.members.values()) {
-				if (member.user.bot) {
-					continue;
-				}
-
-				attendeeDiscordUserIds.add(member.id);
-			}
-		}
-
-		return [...attendeeDiscordUserIds];
-	}
-
-	private getMissingTrackedChannelKey({ eventSessionId, channelId }: { eventSessionId: number; channelId: string }) {
-		return `${eventSessionId}:${channelId}`;
-	}
-
-	private clearMissingTrackedChannelWarningsForSession({ eventSessionId }: { eventSessionId: number }) {
-		for (const key of this.missingTrackedChannelWarnings) {
-			if (this.getEventSessionIdFromMissingTrackedChannelKey(key) === eventSessionId) {
-				this.missingTrackedChannelWarnings.delete(key);
-			}
-		}
-	}
-
-	private cleanupMissingTrackedChannelWarningsForInactiveSessions({ activeEventSessionIds }: { activeEventSessionIds: number[] }) {
-		if (this.missingTrackedChannelWarnings.size === 0) {
-			return;
-		}
-
-		if (activeEventSessionIds.length === 0) {
-			this.missingTrackedChannelWarnings.clear();
-			return;
-		}
-
-		const activeSessionIdSet = new Set(activeEventSessionIds);
-		for (const key of this.missingTrackedChannelWarnings) {
-			const eventSessionId = this.getEventSessionIdFromMissingTrackedChannelKey(key);
-			if (eventSessionId === null || !activeSessionIdSet.has(eventSessionId)) {
-				this.missingTrackedChannelWarnings.delete(key);
-			}
-		}
-	}
-
-	private getEventSessionIdFromMissingTrackedChannelKey(key: string) {
-		const separatorIndex = key.indexOf(':');
-		if (separatorIndex === -1) {
-			return null;
-		}
-
-		const rawEventSessionId = key.slice(0, separatorIndex);
-		const eventSessionId = Number.parseInt(rawEventSessionId, 10);
-		return Number.isInteger(eventSessionId) ? eventSessionId : null;
 	}
 }
 

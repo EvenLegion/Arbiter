@@ -1,38 +1,38 @@
 import { ApplyOptions } from '@sapphire/decorators';
-import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
+import { type InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
+
+import { RoutedButtonInteractionHandler, type RoutedButtonRouteParams } from '../lib/discord/routedInteractionHandler';
 import { handleMeritListPageButton } from '../lib/features/merit/handleMeritList';
 import { parseMeritListButton } from '../lib/features/merit/parseMeritListButton';
-import { createExecutionContext } from '../lib/logging/executionContext';
 
 @ApplyOptions<InteractionHandler.Options>({
 	interactionHandlerType: InteractionHandlerTypes.Button
 })
-export class MeritListButtonsInteractionHandler extends InteractionHandler {
-	public override parse(interaction: ButtonInteraction) {
-		const parsed = parseMeritListButton({
+export class MeritListButtonsInteractionHandler extends RoutedButtonInteractionHandler<NonNullable<ReturnType<typeof parseMeritListButton>>> {
+	protected override readonly flow = 'interaction.meritListButtons';
+
+	protected override decode(interaction: ButtonInteraction) {
+		return parseMeritListButton({
 			customId: interaction.customId
 		});
-
-		return parsed ? this.some(parsed) : this.none();
 	}
 
-	public override async run(interaction: ButtonInteraction, parsedMeritListButton: NonNullable<ReturnType<typeof parseMeritListButton>>) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'interaction.meritListButtons',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id,
-				customButtonId: interaction.customId,
-				meritListAction: parsedMeritListButton.action,
-				targetDiscordUserId: parsedMeritListButton.targetDiscordUserId,
-				page: parsedMeritListButton.page
-			}
-		});
+	protected override buildContextBindings(
+		_interaction: ButtonInteraction,
+		parsedMeritListButton: NonNullable<ReturnType<typeof parseMeritListButton>>
+	) {
+		return {
+			meritListAction: parsedMeritListButton.action,
+			targetDiscordUserId: parsedMeritListButton.targetDiscordUserId,
+			page: parsedMeritListButton.page
+		};
+	}
 
+	protected override async route({ interaction, parsed, context }: RoutedButtonRouteParams<NonNullable<ReturnType<typeof parseMeritListButton>>>) {
 		await handleMeritListPageButton({
 			interaction,
-			parsedMeritListButton,
+			parsedMeritListButton: parsed,
 			context
 		});
 	}

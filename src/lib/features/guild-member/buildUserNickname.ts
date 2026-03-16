@@ -1,11 +1,6 @@
 import { type Division, DivisionKind } from '@prisma/client';
-import { container } from '@sapphire/framework';
-import { GuildMember } from 'discord.js';
-
-import { findManyUsersDivisions, getUserTotalMerits } from '../../../integrations/prisma';
 import { DISCORD_MAX_NICKNAME_LENGTH } from '../../constants';
 import { NicknameTooLongError } from '../../errors/nicknameTooLongError';
-import type { ExecutionContext } from '../../logging/executionContext';
 import { getMeritRankSymbol, resolveMeritRankLevel } from '../merit/meritRank';
 import { stripTrailingMeritRankSuffix } from './stripTrailingMeritRankSuffix';
 
@@ -24,42 +19,26 @@ const PREFIX_PRIORITY: ((division: Division) => boolean)[] = [
 const DIVISION_CODE_PRIORITY = ['QRM', 'CMDN', 'CMDM', 'CMDS', 'CMD'];
 
 type BuildUserNicknameParams = {
-	discordUser: GuildMember;
-	context: ExecutionContext;
-	totalMeritsOverride?: number;
-	baseDiscordNicknameOverride?: string;
+	isGuildOwner: boolean;
+	baseNickname: string;
+	divisions: Division[];
+	totalMerits: number;
 };
 
-export const buildUserNickname = async ({
-	discordUser,
-	context: _context,
-	totalMeritsOverride,
-	baseDiscordNicknameOverride
-}: BuildUserNicknameParams): Promise<{ newUserNickname: string | null; reason?: string }> => {
-	const caller = 'buildUserNickname';
-	const logger = _context.logger.child({ caller });
-
-	if (discordUser.guild.ownerId === discordUser.id) {
-		logger.trace('User is the guild owner, skipping nickname build');
+export const buildUserNickname = ({
+	isGuildOwner,
+	baseNickname,
+	divisions,
+	totalMerits
+}: BuildUserNicknameParams): { newUserNickname: string | null; reason?: string } => {
+	if (isGuildOwner) {
 		return { newUserNickname: null, reason: 'User is the guild owner' };
 	}
 
-	const usersDivisions = await findManyUsersDivisions({
-		discordUserId: discordUser.id
-	});
-
-	const dbUser = await container.utilities.userDirectory.getOrThrow({ discordUserId: discordUser.id });
-	const baseNickname = baseDiscordNicknameOverride ?? dbUser.discordNickname;
-	const totalMerits =
-		typeof totalMeritsOverride === 'number'
-			? totalMeritsOverride
-			: await getUserTotalMerits({
-					userDbUserId: dbUser.id
-				});
 	const meritRankLevel = resolveMeritRankLevel(totalMerits);
 
 	for (const hasPriority of PREFIX_PRIORITY) {
-		const priorityDivision = selectPriorityDivision(usersDivisions, hasPriority);
+		const priorityDivision = selectPriorityDivision(divisions, hasPriority);
 		if (priorityDivision) {
 			return {
 				newUserNickname: appendMeritRankSuffix({

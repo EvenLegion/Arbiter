@@ -9,10 +9,8 @@ describe('event review decision integration', () => {
 	let databaseUrl: string;
 	let postgresContainer: Awaited<ReturnType<typeof startPostgresTestContainer>>['postgres'];
 	let standalone: StandalonePrisma;
-	let upsertEventReviewDecision: typeof import('../../../src/integrations/prisma/event/upsertEventReviewDecision').upsertEventReviewDecision;
-	let upsertManyEventReviewDecisions: typeof import('../../../src/integrations/prisma/event/upsertManyEventReviewDecisions').upsertManyEventReviewDecisions;
-	let getEventReviewPage: typeof import('../../../src/integrations/prisma/event/getEventReviewPage').getEventReviewPage;
-	let closeDb: typeof import('../../../src/integrations/prisma/prisma').closeDb;
+	let eventReviewRepository: typeof import('../../../src/integrations/prisma/repositories').eventReviewRepository;
+	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 
 	beforeAll(async () => {
 		const { postgres, databaseUrl: nextDatabaseUrl } = await startPostgresTestContainer();
@@ -22,10 +20,8 @@ describe('event review decision integration', () => {
 		pushPrismaSchema(databaseUrl);
 		standalone = createStandalonePrisma(databaseUrl);
 		vi.resetModules();
-		({ upsertEventReviewDecision } = await import('../../../src/integrations/prisma/event/upsertEventReviewDecision'));
-		({ upsertManyEventReviewDecisions } = await import('../../../src/integrations/prisma/event/upsertManyEventReviewDecisions'));
-		({ getEventReviewPage } = await import('../../../src/integrations/prisma/event/getEventReviewPage'));
-		({ closeDb } = await import('../../../src/integrations/prisma/prisma'));
+		({ eventReviewRepository } = await import('../../../src/integrations/prisma/repositories'));
+		({ closeDb } = await import('../../../src/integrations/prisma'));
 	});
 
 	beforeEach(async () => {
@@ -62,12 +58,12 @@ describe('event review decision integration', () => {
 			eventTierCode: MeritTypeCode.TIER_2
 		});
 
-		await upsertEventReviewDecision({
+		await eventReviewRepository.upsertDecision({
 			eventSessionId: eventSession.id,
 			targetDbUserId: attendee.id,
 			decision: EventReviewDecisionKind.MERIT
 		});
-		await upsertEventReviewDecision({
+		await eventReviewRepository.upsertDecision({
 			eventSessionId: eventSession.id,
 			targetDbUserId: attendee.id,
 			decision: EventReviewDecisionKind.NO_MERIT
@@ -116,7 +112,7 @@ describe('event review decision integration', () => {
 			}
 		});
 
-		await upsertManyEventReviewDecisions({
+		await eventReviewRepository.upsertReviewDecisions({
 			eventSessionId: eventSession.id,
 			decisions: [
 				{
@@ -155,7 +151,7 @@ describe('event review decision integration', () => {
 			})
 		]);
 
-		await upsertManyEventReviewDecisions({
+		await eventReviewRepository.upsertReviewDecisions({
 			eventSessionId: eventSession.id,
 			decisions: [
 				{
@@ -244,7 +240,7 @@ describe('event review decision integration', () => {
 		});
 
 		await expect(
-			getEventReviewPage({
+			eventReviewRepository.getReviewPage({
 				eventSessionId: eventSession.id,
 				page: 1,
 				pageSize: 2

@@ -1,40 +1,42 @@
 import { ApplyOptions } from '@sapphire/decorators';
-import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
+import { type InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ModalSubmitInteraction } from 'discord.js';
 
 import { handleNameChangeReviewEditModal } from '../lib/features/ticket/handleNameChangeReviewEditModal';
-import { createExecutionContext } from '../lib/logging/executionContext';
+import { RoutedModalInteractionHandler, type RoutedModalRouteParams } from '../lib/discord/routedInteractionHandler';
 import { parseNameChangeReviewModal } from '../lib/features/ticket/nameChangeReviewButtons';
 
 @ApplyOptions<InteractionHandler.Options>({
 	interactionHandlerType: InteractionHandlerTypes.ModalSubmit
 })
-export class NameChangeReviewEditModalInteractionHandler extends InteractionHandler {
-	public override parse(interaction: ModalSubmitInteraction) {
-		const parsed = parseNameChangeReviewModal({
+export class NameChangeReviewEditModalInteractionHandler extends RoutedModalInteractionHandler<
+	NonNullable<ReturnType<typeof parseNameChangeReviewModal>>
+> {
+	protected override readonly flow = 'interaction.nameChangeReviewEditModal';
+
+	protected override decode(interaction: ModalSubmitInteraction) {
+		return parseNameChangeReviewModal({
 			customId: interaction.customId
 		});
-
-		return parsed ? this.some(parsed) : this.none();
 	}
 
-	public override async run(
-		interaction: ModalSubmitInteraction,
+	protected override buildContextBindings(
+		_interaction: ModalSubmitInteraction,
 		parsedNameChangeReviewModal: NonNullable<ReturnType<typeof parseNameChangeReviewModal>>
 	) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'interaction.nameChangeReviewEditModal',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id,
-				customModalId: interaction.customId,
-				nameChangeRequestId: parsedNameChangeReviewModal.requestId
-			}
-		});
+		return {
+			nameChangeRequestId: parsedNameChangeReviewModal.requestId
+		};
+	}
 
+	protected override async route({
+		interaction,
+		parsed,
+		context
+	}: RoutedModalRouteParams<NonNullable<ReturnType<typeof parseNameChangeReviewModal>>>) {
 		await handleNameChangeReviewEditModal({
 			interaction,
-			parsedNameChangeReviewModal,
+			parsedNameChangeReviewModal: parsed,
 			context
 		});
 	}
