@@ -47,38 +47,6 @@
 				"defaults": {
 					"color": {
 						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"axisCenteredZero": false,
-						"axisColorMode": "text",
-						"axisLabel": "",
-						"axisPlacement": "auto",
-						"barAlignment": 0,
-						"drawStyle": "line",
-						"fillOpacity": 20,
-						"gradientMode": "none",
-						"hideFrom": {
-							"legend": false,
-							"tooltip": false,
-							"viz": false
-						},
-						"insertNulls": false,
-						"lineInterpolation": "linear",
-						"lineWidth": 2,
-						"pointSize": 5,
-						"scaleDistribution": {
-							"type": "linear"
-						},
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "none"
-						},
-						"thresholdsStyle": {
-							"mode": "off"
-						}
 					}
 				},
 				"overrides": []
@@ -91,11 +59,18 @@
 			},
 			"id": 2,
 			"options": {
+				"displayLabels": [],
 				"legend": {
 					"calcs": [],
-					"displayMode": "list",
+					"displayMode": "table",
 					"placement": "bottom",
 					"showLegend": true
+				},
+				"pieType": "pie",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
 				},
 				"tooltip": {
 					"mode": "single",
@@ -113,7 +88,7 @@
 				}
 			],
 			"title": "Logs by Flow",
-			"type": "timeseries"
+			"type": "piechart"
 		},
 		{
 			"datasource": "Loki",
