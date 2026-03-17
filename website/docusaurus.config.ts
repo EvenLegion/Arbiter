@@ -47,11 +47,6 @@ const config: Config = {
 					href: 'https://github.com/EvenLegion/Arbiter',
 					label: 'GitHub',
 					position: 'right'
-				},
-				{
-					href: 'https://github.com/EvenLegion/Arbiter/tree/main/docs-old',
-					label: 'Legacy Notes',
-					position: 'right'
 				}
 			]
 		},
@@ -93,6 +88,14 @@ const config: Config = {
 						{
 							label: 'Data and Storage',
 							to: '/architecture/data-and-storage'
+						},
+						{
+							label: 'Prisma Integration',
+							to: '/architecture/prisma-integration'
+						},
+						{
+							label: 'Service Design',
+							to: '/architecture/service-dependency-design'
 						},
 						{
 							label: 'Vocabulary',

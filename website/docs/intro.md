@@ -25,6 +25,8 @@ This site is written for contributors, not end users. Its job is to answer four 
   Read [Repository Map](/onboarding/repository-map) and [Architecture Vocabulary](/architecture/vocabulary).
 - You are changing command, interaction, or preflight behavior:
   Read [Discord Execution Model](/architecture/discord-execution-model) and [Discord Extension Patterns](/architecture/discord-extension-patterns).
+- You are changing business workflows or service logic:
+  Read [Service And Dependency Design](/architecture/service-dependency-design) and [Architecture Vocabulary](/architecture/vocabulary).
 - You are changing persistence or Redis-backed behavior:
   Read [Data and Storage](/architecture/data-and-storage) and [Aggregate Reference](/reference/aggregate-reference).
 
@@ -70,7 +72,3 @@ That is why the docs are split into:
 - feature pages for real workflows
 - reference pages for command surfaces and aggregate ownership
 - contributing pages for extension and maintenance rules
-
-## Legacy Notes
-
-Historical audits and migration notes were preserved in `docs-old/`. They are useful context, but the Docusaurus site is the primary onboarding source now.

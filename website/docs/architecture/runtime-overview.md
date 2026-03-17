@@ -64,13 +64,27 @@ The bot still uses a small set of Sapphire utilities for app-lifetime concerns:
 - member lookup
 - user directory
 
-At the app boundary, listener and scheduled-task shells increasingly use `src/integrations/sapphire/runtimeGateway.ts` instead of reaching into `this.container.*` directly.
+At the app boundary, listener and scheduled-task shells use `src/integrations/sapphire/runtimeGateway.ts` when they need shared runtime access.
+
+They do not reach into `this.container.*` directly.
 
 That split matters:
 
 - utilities own long-lived shared runtime state
 - runtime gateways make shell code more uniform
 - feature code should not depend on framework container access
+
+## Why Services Avoid Runtime Access
+
+`src/lib/services/` is intentionally not the place to reach into runtime globals.
+
+The repo uses adapters and gateways so services can stay focused on:
+
+- rule sequencing
+- typed results
+- named side effects
+
+That keeps workflow code readable for new contributors and keeps tests smaller than “boot a fake bot runtime and hope the helper graph matches production”.
 
 ## Event Tracking Runtime Shape
 
@@ -112,5 +126,7 @@ If a task starts owning business rules, move that logic into `src/lib/services/`
   [Discord Execution Model](/architecture/discord-execution-model)
 - For naming and layer rules:
   [Architecture Vocabulary](/architecture/vocabulary)
+- For why services use injected collaborators:
+  [Service And Dependency Design](/architecture/service-dependency-design)
 - For Redis and Prisma ownership:
   [Data And Storage](/architecture/data-and-storage)

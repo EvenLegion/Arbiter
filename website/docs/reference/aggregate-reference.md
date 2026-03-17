@@ -157,6 +157,8 @@ Notes:
 
 - For repository and storage rules:
   [Data And Storage](/architecture/data-and-storage)
+- For Prisma layout and repository-boundary rules:
+  [Prisma Integration](/architecture/prisma-integration)
 - For feature-specific behavior:
   the relevant feature page
 - For tests and refactors:

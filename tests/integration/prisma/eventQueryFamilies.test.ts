@@ -10,8 +10,8 @@ describe('event Prisma query families', () => {
 	let postgresContainer: Awaited<ReturnType<typeof startPostgresTestContainer>>['postgres'];
 	let standalone: StandalonePrisma;
 	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
-	let findManyEventSessions: typeof import('../../../src/integrations/prisma/event/session').findManyEventSessions;
-	let getEventReviewPage: typeof import('../../../src/integrations/prisma/event/review').getEventReviewPage;
+	let findManyEventSessions: typeof import('../../../src/integrations/prisma/event/session/findEventSessions').findManyEventSessions;
+	let getEventReviewPage: typeof import('../../../src/integrations/prisma/event/review/getEventReviewPage').getEventReviewPage;
 
 	beforeAll(async () => {
 		const { postgres, databaseUrl: nextDatabaseUrl } = await startPostgresTestContainer();
@@ -22,8 +22,8 @@ describe('event Prisma query families', () => {
 		standalone = createStandalonePrisma(databaseUrl);
 		vi.resetModules();
 		({ closeDb } = await import('../../../src/integrations/prisma'));
-		({ findManyEventSessions } = await import('../../../src/integrations/prisma/event/session'));
-		({ getEventReviewPage } = await import('../../../src/integrations/prisma/event/review'));
+		({ findManyEventSessions } = await import('../../../src/integrations/prisma/event/session/findEventSessions'));
+		({ getEventReviewPage } = await import('../../../src/integrations/prisma/event/review/getEventReviewPage'));
 	});
 
 	beforeEach(async () => {

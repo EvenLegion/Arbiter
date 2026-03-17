@@ -27,6 +27,7 @@ Use this pattern when:
 - the command changes domain state
 - the workflow needs typed branching
 - Discord copy should stay separate from workflow rules
+- the workflow depends on side effects that should stay explicit
 
 Checklist:
 
@@ -35,6 +36,8 @@ Checklist:
 3. call a service with typed input
 4. assemble Discord and persistence dependencies in adapters or gateways
 5. map the service result through a presenter when the output has more than one branch
+
+The adapter step is not accidental. It exists so the service can receive named collaborators instead of reaching into global helpers or container state on its own.
 
 ## Pattern 2: Autocomplete Route Table
 
@@ -145,6 +148,8 @@ Use this pattern for:
 
 - For layer definitions:
   [Architecture Vocabulary](/architecture/vocabulary)
+- For the rationale behind service dependencies:
+  [Service And Dependency Design](/architecture/service-dependency-design)
 - For extension guidance:
   [Adding Features](/contributing/adding-features)
 - For public examples:

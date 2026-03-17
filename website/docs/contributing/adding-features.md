@@ -55,6 +55,7 @@ For write-heavy features:
 - keep result kinds explicit
 - assemble repositories and Discord gateways in feature adapters
 - map typed results to Discord copy in a presenter when branching grows
+- keep the service dependencies explicit instead of reaching for centralized runtime helpers
 
 Current best examples:
 
@@ -91,6 +92,18 @@ Current best examples:
 
 If shared code is only meaningful inside one feature, keep it inside that feature folder.
 
+For service design specifically:
+
+- inject named collaborators into services through adapters or dependency factories
+- do not let services reach into `container.*`, raw interactions, or raw `prisma.*`
+- prefer pure helpers for local logic, but use gateways or repositories for side-effect boundaries
+
+For Prisma specifically:
+
+- expose new persistence operations through a repository first
+- implement the concrete query or transaction in the owning aggregate folder
+- avoid forwarding-only `read.ts`, `write.ts`, or query-barrel files unless they add a real stability boundary
+
 ## Feature Checklist
 
 Before opening a PR, check:
@@ -120,5 +133,9 @@ update the docs in the same change. Use [Maintaining Docs](/contributing/maintai
   [Discord Extension Patterns](/architecture/discord-extension-patterns)
 - For code placement rules:
   [Architecture Vocabulary](/architecture/vocabulary)
+- For why services are wired this way:
+  [Service And Dependency Design](/architecture/service-dependency-design)
+- For Prisma-specific persistence rules:
+  [Prisma Integration](/architecture/prisma-integration)
 - For docs updates:
   [Maintaining Docs](/contributing/maintaining-docs)

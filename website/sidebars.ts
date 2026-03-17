@@ -15,7 +15,9 @@ const sidebars: SidebarsConfig = {
 				'architecture/runtime-overview',
 				'architecture/discord-execution-model',
 				'architecture/discord-extension-patterns',
-				'architecture/data-and-storage'
+				'architecture/data-and-storage',
+				'architecture/prisma-integration',
+				'architecture/service-dependency-design'
 			]
 		},
 		{

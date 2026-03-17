@@ -11,7 +11,6 @@ sidebar_position: 3
 - `tests/`: unit and integration tests
 - `prisma/`: schema and migration tooling
 - `website/`: Docusaurus docs site
-- `docs-old/`: historical audits and earlier implementation notes
 
 ## `src/` Layout
 
@@ -68,11 +67,11 @@ Examples:
 ### Infrastructure
 
 - `src/integrations/prisma/`
-  Prisma client, repositories, and aggregate-specific query helpers.
+  Prisma client, repositories, and aggregate-specific concrete query modules.
 - `src/integrations/redis/`
   Redis-backed event tracking state.
 - `src/integrations/sapphire/`
-  Shared runtime shell access such as `runtimeGateway.ts`.
+  Shared runtime shell access such as `runtimeGateway.ts`. Listener and scheduled-task shells should use this boundary instead of `this.container.*`.
 
 ### Runtime utilities
 
@@ -118,6 +117,7 @@ Current examples:
 
 - add domain-shaped access in `src/integrations/prisma/repositories/`
 - keep family-local helper modules near the aggregate if a query needs extra structure
+- prefer concrete scenario files over new forwarding-only barrels
 
 ### Add shared Discord plumbing
 
@@ -139,6 +139,8 @@ The current layout exists so contributors can:
 
 - For terminology:
   [Architecture Vocabulary](/architecture/vocabulary)
+- For Prisma layer structure:
+  [Prisma Integration](/architecture/prisma-integration)
 - For extension rules:
   [Adding Features](/contributing/adding-features)
 - For task-based onboarding:

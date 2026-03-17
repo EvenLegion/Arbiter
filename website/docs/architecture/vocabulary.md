@@ -95,6 +95,12 @@ Current examples:
 - `src/lib/features/merit/manual-award/manualMeritServiceAdapters.ts`
 - `src/lib/features/event-merit/review/eventReviewServiceAdapters.ts`
 
+Why this layer exists:
+
+- services can stay explicit about what they need
+- feature code can use runtime objects without leaking them into services
+- workflow tests can pass small fakes instead of rebuilding the full runtime
+
 Should not own:
 
 - the workflow itself
@@ -154,6 +160,14 @@ Should not own:
 
 - raw interaction objects
 - embed or button construction
+- framework container access
+- raw Prisma client access
+
+Why services are written this way:
+
+- the workflow stays readable without Discord or database plumbing mixed in
+- dependencies stay explicit instead of hidden in centralized helpers
+- unit tests can focus on the rule set instead of the runtime shell
 
 ## Repository
 
@@ -216,3 +230,6 @@ If you are unsure where code belongs:
   `src/integrations/prisma/repositories/`
 - app-lifetime runtime state:
   `src/utilities/`
+
+For the rationale behind the service and dependency pattern:
+[Service And Dependency Design](/architecture/service-dependency-design)

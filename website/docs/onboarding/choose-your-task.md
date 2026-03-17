@@ -56,9 +56,10 @@ Best code examples:
 Read in this order:
 
 1. the owning feature page
-2. [Architecture Vocabulary](/architecture/vocabulary)
-3. [Aggregate Reference](/reference/aggregate-reference)
-4. [Testing And Refactors](/contributing/testing-and-refactors)
+2. [Service And Dependency Design](/architecture/service-dependency-design)
+3. [Architecture Vocabulary](/architecture/vocabulary)
+4. [Aggregate Reference](/reference/aggregate-reference)
+5. [Testing And Refactors](/contributing/testing-and-refactors)
 
 Best current service examples:
 
@@ -83,8 +84,9 @@ Best current read-service example:
 Read in this order:
 
 1. [Data And Storage](/architecture/data-and-storage)
-2. [Aggregate Reference](/reference/aggregate-reference)
-3. [Testing And Refactors](/contributing/testing-and-refactors)
+2. [Prisma Integration](/architecture/prisma-integration)
+3. [Aggregate Reference](/reference/aggregate-reference)
+4. [Testing And Refactors](/contributing/testing-and-refactors)
 
 Best current entrypoints:
 

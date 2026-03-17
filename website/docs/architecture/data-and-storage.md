@@ -20,6 +20,14 @@ The intended public surface is the repository layer:
 
 Repositories should expose domain-shaped operations. Feature code should not reach directly for `prisma.*`.
 
+The current Prisma shape is:
+
+- repositories as the only application-facing entrypoint
+- concrete scenario files grouped by aggregate under `src/integrations/prisma/<aggregate>/`
+- helper modules kept local to the aggregate family that uses them
+
+See [Prisma Integration](/architecture/prisma-integration) for the contributor-facing rules.
+
 ## Redis
 
 Redis is used for:
@@ -92,6 +100,7 @@ Integration tests require a working container runtime. When Docker is unavailabl
 
 - do not bypass repositories from feature code
 - keep aggregate-specific Prisma helper modules near the aggregate family
+- prefer concrete scenario files over forwarding-only query barrels
 - keep Redis usage behind services or feature dependency assembly, not inside command shells
 - document any new aggregate or persistence ownership changes in the docs
 
@@ -99,6 +108,8 @@ Integration tests require a working container runtime. When Docker is unavailabl
 
 - For aggregate-by-aggregate ownership:
   [Aggregate Reference](/reference/aggregate-reference)
+- For Prisma layer structure and file placement:
+  [Prisma Integration](/architecture/prisma-integration)
 - For workflow ownership:
   the relevant feature page
 - For contributor rules:
