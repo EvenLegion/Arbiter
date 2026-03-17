@@ -1,9 +1,9 @@
-import { container } from '@sapphire/framework';
 import type { Guild } from 'discord.js';
 
 import { meritRepository } from '../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { syncNicknameForUser } from '../../../services/nickname/nicknameService';
+import { createGuildMemberAccessGateway } from '../../guild-member/guildMemberAccessGateway';
 import { createGuildNicknameServiceDeps } from '../../guild-member/nicknameServiceAdapters';
 import { notifyMeritRankUp } from '../../merit/notifyMeritRankUp';
 
@@ -31,6 +31,9 @@ export async function syncAwardedMemberNicknamesAndNotifyRankUp({
 
 	const awardedUsersByDbUserId = new Map(awardedUsers.map((awardedUser) => [awardedUser.dbUserId, awardedUser]));
 	const uniqueAwardedUsers = [...awardedUsersByDbUserId.values()];
+	const members = createGuildMemberAccessGateway({
+		guild
+	});
 	const totalsByDbUserId =
 		awardedMeritAmount > 0
 			? await meritRepository
@@ -50,10 +53,7 @@ export async function syncAwardedMemberNicknamesAndNotifyRankUp({
 
 	await runWithConcurrencyLimit(uniqueAwardedUsers, AWARDED_MEMBER_SYNC_CONCURRENCY, async (awardedUser) => {
 		const discordUserId = awardedUser.discordUserId;
-		const member = await container.utilities.member.get({
-			guild,
-			discordUserId
-		});
+		const member = await members.getMember(discordUserId);
 		if (!member) {
 			logger.error(
 				{
@@ -72,7 +72,7 @@ export async function syncAwardedMemberNicknamesAndNotifyRankUp({
 				guild,
 				context,
 				resolveMember: async (lookupDiscordUserId) =>
-					lookupDiscordUserId === discordUserId ? member : container.utilities.member.get({ guild, discordUserId: lookupDiscordUserId })
+					lookupDiscordUserId === discordUserId ? member : members.getMember(lookupDiscordUserId)
 			}),
 			{
 				discordUserId,

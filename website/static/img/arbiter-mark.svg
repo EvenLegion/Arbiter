@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Arbiter">
+  <rect width="128" height="128" rx="24" fill="#12233a"/>
+  <path d="M64 18 96 32v26c0 24-12 44-32 52C44 102 32 82 32 58V32l32-14Z" fill="#f4efe4"/>
+  <path d="M64 34c-10 0-18 8-18 18 0 8 5 15 12 17v13h12V69c7-2 12-9 12-17 0-10-8-18-18-18Z" fill="#12233a"/>
+</svg>

@@ -1,5 +1,4 @@
-import { container } from '@sapphire/framework';
-
+import { getDbUserOrThrow } from '../../discord/userDirectoryGateway';
 import { divisionRepository, meritRepository } from '../../../integrations/prisma/repositories';
 
 export async function loadUserNicknameInputs({
@@ -15,9 +14,7 @@ export async function loadUserNicknameInputs({
 		divisionRepository.listUserDivisions({
 			discordUserId
 		}),
-		container.utilities.userDirectory.getOrThrow({
-			discordUserId
-		})
+		getDbUserOrThrow({ discordUserId })
 	]);
 
 	return {

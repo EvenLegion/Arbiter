@@ -1,15 +1,13 @@
-import { MeritTypeNotManualAwardableError, awardManualMerit } from '../awardManualMerit';
-import { findManyMeritTypes } from '../findManyMeritTypes';
-import { getUserMeritSummary } from '../getUserMeritSummary';
-import { getUserTotalMerits } from '../getUserTotalMerits';
-import { getUsersTotalMerits } from '../getUsersTotalMerits';
+import { MeritTypeNotManualAwardableError, awardManualMerit } from '../merit/write';
+import { getUserMeritSummary, getUserTotalMerits, getUsersTotalMerits } from '../merit/read';
+import { listMeritTypes } from '../merit/listMeritTypes';
 
 export { MeritTypeNotManualAwardableError };
-export type { UserMeritSummary, MeritSummaryEntry } from '../getUserMeritSummary';
+export type { UserMeritSummary, MeritSummaryEntry } from '../merit/read';
 
 export const meritRepository = {
 	awardManualMerit,
-	listMeritTypes: findManyMeritTypes,
+	listMeritTypes,
 	getUserMeritSummary,
 	getUserTotalMerits,
 	getUsersTotalMerits

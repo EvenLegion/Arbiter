@@ -5,6 +5,7 @@ import { resolveConfiguredGuild, resolveInteractionActor } from '../../discord/i
 import type { ExecutionContext } from '../../logging/executionContext';
 import { editPendingNameChangeRequest } from '../../services/name-change/nameChangeService';
 import { type ParsedNameChangeReviewModal } from './nameChangeReviewButtons';
+import { presentNameChangeReviewEditModalResult } from './nameChangeReviewEditModalPresenter';
 import { NAME_CHANGE_REVIEW_EDIT_MODAL_REQUESTED_NAME_INPUT_ID } from './nameChangeReviewPresenter';
 import { createEditPendingNameChangeRequestDeps, syncEditedNameChangeThread } from './nameChangeServiceAdapters';
 
@@ -90,35 +91,17 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 		return;
 	}
 
-	if (editResult.kind === 'forbidden') {
-		await responder.fail('Only staff members can edit name change requests.');
-		return;
-	}
-	if (editResult.kind === 'not_found' || editResult.kind === 'already_reviewed') {
-		await responder.fail('This request has already been reviewed.');
-		return;
-	}
-	if (editResult.kind === 'invalid_requested_name') {
+	const presentation = presentNameChangeReviewEditModalResult(editResult);
+	if (presentation.kind === 'response') {
+		if (presentation.delivery === 'fail') {
+			await responder.fail(presentation.content, {
+				requestId: presentation.requestId
+			});
+			return;
+		}
+
 		await responder.safeEditReply({
-			content: editResult.errorMessage
-		});
-		return;
-	}
-	if (editResult.kind === 'requester_member_not_found') {
-		await responder.fail('Could not resolve requester member for validation. Please contact TECH with:', {
-			requestId: true
-		});
-		return;
-	}
-	if (editResult.kind === 'nickname_too_long') {
-		await responder.safeEditReply({
-			content: 'Edited requested name is too long after organization formatting/rank is applied. Please choose a shorter name.'
-		});
-		return;
-	}
-	if (editResult.kind === 'validation_failed') {
-		await responder.fail('Could not validate edited requested name. Please contact TECH with:', {
-			requestId: true
+			content: presentation.content
 		});
 		return;
 	}
@@ -127,9 +110,9 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 		message: interaction.message,
 		channel: interaction.channel,
 		channelId: interaction.channelId,
-		requestId: editResult.requestId,
-		previousRequestedName: editResult.previousRequestedName,
-		requestedName: editResult.requestedName,
+		requestId: presentation.threadSync.requestId,
+		previousRequestedName: presentation.threadSync.previousRequestedName,
+		requestedName: presentation.threadSync.requestedName,
 		reviewerDiscordUserId: interaction.user.id,
 		logger
 	});
@@ -138,8 +121,8 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 		{
 			nameChangeRequestId: parsedNameChangeReviewModal.requestId,
 			reviewerDiscordUserId: interaction.user.id,
-			oldRequestedName: editResult.previousRequestedName,
-			newRequestedName: editResult.requestedName
+			oldRequestedName: presentation.threadSync.previousRequestedName,
+			newRequestedName: presentation.threadSync.requestedName
 		},
 		'Edited pending name change request requested name'
 	);

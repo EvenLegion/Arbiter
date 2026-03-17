@@ -1,7 +1,6 @@
 import { AllFlowsPrecondition, type ChatInputCommand, type ContextMenuCommand, type MessageCommand, type Precondition } from '@sapphire/framework';
-import type { ChatInputCommandInteraction, ContextMenuCommandInteraction, GuildMember, Message } from 'discord.js';
-import { DivisionKind } from '@prisma/client';
-import { ENV_DISCORD } from '../config/env';
+import type { ChatInputCommandInteraction, ContextMenuCommandInteraction, Message } from 'discord.js';
+import { resolvePreconditionActor } from '../lib/discord/preconditionActor';
 
 export class EventOperatorOnlyPrecondition extends AllFlowsPrecondition {
 	public override messageRun(_message: Message, _command: MessageCommand, _context: Precondition.Context) {
@@ -17,51 +16,16 @@ export class EventOperatorOnlyPrecondition extends AllFlowsPrecondition {
 		void _command;
 		void _context;
 
-		const guild = await this.container.utilities.guild.getOrThrow().catch((error: unknown) => {
-			this.container.logger.error(
-				{
-					err: error,
-					precondition: 'EventOperatorOnly',
-					discordUserId: interaction.user.id
-				},
-				'Failed to resolve configured guild in EventOperatorOnly precondition'
-			);
-			return null;
+		const actor = await resolvePreconditionActor({
+			interaction,
+			preconditionName: 'EventOperatorOnly',
+			capabilityRequirement: 'staff-or-centurion'
 		});
-		if (!guild) {
-			return this.error({
-				message: 'This command can only be used in a server.'
-			});
-		}
-
-		let member: GuildMember;
-		try {
-			member = await this.container.utilities.member.getOrThrow({
-				guild,
-				discordUserId: interaction.user.id
-			});
-		} catch {
-			return this.error({
-				message: 'Could not resolve your member record in this server.'
-			});
-		}
-
-		const isStaff = await this.container.utilities.divisionRolePolicy.memberHasDivisionKindRole({
-			member,
-			requiredRoleKinds: [DivisionKind.STAFF]
-		});
-		const isCenturion = await this.container.utilities.divisionRolePolicy.memberHasDivision({
-			member,
-			divisionDiscordRoleId: ENV_DISCORD.CENT_ROLE_ID
-		});
-
-		if (isStaff || isCenturion) {
-			return this.ok();
-		}
-
-		return this.error({
-			message: 'Only staff members or Centurions can perform this action.'
-		});
+		return actor.ok
+			? this.ok()
+			: this.error({
+					message: actor.message
+				});
 	}
 
 	public override contextMenuRun(_interaction: ContextMenuCommandInteraction, _command: ContextMenuCommand, _context: Precondition.Context) {

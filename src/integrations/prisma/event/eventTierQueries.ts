@@ -1,1 +1,1 @@
-export { findFirstEventTier, findManyEventTiers } from './findEventTiers';
+export { findFirstEventTier, findManyEventTiers } from './tier';

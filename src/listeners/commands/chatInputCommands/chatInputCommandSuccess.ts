@@ -2,17 +2,18 @@ import { Listener, LogLevel, type ChatInputCommandSuccessPayload, type Command }
 import { cyan } from 'colorette';
 import type { APIUser, Guild, User } from 'discord.js';
 
+import { getRuntimeLogger } from '../../../integrations/sapphire/runtimeGateway';
+
 export class UserListener extends Listener {
 	public override run(payload: ChatInputCommandSuccessPayload) {
+		const logger = getRuntimeLogger();
 		const successLoggerData = getSuccessLoggerData(payload.interaction.guild, payload.interaction.user, payload.command);
 
-		this.container.logger.trace(
-			`${successLoggerData.shard} - ${successLoggerData.commandName} ${successLoggerData.author} ${successLoggerData.sentAt}`
-		);
+		logger.trace(`${successLoggerData.shard} - ${successLoggerData.commandName} ${successLoggerData.author} ${successLoggerData.sentAt}`);
 	}
 
 	public override onLoad() {
-		this.enabled = this.container.logger.has(LogLevel.Trace);
+		this.enabled = getRuntimeLogger().has(LogLevel.Trace);
 		return super.onLoad();
 	}
 }

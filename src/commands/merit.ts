@@ -2,10 +2,10 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { ENV_DISCORD } from '../config/env';
-import { handleGiveMerit } from '../lib/features/merit/handleGiveMerit';
-import { handleMeritAutocomplete } from '../lib/features/merit/meritAutocompleteProvider';
-import { handleMeritList } from '../lib/features/merit/handleMeritList';
-import { createExecutionContext } from '../lib/logging/executionContext';
+import { handleMeritAutocomplete } from '../lib/features/merit/autocomplete/meritAutocompleteProvider';
+import { handleGiveMerit } from '../lib/features/merit/manual-award/handleGiveMerit';
+import { handleMeritList } from '../lib/features/merit/read/handleMeritList';
+import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
 	description: 'Merit commands',
@@ -79,12 +79,9 @@ export class MeritCommand extends Subcommand {
 	}
 
 	public async chatInputList(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'merit.list',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'merit.list'
 		});
 
 		return handleMeritList({
@@ -94,12 +91,9 @@ export class MeritCommand extends Subcommand {
 	}
 
 	public async chatInputGive(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'merit.give',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'merit.give'
 		});
 
 		return handleGiveMerit({ interaction, context });

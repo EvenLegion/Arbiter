@@ -1,23 +1,28 @@
-import { MessageFlags } from 'discord.js';
+import { MessageFlags, type InteractionDeferReplyOptions, type InteractionEditReplyOptions, type InteractionReplyOptions } from 'discord.js';
 
 import type { ExecutionContext } from '../logging/executionContext';
-
-type BasicReplyPayload = string | { content?: string; flags?: MessageFlags; embeds?: unknown[]; components?: unknown[] };
+import { resolveDeliveryMode, type DeliveryMode, type DeliveryState } from './interactionResponderDelivery';
+import { buildInteractionFailurePayload } from './interactionFailurePayload';
+import {
+	toInteractionDeferReplyOptions,
+	toInteractionEditReplyPayload,
+	toInteractionReplyPayload,
+	type InteractionResponderPayload
+} from './interactionResponderPayload';
+import { advanceDeliveryState, resolveInitialDeliveryState } from './interactionResponderState';
 
 type ReplyLikeInteraction = {
-	reply: (...args: never[]) => Promise<unknown>;
-	editReply: (...args: never[]) => Promise<unknown>;
-	followUp: (...args: never[]) => Promise<unknown>;
-	deferReply: (...args: never[]) => Promise<unknown>;
+	reply: (payload: string | InteractionReplyOptions) => Promise<unknown>;
+	editReply: (payload: string | InteractionEditReplyOptions) => Promise<unknown>;
+	followUp: (payload: string | InteractionReplyOptions) => Promise<unknown>;
+	deferReply: (options?: InteractionDeferReplyOptions) => Promise<unknown>;
 	deferred: boolean;
 	replied: boolean;
 };
 
 type UpdateLikeInteraction = {
-	deferUpdate: (...args: never[]) => Promise<unknown>;
+	deferUpdate: () => Promise<unknown>;
 };
-
-type DeliveryMode = 'auto' | 'reply' | 'editReply' | 'followUp';
 
 type InteractionResponderParams = {
 	interaction: ReplyLikeInteraction;
@@ -29,22 +34,23 @@ type InteractionResponderParams = {
 export type InteractionResponder = ReturnType<typeof createInteractionResponder>;
 
 export function createInteractionResponder({ interaction, context, logger, caller }: InteractionResponderParams) {
-	let deliveryState: 'initial' | 'deferred-reply' | 'deferred-update' | 'replied' = interaction.replied
-		? 'replied'
-		: interaction.deferred
-			? 'deferred-reply'
-			: 'initial';
+	let deliveryState: DeliveryState = resolveInitialDeliveryState(interaction);
 
 	return {
-		deferReply: async (options?: { flags?: MessageFlags }) => {
-			await interaction.deferReply(options as never);
-			deliveryState = 'deferred-reply';
+		deferReply: async (options?: { flags?: InteractionDeferReplyOptions['flags'] }) => {
+			const deferOptions = toInteractionDeferReplyOptions(options);
+			if (deferOptions) {
+				await interaction.deferReply(deferOptions);
+			} else {
+				await interaction.deferReply();
+			}
+			deliveryState = advanceDeliveryState(deliveryState, 'deferred-reply');
 		},
 		deferEphemeralReply: async () => {
 			await interaction.deferReply({
 				flags: MessageFlags.Ephemeral
-			} as never);
-			deliveryState = 'deferred-reply';
+			});
+			deliveryState = advanceDeliveryState(deliveryState, 'deferred-reply');
 		},
 		deferUpdate: async () => {
 			const updateInteraction = interaction as ReplyLikeInteraction & Partial<UpdateLikeInteraction>;
@@ -54,7 +60,7 @@ export function createInteractionResponder({ interaction, context, logger, calle
 
 			try {
 				await updateInteraction.deferUpdate();
-				deliveryState = 'deferred-update';
+				deliveryState = advanceDeliveryState(deliveryState, 'deferred-update');
 				return true;
 			} catch (error) {
 				logger.warn(
@@ -77,16 +83,14 @@ export function createInteractionResponder({ interaction, context, logger, calle
 			} = {}
 		) => {
 			const resolvedDelivery = resolveDeliveryMode(deliveryState, delivery);
-			const payload = {
-				content: requestId ? appendRequestId(content, context.requestId) : content,
-				flags: MessageFlags.Ephemeral
-			};
+			const payload = buildInteractionFailurePayload({
+				content,
+				...(requestId ? { requestId: context.requestId } : {})
+			});
 
 			try {
 				await send(interaction, resolvedDelivery, payload);
-				if (resolvedDelivery === 'reply') {
-					deliveryState = 'replied';
-				}
+				deliveryState = advanceDeliveryState(deliveryState, resolvedDelivery);
 			} catch (error) {
 				logger.warn(
 					{
@@ -97,10 +101,10 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				);
 			}
 		},
-		safeReply: async (payload: BasicReplyPayload) => {
+		safeReply: async (payload: InteractionResponderPayload) => {
 			try {
-				await interaction.reply(payload as never);
-				deliveryState = 'replied';
+				await interaction.reply(toInteractionReplyPayload(payload));
+				deliveryState = advanceDeliveryState(deliveryState, 'reply');
 			} catch (error) {
 				logger.warn(
 					{
@@ -110,9 +114,9 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				);
 			}
 		},
-		safeEditReply: async (payload: BasicReplyPayload) => {
+		safeEditReply: async (payload: InteractionResponderPayload) => {
 			try {
-				await interaction.editReply(payload as never);
+				await interaction.editReply(toInteractionEditReplyPayload(payload));
 			} catch (error) {
 				logger.warn(
 					{
@@ -122,9 +126,9 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				);
 			}
 		},
-		safeFollowUp: async (payload: BasicReplyPayload) => {
+		safeFollowUp: async (payload: InteractionResponderPayload) => {
 			try {
-				await interaction.followUp(payload as never);
+				await interaction.followUp(toInteractionReplyPayload(payload));
 			} catch (error) {
 				logger.warn(
 					{
@@ -137,35 +141,13 @@ export function createInteractionResponder({ interaction, context, logger, calle
 	};
 }
 
-function resolveDeliveryMode(
-	deliveryState: 'initial' | 'deferred-reply' | 'deferred-update' | 'replied',
-	delivery: DeliveryMode
-): Exclude<DeliveryMode, 'auto'> {
-	if (delivery !== 'auto') {
-		return delivery;
-	}
-
-	if (deliveryState === 'deferred-reply') {
-		return 'editReply';
-	}
-	if (deliveryState === 'deferred-update' || deliveryState === 'replied') {
-		return 'followUp';
-	}
-
-	return 'reply';
-}
-
-async function send(interaction: ReplyLikeInteraction, delivery: Exclude<DeliveryMode, 'auto'>, payload: BasicReplyPayload) {
+async function send(interaction: ReplyLikeInteraction, delivery: Exclude<DeliveryMode, 'auto'>, payload: InteractionResponderPayload) {
 	if (delivery === 'editReply') {
-		return interaction.editReply(payload as never);
+		return interaction.editReply(toInteractionEditReplyPayload(payload));
 	}
 	if (delivery === 'followUp') {
-		return interaction.followUp(payload as never);
+		return interaction.followUp(toInteractionReplyPayload(payload));
 	}
 
-	return interaction.reply(payload as never);
-}
-
-function appendRequestId(content: string, requestId: string) {
-	return `${content} requestId=\`${requestId}\``;
+	return interaction.reply(toInteractionReplyPayload(payload));
 }

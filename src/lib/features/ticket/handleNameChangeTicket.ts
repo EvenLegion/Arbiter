@@ -5,6 +5,7 @@ import { resolveConfiguredGuild } from '../../discord/interactionPreflight';
 import type { ExecutionContext } from '../../logging/executionContext';
 import { submitNameChangeRequest } from '../../services/name-change/nameChangeService';
 import { createSubmitNameChangeRequestDeps } from './nameChangeServiceAdapters';
+import { presentNameChangeTicketResult } from './nameChangeTicketResultPresenter';
 import { buildInitialNameChangeReviewEmbed } from './nameChangeTicketPresenter';
 import { buildNameChangeReviewActionRow } from './nameChangeReviewPresenter';
 
@@ -82,57 +83,15 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 		return;
 	}
 
-	if (result.kind === 'requester_not_found') {
-		await responder.fail('User not found in database. Please contact staff with:', {
-			requestId: true
-		});
-		return;
-	}
-	if (result.kind === 'invalid_requested_name') {
-		await responder.safeEditReply({
-			content: result.errorMessage
-		});
-		return;
-	}
-	if (result.kind === 'requester_member_not_found') {
-		await responder.fail('Could not resolve your member record. Please contact staff with:', {
-			requestId: true
-		});
-		return;
-	}
-	if (result.kind === 'nickname_too_long') {
-		await responder.safeEditReply({
-			content:
-				'Requested name is too long after organization formatting/rank is applied. Please submit a shorter name that fits Discord nickname limits.'
-		});
-		return;
-	}
-	if (result.kind === 'validation_failed') {
-		await responder.fail('Could not validate requested name. Please contact staff with:', {
-			requestId: true
-		});
-		return;
-	}
-	if (result.kind === 'request_creation_failed') {
-		await responder.fail('Failed to create name change request. Please contact staff with:', {
-			requestId: true
-		});
-		return;
-	}
-	if (result.kind === 'review_thread_failed') {
-		await responder.safeEditReply({
-			content: `Request created but failed to create review thread. Please contact staff with: requestId=${result.requestId}`
-		});
-		return;
-	}
-	if (result.kind === 'review_thread_reference_failed') {
-		await responder.safeEditReply({
-			content: `Name change request thread was created, but I could not persist its review reference. Please contact staff with: requestId=${result.requestId}`
+	const response = presentNameChangeTicketResult(result);
+	if (response.delivery === 'fail') {
+		await responder.fail(response.content, {
+			requestId: response.requestId
 		});
 		return;
 	}
 
-	if (result.strippedDivisionPrefix) {
+	if (result.kind === 'created' && result.strippedDivisionPrefix) {
 		logger.info(
 			{
 				rawRequestedName,
@@ -143,19 +102,19 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 		);
 	}
 
-	logger.info(
-		{
-			nameChangeRequestId: result.requestId,
-			requesterDiscordUserId: interaction.user.id,
-			requestedName: result.requestedName,
-			reviewThreadId: result.reviewThreadId
-		},
-		'Created name change ticket'
-	);
+	if (result.kind === 'created') {
+		logger.info(
+			{
+				nameChangeRequestId: result.requestId,
+				requesterDiscordUserId: interaction.user.id,
+				requestedName: result.requestedName,
+				reviewThreadId: result.reviewThreadId
+			},
+			'Created name change ticket'
+		);
+	}
 
 	await responder.safeEditReply({
-		content: `Name change request created.\nReview thread: <#${result.reviewThreadId}>${
-			result.strippedDivisionPrefix ? '\nNote: I removed your division prefix from the requested name.' : ''
-		}`
+		content: response.content
 	});
 }

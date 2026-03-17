@@ -3,7 +3,7 @@ import { type InteractionHandler, InteractionHandlerTypes } from '@sapphire/fram
 import type { ButtonInteraction } from 'discord.js';
 
 import { RoutedButtonInteractionHandler, type RoutedButtonRouteParams } from '../lib/discord/routedInteractionHandler';
-import { handleMeritListPageButton } from '../lib/features/merit/handleMeritList';
+import { handleMeritListPageButton } from '../lib/features/merit/read/handleMeritList';
 import { parseMeritListButton } from '../lib/features/merit/parseMeritListButton';
 
 @ApplyOptions<InteractionHandler.Options>({

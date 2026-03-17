@@ -1,41 +1,33 @@
-import { container } from '@sapphire/framework';
-
-import { divisionRepository } from '../../../integrations/prisma/repositories';
+import { getConfiguredGuild } from '../../discord/configuredGuildGateway';
+import { getGuildMember } from '../../discord/guildMemberGateway';
+import { getDbUser } from '../../discord/userDirectoryGateway';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
-import { syncNicknameForUser } from '../../services/nickname/nicknameService';
 import { resolveDivisionSelection } from '../division-selection/divisionDirectory';
-import { createGuildNicknameServiceDeps } from '../guild-member/nicknameServiceAdapters';
+import { createGuildNicknameWorkflowGateway } from '../guild-member/guildNicknameWorkflowGateway';
+import { createDivisionMembershipPersistenceGateway } from './divisionMembershipPersistenceGateway';
 
 export function createDivisionMembershipMutationDeps({ context }: { context: ExecutionContext }) {
+	const persistence = createDivisionMembershipPersistenceGateway();
+
 	return {
-		findTargetUser: (discordUserId: string) =>
-			container.utilities.userDirectory.get({
-				discordUserId
-			}),
+		findTargetUser: (discordUserId: string) => getDbUser({ discordUserId }),
 		findDivision: (selection: string) =>
 			resolveDivisionSelection({
 				value: selection
 			}),
-		listMemberships: (userId: string) =>
-			divisionRepository.listMemberships({
-				userId
-			}),
-		addMemberships: divisionRepository.addMemberships,
-		removeMemberships: divisionRepository.removeMemberships,
+		...persistence,
 		syncNickname: async ({ targetDiscordUserId, mode }: { targetDiscordUserId: string; mode: 'add' | 'remove' }) => {
-			const guild = await container.utilities.guild.getOrThrow().catch(() => null);
+			const guild = await getConfiguredGuild().catch(() => null);
 			if (!guild) {
 				return {
 					kind: 'guild-unavailable' as const
 				};
 			}
 
-			const member = await container.utilities.member
-				.get({
-					guild,
-					discordUserId: targetDiscordUserId
-				})
-				.catch(() => undefined);
+			const member = await getGuildMember({
+				guild,
+				discordUserId: targetDiscordUserId
+			}).catch(() => undefined);
 			if (member === undefined) {
 				return {
 					kind: 'failed' as const
@@ -48,23 +40,21 @@ export function createDivisionMembershipMutationDeps({ context }: { context: Exe
 			}
 
 			try {
-				const result = await syncNicknameForUser(
-					createGuildNicknameServiceDeps({
-						guild,
-						context: createChildExecutionContext({
-							context,
-							bindings: {
-								targetDiscordUserId,
-								step: 'syncComputedNicknameAfterDivisionMembershipUpdate'
-							}
-						}),
-						includeStaff: true
+				const nicknames = createGuildNicknameWorkflowGateway({
+					guild,
+					context: createChildExecutionContext({
+						context,
+						bindings: {
+							targetDiscordUserId,
+							step: 'syncComputedNicknameAfterDivisionMembershipUpdate'
+						}
 					}),
-					{
-						discordUserId: targetDiscordUserId,
-						setReason: mode === 'add' ? 'Staff division membership add sync' : 'Staff division membership remove sync'
-					}
-				);
+					includeStaff: true
+				});
+				const result = await nicknames.syncNickname({
+					discordUserId: targetDiscordUserId,
+					setReason: mode === 'add' ? 'Staff division membership add sync' : 'Staff division membership remove sync'
+				});
 				if (result.kind !== 'synced') {
 					return {
 						kind: 'failed' as const

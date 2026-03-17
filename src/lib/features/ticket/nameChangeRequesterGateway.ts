@@ -1,10 +1,8 @@
-import { container } from '@sapphire/framework';
+import { getDbUser } from '../../discord/userDirectoryGateway';
 
 export function createNameChangeRequesterGateway({ fallbackUsername }: { fallbackUsername: string }) {
 	return async (discordUserId: string) => {
-		const requesterDbUser = await container.utilities.userDirectory.get({
-			discordUserId
-		});
+		const requesterDbUser = await getDbUser({ discordUserId });
 		if (!requesterDbUser) {
 			return null;
 		}

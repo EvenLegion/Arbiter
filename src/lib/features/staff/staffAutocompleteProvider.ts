@@ -1,6 +1,12 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 
-import { resolveAutocompleteGuild, respondWithAutocompleteChoices } from '../../discord/autocompleteResponder';
+import { routeAutocompleteInteraction, type AutocompleteRoute } from '../../discord/autocompleteRouter';
+import {
+	buildAutocompleteLoggerContext,
+	getAutocompleteQuery,
+	respondWithGuildScopedAutocompleteChoices,
+	respondWithQueryAutocompleteChoices
+} from '../../discord/autocompleteRouteHelpers';
 import { buildGuildMemberAutocompleteChoices } from '../../discord/memberDirectory';
 import { buildDivisionAutocompleteChoices } from '../division-selection/divisionDirectory';
 
@@ -10,37 +16,39 @@ type HandleStaffAutocompleteParams = {
 };
 
 export async function handleStaffAutocomplete({ interaction, commandName = 'staff' }: HandleStaffAutocompleteParams) {
-	const subcommandGroupName = interaction.options.getSubcommandGroup(false);
-	const subcommandName = interaction.options.getSubcommand(false);
-	const focused = interaction.options.getFocused(true);
-
-	if (
-		(subcommandName === 'sync_nickname' && focused.name === 'user') ||
-		(subcommandGroupName === 'division_membership' && focused.name === 'nickname')
-	) {
-		await respondWithGuildMemberAutocomplete({
-			interaction,
-			commandName,
-			subcommandGroupName,
-			subcommandName,
-			focusedOptionName: focused.name
-		});
-		return;
-	}
-
-	if (subcommandGroupName === 'division_membership' && focused.name === 'division_name') {
-		await respondWithDivisionAutocomplete({
-			interaction,
-			commandName,
-			subcommandGroupName,
-			subcommandName,
-			focusedOptionName: focused.name
-		});
-		return;
-	}
-
-	await interaction.respond([]);
+	await routeAutocompleteInteraction({
+		interaction,
+		commandName,
+		routes: STAFF_AUTOCOMPLETE_ROUTES
+	});
 }
+
+const STAFF_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
+	{
+		matches: ({ subcommandName, subcommandGroupName, focused }) =>
+			(subcommandName === 'sync_nickname' && focused.name === 'user') ||
+			(subcommandGroupName === 'division_membership' && focused.name === 'nickname'),
+		run: async ({ interaction, commandName, subcommandGroupName, subcommandName, focused }) =>
+			respondWithGuildMemberAutocomplete({
+				interaction,
+				commandName,
+				subcommandGroupName,
+				subcommandName,
+				focusedOptionName: focused.name
+			})
+	},
+	{
+		matches: ({ subcommandGroupName, focused }) => subcommandGroupName === 'division_membership' && focused.name === 'division_name',
+		run: async ({ interaction, commandName, subcommandGroupName, subcommandName, focused }) =>
+			respondWithDivisionAutocomplete({
+				interaction,
+				commandName,
+				subcommandGroupName,
+				subcommandName,
+				focusedOptionName: focused.name
+			})
+	}
+];
 
 async function respondWithGuildMemberAutocomplete({
 	interaction,
@@ -55,41 +63,31 @@ async function respondWithGuildMemberAutocomplete({
 	subcommandName: string | null;
 	focusedOptionName: string;
 }) {
-	const guild = await resolveAutocompleteGuild({
+	const query = getAutocompleteQuery(interaction.options.getFocused(), {
+		lowercase: true
+	});
+	await respondWithGuildScopedAutocompleteChoices({
 		interaction,
-		loggerContext: {
+		guildLoggerContext: buildAutocompleteLoggerContext({
 			commandName,
 			subcommandGroupName,
 			subcommandName,
 			focusedOptionName
-		},
-		logMessage: 'Failed to resolve configured guild during staff command autocomplete'
-	});
-	if (!guild) {
-		return;
-	}
-
-	const query = String(interaction.options.getFocused()).trim().toLowerCase();
-	const choices = await buildGuildMemberAutocompleteChoices({
-		guild,
-		query
-	}).catch(() => null);
-	if (!choices) {
-		await interaction.respond([]);
-		return;
-	}
-
-	await respondWithAutocompleteChoices({
-		interaction,
-		choices,
-		loggerContext: {
+		}),
+		guildLogMessage: 'Failed to resolve configured guild during staff command autocomplete',
+		choiceLoggerContext: buildAutocompleteLoggerContext({
 			commandName,
 			subcommandGroupName,
 			subcommandName,
 			focusedOptionName,
 			query
-		},
-		logMessage: 'Failed to respond to staff command member autocomplete'
+		}),
+		choiceLogMessage: 'Failed to respond to staff command member autocomplete',
+		loadChoices: (guild) =>
+			buildGuildMemberAutocompleteChoices({
+				guild,
+				query
+			})
 	});
 }
 
@@ -106,27 +104,22 @@ async function respondWithDivisionAutocomplete({
 	subcommandName: string | null;
 	focusedOptionName: string;
 }) {
-	const query = String(interaction.options.getFocused()).trim().toLowerCase();
-	const choices = await buildDivisionAutocompleteChoices({
-		query
-	}).catch(async () => {
-		await interaction.respond([]);
-		return null;
+	const query = getAutocompleteQuery(interaction.options.getFocused(), {
+		lowercase: true
 	});
-	if (!choices) {
-		return;
-	}
-
-	await respondWithAutocompleteChoices({
+	await respondWithQueryAutocompleteChoices({
 		interaction,
-		choices,
-		loggerContext: {
+		loggerContext: buildAutocompleteLoggerContext({
 			commandName,
 			subcommandGroupName,
 			subcommandName,
 			focusedOptionName,
 			query
-		},
-		logMessage: 'Failed to respond to staff command division autocomplete'
+		}),
+		choiceLogMessage: 'Failed to respond to staff command division autocomplete',
+		loadChoices: () =>
+			buildDivisionAutocompleteChoices({
+				query
+			})
 	});
 }

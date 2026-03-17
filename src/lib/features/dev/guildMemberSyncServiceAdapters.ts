@@ -1,16 +1,20 @@
-import { container } from '@sapphire/framework';
 import type { Guild, GuildMember } from 'discord.js';
 
 import { userRepository } from '../../../integrations/prisma/repositories';
+import { refreshDivisionCache } from '../../discord/divisionCacheGateway';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
-import { syncNicknameForUser } from '../../services/nickname/nicknameService';
+import { createGuildMemberAccessGateway } from '../guild-member/guildMemberAccessGateway';
+import { createGuildNicknameWorkflowGateway } from '../guild-member/guildNicknameWorkflowGateway';
 import { reconcileRolesAndMemberships } from '../guild-member/reconcileRolesAndMemberships';
-import { createGuildNicknameServiceDeps } from '../guild-member/nicknameServiceAdapters';
 
 export function createGuildMemberSyncDeps({ guild, context }: { guild: Guild; context: ExecutionContext }) {
+	const members = createGuildMemberAccessGateway({
+		guild
+	});
+
 	return {
-		refreshDivisionCache: () => container.utilities.divisionCache.refresh(),
-		listMembers: async () => [...(await container.utilities.member.listAll({ guild })).values()],
+		refreshDivisionCache,
+		listMembers: async () => [...(await members.listMembers()).values()],
 		buildSnapshot: (member: GuildMember) => ({
 			discordUserId: member.id,
 			discordUsername: member.user.username,
@@ -31,23 +35,21 @@ export function createGuildMemberSyncDeps({ guild, context }: { guild: Guild; co
 				})
 			}),
 		syncNickname: async ({ member, dbUserId }: { member: GuildMember; dbUserId: string }) => {
-			const result = await syncNicknameForUser(
-				createGuildNicknameServiceDeps({
-					guild,
-					context: createChildExecutionContext({
-						context,
-						bindings: {
-							targetDiscordUserId: member.id,
-							targetDbUserId: dbUserId,
-							step: 'buildUserNickname'
-						}
-					})
-				}),
-				{
-					discordUserId: member.id,
-					setReason: 'Development guild member sync'
-				}
-			);
+			const nicknames = createGuildNicknameWorkflowGateway({
+				guild,
+				context: createChildExecutionContext({
+					context,
+					bindings: {
+						targetDiscordUserId: member.id,
+						targetDbUserId: dbUserId,
+						step: 'buildUserNickname'
+					}
+				})
+			});
+			const result = await nicknames.syncNickname({
+				discordUserId: member.id,
+				setReason: 'Development guild member sync'
+			});
 			if (result.kind !== 'synced') {
 				throw new Error(`Failed to sync nickname: ${result.kind}`);
 			}

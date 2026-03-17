@@ -46,3 +46,6 @@ jobs:
 
       - name: Test Integration
         run: pnpm test:integration
+
+      - name: Docs Build
+        run: pnpm docs:build

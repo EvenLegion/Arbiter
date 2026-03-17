@@ -6,7 +6,7 @@ import { handleDevAutocomplete } from '../lib/features/dev/devAutocompleteProvid
 import { handleDevNicknameTransform } from '../lib/features/dev/handleDevNicknameTransform';
 import { handleSyncGuildMembers } from '../lib/features/dev/handleSyncGuildMembers';
 import { type NicknameTransformMode } from '../lib/features/dev/nicknameTransform';
-import { createExecutionContext } from '../lib/logging/executionContext';
+import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
 	description: 'Development commands',
@@ -101,12 +101,9 @@ export class DevCommand extends Subcommand {
 	}
 
 	public async chatInputSyncGuildMembers(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'dev.syncGuildMembers',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'dev.syncGuildMembers'
 		});
 
 		return handleSyncGuildMembers({
@@ -135,11 +132,10 @@ export class DevCommand extends Subcommand {
 	}
 
 	private async runNicknameTransform(interaction: Subcommand.ChatInputCommandInteraction, mode: NicknameTransformMode) {
-		const context = createExecutionContext({
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: `dev.nickname.${mode}`,
 			bindings: {
-				flow: `dev.nickname.${mode}`,
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id,
 				mode
 			}
 		});

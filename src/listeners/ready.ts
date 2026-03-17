@@ -3,12 +3,15 @@ import { Listener } from '@sapphire/framework';
 import type { Client } from 'discord.js';
 import { ENV_CONFIG, ENV_DISCORD } from '../config/env';
 import { initializeDivisionCache } from '../integrations/prisma';
+import { getRuntimeLogger } from '../integrations/sapphire/runtimeGateway';
 
 @ApplyOptions<Listener.Options>({ event: 'clientReady', once: true })
 export class ReadyListener extends Listener {
 	public override async run(client: Client<true>) {
+		const logger = getRuntimeLogger();
+
 		try {
-			this.container.logger.info(
+			logger.info(
 				{
 					userTag: client.user.tag,
 					userId: client.user.id
@@ -20,7 +23,7 @@ export class ReadyListener extends Listener {
 			// Initialize the cache directly here to avoid startup race conditions.
 			await initializeDivisionCache();
 
-			this.container.logger.info(
+			logger.info(
 				{
 					guildId: ENV_DISCORD.DISCORD_GUILD_ID,
 					redisHost: ENV_CONFIG.REDIS_HOST,
@@ -31,7 +34,7 @@ export class ReadyListener extends Listener {
 				'Arbiter runtime initialized'
 			);
 		} catch (error) {
-			this.container.logger.error(
+			logger.error(
 				{
 					err: error
 				},

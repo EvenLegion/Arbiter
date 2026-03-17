@@ -2,8 +2,8 @@ import { type ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { DivisionKind } from '@prisma/client';
 
 import { buildDivisionSelectionMessage } from '../division-selection/buildDivisionSelectionMessage';
-import { container } from '@sapphire/framework';
 import { createInteractionResponder } from '../../discord/interactionResponder';
+import { listCachedDivisions } from '../../discord/divisionCacheGateway';
 import type { ExecutionContext } from '../../logging/executionContext';
 
 type HandlePostDivisionMessageParams = {
@@ -40,7 +40,7 @@ export async function handlePostDivisionMessage({ interaction, context }: Handle
 
 	try {
 		const divisionSelectionMessage = buildDivisionSelectionMessage({
-			divisions: await container.utilities.divisionCache.get({
+			divisions: await listCachedDivisions({
 				kinds: [DivisionKind.NAVY, DivisionKind.MARINES, DivisionKind.SUPPORT]
 			})
 		});

@@ -1,24 +1,31 @@
-import { container } from '@sapphire/framework';
 import type { Guild, GuildMember } from 'discord.js';
 
+import { getDbUser, listDbUsers } from '../../discord/userDirectoryGateway';
+import { refreshDivisionCache } from '../../discord/divisionCacheGateway';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
-import { syncNicknameForUser } from '../../services/nickname/nicknameService';
-import { createGuildNicknameServiceDeps } from '../guild-member/nicknameServiceAdapters';
+import { createGuildMemberAccessGateway } from '../guild-member/guildMemberAccessGateway';
+import { createGuildNicknameWorkflowGateway } from '../guild-member/guildNicknameWorkflowGateway';
 import { resolveNicknameSyncTargets } from '../guild-member/nicknameSyncTargets';
 
 export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Guild; context: ExecutionContext }) {
+	const members = createGuildMemberAccessGateway({
+		guild
+	});
+
 	return {
-		prepare: () => container.utilities.divisionCache.refresh(),
+		prepare: refreshDivisionCache,
 		resolveTargets: ({ requestedDiscordUserId }: { requestedDiscordUserId?: string }) =>
-			resolveNicknameSyncTargets(container.utilities.userDirectory, {
-				requestedDiscordUserId
-			}),
-		getMember: (discordUserId: string) =>
-			container.utilities.member.get({
-				guild,
-				discordUserId
-			}),
-		listMembers: () => container.utilities.member.listAll({ guild }),
+			resolveNicknameSyncTargets(
+				{
+					get: ({ discordUserId }) => getDbUser({ discordUserId }),
+					findMany: () => listDbUsers()
+				},
+				{
+					requestedDiscordUserId
+				}
+			),
+		getMember: members.getMember,
+		listMembers: members.listMembers,
 		syncNickname: ({
 			target,
 			member,
@@ -31,32 +38,31 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 			member: GuildMember;
 			includeStaff: boolean;
 		}) =>
-			syncNicknameForUser(
-				createGuildNicknameServiceDeps({
-					guild,
-					context: createChildExecutionContext({
-						context,
-						bindings: {
-							targetDbUserId: target.id,
-							targetDiscordUserId: target.discordUserId,
-							step: 'buildUserNickname'
-						}
-					}),
-					includeStaff
+			createGuildNicknameWorkflowGateway({
+				guild,
+				context: createChildExecutionContext({
+					context,
+					bindings: {
+						targetDbUserId: target.id,
+						targetDiscordUserId: target.discordUserId,
+						step: 'buildUserNickname'
+					}
 				}),
-				{
+				includeStaff
+			})
+				.syncNickname({
 					discordUserId: member.id,
 					setReason: 'Staff nickname sync'
-				}
-			).then((result) => {
-				if (result.kind !== 'synced') {
-					throw new Error(`Failed to sync nickname: ${result.kind}`);
-				}
+				})
+				.then((result) => {
+					if (result.kind !== 'synced') {
+						throw new Error(`Failed to sync nickname: ${result.kind}`);
+					}
 
-				return {
-					outcome: result.outcome,
-					reason: result.reason
-				};
-			})
+					return {
+						outcome: result.outcome,
+						reason: result.reason
+					};
+				})
 	};
 }

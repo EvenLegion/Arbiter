@@ -1,6 +1,9 @@
 import { ScheduledTask } from '@sapphire/plugin-scheduled-tasks';
 import { ENV_DISCORD } from '../config/env/discord';
+import { isRuntimeClientReady } from '../integrations/sapphire/runtimeGateway';
+import { createEventTrackingServiceDeps } from '../lib/features/event-merit/tracking/createEventTrackingServiceDeps';
 import { createExecutionContext } from '../lib/logging/executionContext';
+import { tickAllActiveEventTrackingSessions } from '../lib/services/event-tracking/eventTrackingService';
 
 export class EventTrackingTickTask extends ScheduledTask {
 	public constructor(context: ScheduledTask.LoaderContext, options: ScheduledTask.Options) {
@@ -11,7 +14,7 @@ export class EventTrackingTickTask extends ScheduledTask {
 	}
 
 	public override async run() {
-		if (!this.container.client.isReady()) {
+		if (!isRuntimeClientReady()) {
 			return;
 		}
 
@@ -22,7 +25,7 @@ export class EventTrackingTickTask extends ScheduledTask {
 		});
 
 		try {
-			await this.container.utilities.eventTracking.tickAllActiveSessions({
+			await tickAllActiveEventTrackingSessions(createEventTrackingServiceDeps(), {
 				context
 			});
 		} catch (error) {

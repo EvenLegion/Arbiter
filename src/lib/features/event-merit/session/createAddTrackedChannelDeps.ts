@@ -1,11 +1,13 @@
 import { EventSessionChannelKind } from '@prisma/client';
-import { container } from '@sapphire/framework';
 import type { Guild, VoiceBasedChannel } from 'discord.js';
 
 import { eventRepository } from '../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { syncEventTrackingSummary } from '../gateways/trackingSummaryGateway';
-import { postChildVcAddedTimelineMessage, postPublicAddVcTimelineMessages } from '../gateways/timelinePostingGateway';
+import { postChildVcAddedTimelineMessage } from '../gateways/postChildVcAddedTimelineMessage';
+import { postPublicAddVcTimelineMessages } from '../gateways/postPublicAddVcTimelineMessages';
+import { syncEventTrackingSummaryPresentation } from '../presentation/syncEventTrackingPresentation';
+import { EVENT_LIFECYCLE_SESSION_INCLUDE } from './eventLifecycleSessionInclude';
+import { createVoiceChannelGateway } from './voiceChannelGateway';
 
 export function createAddTrackedChannelDeps({
 	guild,
@@ -16,20 +18,17 @@ export function createAddTrackedChannelDeps({
 	targetVoiceChannel: VoiceBasedChannel | null;
 	logger: ExecutionContext['logger'];
 }) {
+	const voiceChannels = createVoiceChannelGateway({
+		guild,
+		logger,
+		fallbackVoiceChannel: targetVoiceChannel
+	});
+
 	return {
-		findEventSession: async (eventSessionId: number) =>
+		findEventSession: (eventSessionId: number) =>
 			eventRepository.getSession({
 				eventSessionId,
-				include: {
-					hostUser: true,
-					eventTier: {
-						include: {
-							meritType: true
-						}
-					},
-					channels: true,
-					eventMessages: true
-				}
+				include: EVENT_LIFECYCLE_SESSION_INCLUDE
 			}),
 		findReservedChannelReservation: async ({ channelId, excludeEventSessionId }: { channelId: string; excludeEventSessionId: number }) =>
 			eventRepository.getReservedVoiceChannelReservation({
@@ -44,38 +43,19 @@ export function createAddTrackedChannelDeps({
 		}) => {
 			await eventRepository.upsertSessionChannel(params);
 		},
-		renameVoiceChannel: async ({ channelId, name, reason }: { channelId: string; name: string; reason: string }) => {
-			const channel =
-				targetVoiceChannel?.id === channelId
-					? targetVoiceChannel
-					: await container.utilities.guild
-							.getVoiceBasedChannelOrThrow({
-								guild,
-								channelId
-							})
-							.catch(() => null);
-			if (!channel) {
-				logger.warn(
-					{
-						voiceChannelId: channelId
-					},
-					'Skipped rename because target voice channel could not be resolved'
-				);
-				return;
-			}
-
-			await channel.setName(name, reason).catch((error: unknown) => {
-				logger.warn(
-					{
-						err: error,
-						voiceChannelId: channelId
-					},
-					'Failed to rename child voice channel during event add-vc'
-				);
-			});
-		},
-		syncTrackingSummary: async (eventSession: Parameters<typeof syncEventTrackingSummary>[0]['eventSession']) => {
-			await syncEventTrackingSummary({
+		renameVoiceChannel: ({ channelId, name, reason }: { channelId: string; name: string; reason: string }) =>
+			voiceChannels.renameVoiceChannel({
+				channelId,
+				name,
+				reason,
+				missingChannelLogMessage: 'Skipped rename because target voice channel could not be resolved',
+				renameFailureLogMessage: 'Failed to rename child voice channel during event add-vc',
+				logBindings: {
+					voiceChannelId: channelId
+				}
+			}),
+		syncTrackingSummary: async (eventSession: Parameters<typeof syncEventTrackingSummaryPresentation>[0]['eventSession']) => {
+			await syncEventTrackingSummaryPresentation({
 				guild,
 				eventSession,
 				logger

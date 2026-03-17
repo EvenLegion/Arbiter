@@ -1,15 +1,17 @@
-import { container } from '@sapphire/framework';
 import type { Guild, GuildBasedChannel, VoiceBasedChannel } from 'discord.js';
 
+import { getGuildChannel, getVoiceBasedGuildChannel } from '../../../discord/configuredGuildGateway';
+
 export async function resolveEventGuildChannel(guild: Guild, channelId: string): Promise<GuildBasedChannel | null> {
-	return guild.channels.cache.get(channelId) ?? (await guild.channels.fetch(channelId).catch(() => null));
+	return getGuildChannel({
+		guild,
+		channelId
+	});
 }
 
 export async function resolveEventVoiceChannel(guild: Guild, channelId: string): Promise<VoiceBasedChannel | null> {
-	return container.utilities.guild
-		.getVoiceBasedChannelOrThrow({
-			guild,
-			channelId
-		})
-		.catch(() => null);
+	return getVoiceBasedGuildChannel({
+		guild,
+		channelId
+	});
 }

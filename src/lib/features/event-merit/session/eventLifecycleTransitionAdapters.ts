@@ -1,5 +1,4 @@
 import { EventSessionState } from '@prisma/client';
-import { container } from '@sapphire/framework';
 import type { ButtonInteraction, Guild } from 'discord.js';
 
 import { eventRepository } from '../../../../integrations/prisma/repositories';
@@ -7,6 +6,8 @@ import { createChildExecutionContext, type ExecutionContext } from '../../../log
 import type { EventLifecycleEventSession } from '../../../services/event-lifecycle/eventLifecycleService';
 import { initializeEventReview } from '../review/initializeEventReview';
 import { startEventTrackingSession, stopEventTrackingSession } from '../gateways/trackingStoreGateway';
+import { createVoiceChannelGateway } from './voiceChannelGateway';
+import { EVENT_LIFECYCLE_SESSION_INCLUDE } from './eventLifecycleSessionInclude';
 import { syncStartConfirmationMessages } from './syncStartConfirmationMessages';
 
 export function createTransitionEventSessionDeps({
@@ -20,22 +21,18 @@ export function createTransitionEventSessionDeps({
 	context: ExecutionContext;
 	logger: ExecutionContext['logger'];
 }) {
+	const voiceChannels = createVoiceChannelGateway({
+		guild,
+		logger
+	});
+
 	return {
-		findEventSession: async (eventSessionId: number) =>
+		findEventSession: (eventSessionId: number) =>
 			eventRepository.getSession({
 				eventSessionId,
-				include: {
-					hostUser: true,
-					eventTier: {
-						include: {
-							meritType: true
-						}
-					},
-					channels: true,
-					eventMessages: true
-				}
+				include: EVENT_LIFECYCLE_SESSION_INCLUDE
 			}),
-		updateState: async (params: {
+		updateState: (params: {
 			eventSessionId: number;
 			fromState: EventSessionState;
 			toState: Extract<EventSessionState, 'ACTIVE' | 'CANCELLED' | 'ENDED_PENDING_REVIEW'>;
@@ -69,19 +66,10 @@ export function createTransitionEventSessionDeps({
 				toState: EventSessionState.CANCELLED
 			});
 		},
-		reloadEventSession: async (eventSessionId: number) =>
+		reloadEventSession: (eventSessionId: number) =>
 			eventRepository.getSession({
 				eventSessionId,
-				include: {
-					hostUser: true,
-					eventTier: {
-						include: {
-							meritType: true
-						}
-					},
-					channels: true,
-					eventMessages: true
-				}
+				include: EVENT_LIFECYCLE_SESSION_INCLUDE
 			}),
 		syncLifecyclePresentation: async ({
 			eventSession,
@@ -110,33 +98,14 @@ export function createTransitionEventSessionDeps({
 				eventSessionId
 			});
 		},
-		renameParentVoiceChannel: async ({ channelId, name, reason }: { channelId: string; name: string; reason: string }) => {
-			const parentVoiceChannel = await container.utilities.guild
-				.getVoiceBasedChannelOrThrow({
-					guild,
-					channelId
-				})
-				.catch(() => null);
-			if (!parentVoiceChannel) {
-				logger.warn(
-					{
-						channelId
-					},
-					'Parent VC not found while attempting post-event rename'
-				);
-				return;
-			}
-
-			await parentVoiceChannel.setName(name, reason).catch((error: unknown) => {
-				logger.warn(
-					{
-						err: error,
-						channelId
-					},
-					'Failed to rename parent VC after event end'
-				);
-			});
-		},
+		renameParentVoiceChannel: ({ channelId, name, reason }: { channelId: string; name: string; reason: string }) =>
+			voiceChannels.renameVoiceChannel({
+				channelId,
+				name,
+				reason,
+				missingChannelLogMessage: 'Parent VC not found while attempting post-event rename',
+				renameFailureLogMessage: 'Failed to rename parent VC after event end'
+			}),
 		initializeReview: async ({ eventSessionId }: { eventSessionId: number }) => {
 			const initialized = await initializeEventReview({
 				guild,

@@ -1,6 +1,6 @@
 import { ScheduledTask } from '@sapphire/plugin-scheduled-tasks';
 import { ENV_CONFIG } from '../config/env';
-import { container } from '@sapphire/framework';
+import { isRuntimeClientReady, refreshRuntimeDivisionCache } from '../integrations/sapphire/runtimeGateway';
 
 export class DivisionCacheRefreshTask extends ScheduledTask {
 	public constructor(context: ScheduledTask.LoaderContext, options: ScheduledTask.Options) {
@@ -11,11 +11,11 @@ export class DivisionCacheRefreshTask extends ScheduledTask {
 	}
 
 	public override async run() {
-		if (!container.client.isReady()) {
+		if (!isRuntimeClientReady()) {
 			return;
 		}
 
-		await container.utilities.divisionCache.refresh();
+		await refreshRuntimeDivisionCache();
 	}
 }
 

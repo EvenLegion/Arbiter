@@ -46,7 +46,9 @@ describe('eventLifecycleService integration', () => {
 	});
 
 	afterAll(async () => {
-		await closeRedisClient().catch(() => undefined);
+		if (closeRedisClient) {
+			await closeRedisClient().catch(() => undefined);
+		}
 		if (closeDb) {
 			await closeDb();
 		}

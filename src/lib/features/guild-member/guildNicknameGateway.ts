@@ -1,7 +1,7 @@
 import { DivisionKind } from '@prisma/client';
-import { container } from '@sapphire/framework';
 import type { GuildMember } from 'discord.js';
 
+import { memberHasDivisionKindRole } from '../../discord/divisionPolicyGateway';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
 import type { NicknameComputeResult, NicknameSyncResult } from '../../services/nickname/contracts';
 import { buildUserNickname } from './buildUserNickname';
@@ -67,7 +67,7 @@ export async function syncGuildNickname({
 	contextBindings?: Record<string, unknown>;
 }): Promise<NicknameSyncResult<GuildMember>> {
 	if (!includeStaff) {
-		const hasStaffRole = await container.utilities.divisionRolePolicy.memberHasDivisionKindRole({
+		const hasStaffRole = await memberHasDivisionKindRole({
 			member,
 			requiredRoleKinds: [DivisionKind.STAFF]
 		});

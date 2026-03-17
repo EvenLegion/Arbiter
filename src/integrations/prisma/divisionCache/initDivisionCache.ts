@@ -1,7 +1,7 @@
 import type { Division, DivisionKind } from '@prisma/client';
 
 import { container } from '@sapphire/framework';
-import { findManyDivisions } from '../findManyDivisions';
+import { findManyDivisions } from '../division/read';
 
 type DivisionCacheState = {
 	divisions: Division[];

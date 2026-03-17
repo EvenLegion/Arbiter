@@ -1,7 +1,8 @@
 import { type ButtonInteraction } from 'discord.js';
 import { DivisionKind } from '@prisma/client';
 
-import { container } from '@sapphire/framework';
+import { listCachedDivisions } from '../../discord/divisionCacheGateway';
+import { memberHasDivisionKindRole } from '../../discord/divisionPolicyGateway';
 import { createInteractionResponder } from '../../discord/interactionResponder';
 import { resolveConfiguredGuild, resolveGuildMember } from '../../discord/interactionPreflight';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
@@ -61,7 +62,7 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 		return;
 	}
 
-	const isLegionnaire = await container.utilities.divisionRolePolicy.memberHasDivisionKindRole({
+	const isLegionnaire = await memberHasDivisionKindRole({
 		member: guildMember,
 		requiredRoleKinds: [DivisionKind.LEGIONNAIRE]
 	});
@@ -87,7 +88,7 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 		const result = await applyDivisionSelection(
 			{
 				listSelectableDivisions: () =>
-					container.utilities.divisionCache.get({
+					listCachedDivisions({
 						kinds: [DivisionKind.NAVY, DivisionKind.MARINES, DivisionKind.SUPPORT]
 					}),
 				memberHasRole: (roleId: string) => guildMember.roles.cache.has(roleId),

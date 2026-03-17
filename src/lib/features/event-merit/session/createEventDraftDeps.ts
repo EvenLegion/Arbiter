@@ -1,8 +1,8 @@
 import type { ForumChannel, Guild, TextChannel } from 'discord.js';
 
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { postDraftEventTrackingSummary } from '../gateways/trackingSummaryGateway';
-import { postEventDraftAnnouncement } from '../gateways/timelinePostingGateway';
+import { postEventDraftAnnouncement } from '../gateways/postEventDraftAnnouncement';
+import { postDraftEventTrackingSummaryPresentation } from '../presentation/syncEventTrackingPresentation';
 import { createDraftVoiceChannelGateway } from './createDraftVoiceChannelGateway';
 import { createEventDraftRepositoryGateway } from './createEventDraftRepositoryGateway';
 import { createTrackingThreadGateway } from './createTrackingThreadGateway';
@@ -49,7 +49,7 @@ export function createEventDraftDeps({
 			primaryVoiceChannelId: string;
 			trackingThreadId: string;
 		}) =>
-			postDraftEventTrackingSummary({
+			postDraftEventTrackingSummaryPresentation({
 				guild,
 				eventSessionId,
 				eventName,

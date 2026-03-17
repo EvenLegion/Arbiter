@@ -1,74 +1,19 @@
-import { EventSessionChannelKind, EventSessionMessageKind, type Prisma } from '@prisma/client';
 import type { Guild } from 'discord.js';
-import { eventRepository } from '../../../../integrations/prisma/repositories';
-import { buildEventTrackingSummaryPayload } from '../ui/buildEventTrackingSummaryPayload';
 
-type EventSessionWithRelations = Prisma.EventGetPayload<{
-	include: {
-		hostUser: true;
-		eventTier: {
-			include: {
-				meritType: true;
-			};
-		};
-		channels: true;
-		eventMessages: true;
-	};
-}>;
+import { syncEventTrackingSummaryPresentation, type EventTrackingPresentationSession } from '../presentation/syncEventTrackingPresentation';
 
 type SyncTrackingSummaryMessageParams = {
 	guild: Guild;
-	eventSession: EventSessionWithRelations;
+	eventSession: EventTrackingPresentationSession;
 	logger: {
 		warn: (...values: readonly unknown[]) => void;
 	};
 };
 
 export async function syncTrackingSummaryMessage({ guild, eventSession, logger }: SyncTrackingSummaryMessageParams) {
-	const trackedVoiceChannelIds = eventSession.channels
-		.filter((channel) => channel.kind === EventSessionChannelKind.PARENT_VC || channel.kind === EventSessionChannelKind.CHILD_VC)
-		.map((channel) => channel.channelId);
-
-	const summaryPayload = buildEventTrackingSummaryPayload({
-		eventSessionId: eventSession.id,
-		eventName: eventSession.name,
-		tierName: eventSession.eventTier.name,
-		tierMeritAmount: eventSession.eventTier.meritType.meritAmount,
-		hostDiscordUserId: eventSession.hostUser.discordUserId,
-		trackedChannelIds: trackedVoiceChannelIds,
-		trackingThreadId: eventSession.threadId,
-		state: eventSession.state
+	return syncEventTrackingSummaryPresentation({
+		guild,
+		eventSession,
+		logger
 	});
-
-	const summaryMessageRefs = await eventRepository.listSessionMessages({
-		eventSessionId: eventSession.id,
-		kinds: [EventSessionMessageKind.TRACKING_SUMMARY, EventSessionMessageKind.TRACKING_SUMMARY_PARENT_VC]
-	});
-
-	for (const summaryRef of summaryMessageRefs) {
-		const channel = guild.channels.cache.get(summaryRef.channelId) ?? (await guild.channels.fetch(summaryRef.channelId).catch(() => null));
-		if (!channel || !channel.isTextBased()) {
-			continue;
-		}
-
-		await channel.messages
-			.fetch(summaryRef.messageId)
-			.then((message) =>
-				message.edit({
-					content: null,
-					...summaryPayload
-				})
-			)
-			.catch((error: unknown) => {
-				logger.warn(
-					{
-						err: error,
-						eventSessionId: eventSession.id,
-						channelId: summaryRef.channelId,
-						messageId: summaryRef.messageId
-					},
-					'Failed to sync tracking summary message'
-				);
-			});
-	}
 }

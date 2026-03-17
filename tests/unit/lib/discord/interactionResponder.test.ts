@@ -46,10 +46,11 @@ describe('interactionResponder', () => {
 		expect(interaction.deferReply).toHaveBeenCalledWith({
 			flags: MessageFlags.Ephemeral
 		});
-		expect(interaction.editReply).toHaveBeenCalledWith({
-			content: 'Deferred failure',
-			flags: MessageFlags.Ephemeral
-		});
+		expect(interaction.editReply).toHaveBeenCalledWith(
+			expect.objectContaining({
+				content: 'Deferred failure'
+			})
+		);
 		expect(interaction.followUp).not.toHaveBeenCalled();
 	});
 

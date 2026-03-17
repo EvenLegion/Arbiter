@@ -1,6 +1,6 @@
-import { container } from '@sapphire/framework';
 import type { Guild, GuildMember } from 'discord.js';
 
+import { getGuildMember } from '../../discord/guildMemberGateway';
 import type { ExecutionContext } from '../../logging/executionContext';
 import type { NicknameComputeResult, NicknameSyncResult } from '../../services/nickname/contracts';
 import { computeGuildNickname, syncGuildNickname } from './guildNicknameGateway';
@@ -18,11 +18,7 @@ export function createGuildNicknameServiceDeps({
 	guild,
 	context,
 	includeStaff = false,
-	resolveMember = (discordUserId) =>
-		container.utilities.member.get({
-			guild,
-			discordUserId
-		})
+	resolveMember = (discordUserId) => getGuildMember({ guild, discordUserId })
 }: CreateGuildNicknameServiceDepsParams) {
 	return {
 		getMember: resolveMember,

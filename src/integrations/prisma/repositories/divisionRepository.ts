@@ -1,8 +1,5 @@
-import { createManyDivisionMembership } from '../createManyDivisionMembership';
-import { deleteManyDivisionMembership } from '../deleteManyDivisionMembership';
-import { findManyDivisionMemberships } from '../findManyDivisionMemberships';
-import { findManyDivisions } from '../findManyDivisions';
-import { findManyUsersDivisions } from '../findManyUsersDivisions';
+import { findManyDivisionMemberships, findManyDivisions, findManyUsersDivisions } from '../division/read';
+import { createManyDivisionMembership, deleteManyDivisionMembership } from '../division/write';
 
 export const divisionRepository = {
 	listDivisions: findManyDivisions,

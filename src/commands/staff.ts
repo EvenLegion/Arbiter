@@ -6,7 +6,7 @@ import { handleDivisionMembershipCommand } from '../lib/features/staff/handleDiv
 import { handlePostDivisionMessage } from '../lib/features/staff/postDivisionSelectionMessage';
 import { handleStaffSyncNickname } from '../lib/features/staff/handleStaffSyncNickname';
 import { handleStaffAutocomplete } from '../lib/features/staff/staffAutocompleteProvider';
-import { createExecutionContext } from '../lib/logging/executionContext';
+import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
 	description: 'Staff commands',
@@ -103,36 +103,27 @@ export class StaffCommand extends Subcommand {
 	}
 
 	public async chatInputPostDivisionMessage(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'staff.postDivisionMessage',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.postDivisionMessage'
 		});
 
 		return handlePostDivisionMessage({ interaction, context });
 	}
 
 	public async chatInputSyncNickname(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'staff.syncNickname',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.syncNickname'
 		});
 
 		return handleStaffSyncNickname({ interaction, context });
 	}
 
 	public async chatInputDivisionMembershipAdd(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'staff.divisionMembership.add',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.divisionMembership.add'
 		});
 
 		return handleDivisionMembershipCommand({
@@ -143,12 +134,9 @@ export class StaffCommand extends Subcommand {
 	}
 
 	public async chatInputDivisionMembershipRemove(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'staff.divisionMembership.remove',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.divisionMembership.remove'
 		});
 
 		return handleDivisionMembershipCommand({

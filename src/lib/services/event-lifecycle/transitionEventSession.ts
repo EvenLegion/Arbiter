@@ -1,10 +1,12 @@
-import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
+import { EventSessionState } from '@prisma/client';
 
 import type { ActorContext } from '../_shared/actor';
 import type { EventLifecycleEventSession } from './eventLifecycleTypes';
-import { isTransitionAllowed } from './eventLifecycleStateMachine';
+import { loadAndValidateEventTransition } from './loadAndValidateEventTransition';
+import { persistEventTransition } from './persistEventTransition';
+import { runEventTransitionSideEffects } from './runEventTransitionSideEffects';
 
-type TransitionEventSessionDeps = {
+export type TransitionEventSessionDeps = {
 	findEventSession: (eventSessionId: number) => Promise<EventLifecycleEventSession | null>;
 	updateState: (params: {
 		eventSessionId: number;
@@ -30,6 +32,24 @@ export type TransitionEventSessionResult =
 	| { kind: 'activated'; eventSession: EventLifecycleEventSession }
 	| { kind: 'cancelled'; eventSession: EventLifecycleEventSession }
 	| { kind: 'ended'; eventSession: EventLifecycleEventSession; reviewInitializationFailed: boolean };
+
+export type TransitionEventSessionWorkflowInput = {
+	actor: ActorContext;
+	eventSessionId: number;
+	fromState: EventSessionState;
+	toState: Extract<EventSessionState, 'ACTIVE' | 'CANCELLED' | 'ENDED_PENDING_REVIEW'>;
+	actorTag?: string;
+};
+
+export type PersistTransitionInput = Pick<TransitionEventSessionWorkflowInput, 'eventSessionId' | 'fromState' | 'toState'>;
+
+export type LoadedEventTransition = {
+	eventSession: EventLifecycleEventSession;
+};
+
+export type EventTransitionSideEffectResult = {
+	reviewInitializationFailed: boolean;
+};
 
 export async function activateDraftEvent(
 	deps: TransitionEventSessionDeps,
@@ -80,120 +100,56 @@ export async function endActiveEvent(
 
 async function transitionEventSession(
 	deps: TransitionEventSessionDeps,
-	input: {
-		actor: ActorContext;
-		eventSessionId: number;
-		fromState: EventSessionState;
-		toState: Extract<EventSessionState, 'ACTIVE' | 'CANCELLED' | 'ENDED_PENDING_REVIEW'>;
-		actorTag?: string;
-	}
+	input: TransitionEventSessionWorkflowInput
 ): Promise<TransitionEventSessionResult> {
-	if (!input.actor.capabilities.isStaff && !input.actor.capabilities.isCenturion) {
-		return {
-			kind: 'forbidden'
-		};
-	}
-
-	const eventSession = await deps.findEventSession(input.eventSessionId);
-	if (!eventSession) {
-		return {
-			kind: 'event_not_found'
-		};
-	}
-	if (eventSession.state !== input.fromState) {
-		return {
-			kind: 'invalid_state',
-			currentState: eventSession.state
-		};
-	}
-	if (!isTransitionAllowed(input.fromState, input.toState)) {
-		return {
-			kind: 'invalid_state',
-			currentState: eventSession.state
-		};
+	const validation = await loadAndValidateEventTransition(deps, input);
+	if ('result' in validation) {
+		return validation.result;
 	}
 
 	const now = deps.now();
-	const updated = await deps.updateState({
-		eventSessionId: input.eventSessionId,
-		fromState: input.fromState,
-		toState: input.toState,
-		data:
-			input.toState === EventSessionState.ACTIVE
-				? {
-						startedAt: now
-					}
-				: input.toState === EventSessionState.ENDED_PENDING_REVIEW
-					? {
-							endedAt: now
-						}
-					: undefined
-	});
-	if (!updated) {
-		return {
-			kind: 'state_conflict'
-		};
-	}
-
-	if (input.toState === EventSessionState.ACTIVE && deps.startTracking) {
-		await deps.startTracking({
+	const persisted = await persistEventTransition(
+		deps,
+		{
 			eventSessionId: input.eventSessionId,
-			startedAtMs: now.getTime()
-		});
-	}
-	if (input.toState === EventSessionState.ENDED_PENDING_REVIEW && deps.stopTracking) {
-		await deps.stopTracking({
-			eventSessionId: input.eventSessionId
-		});
-	}
-
-	const refreshed = await deps.reloadEventSession(input.eventSessionId);
-	if (!refreshed) {
-		return {
-			kind: 'event_missing_after_transition'
-		};
+			fromState: input.fromState,
+			toState: input.toState
+		},
+		now
+	);
+	if ('result' in persisted) {
+		return persisted.result;
 	}
 
-	if (input.toState === EventSessionState.ENDED_PENDING_REVIEW && deps.renameParentVoiceChannel) {
-		const parentVoiceChannelId = refreshed.channels.find((channel) => channel.kind === EventSessionChannelKind.PARENT_VC)?.channelId;
-		if (parentVoiceChannelId) {
-			await deps.renameParentVoiceChannel({
-				channelId: parentVoiceChannelId,
-				name: 'Post Event Hangout',
-				reason: `Event ended by ${input.actorTag ?? input.actor.discordTag ?? input.actor.discordUserId}`
-			});
-		}
-	}
-
-	await deps.syncLifecyclePresentation({
-		eventSession: refreshed,
-		actorDiscordUserId: input.actor.discordUserId
-	});
+	const sideEffects = await runEventTransitionSideEffects(
+		deps,
+		{
+			actor: input.actor,
+			eventSessionId: input.eventSessionId,
+			fromState: input.fromState,
+			toState: input.toState,
+			actorTag: input.actorTag
+		},
+		persisted.eventSession,
+		now
+	);
 
 	if (input.toState === EventSessionState.ACTIVE) {
 		return {
 			kind: 'activated',
-			eventSession: refreshed
+			eventSession: persisted.eventSession
 		};
 	}
 	if (input.toState === EventSessionState.CANCELLED) {
 		return {
 			kind: 'cancelled',
-			eventSession: refreshed
+			eventSession: persisted.eventSession
 		};
 	}
 
-	const reviewResult = deps.initializeReview
-		? await deps.initializeReview({
-				eventSessionId: refreshed.id
-			})
-		: {
-				initialized: true
-			};
-
 	return {
 		kind: 'ended',
-		eventSession: refreshed,
-		reviewInitializationFailed: !reviewResult.initialized
+		eventSession: persisted.eventSession,
+		reviewInitializationFailed: sideEffects.reviewInitializationFailed
 	};
 }

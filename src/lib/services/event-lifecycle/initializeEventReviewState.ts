@@ -1,6 +1,7 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 
 import { computeEventDurationSeconds } from '../../features/event-merit/review/computeEventDurationSeconds';
+import { clampAttendedSecondsForReview, resolveDefaultReviewDecision } from './eventReviewAttendancePolicy';
 import type { EventReviewParticipantSnapshot, EventReviewUserLookup } from './eventLifecycleTypes';
 
 type InitializeEventReviewDeps = {
@@ -85,7 +86,7 @@ export async function initializeEventReviewState(
 		return [
 			{
 				dbUserId,
-				attendedSeconds: clampAttendedSeconds(participant.attendedSeconds, durationSeconds)
+				attendedSeconds: clampAttendedSecondsForReview(participant.attendedSeconds, durationSeconds)
 			}
 		];
 	});
@@ -99,7 +100,7 @@ export async function initializeEventReviewState(
 		eventSessionId: input.eventSessionId,
 		decisions: participants.map((participant) => ({
 			targetDbUserId: participant.dbUserId,
-			decision: resolveDefaultDecision({
+			decision: resolveDefaultReviewDecision({
 				attendedSeconds: participant.attendedSeconds,
 				durationSeconds,
 				defaultMinAttendancePercent: deps.defaultMinAttendancePercent
@@ -121,29 +122,4 @@ export async function initializeEventReviewState(
 		snapshotParticipantCount: participantSnapshots.length,
 		persistedParticipantCount: participants.length
 	};
-}
-
-function clampAttendedSeconds(attendedSeconds: number, durationSeconds: number) {
-	const safeAttendedSeconds = Math.max(0, attendedSeconds);
-	if (durationSeconds <= 0) {
-		return safeAttendedSeconds;
-	}
-
-	return Math.min(durationSeconds, safeAttendedSeconds);
-}
-
-function resolveDefaultDecision({
-	attendedSeconds,
-	durationSeconds,
-	defaultMinAttendancePercent
-}: {
-	attendedSeconds: number;
-	durationSeconds: number;
-	defaultMinAttendancePercent: number;
-}) {
-	if (durationSeconds <= 0) {
-		return EventReviewDecisionKind.NO_MERIT;
-	}
-
-	return attendedSeconds / durationSeconds >= defaultMinAttendancePercent / 100 ? EventReviewDecisionKind.MERIT : EventReviewDecisionKind.NO_MERIT;
 }

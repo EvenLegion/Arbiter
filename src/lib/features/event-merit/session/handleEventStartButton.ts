@@ -1,13 +1,10 @@
-import { EventSessionState } from '@prisma/client';
-import { MessageFlags } from 'discord.js';
-
 import { createInteractionResponder } from '../../../discord/interactionResponder';
 import { resolveConfiguredGuild, resolveInteractionActor } from '../../../discord/interactionPreflight';
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel';
 import type { ParsedEventStartButton } from './parseEventStartButton';
 import { activateDraftEvent, cancelDraftEvent, endActiveEvent } from '../../../services/event-lifecycle/eventLifecycleService';
 import { createTransitionEventSessionDeps } from './eventLifecycleTransitionAdapters';
+import { presentEventStartButtonResult } from './eventStartButtonResultPresenter';
 
 type HandleEventStartButtonParams = {
 	interaction: import('discord.js').ButtonInteraction;
@@ -75,43 +72,17 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 						eventSessionId: parsedEventStartButton.eventSessionId
 					});
 
-	if (result.kind === 'forbidden') {
-		await responder.fail('Only staff or Centurions can perform this action.');
+	const response = presentEventStartButtonResult({
+		action: parsedEventStartButton.action,
+		result,
+		requestId: context.requestId
+	});
+	if (response.delivery === 'fail') {
+		await responder.fail(response.content);
 		return;
 	}
-	if (result.kind === 'event_not_found') {
-		await responder.fail('Event session not found.');
-		return;
-	}
-	if (result.kind === 'invalid_state') {
-		const expectedState =
-			parsedEventStartButton.action === 'confirm' || parsedEventStartButton.action === 'cancel'
-				? EventSessionState.DRAFT
-				: EventSessionState.ACTIVE;
-		await responder.fail(
-			`This event is no longer in ${formatEventSessionStateLabel(expectedState)} state (current state: ${formatEventSessionStateLabel(result.currentState)}).`
-		);
-		return;
-	}
-	if (result.kind === 'state_conflict') {
-		await responder.fail(
-			parsedEventStartButton.action === 'confirm'
-				? 'Unable to start the draft event. It may have already been updated.'
-				: parsedEventStartButton.action === 'end'
-					? 'Unable to end the active event. It may have already been updated.'
-					: 'Unable to cancel the draft event. It may have already been updated.'
-		);
-		return;
-	}
-	if (result.kind === 'event_missing_after_transition') {
-		await responder.fail(
-			parsedEventStartButton.action === 'confirm'
-				? 'Event session not found after activation.'
-				: parsedEventStartButton.action === 'end'
-					? 'Event session not found after ending.'
-					: 'Event session not found after cancellation.'
-		);
-		return;
+	if (response.followUp) {
+		await responder.safeFollowUp(response.followUp);
 	}
 
 	if (result.kind === 'activated') {
@@ -135,18 +106,13 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 		return;
 	}
 
-	if (result.reviewInitializationFailed) {
-		await responder.safeFollowUp({
-			content: `Event ended, but review initialization failed. Please contact TECH with requestId=${context.requestId}.`,
-			flags: MessageFlags.Ephemeral
-		});
+	if (result.kind === 'ended') {
+		logger.info(
+			{
+				eventSessionId: result.eventSession.id,
+				actorDiscordUserId: interaction.user.id
+			},
+			'Ended active event session from end button'
+		);
 	}
-
-	logger.info(
-		{
-			eventSessionId: result.eventSession.id,
-			actorDiscordUserId: interaction.user.id
-		},
-		'Ended active event session from end button'
-	);
 }

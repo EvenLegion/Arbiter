@@ -6,8 +6,9 @@ import type { ExecutionContext } from '../../../logging/executionContext';
 import type { EventLifecycleEventSession } from '../../../services/event-lifecycle/eventLifecycleTypes';
 import { syncAwardedMemberNicknamesAndNotifyRankUp } from '../gateways/nicknameRankSyncGateway';
 import { syncEventReviewPageMessage } from '../gateways/reviewMessageGateway';
-import { syncEventTrackingSummary } from '../gateways/trackingSummaryGateway';
-import { postReviewSubmissionTimelineMessages } from '../gateways/timelinePostingGateway';
+import { postReviewSubmissionTimelineMessages } from '../gateways/postReviewSubmissionTimelineMessages';
+import { syncEventTrackingSummaryPresentation } from '../presentation/syncEventTrackingPresentation';
+import { EVENT_LIFECYCLE_SESSION_INCLUDE } from '../session/eventLifecycleSessionInclude';
 
 export function createFinalizeEventReviewLifecycleDeps({
 	guild,
@@ -43,22 +44,13 @@ export function createFinalizeEventReviewLifecycleDeps({
 				logger
 			});
 		},
-		reloadEventSession: async (eventSessionId: number) =>
+		reloadEventSession: (eventSessionId: number) =>
 			eventRepository.getSession({
 				eventSessionId,
-				include: {
-					hostUser: true,
-					eventTier: {
-						include: {
-							meritType: true
-						}
-					},
-					channels: true,
-					eventMessages: true
-				}
+				include: EVENT_LIFECYCLE_SESSION_INCLUDE
 			}),
 		syncTrackingSummary: async (eventSession: EventLifecycleEventSession) => {
-			await syncEventTrackingSummary({
+			await syncEventTrackingSummaryPresentation({
 				guild,
 				eventSession,
 				logger

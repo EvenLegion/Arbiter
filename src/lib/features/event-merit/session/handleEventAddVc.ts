@@ -3,10 +3,8 @@ import { z } from 'zod';
 import { createInteractionResponder } from '../../../discord/interactionResponder';
 import { resolveConfiguredGuild, resolveInteractionActor } from '../../../discord/interactionPreflight';
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { formatEventSessionStateLabel } from '../ui/formatEventSessionStateLabel';
-import { addTrackedChannel } from '../../../services/event-lifecycle/eventLifecycleService';
 import { resolveEventVoiceChannel } from '../gateways/resolveEventChannels';
-import { createAddTrackedChannelDeps } from './eventLifecycleServiceAdapters';
+import { runAddTrackedChannelAction } from './runAddTrackedChannelAction';
 
 type HandleEventAddVcParams = {
 	interaction: import('@sapphire/plugin-subcommands').Subcommand.ChatInputCommandInteraction;
@@ -89,65 +87,24 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 	}
 
 	const renameTo = interaction.options.getString('rename_channel_to')?.trim() ?? '';
-	const result = await addTrackedChannel(
-		createAddTrackedChannelDeps({
-			guild,
-			targetVoiceChannel,
-			logger
-		}),
-		{
+	const response = await runAddTrackedChannelAction({
+		guild,
+		targetVoiceChannel,
+		logger,
+		input: {
 			actor: actor.actor,
 			eventSessionId: parsedEventSessionId.data,
 			targetVoiceChannelId,
 			renameTo: renameTo.length > 0 ? renameTo : null,
 			actorTag: interaction.user.tag
 		}
-	);
-
-	if (result.kind === 'actor_not_found') {
-		await responder.safeEditReply({
-			content: 'Could not resolve your database user.'
-		});
-		return;
-	}
-	if (result.kind === 'event_not_found') {
-		await responder.safeEditReply({
-			content: 'Selected event must be in draft or active state.'
-		});
-		return;
-	}
-	if (result.kind === 'invalid_state') {
-		await responder.safeEditReply({
-			content: 'Selected event must be in draft or active state.'
-		});
-		return;
-	}
-	if (result.kind === 'parent_channel_already_tracked') {
-		await responder.safeEditReply({
-			content: `Channel <#${result.channelId}> is already the Main channel for event **${result.eventName}**.`
-		});
-		return;
-	}
-	if (result.kind === 'channel_reserved') {
-		await responder.safeEditReply({
-			content: `Channel <#${result.channelId}> is already reserved by event **${result.eventName}** (#${result.eventSessionId}, ${formatEventSessionStateLabel(result.state)}).`
-		});
-		return;
-	}
-	if (result.kind === 'already_tracked') {
-		await responder.safeEditReply({
-			content: `Channel <#${result.channelId}> is already tracked for event **${result.eventName}**.`
-		});
-		return;
-	}
-
-	if (result.announcementComplete) {
+	});
+	if (response.delivery === 'deleteReply') {
 		await interaction.deleteReply().catch(() => null);
 		return;
 	}
 
 	await responder.safeEditReply({
-		content:
-			'Event channel was added, but I could not post the success message in both Main channel and sub channel chats. Check bot permissions.'
+		content: response.content
 	});
 }

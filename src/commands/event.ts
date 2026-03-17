@@ -5,7 +5,7 @@ import { ENV_DISCORD } from '../config/env';
 import { handleEventAutocomplete } from '../lib/features/event-merit/session/eventAutocompleteProvider';
 import { handleEventAddVc } from '../lib/features/event-merit/session/handleEventAddVc';
 import { handleEventStart } from '../lib/features/event-merit/session/handleEventStart';
-import { createExecutionContext } from '../lib/logging/executionContext';
+import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
 	description: 'Event commands',
@@ -78,12 +78,9 @@ export class EventCommand extends Subcommand {
 	}
 
 	public async chatInputStartEvent(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'event.start',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'event.start'
 		});
 
 		return handleEventStart({
@@ -93,12 +90,9 @@ export class EventCommand extends Subcommand {
 	}
 
 	public async chatInputAddVc(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'event.addVc',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'event.addVc'
 		});
 
 		return handleEventAddVc({

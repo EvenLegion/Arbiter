@@ -1,4 +1,5 @@
 import { Events, Listener, type ChatInputCommandErrorPayload } from '@sapphire/framework';
+import { createInteractionResponder } from '../../../lib/discord/interactionResponder';
 import { createExecutionContext } from '../../../lib/logging/executionContext';
 
 export class UserEvent extends Listener<typeof Events.ChatInputCommandError> {
@@ -13,6 +14,12 @@ export class UserEvent extends Listener<typeof Events.ChatInputCommandError> {
 			}
 		});
 		const logger = context.logger;
+		const responder = createInteractionResponder({
+			interaction,
+			context,
+			logger,
+			caller: 'chatInputCommandError'
+		});
 
 		logger.error(
 			{
@@ -21,28 +28,8 @@ export class UserEvent extends Listener<typeof Events.ChatInputCommandError> {
 			'Unhandled chat input command error'
 		);
 
-		const content = `An unexpected error occurred. requestId=\`${context.requestId}\``;
-		if (interaction.deferred || interaction.replied) {
-			await interaction.editReply({ content }).catch((editError: unknown) => {
-				logger.error(
-					{
-						err: editError
-					},
-					'Failed to edit interaction reply for chat input command error'
-				);
-				return undefined;
-			});
-			return;
-		}
-
-		await interaction.reply({ content, ephemeral: true }).catch((replyError: unknown) => {
-			logger.error(
-				{
-					err: replyError
-				},
-				'Failed to reply to interaction for chat input command error'
-			);
-			return undefined;
+		await responder.fail('An unexpected error occurred.', {
+			requestId: true
 		});
 	}
 }
