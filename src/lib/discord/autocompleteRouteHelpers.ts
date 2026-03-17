@@ -4,6 +4,7 @@ import {
 	resolveAutocompleteGuild,
 	type AutocompleteChoice
 } from './autocompleteResponder';
+import type { ContextLogger } from '../logging/executionContext';
 
 type AutocompleteInteraction = Parameters<typeof resolveAutocompleteGuild>[0]['interaction'];
 type ResolvedAutocompleteGuild = NonNullable<Awaited<ReturnType<typeof resolveAutocompleteGuild>>>;
@@ -36,11 +37,13 @@ export function getAutocompleteQuery(value: unknown, { lowercase = false }: { lo
 
 export async function respondWithQueryAutocompleteChoices({
 	interaction,
+	logger,
 	loggerContext,
 	choiceLogMessage,
 	loadChoices
 }: {
 	interaction: AutocompleteInteraction;
+	logger: ContextLogger;
 	loggerContext: ReturnType<typeof buildAutocompleteLoggerContext>;
 	choiceLogMessage: string;
 	loadChoices: () => Promise<AutocompleteChoice[]>;
@@ -54,6 +57,7 @@ export async function respondWithQueryAutocompleteChoices({
 	await respondWithAutocompleteChoices({
 		interaction,
 		choices,
+		logger,
 		loggerContext,
 		logMessage: choiceLogMessage
 	});
@@ -61,6 +65,7 @@ export async function respondWithQueryAutocompleteChoices({
 
 export async function respondWithGuildScopedAutocompleteChoices({
 	interaction,
+	logger,
 	guildLoggerContext,
 	guildLogMessage,
 	choiceLoggerContext,
@@ -68,6 +73,7 @@ export async function respondWithGuildScopedAutocompleteChoices({
 	loadChoices
 }: {
 	interaction: AutocompleteInteraction;
+	logger: ContextLogger;
 	guildLoggerContext: ReturnType<typeof buildAutocompleteLoggerContext>;
 	guildLogMessage: string;
 	choiceLoggerContext: ReturnType<typeof buildAutocompleteLoggerContext>;
@@ -76,6 +82,7 @@ export async function respondWithGuildScopedAutocompleteChoices({
 }) {
 	const guild = await resolveAutocompleteGuild({
 		interaction,
+		logger,
 		loggerContext: guildLoggerContext,
 		logMessage: guildLogMessage
 	});
@@ -85,6 +92,7 @@ export async function respondWithGuildScopedAutocompleteChoices({
 
 	await respondWithQueryAutocompleteChoices({
 		interaction,
+		logger,
 		loggerContext: choiceLoggerContext,
 		choiceLogMessage,
 		loadChoices: () => loadChoices(guild)

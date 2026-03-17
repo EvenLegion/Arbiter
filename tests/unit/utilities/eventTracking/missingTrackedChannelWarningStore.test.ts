@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { MissingTrackedChannelWarningStore } from '../../../../src/utilities/eventTracking/missingTrackedChannelWarningStore';
+import { MissingTrackedChannelWarningStore } from '../../../../src/lib/services/event-tracking/missingTrackedChannelWarningStore';
 
 describe('MissingTrackedChannelWarningStore', () => {
 	it('deduplicates repeated missing-channel warnings per session/channel pair', () => {

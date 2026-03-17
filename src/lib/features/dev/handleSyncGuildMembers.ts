@@ -56,7 +56,7 @@ export async function handleSyncGuildMembers({ interaction, context }: HandleSyn
 			return;
 		}
 
-		logger.info(result, 'Development guild member sync completed');
+		logger.info(result, 'guild_member.sync.completed');
 		await responder.safeEditReply(buildGuildMemberSyncPayload({ result }));
 	} catch (error: unknown) {
 		logger.error(

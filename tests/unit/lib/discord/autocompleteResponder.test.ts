@@ -1,4 +1,3 @@
-import { container } from '@sapphire/framework';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -34,10 +33,6 @@ describe('autocompleteResponder', () => {
 		mocks.getGuildMemberOrThrow.mockReset();
 		mocks.memberHasDivisionKindRole.mockReset();
 		error.mockReset();
-
-		(container as { logger?: unknown }).logger = {
-			error
-		};
 	});
 
 	it('responds with an empty list when guild lookup fails', async () => {
@@ -46,6 +41,9 @@ describe('autocompleteResponder', () => {
 
 		const guild = await resolveAutocompleteGuild({
 			interaction,
+			logger: {
+				error
+			} as never,
 			loggerContext: {
 				commandName: 'test'
 			},
@@ -70,6 +68,9 @@ describe('autocompleteResponder', () => {
 					value: '1'
 				}
 			],
+			logger: {
+				error
+			} as never,
 			loggerContext: {
 				commandName: 'test'
 			},
@@ -83,6 +84,7 @@ describe('autocompleteResponder', () => {
 			}
 		]);
 		expect(interaction.respond).toHaveBeenNthCalledWith(2, []);
+		expect(error).toHaveBeenCalled();
 	});
 
 	it('resolves autocomplete requester capability flags', async () => {

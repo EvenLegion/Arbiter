@@ -1,4 +1,3 @@
-import { container } from '@sapphire/framework';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -24,18 +23,11 @@ vi.mock('../../../../src/lib/discord/divisionPolicyGateway', () => ({
 import { resolvePreconditionActor } from '../../../../src/lib/discord/preconditionActor';
 
 describe('preconditionActor', () => {
-	const error = vi.fn();
-
 	beforeEach(() => {
 		mocks.getConfiguredGuild.mockReset();
 		mocks.getGuildMemberOrThrow.mockReset();
 		mocks.memberHasDivisionKindRole.mockReset();
 		mocks.memberHasDivision.mockReset();
-		error.mockReset();
-
-		(container as { logger?: unknown }).logger = {
-			error
-		};
 	});
 
 	it('returns an error when the configured guild cannot be resolved', async () => {
@@ -51,7 +43,6 @@ describe('preconditionActor', () => {
 			ok: false,
 			message: 'This command can only be used in a server.'
 		});
-		expect(error).toHaveBeenCalled();
 	});
 
 	it('returns an error when the member cannot be resolved', async () => {

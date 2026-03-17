@@ -1,4 +1,4 @@
-import type { ActiveTrackedEventSession } from './eventTrackingTypes';
+import type { ActiveTrackedEventSession } from './eventTrackingModel';
 
 export function reconcileTrackedSessions({
 	eventSessionIds,

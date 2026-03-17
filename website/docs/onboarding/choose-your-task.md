@@ -93,6 +93,24 @@ Best current entrypoints:
 - `src/integrations/prisma/repositories/`
 - `src/integrations/redis/eventTracking/`
 
+## Change Logging Or Observability
+
+Read in this order:
+
+1. [Logging And Observability](/architecture/logging-and-observability)
+2. [Runtime Overview](/architecture/runtime-overview)
+3. [Local Development](/onboarding/local-development)
+4. [Production Deployment](/contributing/production-deployment)
+
+Best current entrypoints:
+
+- `src/integrations/pino.ts`
+- `src/lib/logging/ingressExecutionContext.ts`
+- `observability/alloy/config.alloy`
+- `observability/loki/config.yml`
+- `docker-compose.observability.yml`
+- `docker-compose.prod.yml`
+
 ## Change A Listener Or Scheduled Task
 
 Read in this order:
@@ -106,6 +124,21 @@ Best current examples:
 - `src/listeners/guildMemberUpdate.ts`
 - `src/listeners/ready.ts`
 - `src/scheduled-tasks/eventTrackingTick.ts`
+
+## Prepare A Release Or Deploy The Bot
+
+Read in this order:
+
+1. [Release Workflow](/contributing/release-workflow)
+2. [Production Deployment](/contributing/production-deployment)
+3. [Local Development](/onboarding/local-development)
+
+Best current entrypoints:
+
+- `scripts/release/`
+- `.github/workflows/release-pr.yml`
+- `.github/workflows/release-publish.yml`
+- `docker-compose.prod.yml`
 
 ## Update Or Add Documentation
 

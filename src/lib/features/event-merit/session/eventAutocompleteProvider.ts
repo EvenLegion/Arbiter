@@ -27,6 +27,7 @@ export async function handleEventAutocomplete({ interaction, commandName = 'even
 		onError: ({ error, context }) =>
 			logAutocompleteError({
 				error,
+				logger: context.context.logger,
 				loggerContext: {
 					commandName: context.commandName,
 					subcommandGroupName: context.subcommandGroupName,
@@ -41,10 +42,11 @@ export async function handleEventAutocomplete({ interaction, commandName = 'even
 const EVENT_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 	{
 		matches: ({ subcommandName, focused }) => subcommandName === 'start' && focused.name === 'tier_level',
-		run: async ({ interaction, commandName, subcommandName, focused }) => {
+		run: async ({ interaction, context, commandName, subcommandName, focused }) => {
 			const query = getAutocompleteQuery(focused.value);
 			await respondWithQueryAutocompleteChoices({
 				interaction,
+				logger: context.logger,
 				loggerContext: buildAutocompleteLoggerContext({
 					commandName,
 					subcommandName,
@@ -61,10 +63,11 @@ const EVENT_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 	},
 	{
 		matches: ({ subcommandName, focused }) => subcommandName === 'add_vc' && focused.name === 'event_selection',
-		run: async ({ interaction, commandName, subcommandName, focused }) => {
+		run: async ({ interaction, context, commandName, subcommandName, focused }) => {
 			const query = getAutocompleteQuery(focused.value);
 			await respondWithQueryAutocompleteChoices({
 				interaction,
+				logger: context.logger,
 				loggerContext: buildAutocompleteLoggerContext({
 					commandName,
 					subcommandName,
@@ -81,10 +84,11 @@ const EVENT_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 	},
 	{
 		matches: ({ subcommandName, focused }) => subcommandName === 'add_vc' && focused.name === 'voice_channel',
-		run: async ({ interaction, commandName, subcommandName, focused }) => {
+		run: async ({ interaction, context, commandName, subcommandName, focused }) => {
 			const query = getAutocompleteQuery(focused.value);
 			await respondWithGuildScopedAutocompleteChoices({
 				interaction,
+				logger: context.logger,
 				guildLoggerContext: buildAutocompleteLoggerContext({
 					commandName,
 					subcommandName,

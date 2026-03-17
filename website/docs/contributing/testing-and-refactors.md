@@ -20,11 +20,18 @@ pnpm test:unit
 pnpm test:integration
 ```
 
+- `pnpm test`
+  Runs the default Vitest suite. Use it as the main pre-PR confidence check.
+- `pnpm test:unit`
+  Runs only the unit-test layer. Use it while iterating on pure logic, presenters, and service branching.
+- `pnpm test:integration`
+  Runs the Testcontainers-backed integration suite. Use it when persistence, Redis, or repository-backed workflows change.
+
 ## Runtime Notes
 
 Integration tests require a working container runtime.
 
-If Docker is unavailable, `pnpm test:integration` exits cleanly without running suites. That is useful for local work on machines without containers, but real persistence changes should still be validated with Docker available.
+If Docker is unavailable, `pnpm test:integration`, which runs the storage-backed test layer, exits cleanly without running suites. That is useful for local work on machines without containers, but real persistence changes should still be validated with Docker available.
 
 ## What To Test
 
@@ -60,6 +67,15 @@ pnpm eslint src tests
 pnpm test
 pnpm docs:build
 ```
+
+- `pnpm typecheck`
+  Verifies TypeScript contracts. Use it after refactors and interface changes.
+- `pnpm eslint src tests`
+  Lints runtime and test code. Use it before opening a PR and after structural edits.
+- `pnpm test`
+  Runs the main test suite. Use it as the default final validation step.
+- `pnpm docs:build`
+  Builds the docs site. Use it when code changes affect documented paths, structure, or workflows.
 
 ## When Manual Discord Validation Still Matters
 

@@ -2,7 +2,7 @@ import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 
 import { tickAllActiveEventTrackingSessions, tickTrackedEventSession } from '../../../../../src/lib/services/event-tracking/eventTrackingService';
-import { MissingTrackedChannelWarningStore } from '../../../../../src/utilities/eventTracking/missingTrackedChannelWarningStore';
+import { MissingTrackedChannelWarningStore } from '../../../../../src/lib/services/event-tracking/missingTrackedChannelWarningStore';
 import { createMockExecutionContext, createMockLogger } from '../../../../support/logger';
 
 describe('eventTrackingService', () => {

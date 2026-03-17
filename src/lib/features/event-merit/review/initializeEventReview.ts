@@ -47,6 +47,6 @@ export async function initializeEventReview({ guild, eventSessionId, context }: 
 			snapshotParticipantCount: result.snapshotParticipantCount,
 			persistedParticipantCount: result.persistedParticipantCount
 		},
-		'Initialized post-event merit review'
+		'event.review.initialized'
 	);
 }

@@ -102,7 +102,7 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 					primaryVoiceChannelId: resolvedCommand.createDraftInput.primaryVoiceChannelId,
 					trackingThreadId: result.trackingThreadId
 				},
-				'Created event draft from /event start'
+				'event.session.created'
 			);
 		}
 	} catch (err) {

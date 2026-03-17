@@ -84,7 +84,7 @@ const EVENT_REVIEW_BUTTON_ROUTES: EventReviewButtonRouteMap = {
 					awardedCount: result.awardedCount,
 					toState: result.toState
 				},
-				'Finalized event review'
+				'event.review.finalized'
 			);
 		}
 	}

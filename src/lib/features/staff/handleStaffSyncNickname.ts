@@ -81,7 +81,7 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 				...result,
 				includeStaff
 			},
-			'Completed staff nickname sync'
+			'nickname.sync.completed'
 		);
 
 		await responder.safeEditReply(

@@ -16,6 +16,7 @@ const sidebars: SidebarsConfig = {
 				'architecture/discord-execution-model',
 				'architecture/discord-extension-patterns',
 				'architecture/data-and-storage',
+				'architecture/logging-and-observability',
 				'architecture/prisma-integration',
 				'architecture/service-dependency-design'
 			]
@@ -50,7 +51,13 @@ const sidebars: SidebarsConfig = {
 		{
 			type: 'category',
 			label: 'Contributing',
-			items: ['contributing/adding-features', 'contributing/testing-and-refactors', 'contributing/maintaining-docs']
+			items: [
+				'contributing/adding-features',
+				'contributing/testing-and-refactors',
+				'contributing/release-workflow',
+				'contributing/production-deployment',
+				'contributing/maintaining-docs'
+			]
 		}
 	]
 };

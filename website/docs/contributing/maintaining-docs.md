@@ -51,7 +51,7 @@ Practical rule:
 
 1. search the docs for the old filename or old path
 2. update every reference in the same PR
-3. run `pnpm docs:build`
+3. run `pnpm docs:build`, which verifies the docs site still builds and that route/link issues are caught
 
 ## Minimum Validation For Docs Changes
 
@@ -61,6 +61,8 @@ Run:
 pnpm docs:build
 ```
 
+`pnpm docs:build` generates the static site and is the minimum validation for any docs-only change. Use it before merging doc edits.
+
 Also run normal code validation if the docs change is paired with application changes:
 
 ```bash
@@ -68,6 +70,13 @@ pnpm typecheck
 pnpm eslint src tests
 pnpm test
 ```
+
+- `pnpm typecheck`
+  Verifies TypeScript contracts. Use it when the PR changes runtime code alongside docs.
+- `pnpm eslint src tests`
+  Lints runtime and test code. Use it when the PR changes runtime code alongside docs.
+- `pnpm test`
+  Runs the main automated test suite. Use it when the PR changes behavior, not just prose.
 
 ## Good Docs Changes
 

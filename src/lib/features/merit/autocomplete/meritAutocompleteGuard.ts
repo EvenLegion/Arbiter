@@ -19,15 +19,18 @@ type MeritAutocompleteLoggerContext = ReturnType<typeof buildAutocompleteLoggerC
 
 export async function resolveMeritStaffAutocompleteContext({
 	interaction,
+	logger,
 	loggerContext,
 	logMessage
 }: {
 	interaction: AutocompleteInteraction;
+	logger: Parameters<typeof resolveAutocompleteGuild>[0]['logger'];
 	loggerContext: MeritAutocompleteLoggerContext;
 	logMessage: string;
 }): Promise<{ guild: Guild; requester: MeritAutocompleteRequester } | null> {
 	const guild = await resolveAutocompleteGuild({
 		interaction,
+		logger,
 		loggerContext,
 		logMessage
 	});
@@ -52,11 +55,13 @@ export async function resolveMeritStaffAutocompleteContext({
 
 export async function resolveMeritMemberAutocompleteAccess({
 	interaction,
+	logger,
 	loggerContext,
 	logMessage,
 	forbidNonStaff = false
 }: {
 	interaction: AutocompleteInteraction;
+	logger: Parameters<typeof resolveAutocompleteGuild>[0]['logger'];
 	loggerContext: MeritAutocompleteLoggerContext;
 	logMessage: string;
 	forbidNonStaff?: boolean;
@@ -74,6 +79,7 @@ export async function resolveMeritMemberAutocompleteAccess({
 > {
 	const guild = await resolveAutocompleteGuild({
 		interaction,
+		logger,
 		loggerContext,
 		logMessage
 	});
@@ -118,17 +124,20 @@ export function resolveMeritAutocompleteQuery(value: unknown) {
 
 export async function respondWithRequesterSelfChoice({
 	interaction,
+	logger,
 	requester,
 	loggerContext,
 	logMessage
 }: {
 	interaction: AutocompleteInteraction;
+	logger: Parameters<typeof respondWithQueryAutocompleteChoices>[0]['logger'];
 	requester: MeritAutocompleteRequester;
 	loggerContext: MeritAutocompleteLoggerContext;
 	logMessage: string;
 }) {
 	await respondWithQueryAutocompleteChoices({
 		interaction,
+		logger,
 		loggerContext,
 		choiceLogMessage: logMessage,
 		loadChoices: async () => [

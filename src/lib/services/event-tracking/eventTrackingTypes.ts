@@ -2,8 +2,8 @@ import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import type { Guild } from 'discord.js';
 
 import type { ExecutionContext } from '../../logging/executionContext';
-import type { ActiveTrackedEventSession } from '../../../utilities/eventTracking/eventTrackingTypes';
-import type { MissingTrackedChannelWarningStore } from '../../../utilities/eventTracking/missingTrackedChannelWarningStore';
+import type { ActiveTrackedEventSession } from './eventTrackingModel';
+import type { MissingTrackedChannelWarningStore } from './missingTrackedChannelWarningStore';
 
 export type EventTrackingServiceDeps = {
 	listActiveTrackingSessionIds: () => Promise<number[]>;

@@ -35,12 +35,14 @@ flowchart LR
 
 ## Execution Context And Logging
 
-There are two main context builders:
+There are two main layers:
 
-- `src/lib/logging/commandExecutionContext.ts`
-  use this in slash command classes
 - `src/lib/logging/executionContext.ts`
-  use this in listeners, interaction handlers, and scheduled tasks
+  base request-id-aware context creation
+- `src/lib/logging/ingressExecutionContext.ts`
+  command, autocomplete, button, modal, listener, and scheduled-task context helpers
+
+`src/lib/logging/commandExecutionContext.ts` exists as a small compatibility export for command shells.
 
 Execution context carries:
 
@@ -53,6 +55,29 @@ Why it exists:
 - logs stay correlated across handlers, services, and adapters
 - failure responses can include request ids
 - scheduled tasks and listeners use the same logging model as command flows
+
+## Logging And Observability Runtime Shape
+
+The current runtime logging path is:
+
+- app logging:
+  `src/integrations/pino.ts`
+- validated env config:
+  `src/config/env/config.ts`
+- local and production collector stack:
+  `observability/`
+- local compose stack:
+  `docker-compose.observability.yml`
+- production compose stack:
+  `docker-compose.prod.yml`
+
+The important rule is that logs are file-first in both development and production:
+
+- the bot always writes structured logs to `LOG_FILE_PATH`
+- Grafana is the primary viewing surface
+- console output is optional and secondary
+
+Read [Logging And Observability](/architecture/logging-and-observability) for the full operator model.
 
 ## Runtime Utilities And Runtime Gateways
 
@@ -100,10 +125,10 @@ The current shape is:
   `src/lib/features/event-merit/tracking/createEventTrackingServiceDeps.ts`
 - Redis integration:
   `src/integrations/redis/eventTracking/`
-- helper modules with long-lived warning state:
-  `src/utilities/eventTracking/`
+- event-tracking helper modules and warning-store logic:
+  `src/lib/services/event-tracking/`
 
-That means event tracking is service-backed, but still uses a few utility-style helper modules where app-lifetime behavior is useful.
+That means event tracking is fully service-backed now. Its helper modules live with the service instead of under `src/utilities/`, because they are workflow support code rather than Sapphire utility-store pieces.
 
 ## Scheduled Work
 
@@ -130,3 +155,5 @@ If a task starts owning business rules, move that logic into `src/lib/services/`
   [Service And Dependency Design](/architecture/service-dependency-design)
 - For Redis and Prisma ownership:
   [Data And Storage](/architecture/data-and-storage)
+- For the logging stack:
+  [Logging And Observability](/architecture/logging-and-observability)

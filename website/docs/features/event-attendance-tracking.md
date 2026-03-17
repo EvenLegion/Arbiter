@@ -19,8 +19,8 @@ Primary code:
   `src/lib/features/event-merit/tracking/createEventTrackingServiceDeps.ts`
 - Redis storage:
   `src/integrations/redis/eventTracking/`
-- helper modules:
-  `src/utilities/eventTracking/`
+- helper modules and warning-store logic:
+  `src/lib/services/event-tracking/`
 
 ## Tracking Flow
 
@@ -85,7 +85,7 @@ Read these first:
 - `src/lib/features/event-merit/tracking/createEventTrackingServiceDeps.ts`
 - `src/lib/services/event-tracking/eventTrackingService.ts`
 - `src/integrations/redis/eventTracking/`
-- `src/utilities/eventTracking/`
+- `src/lib/services/event-tracking/`
 
 ## Related Docs
 

@@ -4,7 +4,7 @@ import { ENV_DISCORD } from '../../../../config/env/discord';
 import { eventRepository } from '../../../../integrations/prisma/repositories';
 import { getConfiguredGuild, getVoiceBasedGuildChannel } from '../../../discord/configuredGuildGateway';
 import { applyTrackingTick, listActiveTrackingSessionIds, stopTrackingSession } from '../../../../integrations/redis/eventTracking';
-import { MissingTrackedChannelWarningStore } from '../../../../utilities/eventTracking/missingTrackedChannelWarningStore';
+import { MissingTrackedChannelWarningStore } from '../../../services/event-tracking/missingTrackedChannelWarningStore';
 
 const warningStore = new MissingTrackedChannelWarningStore();
 

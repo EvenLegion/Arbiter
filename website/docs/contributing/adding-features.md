@@ -88,7 +88,7 @@ Current best examples:
 - data access:
   `src/integrations/prisma/repositories/`
 - long-lived runtime state:
-  `src/utilities/`
+  `src/utilities/` only when it should be a real runtime utility piece
 
 If shared code is only meaningful inside one feature, keep it inside that feature folder.
 
@@ -112,6 +112,7 @@ Before opening a PR, check:
 - does the service own the rule instead of the handler?
 - does the adapter only assemble dependencies?
 - is the result or payload mapping explicit?
+- did you add or update request-correlated logs where the new behavior changes state or performs important side effects?
 - is the new behavior covered by at least one targeted test?
 - do the docs need an update?
 
@@ -135,6 +136,8 @@ update the docs in the same change. Use [Maintaining Docs](/contributing/maintai
   [Architecture Vocabulary](/architecture/vocabulary)
 - For why services are wired this way:
   [Service And Dependency Design](/architecture/service-dependency-design)
+- For logging expectations:
+  [Logging And Observability](/architecture/logging-and-observability)
 - For Prisma-specific persistence rules:
   [Prisma Integration](/architecture/prisma-integration)
 - For docs updates:

@@ -199,6 +199,11 @@ Current examples:
 
 Use sparingly. Most new business behavior should go into services, not utilities.
 
+Important rule:
+
+- `src/utilities/` is scanned by the Sapphire utilities store
+- do not place plain helper modules or service-internal support files there
+
 ## Shared Discord Edge Helper
 
 Purpose:

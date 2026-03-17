@@ -2,21 +2,33 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Listener } from '@sapphire/framework';
 import type { GuildMember } from 'discord.js';
 import { handleGuildMemberAdd } from '../lib/features/guild-member/onGuildMemberAdd';
-import { createExecutionContext } from '../lib/logging/executionContext';
+import { createListenerExecutionContext } from '../lib/logging/ingressExecutionContext';
 
 @ApplyOptions<Listener.Options>({
 	event: 'guildMemberAdd'
 })
 export class GuildMemberAddListener extends Listener {
 	public override async run(member: GuildMember) {
-		const context = createExecutionContext({
+		const context = createListenerExecutionContext({
+			eventName: 'guildMemberAdd',
+			flow: 'listener.guildMemberAdd',
 			bindings: {
-				flow: 'listener.guildMemberAdd',
 				discordUserId: member.id,
 				guildId: member.guild.id
 			}
 		});
 
-		await handleGuildMemberAdd({ member, context });
+		try {
+			await handleGuildMemberAdd({ member, context });
+			context.logger.debug('discord.listener.completed');
+		} catch (error) {
+			context.logger.error(
+				{
+					err: error
+				},
+				'discord.listener.failed'
+			);
+			throw error;
+		}
 	}
 }

@@ -1,26 +1,16 @@
 import { ENV_DISCORD } from '../../config/env/discord';
 import type { Guild, GuildBasedChannel, VoiceBasedChannel } from 'discord.js';
-import { getRuntimeClient, getRuntimeLogger } from '../../integrations/sapphire/runtimeGateway';
+import { getRuntimeClient } from '../../integrations/sapphire/runtimeGateway';
 
 export async function getConfiguredGuild() {
 	const client = getRuntimeClient();
-	const logger = getRuntimeLogger();
 
 	const cachedGuild = client.guilds.cache.get(ENV_DISCORD.DISCORD_GUILD_ID);
 	if (cachedGuild) {
 		return cachedGuild;
 	}
 
-	const guild = await client.guilds.fetch(ENV_DISCORD.DISCORD_GUILD_ID).catch((error: unknown) => {
-		logger.error(
-			{
-				err: error,
-				discordGuildId: ENV_DISCORD.DISCORD_GUILD_ID
-			},
-			'Failed to fetch configured guild'
-		);
-		return null;
-	});
+	const guild = await client.guilds.fetch(ENV_DISCORD.DISCORD_GUILD_ID).catch(() => null);
 	if (!guild) {
 		throw new Error(`Configured guild not found: ${ENV_DISCORD.DISCORD_GUILD_ID}`);
 	}

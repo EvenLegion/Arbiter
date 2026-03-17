@@ -39,18 +39,42 @@ export function createInteractionResponder({ interaction, context, logger, calle
 	return {
 		deferReply: async (options?: { flags?: InteractionDeferReplyOptions['flags'] }) => {
 			const deferOptions = toInteractionDeferReplyOptions(options);
-			if (deferOptions) {
-				await interaction.deferReply(deferOptions);
-			} else {
-				await interaction.deferReply();
+			try {
+				if (deferOptions) {
+					await interaction.deferReply(deferOptions);
+				} else {
+					await interaction.deferReply();
+				}
+				deliveryState = advanceDeliveryState(deliveryState, 'deferred-reply');
+				logger.debug('discord.reply.deferred');
+			} catch (error) {
+				logger.warn(
+					{
+						err: error,
+						caller
+					},
+					'discord.side_effect.failed'
+				);
+				throw error;
 			}
-			deliveryState = advanceDeliveryState(deliveryState, 'deferred-reply');
 		},
 		deferEphemeralReply: async () => {
-			await interaction.deferReply({
-				flags: MessageFlags.Ephemeral
-			});
-			deliveryState = advanceDeliveryState(deliveryState, 'deferred-reply');
+			try {
+				await interaction.deferReply({
+					flags: MessageFlags.Ephemeral
+				});
+				deliveryState = advanceDeliveryState(deliveryState, 'deferred-reply');
+				logger.debug('discord.reply.deferred');
+			} catch (error) {
+				logger.warn(
+					{
+						err: error,
+						caller
+					},
+					'discord.side_effect.failed'
+				);
+				throw error;
+			}
 		},
 		deferUpdate: async () => {
 			const updateInteraction = interaction as ReplyLikeInteraction & Partial<UpdateLikeInteraction>;
@@ -61,13 +85,15 @@ export function createInteractionResponder({ interaction, context, logger, calle
 			try {
 				await updateInteraction.deferUpdate();
 				deliveryState = advanceDeliveryState(deliveryState, 'deferred-update');
+				logger.debug('discord.update.deferred');
 				return true;
 			} catch (error) {
 				logger.warn(
 					{
-						err: error
+						err: error,
+						caller
 					},
-					`Failed to defer interaction update in ${caller}`
+					'discord.side_effect.failed'
 				);
 				return false;
 			}
@@ -91,13 +117,15 @@ export function createInteractionResponder({ interaction, context, logger, calle
 			try {
 				await send(interaction, resolvedDelivery, payload);
 				deliveryState = advanceDeliveryState(deliveryState, resolvedDelivery);
+				logDeliverySuccess({ logger, delivery: resolvedDelivery });
 			} catch (error) {
 				logger.warn(
 					{
 						err: error,
-						delivery: resolvedDelivery
+						delivery: resolvedDelivery,
+						caller
 					},
-					`Failed to send failure response in ${caller}`
+					'discord.side_effect.failed'
 				);
 			}
 		},
@@ -105,36 +133,42 @@ export function createInteractionResponder({ interaction, context, logger, calle
 			try {
 				await interaction.reply(toInteractionReplyPayload(payload));
 				deliveryState = advanceDeliveryState(deliveryState, 'reply');
+				logger.debug('discord.reply.sent');
 			} catch (error) {
 				logger.warn(
 					{
-						err: error
+						err: error,
+						caller
 					},
-					`Failed to send interaction reply in ${caller}`
+					'discord.side_effect.failed'
 				);
 			}
 		},
 		safeEditReply: async (payload: InteractionResponderPayload) => {
 			try {
 				await interaction.editReply(toInteractionEditReplyPayload(payload));
+				logger.debug('discord.reply.edited');
 			} catch (error) {
 				logger.warn(
 					{
-						err: error
+						err: error,
+						caller
 					},
-					`Failed to edit interaction reply in ${caller}`
+					'discord.side_effect.failed'
 				);
 			}
 		},
 		safeFollowUp: async (payload: InteractionResponderPayload) => {
 			try {
 				await interaction.followUp(toInteractionReplyPayload(payload));
+				logger.debug('discord.follow_up.sent');
 			} catch (error) {
 				logger.warn(
 					{
-						err: error
+						err: error,
+						caller
 					},
-					`Failed to send interaction follow-up in ${caller}`
+					'discord.side_effect.failed'
 				);
 			}
 		}
@@ -150,4 +184,17 @@ async function send(interaction: ReplyLikeInteraction, delivery: Exclude<Deliver
 	}
 
 	return interaction.reply(toInteractionReplyPayload(payload));
+}
+
+function logDeliverySuccess({ logger, delivery }: { logger: ExecutionContext['logger']; delivery: Exclude<DeliveryMode, 'auto'> }) {
+	if (delivery === 'editReply') {
+		logger.debug('discord.reply.edited');
+		return;
+	}
+	if (delivery === 'followUp') {
+		logger.debug('discord.follow_up.sent');
+		return;
+	}
+
+	logger.debug('discord.reply.sent');
 }

@@ -1,5 +1,5 @@
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
-import { reconcileTrackedSessions } from '../../../utilities/eventTracking/reconcileTrackedSessions';
+import { reconcileTrackedSessions } from './reconcileTrackedSessions';
 import { tickTrackedEventSession } from './tickTrackedEventSession';
 import type { EventTrackingServiceDeps, TickAllActiveEventTrackingSessionsResult } from './eventTrackingTypes';
 

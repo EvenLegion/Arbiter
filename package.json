@@ -5,7 +5,6 @@
 	"main": "dist/index.js",
 	"type": "commonjs",
 	"dependencies": {
-		"@logtail/pino": "^0.5.7",
 		"@prisma/adapter-pg": "^7.4.1",
 		"@prisma/client": "^7.4.1",
 		"@sapphire/cron": "^1.2.1",
@@ -97,6 +96,10 @@
 		"redis:down": "docker compose -f docker-compose.redis.yml down",
 		"redis:reset": "docker compose -f docker-compose.redis.yml down -v",
 		"redis:logs": "docker compose -f docker-compose.redis.yml logs -f",
+		"obs:up": "docker compose -f docker-compose.observability.yml up -d",
+		"obs:down": "docker compose -f docker-compose.observability.yml down",
+		"obs:reset": "docker compose -f docker-compose.observability.yml down -v",
+		"obs:logs": "docker compose -f docker-compose.observability.yml logs -f",
 		"prod:build": "docker compose -f docker-compose.prod.yml build",
 		"prod:up": "docker compose -f docker-compose.prod.yml up -d",
 		"prod:down": "docker compose -f docker-compose.prod.yml down",

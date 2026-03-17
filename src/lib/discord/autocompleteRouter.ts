@@ -1,10 +1,13 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 import type { AutocompleteFocusedOption } from 'discord.js';
 
+import { createAutocompleteExecutionContext } from '../logging/ingressExecutionContext';
+import type { ExecutionContext } from '../logging/executionContext';
 import { respondWithEmptyAutocompleteChoices } from './autocompleteResponder';
 
 export type AutocompleteRouteContext = {
 	interaction: Subcommand.AutocompleteInteraction;
+	context: ExecutionContext;
 	commandName: string;
 	subcommandGroupName: string | null;
 	subcommandName: string | null;
@@ -27,8 +30,13 @@ export async function routeAutocompleteInteraction({
 	routes: readonly AutocompleteRoute[];
 	onError?: (params: { error: unknown; context: AutocompleteRouteContext }) => Promise<void> | void;
 }) {
+	const executionContext = createAutocompleteExecutionContext({
+		interaction,
+		commandName
+	});
 	const context: AutocompleteRouteContext = {
 		interaction,
+		context: executionContext,
 		commandName,
 		subcommandGroupName: getOptionalSubcommandGroup(interaction),
 		subcommandName: getOptionalSubcommand(interaction),
@@ -42,12 +50,20 @@ export async function routeAutocompleteInteraction({
 			}
 
 			await route.run(context);
+			executionContext.logger.debug('discord.autocomplete.completed');
 			return;
 		}
 
 		await respondWithEmptyAutocompleteChoices(interaction);
+		executionContext.logger.debug('discord.autocomplete.completed');
 	} catch (error) {
 		await respondWithEmptyAutocompleteChoices(interaction);
+		executionContext.logger.error(
+			{
+				err: error
+			},
+			'discord.autocomplete.failed'
+		);
 		await onError?.({
 			error,
 			context

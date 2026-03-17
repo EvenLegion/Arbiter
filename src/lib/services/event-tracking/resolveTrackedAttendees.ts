@@ -1,6 +1,6 @@
 import type { Guild } from 'discord.js';
 
-import type { ExecutionContext } from '../../lib/logging/executionContext';
+import type { ExecutionContext } from '../../logging/executionContext';
 import { MissingTrackedChannelWarningStore } from './missingTrackedChannelWarningStore';
 
 export async function resolveTrackedAttendeeDiscordUserIds({

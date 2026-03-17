@@ -71,7 +71,7 @@ export async function handleDevNicknameTransform({ interaction, context, mode }:
 			return;
 		}
 
-		logger.info(result, 'Completed dev nickname command');
+		logger.info(result, 'nickname.transform.completed');
 
 		await responder.safeEditReply(
 			buildBulkNicknameTransformPayload({

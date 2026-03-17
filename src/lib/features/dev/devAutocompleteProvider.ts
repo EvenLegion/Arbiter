@@ -24,12 +24,13 @@ export async function handleDevAutocomplete({ interaction, commandName = 'dev' }
 const DEV_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 	{
 		matches: ({ subcommandGroupName, focused }) => subcommandGroupName === 'nickname' && focused.name === 'user',
-		run: async ({ interaction, commandName, subcommandGroupName, focused }) => {
+		run: async ({ interaction, context, commandName, subcommandGroupName, focused }) => {
 			const query = getAutocompleteQuery(focused.value, {
 				lowercase: true
 			});
 			await respondWithGuildScopedAutocompleteChoices({
 				interaction,
+				logger: context.logger,
 				guildLoggerContext: buildAutocompleteLoggerContext({
 					commandName,
 					subcommandGroupName,

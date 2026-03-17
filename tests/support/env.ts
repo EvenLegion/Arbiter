@@ -1,7 +1,9 @@
 const DEFAULT_TEST_ENV = {
 	NODE_ENV: 'development',
-	LOG_LEVEL: 'error',
-	LOCAL_FILE_LOG_LEVEL: 'error',
+	FILE_LOG_LEVEL: 'error',
+	LOG_FILE_PATH: 'logs/test.log',
+	CONSOLE_LOG_LEVEL: 'silent',
+	ENABLE_CONSOLE_PRETTY_LOGS: 'false',
 	DATABASE_URL: 'postgresql://arbiter:arbiter@localhost:5432/arbiter_test',
 	REDIS_HOST: 'localhost',
 	REDIS_PORT: '6379',

@@ -1,7 +1,8 @@
 import { InteractionHandler } from '@sapphire/framework';
 import type { ButtonInteraction, ModalSubmitInteraction } from 'discord.js';
 
-import { createExecutionContext, type ExecutionContext } from '../logging/executionContext';
+import { type ExecutionContext } from '../logging/executionContext';
+import { createButtonExecutionContext, createModalExecutionContext } from '../logging/ingressExecutionContext';
 
 type RoutedInteractionContextParams<TInteraction, TParsed> = {
 	interaction: TInteraction;
@@ -28,21 +29,28 @@ export abstract class RoutedButtonInteractionHandler<TParsed> extends Interactio
 	}
 
 	public override async run(interaction: ButtonInteraction, parsed: TParsed) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: this.flow,
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id,
-				customButtonId: interaction.customId,
-				...this.buildContextBindings(interaction, parsed)
-			}
+		const context = createButtonExecutionContext({
+			interaction,
+			flow: this.flow,
+			bindings: this.buildContextBindings(interaction, parsed)
 		});
 
-		await this.route({
-			interaction,
-			parsed,
-			context
-		});
+		try {
+			await this.route({
+				interaction,
+				parsed,
+				context
+			});
+			context.logger.debug('discord.button.completed');
+		} catch (error) {
+			context.logger.error(
+				{
+					err: error
+				},
+				'discord.button.failed'
+			);
+			throw error;
+		}
 	}
 }
 
@@ -61,20 +69,27 @@ export abstract class RoutedModalInteractionHandler<TParsed> extends Interaction
 	}
 
 	public override async run(interaction: ModalSubmitInteraction, parsed: TParsed) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: this.flow,
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id,
-				customModalId: interaction.customId,
-				...this.buildContextBindings(interaction, parsed)
-			}
+		const context = createModalExecutionContext({
+			interaction,
+			flow: this.flow,
+			bindings: this.buildContextBindings(interaction, parsed)
 		});
 
-		await this.route({
-			interaction,
-			parsed,
-			context
-		});
+		try {
+			await this.route({
+				interaction,
+				parsed,
+				context
+			});
+			context.logger.debug('discord.modal.completed');
+		} catch (error) {
+			context.logger.error(
+				{
+					err: error
+				},
+				'discord.modal.failed'
+			);
+			throw error;
+		}
 	}
 }

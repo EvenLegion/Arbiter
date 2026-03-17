@@ -1,5 +1,4 @@
 import type { DivisionKind, Prisma } from '@prisma/client';
-import { container } from '@sapphire/framework';
 
 import { prisma } from '../prisma';
 
@@ -21,8 +20,6 @@ type FindManyUsersDivisionsParams = {
 };
 
 export async function findManyDivisions({ ids, codes, kinds, requireEmoji = false }: FindManyDivisionsParams = {}) {
-	const caller = 'findManyDivisions';
-
 	const and: Prisma.DivisionWhereInput[] = [];
 
 	if (ids && ids.length > 0) {
@@ -43,8 +40,6 @@ export async function findManyDivisions({ ids, codes, kinds, requireEmoji = fals
 		and.push({ emojiId: { not: null } }, { emojiName: { not: null } });
 	}
 
-	container.logger.trace({ caller, and }, 'findManyDivisions parameters');
-
 	return prisma.division.findMany({
 		where: and.length > 0 ? { AND: and } : undefined,
 		orderBy: { id: 'asc' }
@@ -52,10 +47,7 @@ export async function findManyDivisions({ ids, codes, kinds, requireEmoji = fals
 }
 
 export async function findManyDivisionMemberships({ userId, discordUserId }: FindManyDivisionMembershipsParams) {
-	const caller = 'findManyDivisionMemberships';
-
 	if (!userId && !discordUserId) {
-		container.logger.error({ caller }, 'Either userId or discordUserId must be provided');
 		throw new Error('Either userId or discordUserId must be provided');
 	}
 
@@ -69,8 +61,6 @@ export async function findManyDivisionMemberships({ userId, discordUserId }: Fin
 		and.push({ user: { discordUserId } });
 	}
 
-	container.logger.trace({ caller, and }, 'findManyDivisionMemberships parameters');
-
 	return prisma.divisionMembership.findMany({
 		where: and.length > 0 ? { AND: and } : undefined,
 		orderBy: { id: 'asc' }
@@ -78,10 +68,7 @@ export async function findManyDivisionMemberships({ userId, discordUserId }: Fin
 }
 
 export async function findManyUsersDivisions({ userId, discordUserId }: FindManyUsersDivisionsParams) {
-	const caller = 'findManyUsersDivisions';
-
 	if (!userId && !discordUserId) {
-		container.logger.error({ caller }, 'Either userId or discordUserId must be provided');
 		throw new Error('Either userId or discordUserId must be provided');
 	}
 

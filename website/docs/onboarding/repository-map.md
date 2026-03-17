@@ -10,7 +10,9 @@ sidebar_position: 3
 - `src/`: bot runtime code
 - `tests/`: unit and integration tests
 - `prisma/`: schema and migration tooling
+- `observability/`: Loki, Alloy, and Grafana provisioning/config
 - `website/`: Docusaurus docs site
+- `docker-compose.*.yml`: local and production service stacks
 
 ## `src/` Layout
 
@@ -73,10 +75,27 @@ Examples:
 - `src/integrations/sapphire/`
   Shared runtime shell access such as `runtimeGateway.ts`. Listener and scheduled-task shells should use this boundary instead of `this.container.*`.
 
+### Persistence and operational tooling at repo root
+
+- `prisma/schema.prisma`
+  Prisma schema and normal schema migration ownership
+- `prisma/migration/`
+  legacy-data migration and repair utilities, not the normal deploy-time migration path
+- `observability/`
+  Grafana/Loki/Alloy config used in both local and production setups
+- `docker-compose.db.yml`
+  local Postgres
+- `docker-compose.redis.yml`
+  local Redis
+- `docker-compose.observability.yml`
+  local Grafana/Loki/Alloy
+- `docker-compose.prod.yml`
+  VPS production stack
+
 ### Runtime utilities
 
 - `src/utilities/`
-  Long-lived runtime services and helper modules that still benefit from app-lifetime state.
+  Long-lived runtime services that are real Sapphire utility-store pieces or otherwise own app-lifetime state.
 
 Current examples:
 
@@ -84,7 +103,8 @@ Current examples:
 - division role policy
 - guild lookup
 - user directory
-- event-tracking helper modules
+
+Do not put plain helper modules or service support files under `src/utilities/`. That folder is scanned by the Sapphire utilities store.
 
 ## Where New Code Should Go
 
@@ -122,7 +142,7 @@ Current examples:
 ### Add shared Discord plumbing
 
 - prefer `src/lib/discord/` for transport-facing concerns
-- prefer `src/utilities/` only when the concern is truly long-lived runtime state
+- prefer `src/utilities/` only when the concern is truly long-lived runtime state and should be treated as a runtime utility piece
 
 ## Why The Code Is Split This Way
 
@@ -145,3 +165,5 @@ The current layout exists so contributors can:
   [Adding Features](/contributing/adding-features)
 - For task-based onboarding:
   [Choose Your Task](/onboarding/choose-your-task)
+- For deployment and host operations:
+  [Production Deployment](/contributing/production-deployment)

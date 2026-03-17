@@ -103,6 +103,6 @@ export async function reviewNameChangeAction({
 			status: reviewed.status,
 			requesterDiscordUserId: reviewed.requesterUser.discordUserId
 		},
-		'Reviewed name change request'
+		'name_change.review.completed'
 	);
 }

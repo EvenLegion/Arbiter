@@ -46,7 +46,13 @@ export async function handleDivisionMembershipCommand({ interaction, context, mo
 			}
 		);
 
-		logger.info(result, mode === 'add' ? 'Added division membership from staff command' : 'Removed division membership from staff command');
+		logger.info(
+			{
+				...result,
+				mode
+			},
+			'division.membership.updated'
+		);
 		await responder.safeEditReply({
 			content: buildDivisionMembershipMutationReply({
 				result,

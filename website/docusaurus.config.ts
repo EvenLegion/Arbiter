@@ -90,6 +90,10 @@ const config: Config = {
 							to: '/architecture/data-and-storage'
 						},
 						{
+							label: 'Logging and Observability',
+							to: '/architecture/logging-and-observability'
+						},
+						{
 							label: 'Prisma Integration',
 							to: '/architecture/prisma-integration'
 						},
@@ -126,6 +130,14 @@ const config: Config = {
 						{
 							label: 'Adding Features',
 							to: '/contributing/adding-features'
+						},
+						{
+							label: 'Release Workflow',
+							to: '/contributing/release-workflow'
+						},
+						{
+							label: 'Production Deployment',
+							to: '/contributing/production-deployment'
 						},
 						{
 							label: 'Maintaining Docs',

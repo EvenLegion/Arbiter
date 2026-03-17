@@ -1,16 +1,16 @@
 import { Events, Listener, type ChatInputCommandErrorPayload } from '@sapphire/framework';
 import { createInteractionResponder } from '../../../lib/discord/interactionResponder';
-import { createExecutionContext } from '../../../lib/logging/executionContext';
+import { createCommandExecutionContext } from '../../../lib/logging/commandExecutionContext';
 
 export class UserEvent extends Listener<typeof Events.ChatInputCommandError> {
 	public override async run(error: unknown, { interaction, command }: ChatInputCommandErrorPayload) {
-		const context = createExecutionContext({
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'listener.chatInputCommandError',
+			logReceived: false,
 			bindings: {
-				flow: 'chatInputCommandError',
 				caller: 'chatInputCommandError',
-				commandName: command?.name,
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
+				commandName: command?.name ?? interaction.commandName
 			}
 		});
 		const logger = context.logger;
@@ -25,7 +25,7 @@ export class UserEvent extends Listener<typeof Events.ChatInputCommandError> {
 			{
 				err: error
 			},
-			'Unhandled chat input command error'
+			'discord.chat_input.failed'
 		);
 
 		await responder.fail('An unexpected error occurred.', {

@@ -23,12 +23,16 @@ This site is written for contributors, not end users. Its job is to answer four 
   Read [Local Development](/onboarding/local-development).
 - You need to understand where code belongs:
   Read [Repository Map](/onboarding/repository-map) and [Architecture Vocabulary](/architecture/vocabulary).
+- You are changing logging, request correlation, or Grafana/Loki setup:
+  Read [Logging And Observability](/architecture/logging-and-observability) and [Runtime Overview](/architecture/runtime-overview).
 - You are changing command, interaction, or preflight behavior:
   Read [Discord Execution Model](/architecture/discord-execution-model) and [Discord Extension Patterns](/architecture/discord-extension-patterns).
 - You are changing business workflows or service logic:
   Read [Service And Dependency Design](/architecture/service-dependency-design) and [Architecture Vocabulary](/architecture/vocabulary).
 - You are changing persistence or Redis-backed behavior:
   Read [Data and Storage](/architecture/data-and-storage) and [Aggregate Reference](/reference/aggregate-reference).
+- You need to prepare a release or deploy the bot:
+  Read [Release Workflow](/contributing/release-workflow) and [Production Deployment](/contributing/production-deployment).
 
 ## Recommended Reading Order
 
@@ -52,7 +56,7 @@ The repo is organized around a small set of stable patterns:
 - `src/lib/features/` holds feature-facing handlers, presenters, gateways, and adapter assembly.
 - `src/lib/services/` holds business workflows and domain rules.
 - `src/integrations/` owns Prisma, Redis, Sapphire runtime edges, and other infrastructure boundaries.
-- `src/utilities/` is reserved for long-lived runtime helpers that still benefit from Sapphire utility registration or app-lifetime state.
+- `src/utilities/` is reserved for real long-lived runtime utilities that benefit from Sapphire utility registration or app-lifetime state.
 
 The intent is:
 

@@ -98,7 +98,7 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 				normalizedRequestedName: result.requestedName,
 				strippedDivisionPrefix: result.strippedDivisionPrefix
 			},
-			'Detected and stripped division prefix from requested name'
+			'name_change.request.normalized'
 		);
 	}
 
@@ -110,7 +110,7 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 				requestedName: result.requestedName,
 				reviewThreadId: result.reviewThreadId
 			},
-			'Created name change ticket'
+			'name_change.request.submitted'
 		);
 	}
 

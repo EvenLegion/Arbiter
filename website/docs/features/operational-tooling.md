@@ -67,4 +67,6 @@ Read these first:
 
 - [Guild Member Automation](/features/guild-member-automation)
 - [Event Attendance Tracking](/features/event-attendance-tracking)
+- [Production Deployment](/contributing/production-deployment)
+- [Release Workflow](/contributing/release-workflow)
 - [Testing And Refactors](/contributing/testing-and-refactors)

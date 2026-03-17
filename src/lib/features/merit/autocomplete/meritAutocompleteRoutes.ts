@@ -50,9 +50,10 @@ function createStaffQueryRoute({
 	return {
 		matches: ({ subcommandName: currentSubcommandName, focused }) =>
 			currentSubcommandName === subcommandName && focused.name === focusedOptionName,
-		run: async ({ interaction, commandName, subcommandName: currentSubcommandName, focused }) => {
+		run: async ({ interaction, context, commandName, subcommandName: currentSubcommandName, focused }) => {
 			const resolved = await resolveMeritStaffAutocompleteContext({
 				interaction,
+				logger: context.logger,
 				loggerContext: {
 					commandName,
 					subcommandName: currentSubcommandName,
@@ -67,6 +68,7 @@ function createStaffQueryRoute({
 			const query = resolveMeritAutocompleteQuery(focused.value);
 			await respondWithQueryAutocompleteChoices({
 				interaction,
+				logger: context.logger,
 				loggerContext: buildAutocompleteLoggerContext({
 					commandName,
 					subcommandName: currentSubcommandName,
@@ -99,7 +101,7 @@ function createMemberRoute({
 			typeof subcommandName === 'string' &&
 			subcommandNames.includes(subcommandName as 'give' | 'list') &&
 			focusedOptionNames.includes(focused.name),
-		run: async ({ interaction, commandName, subcommandName, focused }) => {
+		run: async ({ interaction, context, commandName, subcommandName, focused }) => {
 			if (subcommandName !== 'give' && subcommandName !== 'list') {
 				await respondWithEmptyAutocompleteChoices(interaction);
 				return;
@@ -107,6 +109,7 @@ function createMemberRoute({
 
 			const access = await resolveMeritMemberAutocompleteAccess({
 				interaction,
+				logger: context.logger,
 				loggerContext: {
 					commandName,
 					subcommandName,
@@ -122,6 +125,7 @@ function createMemberRoute({
 			if (access.kind === 'self-only') {
 				await respondWithRequesterSelfChoice({
 					interaction,
+					logger: context.logger,
 					requester: access.requester,
 					loggerContext: buildAutocompleteLoggerContext({
 						commandName,
@@ -135,6 +139,7 @@ function createMemberRoute({
 
 			await respondWithQueryAutocompleteChoices({
 				interaction,
+				logger: context.logger,
 				loggerContext: buildAutocompleteLoggerContext({
 					commandName,
 					subcommandName,

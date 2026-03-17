@@ -1,7 +1,7 @@
 import type { Guild, GuildMember } from 'discord.js';
 
-import { getRuntimeLogger } from '../../integrations/sapphire/runtimeGateway';
 import { resolveActorCoreWithDeps } from './actorCapabilityResolver';
+import type { ContextLogger } from '../logging/executionContext';
 import { memberHasDivisionKindRole } from './divisionPolicyGateway';
 import { getConfiguredGuild } from './configuredGuildGateway';
 import { getGuildMemberOrThrow } from './guildMemberGateway';
@@ -17,16 +17,17 @@ type AutocompleteInteraction = {
 
 export async function resolveAutocompleteGuild({
 	interaction,
+	logger,
 	loggerContext,
 	logMessage
 }: {
 	interaction: AutocompleteInteraction;
+	logger?: ContextLogger;
 	loggerContext: Record<string, unknown>;
 	logMessage: string;
 }): Promise<Guild | null> {
-	const logger = getRuntimeLogger();
 	return getConfiguredGuild().catch(async (error: unknown) => {
-		logger.error(
+		logger?.error(
 			{
 				err: error,
 				...loggerContext
@@ -41,17 +42,18 @@ export async function resolveAutocompleteGuild({
 export async function respondWithAutocompleteChoices({
 	interaction,
 	choices,
+	logger,
 	loggerContext,
 	logMessage
 }: {
 	interaction: AutocompleteInteraction;
 	choices: AutocompleteChoice[];
+	logger?: ContextLogger;
 	loggerContext: Record<string, unknown>;
 	logMessage: string;
 }) {
-	const logger = getRuntimeLogger();
 	await interaction.respond(choices).catch(async (error: unknown) => {
-		logger.error(
+		logger?.error(
 			{
 				err: error,
 				...loggerContext
@@ -68,14 +70,16 @@ export async function respondWithEmptyAutocompleteChoices(interaction: Autocompl
 
 export function logAutocompleteError({
 	error,
+	logger,
 	loggerContext,
 	logMessage
 }: {
 	error: unknown;
+	logger?: ContextLogger;
 	loggerContext: Record<string, unknown>;
 	logMessage: string;
 }) {
-	getRuntimeLogger().error(
+	logger?.error(
 		{
 			err: error,
 			...loggerContext

@@ -88,16 +88,20 @@ export async function stopIntegrationContainers(containers: IntegrationContainer
 
 export function applyDatabaseTestEnv(databaseUrl: string) {
 	process.env.NODE_ENV = 'development';
-	process.env.LOG_LEVEL = 'error';
-	process.env.LOCAL_FILE_LOG_LEVEL = 'error';
+	process.env.FILE_LOG_LEVEL = 'error';
+	process.env.LOG_FILE_PATH = 'logs/test.log';
+	process.env.CONSOLE_LOG_LEVEL = 'silent';
+	process.env.ENABLE_CONSOLE_PRETTY_LOGS = 'false';
 	process.env.DATABASE_URL = databaseUrl;
 }
 
 export function applyRedisTestEnv(redisUrl: string) {
 	const parsedRedisUrl = new URL(redisUrl);
 	process.env.NODE_ENV = 'development';
-	process.env.LOG_LEVEL = 'error';
-	process.env.LOCAL_FILE_LOG_LEVEL = 'error';
+	process.env.FILE_LOG_LEVEL = 'error';
+	process.env.LOG_FILE_PATH = 'logs/test.log';
+	process.env.CONSOLE_LOG_LEVEL = 'silent';
+	process.env.ENABLE_CONSOLE_PRETTY_LOGS = 'false';
 	process.env.REDIS_HOST = parsedRedisUrl.hostname;
 	process.env.REDIS_PORT = parsedRedisUrl.port;
 	process.env.REDIS_PASSWORD = decodeURIComponent(parsedRedisUrl.password);
@@ -111,8 +115,10 @@ export function applyIntegrationTestEnv(containers: IntegrationContainers) {
 
 export function applyDiscordTestEnv(overrides: Partial<Record<keyof typeof DISCORD_TEST_ENV, string>> = {}) {
 	process.env.NODE_ENV = 'development';
-	process.env.LOG_LEVEL = 'error';
-	process.env.LOCAL_FILE_LOG_LEVEL = 'error';
+	process.env.FILE_LOG_LEVEL = 'error';
+	process.env.LOG_FILE_PATH = 'logs/test.log';
+	process.env.CONSOLE_LOG_LEVEL = 'silent';
+	process.env.ENABLE_CONSOLE_PRETTY_LOGS = 'false';
 
 	for (const [key, value] of Object.entries(DISCORD_TEST_ENV)) {
 		process.env[key] = overrides[key as keyof typeof DISCORD_TEST_ENV] ?? value;

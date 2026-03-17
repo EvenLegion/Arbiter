@@ -43,6 +43,25 @@ The owning workflow is service-backed:
 
 - `src/lib/services/event-tracking/`
 
+## Operational Logs
+
+Operational logs are not business state, but they are part of the runtime storage story.
+
+Current ownership:
+
+- the bot writes newline-delimited JSON logs to `LOG_FILE_PATH`
+- local development usually writes into `logs/arbiter.log`
+- production usually mounts `/app/logs` from `BOT_LOGS_DIR`
+- Alloy tails the file
+- Loki stores the ingested logs for query in Grafana
+
+That means:
+
+- Postgres is still the system of record
+- Redis still owns ephemeral event-tracking state
+- Loki is the query store for operational logs
+- the on-disk log file remains the canonical sink the app writes to
+
 ## Aggregate Ownership
 
 The main aggregate owners are:
@@ -94,7 +113,7 @@ The repo uses:
 - unit tests for pure logic, service branching, presenters, and edge helpers
 - integration tests with Testcontainers for Postgres and Redis-backed workflows
 
-Integration tests require a working container runtime. When Docker is unavailable, `pnpm test:integration` exits cleanly without running suites.
+Integration tests require a working container runtime. When Docker is unavailable, `pnpm test:integration`, which runs the Testcontainers-backed integration layer, exits cleanly without running suites.
 
 ## Common Rules
 
@@ -110,6 +129,8 @@ Integration tests require a working container runtime. When Docker is unavailabl
   [Aggregate Reference](/reference/aggregate-reference)
 - For Prisma layer structure and file placement:
   [Prisma Integration](/architecture/prisma-integration)
+- For logging storage and observability flow:
+  [Logging And Observability](/architecture/logging-and-observability)
 - For workflow ownership:
   the relevant feature page
 - For contributor rules:

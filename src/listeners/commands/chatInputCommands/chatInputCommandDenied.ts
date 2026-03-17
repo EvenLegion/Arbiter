@@ -1,7 +1,7 @@
 import type { ChatInputCommandDeniedPayload, Events } from '@sapphire/framework';
 import { Listener, UserError } from '@sapphire/framework';
 import { createInteractionResponder } from '../../../lib/discord/interactionResponder';
-import { createExecutionContext } from '../../../lib/logging/executionContext';
+import { createCommandExecutionContext } from '../../../lib/logging/commandExecutionContext';
 
 export class UserEvent extends Listener<typeof Events.ChatInputCommandDenied> {
 	public override async run({ context, message: content }: UserError, { interaction }: ChatInputCommandDeniedPayload) {
@@ -9,14 +9,20 @@ export class UserEvent extends Listener<typeof Events.ChatInputCommandDenied> {
 		// Use cases for this are for example permissions error when running the `eval` command.
 		if (Reflect.get(Object(context), 'silent')) return;
 
-		const executionContext = createExecutionContext({
+		const executionContext = createCommandExecutionContext({
+			interaction,
+			flow: 'listener.chatInputCommandDenied',
+			logReceived: false,
 			bindings: {
-				flow: 'chatInputCommandDenied',
-				caller: 'chatInputCommandDenied',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
+				caller: 'chatInputCommandDenied'
 			}
 		});
+		executionContext.logger.warn(
+			{
+				denialMessage: content
+			},
+			'discord.chat_input.denied'
+		);
 		const responder = createInteractionResponder({
 			interaction,
 			context: executionContext,

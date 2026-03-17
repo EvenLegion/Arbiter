@@ -1,0 +1,331 @@
+{
+	"annotations": {
+		"list": []
+	},
+	"editable": true,
+	"fiscalYearStartMonth": 0,
+	"graphTooltip": 0,
+	"id": null,
+	"links": [],
+	"panels": [
+		{
+			"datasource": "Loki",
+			"description": "Recent request-correlated logs. Use the dashboard variables to filter by request ID, Discord user ID, and whether debug logs should be included.",
+			"gridPos": {
+				"h": 18,
+				"w": 24,
+				"x": 0,
+				"y": 0
+			},
+			"id": 1,
+			"options": {
+				"dedupStrategy": "none",
+				"enableLogDetails": true,
+				"prettifyLogMessage": true,
+				"showCommonLabels": false,
+				"showLabels": false,
+				"showTime": true,
+				"sortOrder": "Descending",
+				"wrapLogMessage": false
+			},
+			"targets": [
+				{
+					"datasource": "Loki",
+					"editorMode": "builder",
+					"expr": "{app=\"arbiter\", level!~\"${excluded_levels:raw}\"} | json | requestId =~ \"${request_id:raw}\" | discordUserId =~ \"${discord_user_id:raw}\" | line_format \"requestId={{.requestId}} discordUserId={{.discordUserId}} flow={{.flow}} transport={{.transport}} level={{ if eq .level \\\"10\\\" }}trace{{ else if eq .level \\\"20\\\" }}debug{{ else if eq .level \\\"30\\\" }}info{{ else if eq .level \\\"40\\\" }}warn{{ else if eq .level \\\"50\\\" }}error{{ else if eq .level \\\"60\\\" }}fatal{{ else }}{{ .level }}{{ end }} msg={{.msg}}\"",
+					"queryType": "range",
+					"refId": "A"
+				}
+			],
+			"title": "Request ID Trace",
+			"type": "logs"
+		},
+		{
+			"datasource": "Loki",
+			"description": "Volume of logs grouped by the bound flow label. This is the fastest way to see which bot workflow is active or noisy.",
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"axisCenteredZero": false,
+						"axisColorMode": "text",
+						"axisLabel": "",
+						"axisPlacement": "auto",
+						"barAlignment": 0,
+						"drawStyle": "line",
+						"fillOpacity": 20,
+						"gradientMode": "none",
+						"hideFrom": {
+							"legend": false,
+							"tooltip": false,
+							"viz": false
+						},
+						"insertNulls": false,
+						"lineInterpolation": "linear",
+						"lineWidth": 2,
+						"pointSize": 5,
+						"scaleDistribution": {
+							"type": "linear"
+						},
+						"showPoints": "never",
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "none"
+						},
+						"thresholdsStyle": {
+							"mode": "off"
+						}
+					}
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 9
+			},
+			"id": 2,
+			"options": {
+				"legend": {
+					"calcs": [],
+					"displayMode": "list",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "single",
+					"sort": "none"
+				}
+			},
+			"targets": [
+				{
+					"datasource": "Loki",
+					"editorMode": "code",
+					"expr": "sum by (flow) (count_over_time({app=\"arbiter\", flow!=\"\", level!~\"${excluded_levels:raw}\"} | json | requestId =~ \"${request_id:raw}\" | discordUserId =~ \"${discord_user_id:raw}\" [$__interval]))",
+					"legendFormat": "{{flow}}",
+					"queryType": "range",
+					"refId": "A"
+				}
+			],
+			"title": "Logs by Flow",
+			"type": "timeseries"
+		},
+		{
+			"datasource": "Loki",
+			"description": "Volume of logs grouped by transport type such as chat input, button, modal, listener, or task.",
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"axisCenteredZero": false,
+						"axisColorMode": "text",
+						"axisLabel": "",
+						"axisPlacement": "auto",
+						"barAlignment": 0,
+						"drawStyle": "bars",
+						"fillOpacity": 80,
+						"gradientMode": "none",
+						"hideFrom": {
+							"legend": false,
+							"tooltip": false,
+							"viz": false
+						},
+						"insertNulls": false,
+						"lineInterpolation": "linear",
+						"lineWidth": 1,
+						"pointSize": 5,
+						"scaleDistribution": {
+							"type": "linear"
+						},
+						"showPoints": "never",
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						},
+						"thresholdsStyle": {
+							"mode": "off"
+						}
+					}
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 9
+			},
+			"id": 3,
+			"options": {
+				"legend": {
+					"calcs": [],
+					"displayMode": "list",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "single",
+					"sort": "none"
+				}
+			},
+			"targets": [
+				{
+					"datasource": "Loki",
+					"editorMode": "code",
+					"expr": "sum by (transport) (count_over_time({app=\"arbiter\", transport!=\"\", level!~\"${excluded_levels:raw}\"} | json | requestId =~ \"${request_id:raw}\" | discordUserId =~ \"${discord_user_id:raw}\" [$__interval]))",
+					"legendFormat": "{{transport}}",
+					"queryType": "range",
+					"refId": "A"
+				}
+			],
+			"title": "Logs by Transport",
+			"type": "timeseries"
+		},
+		{
+			"datasource": "Loki",
+			"description": "Warn, error, and fatal logs. This is the main triage panel when a flow misbehaves.",
+			"gridPos": {
+				"h": 10,
+				"w": 12,
+				"x": 0,
+				"y": 17
+			},
+			"id": 4,
+			"options": {
+				"dedupStrategy": "none",
+				"enableLogDetails": true,
+				"prettifyLogMessage": true,
+				"showCommonLabels": false,
+				"showLabels": true,
+				"showTime": true,
+				"sortOrder": "Descending",
+				"wrapLogMessage": false
+			},
+			"targets": [
+				{
+					"datasource": "Loki",
+					"editorMode": "builder",
+					"expr": "{app=\"arbiter\", level=~\"warn|error|fatal\"} | json | requestId =~ \"${request_id:raw}\" | discordUserId =~ \"${discord_user_id:raw}\" | line_format \"flow={{.flow}} transport={{.transport}} requestId={{.requestId}} discordUserId={{.discordUserId}} msg={{.msg}}\"",
+					"queryType": "range",
+					"refId": "A"
+				}
+			],
+			"title": "Errors and Warnings",
+			"type": "logs"
+		},
+		{
+			"datasource": "Loki",
+			"description": "Recent structured bot activity with flow and transport context. Useful for seeing what the bot is doing even when there is no error.",
+			"gridPos": {
+				"h": 10,
+				"w": 12,
+				"x": 12,
+				"y": 17
+			},
+			"id": 5,
+			"options": {
+				"dedupStrategy": "none",
+				"enableLogDetails": true,
+				"prettifyLogMessage": true,
+				"showCommonLabels": false,
+				"showLabels": false,
+				"showTime": true,
+				"sortOrder": "Descending",
+				"wrapLogMessage": false
+			},
+			"targets": [
+				{
+					"datasource": "Loki",
+					"editorMode": "builder",
+					"expr": "{app=\"arbiter\", flow!=\"\", level!~\"${excluded_levels:raw}\"} | json | requestId =~ \"${request_id:raw}\" | discordUserId =~ \"${discord_user_id:raw}\" | line_format \"flow={{.flow}} transport={{.transport}} level={{ if eq .level \\\"10\\\" }}trace{{ else if eq .level \\\"20\\\" }}debug{{ else if eq .level \\\"30\\\" }}info{{ else if eq .level \\\"40\\\" }}warn{{ else if eq .level \\\"50\\\" }}error{{ else if eq .level \\\"60\\\" }}fatal{{ else }}{{ .level }}{{ end }} requestId={{.requestId}} discordUserId={{.discordUserId}} msg={{.msg}}\"",
+					"queryType": "range",
+					"refId": "A"
+				}
+			],
+			"title": "Recent Bot Actions",
+			"type": "logs"
+		}
+	],
+	"refresh": "10s",
+	"schemaVersion": 41,
+	"style": "dark",
+	"tags": ["arbiter", "logs", "loki"],
+	"templating": {
+		"list": [
+			{
+				"current": {
+					"selected": true,
+					"text": "Info+ (default)",
+					"value": "trace|debug"
+				},
+				"hide": 0,
+				"includeAll": false,
+				"label": "Log Detail",
+				"multi": false,
+				"name": "excluded_levels",
+				"options": [
+					{
+						"selected": true,
+						"text": "Info+ (default)",
+						"value": "trace|debug"
+					},
+					{
+						"selected": false,
+						"text": "Debug+",
+						"value": "^$"
+					}
+				],
+				"query": "Info+ (default) : trace|debug, Debug+ : ^$",
+				"skipUrlSync": false,
+				"type": "custom"
+			},
+			{
+				"current": {
+					"selected": false,
+					"text": ".*",
+					"value": ".*"
+				},
+				"hide": 0,
+				"label": "Request ID Regex",
+				"name": "request_id",
+				"options": [],
+				"query": ".*",
+				"skipUrlSync": false,
+				"type": "textbox"
+			},
+			{
+				"current": {
+					"selected": false,
+					"text": ".*",
+					"value": ".*"
+				},
+				"hide": 0,
+				"label": "Discord User ID Regex",
+				"name": "discord_user_id",
+				"options": [],
+				"query": ".*",
+				"skipUrlSync": false,
+				"type": "textbox"
+			}
+		]
+	},
+	"time": {
+		"from": "now-6h",
+		"to": "now"
+	},
+	"timepicker": {},
+	"timezone": "",
+	"title": "Arbiter Logs",
+	"uid": "arbiter-logs",
+	"version": 1,
+	"weekStart": ""
+}

@@ -1,7 +1,7 @@
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js';
 
 import { ENV_DISCORD } from '../../config/env';
-import { getRuntimeLogger } from '../../integrations/sapphire/runtimeGateway';
+import { createCommandExecutionContext } from '../logging/commandExecutionContext';
 import { resolveActorCoreWithDeps } from './actorCapabilityResolver';
 import { memberHasDivision, memberHasDivisionKindRole } from './divisionPolicyGateway';
 import { getConfiguredGuild } from './configuredGuildGateway';
@@ -30,7 +30,12 @@ export async function resolvePreconditionActor({
 	preconditionName: 'StaffOnly' | 'EventOperatorOnly';
 	capabilityRequirement: CapabilityRequirement;
 }): Promise<ResolvedPreconditionActor> {
-	const logger = getRuntimeLogger();
+	const context = createCommandExecutionContext({
+		interaction,
+		flow: `precondition.${preconditionName}`,
+		logReceived: false
+	});
+	const logger = context.logger;
 	const resolved = await resolveActorCoreWithDeps(
 		{
 			getConfiguredGuild,
@@ -50,10 +55,9 @@ export async function resolvePreconditionActor({
 			logger.error(
 				{
 					err: resolved.error,
-					precondition: preconditionName,
-					discordUserId: interaction.user.id
+					precondition: preconditionName
 				},
-				`Failed to resolve configured guild in ${preconditionName} precondition`
+				'discord.precondition.failed'
 			);
 		}
 		return {
@@ -63,6 +67,12 @@ export async function resolvePreconditionActor({
 	}
 
 	if (resolved.kind === 'member_not_found') {
+		logger.warn(
+			{
+				precondition: preconditionName
+			},
+			'discord.precondition.denied'
+		);
 		return {
 			ok: false,
 			message: 'Could not resolve your member record in this server.'
@@ -70,6 +80,12 @@ export async function resolvePreconditionActor({
 	}
 
 	if (resolved.kind === 'insufficient_capability' && capabilityRequirement === 'staff') {
+		logger.warn(
+			{
+				precondition: preconditionName
+			},
+			'discord.precondition.denied'
+		);
 		return {
 			ok: false,
 			message: 'Only staff members can perform this action.'
@@ -77,6 +93,12 @@ export async function resolvePreconditionActor({
 	}
 
 	if (resolved.kind === 'insufficient_capability' && capabilityRequirement === 'staff-or-centurion') {
+		logger.warn(
+			{
+				precondition: preconditionName
+			},
+			'discord.precondition.denied'
+		);
 		return {
 			ok: false,
 			message: 'Only staff members or Centurions can perform this action.'
@@ -84,6 +106,13 @@ export async function resolvePreconditionActor({
 	}
 
 	if (resolved.kind !== 'ok') {
+		logger.warn(
+			{
+				precondition: preconditionName,
+				resolvedKind: resolved.kind
+			},
+			'discord.precondition.denied'
+		);
 		return {
 			ok: false,
 			message: 'Only staff members can perform this action.'

@@ -2,7 +2,7 @@ import { ScheduledTask } from '@sapphire/plugin-scheduled-tasks';
 import { ENV_DISCORD } from '../config/env/discord';
 import { isRuntimeClientReady } from '../integrations/sapphire/runtimeGateway';
 import { createEventTrackingServiceDeps } from '../lib/features/event-merit/tracking/createEventTrackingServiceDeps';
-import { createExecutionContext } from '../lib/logging/executionContext';
+import { createScheduledTaskExecutionContext } from '../lib/logging/ingressExecutionContext';
 import { tickAllActiveEventTrackingSessions } from '../lib/services/event-tracking/eventTrackingService';
 
 export class EventTrackingTickTask extends ScheduledTask {
@@ -18,22 +18,22 @@ export class EventTrackingTickTask extends ScheduledTask {
 			return;
 		}
 
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'task.eventTrackingTick'
-			}
+		const context = createScheduledTaskExecutionContext({
+			taskName: 'eventTrackingTick',
+			flow: 'task.eventTrackingTick'
 		});
 
 		try {
 			await tickAllActiveEventTrackingSessions(createEventTrackingServiceDeps(), {
 				context
 			});
+			context.logger.debug('task.completed');
 		} catch (error) {
 			context.logger.error(
 				{
 					err: error
 				},
-				'eventTrackingTick task failed'
+				'task.failed'
 			);
 			throw error;
 		}

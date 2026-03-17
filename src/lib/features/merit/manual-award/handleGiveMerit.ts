@@ -121,7 +121,7 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 				eventSessionId: parsedEventSessionId?.success ? parsedEventSessionId.data : null,
 				meritRecordId: result.meritRecordId
 			},
-			'Processed manual merit award'
+			'merit.manual_award.completed'
 		);
 	}
 }

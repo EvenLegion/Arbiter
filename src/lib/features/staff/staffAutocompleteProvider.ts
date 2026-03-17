@@ -28,9 +28,10 @@ const STAFF_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 		matches: ({ subcommandName, subcommandGroupName, focused }) =>
 			(subcommandName === 'sync_nickname' && focused.name === 'user') ||
 			(subcommandGroupName === 'division_membership' && focused.name === 'nickname'),
-		run: async ({ interaction, commandName, subcommandGroupName, subcommandName, focused }) =>
+		run: async ({ interaction, context, commandName, subcommandGroupName, subcommandName, focused }) =>
 			respondWithGuildMemberAutocomplete({
 				interaction,
+				logger: context.logger,
 				commandName,
 				subcommandGroupName,
 				subcommandName,
@@ -39,9 +40,10 @@ const STAFF_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 	},
 	{
 		matches: ({ subcommandGroupName, focused }) => subcommandGroupName === 'division_membership' && focused.name === 'division_name',
-		run: async ({ interaction, commandName, subcommandGroupName, subcommandName, focused }) =>
+		run: async ({ interaction, context, commandName, subcommandGroupName, subcommandName, focused }) =>
 			respondWithDivisionAutocomplete({
 				interaction,
+				logger: context.logger,
 				commandName,
 				subcommandGroupName,
 				subcommandName,
@@ -52,12 +54,14 @@ const STAFF_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 
 async function respondWithGuildMemberAutocomplete({
 	interaction,
+	logger,
 	commandName,
 	subcommandGroupName,
 	subcommandName,
 	focusedOptionName
 }: {
 	interaction: Subcommand.AutocompleteInteraction;
+	logger: Parameters<typeof respondWithGuildScopedAutocompleteChoices>[0]['logger'];
 	commandName: string;
 	subcommandGroupName: string | null;
 	subcommandName: string | null;
@@ -68,6 +72,7 @@ async function respondWithGuildMemberAutocomplete({
 	});
 	await respondWithGuildScopedAutocompleteChoices({
 		interaction,
+		logger,
 		guildLoggerContext: buildAutocompleteLoggerContext({
 			commandName,
 			subcommandGroupName,
@@ -93,12 +98,14 @@ async function respondWithGuildMemberAutocomplete({
 
 async function respondWithDivisionAutocomplete({
 	interaction,
+	logger,
 	commandName,
 	subcommandGroupName,
 	subcommandName,
 	focusedOptionName
 }: {
 	interaction: Subcommand.AutocompleteInteraction;
+	logger: Parameters<typeof respondWithQueryAutocompleteChoices>[0]['logger'];
 	commandName: string;
 	subcommandGroupName: string | null;
 	subcommandName: string | null;
@@ -109,6 +116,7 @@ async function respondWithDivisionAutocomplete({
 	});
 	await respondWithQueryAutocompleteChoices({
 		interaction,
+		logger,
 		loggerContext: buildAutocompleteLoggerContext({
 			commandName,
 			subcommandGroupName,

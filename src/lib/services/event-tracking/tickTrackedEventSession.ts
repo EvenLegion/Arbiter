@@ -1,6 +1,6 @@
 import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
 
-import { resolveTrackedAttendeeDiscordUserIds } from '../../../utilities/eventTracking/resolveTrackedAttendees';
+import { resolveTrackedAttendeeDiscordUserIds } from './resolveTrackedAttendees';
 import type { EventTrackingServiceDeps, TickTrackedEventSessionInput, TickTrackedEventSessionResult } from './eventTrackingTypes';
 
 export async function tickTrackedEventSession(
