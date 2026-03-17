@@ -1,4 +1,5 @@
 import { isNicknameTooLongError } from '../../errors/nicknameTooLongError';
+import { toErrorDetails } from '../../logging/errorDetails';
 
 import type { NicknameComputeDeps, NicknameValidationResult } from './nicknameTypes';
 
@@ -35,7 +36,8 @@ export async function validateRequestedNickname<TMember>(
 		}
 
 		return {
-			kind: 'validation-failed'
+			kind: 'validation-failed',
+			...toErrorDetails(error)
 		};
 	}
 }

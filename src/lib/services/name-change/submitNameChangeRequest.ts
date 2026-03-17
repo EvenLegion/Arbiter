@@ -1,5 +1,6 @@
 import type { ActorContext } from '../_shared/actor';
 import type { NicknameValidationResult } from '../nickname/nicknameService';
+import { toErrorDetails } from '../../logging/errorDetails';
 import { normalizeRequestedName } from '../../features/ticket/normalizeRequestedName';
 import type { NameChangeRequester, NameChangeReviewThreadPayload } from './nameChangeTypes';
 
@@ -22,10 +23,17 @@ export type SubmitNameChangeRequestResult =
 	| { kind: 'invalid_requested_name'; errorMessage: string }
 	| { kind: 'requester_member_not_found' }
 	| { kind: 'nickname_too_long' }
-	| { kind: 'validation_failed' }
+	| { kind: 'validation_failed'; errorMessage: string; errorName?: string; errorCode?: string }
 	| { kind: 'request_creation_failed' }
 	| { kind: 'review_thread_failed'; requestId: number }
-	| { kind: 'review_thread_reference_failed'; requestId: number; reviewThreadId: string }
+	| {
+			kind: 'review_thread_reference_failed';
+			requestId: number;
+			reviewThreadId: string;
+			errorMessage: string;
+			errorName?: string;
+			errorCode?: string;
+	  }
 	| {
 			kind: 'created';
 			requestId: number;
@@ -78,7 +86,10 @@ export async function submitNameChangeRequest(
 	}
 	if (nicknameValidation.kind === 'validation-failed') {
 		return {
-			kind: 'validation_failed'
+			kind: 'validation_failed',
+			errorMessage: nicknameValidation.errorMessage,
+			errorName: nicknameValidation.errorName,
+			errorCode: nicknameValidation.errorCode
 		};
 	}
 
@@ -114,11 +125,12 @@ export async function submitNameChangeRequest(
 			requestId: request.id,
 			reviewThreadId: thread.reviewThreadId
 		});
-	} catch {
+	} catch (error) {
 		return {
 			kind: 'review_thread_reference_failed',
 			requestId: request.id,
-			reviewThreadId: thread.reviewThreadId
+			reviewThreadId: thread.reviewThreadId,
+			...toErrorDetails(error)
 		};
 	}
 

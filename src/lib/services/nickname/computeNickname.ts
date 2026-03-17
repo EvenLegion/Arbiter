@@ -1,3 +1,5 @@
+import { toErrorDetails } from '../../logging/errorDetails';
+
 import type { ComputeNicknameForUserResult, NicknameComputeDeps } from './nicknameTypes';
 
 export async function computeNicknameForUser<TMember>(
@@ -27,9 +29,10 @@ export async function computeNicknameForUser<TMember>(
 			computedNickname: result.computedNickname,
 			reason: result.reason
 		};
-	} catch {
+	} catch (error) {
 		return {
-			kind: 'compute-failed'
+			kind: 'compute-failed',
+			...toErrorDetails(error)
 		};
 	}
 }

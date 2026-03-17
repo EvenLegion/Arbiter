@@ -1,4 +1,5 @@
 import type { NicknameTransformMode } from '../../features/dev/nicknameTransform';
+import type { ErrorDetails } from '../../logging/errorDetails';
 
 export type BulkNicknameTarget = {
 	id: string;
@@ -36,10 +37,10 @@ export type TransformBulkNicknamesDeps<TMember> = BulkNicknameResolutionDeps<TMe
 export type BulkNicknameScope = 'single' | 'all';
 
 export type SyncBulkNicknamesResult =
-	| {
+	| ({
 			kind: 'prepare_failed';
 			scope: BulkNicknameScope;
-	  }
+	  } & ErrorDetails)
 	| {
 			kind: 'no_targets';
 			scope: BulkNicknameScope;

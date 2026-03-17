@@ -40,7 +40,10 @@ export function createManualMeritNicknameEffects({
 			logger.warn(
 				{
 					targetDiscordUserId: discordUserId,
-					outcome: result.kind
+					outcome: result.kind,
+					...('errorMessage' in result ? { errorMessage: result.errorMessage } : {}),
+					...('errorName' in result ? { errorName: result.errorName } : {}),
+					...('errorCode' in result ? { errorCode: result.errorCode } : {})
 				},
 				'Failed to sync recipient nickname after manual merit award'
 			);
@@ -69,7 +72,10 @@ export function createManualMeritNicknameEffects({
 
 			logger.warn(
 				{
-					awarderDiscordUserId: discordUserId
+					awarderDiscordUserId: discordUserId,
+					...('errorMessage' in result ? { errorMessage: result.errorMessage } : {}),
+					...('errorName' in result ? { errorName: result.errorName } : {}),
+					...('errorCode' in result ? { errorCode: result.errorCode } : {})
 				},
 				'Failed to build awarder nickname for manual merit DM'
 			);

@@ -86,6 +86,20 @@ export async function handleGuildMemberUpdate({ oldMember, newMember, context }:
 		);
 		return;
 	}
+	if (result.nickname.kind === 'sync_failed') {
+		logger.error(
+			{
+				discordUserId: newMember.user.id,
+				discordUsername: newMember.user.username,
+				discordNickname: newMember.nickname,
+				roleDiff: result.roleDiff,
+				membership: result.membership,
+				nickname: result.nickname
+			},
+			'Guild member update workflow failed during nickname sync'
+		);
+		return;
+	}
 
 	logger.info(
 		{

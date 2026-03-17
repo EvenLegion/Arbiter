@@ -58,9 +58,13 @@ describe('nicknameService', () => {
 					discordUserId: 'discord-user-1'
 				}
 			)
-		).resolves.toEqual({
-			kind: 'compute-failed'
-		});
+		).resolves.toEqual(
+			expect.objectContaining({
+				kind: 'compute-failed',
+				errorMessage: 'boom',
+				errorName: 'Error'
+			})
+		);
 	});
 
 	it('returns a computed nickname for a known member', async () => {
@@ -136,5 +140,28 @@ describe('nicknameService', () => {
 			member,
 			computedNickname: 'ARC NewName'
 		});
+	});
+
+	it('returns sync-failed with error details when nickname sync throws unexpectedly', async () => {
+		await expect(
+			syncNicknameForUser(
+				{
+					getMember: vi.fn().mockResolvedValue({
+						id: 'member-1'
+					}),
+					syncComputedNickname: vi.fn().mockRejectedValue(new Error('permission denied'))
+				},
+				{
+					discordUserId: 'discord-user-1',
+					setReason: 'sync'
+				}
+			)
+		).resolves.toEqual(
+			expect.objectContaining({
+				kind: 'sync-failed',
+				errorMessage: 'permission denied',
+				errorName: 'Error'
+			})
+		);
 	});
 });

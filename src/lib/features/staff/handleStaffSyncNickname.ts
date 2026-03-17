@@ -62,6 +62,7 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 		);
 
 		if (result.kind === 'prepare_failed') {
+			logger.error(result, 'nickname.sync.failed');
 			await responder.fail('Failed to refresh division cache.', {
 				requestId: true
 			});
@@ -76,13 +77,15 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 			return;
 		}
 
-		logger.info(
-			{
-				...result,
-				includeStaff
-			},
-			'nickname.sync.completed'
-		);
+		const logBindings = {
+			...result,
+			includeStaff
+		};
+		if (result.failed > 0) {
+			logger.warn(logBindings, 'nickname.sync.completed_with_failures');
+		} else {
+			logger.info(logBindings, 'nickname.sync.completed');
+		}
 
 		await responder.safeEditReply(
 			buildBulkNicknameSyncPayload({

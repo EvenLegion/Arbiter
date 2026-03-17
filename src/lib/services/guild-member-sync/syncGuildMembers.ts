@@ -1,21 +1,24 @@
+import { toErrorDetails } from '../../logging/errorDetails';
 import type { GuildMemberSyncDeps, GuildMemberSyncResult } from './guildMemberSyncTypes';
 import type { GuildMemberSnapshot, GuildMemberSyncCounters, GuildMemberSyncFailure, GuildMemberSyncProgress } from './guildMemberSyncTypes';
 
 export async function syncGuildMembers<TMember>(deps: GuildMemberSyncDeps<TMember>): Promise<GuildMemberSyncResult> {
 	try {
 		await deps.refreshDivisionCache();
-	} catch {
+	} catch (error) {
 		return {
-			kind: 'division_cache_refresh_failed'
+			kind: 'division_cache_refresh_failed',
+			...toErrorDetails(error)
 		};
 	}
 
 	let members: TMember[];
 	try {
 		members = await deps.listMembers();
-	} catch {
+	} catch (error) {
 		return {
-			kind: 'members_load_failed'
+			kind: 'members_load_failed',
+			...toErrorDetails(error)
 		};
 	}
 

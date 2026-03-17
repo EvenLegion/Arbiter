@@ -29,7 +29,7 @@ export async function initializeEventReview({ guild, eventSessionId, context }: 
 		throw new Error(`Event session not found while initializing review: eventSessionId=${eventSessionId}`);
 	}
 	if (result.kind === 'invalid_state') {
-		logger.warn(
+		logger.info(
 			{
 				state: result.currentState
 			},

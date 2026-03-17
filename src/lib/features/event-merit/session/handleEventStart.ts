@@ -79,6 +79,16 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 		);
 		const response = presentEventStartResult(result);
 		if (response.delivery === 'fail') {
+			if (result.kind === 'tracking_thread_failed') {
+				logger.error(
+					{
+						eventTierId: resolvedCommand.createDraftInput.eventTierId,
+						hostDiscordUserId: issuer.id,
+						primaryVoiceChannelId: resolvedCommand.createDraftInput.primaryVoiceChannelId
+					},
+					'event.session.create_draft.failed'
+				);
+			}
 			await responder.fail(response.content, {
 				requestId: response.requestId
 			});

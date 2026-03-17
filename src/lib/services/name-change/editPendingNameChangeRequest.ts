@@ -24,7 +24,7 @@ export type EditPendingNameChangeRequestResult =
 	| { kind: 'invalid_requested_name'; errorMessage: string }
 	| { kind: 'requester_member_not_found' }
 	| { kind: 'nickname_too_long' }
-	| { kind: 'validation_failed' }
+	| { kind: 'validation_failed'; errorMessage: string; errorName?: string; errorCode?: string }
 	| {
 			kind: 'edited';
 			requestId: number;
@@ -89,7 +89,10 @@ export async function editPendingNameChangeRequest(
 	}
 	if (nicknameValidation.kind === 'validation-failed') {
 		return {
-			kind: 'validation_failed'
+			kind: 'validation_failed',
+			errorMessage: nicknameValidation.errorMessage,
+			errorName: nicknameValidation.errorName,
+			errorCode: nicknameValidation.errorCode
 		};
 	}
 

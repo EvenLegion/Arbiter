@@ -78,6 +78,23 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 		requestId: context.requestId
 	});
 	if (response.delivery === 'fail') {
+		if (result.kind === 'state_conflict' || result.kind === 'event_missing_after_transition' || result.kind === 'event_not_found') {
+			logger.error(
+				{
+					actorDiscordUserId: interaction.user.id,
+					resultKind: result.kind
+				},
+				'event.session.transition.failed'
+			);
+		} else {
+			logger.info(
+				{
+					actorDiscordUserId: interaction.user.id,
+					resultKind: result.kind
+				},
+				'event.session.transition.rejected'
+			);
+		}
 		await responder.fail(response.content);
 		return;
 	}
@@ -107,6 +124,16 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 	}
 
 	if (result.kind === 'ended') {
+		if (result.reviewInitializationFailed) {
+			logger.warn(
+				{
+					eventSessionId: result.eventSession.id,
+					actorDiscordUserId: interaction.user.id
+				},
+				'Event ended but review initialization failed'
+			);
+			return;
+		}
 		logger.info(
 			{
 				eventSessionId: result.eventSession.id,

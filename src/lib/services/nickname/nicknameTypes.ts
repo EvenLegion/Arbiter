@@ -1,3 +1,5 @@
+import type { ErrorDetails } from '../../logging/errorDetails';
+
 export type NicknameComputeResult = {
 	computedNickname: string | null;
 	reason: string | undefined;
@@ -43,15 +45,15 @@ export type NicknameValidationResult =
 	| { kind: 'valid' }
 	| { kind: 'member-not-found' }
 	| { kind: 'nickname-too-long' }
-	| { kind: 'validation-failed' };
+	| ({ kind: 'validation-failed' } & ErrorDetails);
 
 export type ComputeNicknameForUserResult =
 	| { kind: 'computed'; computedNickname: string | null; reason?: string }
 	| { kind: 'member-not-found' }
-	| { kind: 'compute-failed' };
+	| ({ kind: 'compute-failed' } & ErrorDetails);
 
 export type SyncNicknameForUserResult<TMember> =
 	| { kind: 'member-not-found' }
 	| { kind: 'nickname-too-long' }
-	| { kind: 'sync-failed' }
+	| ({ kind: 'sync-failed' } & ErrorDetails)
 	| ({ kind: 'synced' } & NicknameSyncResult<TMember>);

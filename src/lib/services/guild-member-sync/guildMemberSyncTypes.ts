@@ -1,3 +1,5 @@
+import type { ErrorDetails } from '../../logging/errorDetails';
+
 export type GuildMemberSyncFailure = {
 	discordUserId: string;
 	discordUsername: string;
@@ -32,8 +34,8 @@ export type GuildMemberSyncDeps<TMember> = {
 };
 
 export type GuildMemberSyncResult =
-	| { kind: 'division_cache_refresh_failed' }
-	| { kind: 'members_load_failed' }
+	| ({ kind: 'division_cache_refresh_failed' } & ErrorDetails)
+	| ({ kind: 'members_load_failed' } & ErrorDetails)
 	| {
 			kind: 'completed';
 			totalMembers: number;

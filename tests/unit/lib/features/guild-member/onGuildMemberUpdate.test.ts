@@ -205,6 +205,67 @@ describe('handleGuildMemberUpdate', () => {
 		);
 		expect(logger.info).not.toHaveBeenCalled();
 	});
+
+	it('logs nickname sync failures as errors instead of successful workflow completion', async () => {
+		mocks.createGuildMemberChangeDeps.mockReturnValue({
+			id: 'deps'
+		});
+		mocks.processGuildMemberRoleChange.mockResolvedValue({
+			kind: 'processed',
+			discordUserId: '42',
+			roleDiff: {
+				oldMemberIsPartial: false,
+				haveRolesChanged: true,
+				oldRoleIds: ['role-old'],
+				newRoleIds: ['role-new'],
+				addedRoleIds: ['role-new'],
+				removedRoleIds: ['role-old']
+			},
+			membership: {
+				addedDivisions: [],
+				removedDivisions: []
+			},
+			nickname: {
+				kind: 'sync_failed',
+				reason: 'sync-failed',
+				errorMessage: 'Missing permissions',
+				errorName: 'DiscordAPIError'
+			}
+		});
+		mocks.listCachedDivisions.mockResolvedValue([]);
+		const logger = createMockLogger();
+		const context = createMockExecutionContext({
+			logger
+		});
+
+		await handleGuildMemberUpdate({
+			oldMember: createGuildMember({
+				discordUserId: '42',
+				discordUsername: 'old-user',
+				nickname: 'Old User',
+				roleIds: ['role-old']
+			}),
+			newMember: createGuildMember({
+				discordUserId: '42',
+				discordUsername: 'new-user',
+				nickname: 'New User',
+				roleIds: ['role-new']
+			}),
+			context
+		});
+
+		expect(logger.error).toHaveBeenCalledWith(
+			expect.objectContaining({
+				discordUserId: '42',
+				nickname: expect.objectContaining({
+					kind: 'sync_failed',
+					errorMessage: 'Missing permissions'
+				})
+			}),
+			'Guild member update workflow failed during nickname sync'
+		);
+		expect(logger.info).not.toHaveBeenCalled();
+	});
 });
 
 function createPartialGuildMember() {

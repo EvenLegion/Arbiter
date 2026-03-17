@@ -80,6 +80,7 @@ describe('interactionResponder', () => {
 	});
 
 	it('swallows followUp send errors in safe helpers', async () => {
+		const logger = createMockLogger();
 		const interaction = createMockInteraction({
 			followUp: vi.fn(async () => {
 				throw new Error('nope');
@@ -89,9 +90,9 @@ describe('interactionResponder', () => {
 			interaction,
 			context: {
 				requestId: 'req-4',
-				logger: createMockLogger()
+				logger
 			},
-			logger: createMockLogger(),
+			logger,
 			caller: 'test'
 		});
 
@@ -101,6 +102,15 @@ describe('interactionResponder', () => {
 				flags: MessageFlags.Ephemeral
 			})
 		).resolves.toBeUndefined();
+		expect(logger.error).toHaveBeenCalledWith(
+			expect.objectContaining({
+				errorMessage: 'nope',
+				errorName: 'Error',
+				caller: 'test'
+			}),
+			'discord.side_effect.failed'
+		);
+		expect(logger.warn).not.toHaveBeenCalled();
 	});
 });
 

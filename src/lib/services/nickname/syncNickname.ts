@@ -1,4 +1,5 @@
 import { isNicknameTooLongError } from '../../errors/nicknameTooLongError';
+import { toErrorDetails } from '../../logging/errorDetails';
 
 import type { NicknameSyncDeps, SyncNicknameForUserResult } from './nicknameTypes';
 
@@ -38,7 +39,8 @@ export async function syncNicknameForUser<TMember>(
 		}
 
 		return {
-			kind: 'sync-failed'
+			kind: 'sync-failed',
+			...toErrorDetails(error)
 		};
 	}
 }

@@ -85,6 +85,23 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 
 	const response = presentNameChangeTicketResult(result);
 	if (response.delivery === 'fail') {
+		if (
+			result.kind === 'requester_not_found' ||
+			result.kind === 'requester_member_not_found' ||
+			result.kind === 'validation_failed' ||
+			result.kind === 'request_creation_failed' ||
+			result.kind === 'review_thread_failed' ||
+			result.kind === 'review_thread_reference_failed'
+		) {
+			logger.error(
+				{
+					discordUserId: interaction.user.id,
+					rawRequestedName,
+					result
+				},
+				'name_change.request.failed'
+			);
+		}
 		await responder.fail(response.content, {
 			requestId: response.requestId
 		});

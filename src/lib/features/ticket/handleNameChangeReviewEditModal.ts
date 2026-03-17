@@ -93,6 +93,16 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 
 	const presentation = presentNameChangeReviewEditModalResult(editResult);
 	if (presentation.kind === 'response') {
+		if (editResult.kind === 'requester_member_not_found' || editResult.kind === 'validation_failed') {
+			logger.error(
+				{
+					nameChangeRequestId: parsedNameChangeReviewModal.requestId,
+					reviewerDiscordUserId: interaction.user.id,
+					editResult
+				},
+				'name_change.edit.failed'
+			);
+		}
 		if (presentation.delivery === 'fail') {
 			await responder.fail(presentation.content, {
 				requestId: presentation.requestId

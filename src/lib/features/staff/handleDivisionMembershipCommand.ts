@@ -46,13 +46,23 @@ export async function handleDivisionMembershipCommand({ interaction, context, mo
 			}
 		);
 
-		logger.info(
-			{
-				...result,
-				mode
-			},
-			'division.membership.updated'
-		);
+		const logBindings = {
+			...result,
+			mode
+		};
+		if (result.kind === 'updated') {
+			if (
+				result.nicknameSync.kind === 'failed' ||
+				result.nicknameSync.kind === 'guild-unavailable' ||
+				result.nicknameSync.kind === 'member-not-found'
+			) {
+				logger.warn(logBindings, 'division.membership.updated_with_nickname_sync_issue');
+			} else {
+				logger.info(logBindings, 'division.membership.updated');
+			}
+		} else {
+			logger.info(logBindings, 'division.membership.rejected');
+		}
 		await responder.safeEditReply({
 			content: buildDivisionMembershipMutationReply({
 				result,

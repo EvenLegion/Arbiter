@@ -44,19 +44,25 @@ export async function handleSyncGuildMembers({ interaction, context }: HandleSyn
 		);
 
 		if (result.kind === 'division_cache_refresh_failed') {
+			logger.error(result, 'guild_member.sync.failed');
 			await responder.fail('Failed to refresh division cache.', {
 				requestId: true
 			});
 			return;
 		}
 		if (result.kind === 'members_load_failed') {
+			logger.error(result, 'guild_member.sync.failed');
 			await responder.fail('Failed to load guild members.', {
 				requestId: true
 			});
 			return;
 		}
 
-		logger.info(result, 'guild_member.sync.completed');
+		if (result.failedMembers.length > 0) {
+			logger.warn(result, 'guild_member.sync.completed_with_failures');
+		} else {
+			logger.info(result, 'guild_member.sync.completed');
+		}
 		await responder.safeEditReply(buildGuildMemberSyncPayload({ result }));
 	} catch (error: unknown) {
 		logger.error(

@@ -1,6 +1,7 @@
 import { MessageFlags, type InteractionDeferReplyOptions, type InteractionEditReplyOptions, type InteractionReplyOptions } from 'discord.js';
 
 import type { ExecutionContext } from '../logging/executionContext';
+import { toErrorLogFields } from '../logging/errorDetails';
 import { resolveDeliveryMode, type DeliveryMode, type DeliveryState } from './interactionResponderDelivery';
 import { buildInteractionFailurePayload } from './interactionFailurePayload';
 import {
@@ -48,9 +49,9 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				deliveryState = advanceDeliveryState(deliveryState, 'deferred-reply');
 				logger.debug('discord.reply.deferred');
 			} catch (error) {
-				logger.warn(
+				logger.error(
 					{
-						err: error,
+						...toErrorLogFields(error),
 						caller
 					},
 					'discord.side_effect.failed'
@@ -66,9 +67,9 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				deliveryState = advanceDeliveryState(deliveryState, 'deferred-reply');
 				logger.debug('discord.reply.deferred');
 			} catch (error) {
-				logger.warn(
+				logger.error(
 					{
-						err: error,
+						...toErrorLogFields(error),
 						caller
 					},
 					'discord.side_effect.failed'
@@ -88,9 +89,9 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				logger.debug('discord.update.deferred');
 				return true;
 			} catch (error) {
-				logger.warn(
+				logger.error(
 					{
-						err: error,
+						...toErrorLogFields(error),
 						caller
 					},
 					'discord.side_effect.failed'
@@ -119,9 +120,9 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				deliveryState = advanceDeliveryState(deliveryState, resolvedDelivery);
 				logDeliverySuccess({ logger, delivery: resolvedDelivery });
 			} catch (error) {
-				logger.warn(
+				logger.error(
 					{
-						err: error,
+						...toErrorLogFields(error),
 						delivery: resolvedDelivery,
 						caller
 					},
@@ -135,9 +136,9 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				deliveryState = advanceDeliveryState(deliveryState, 'reply');
 				logger.debug('discord.reply.sent');
 			} catch (error) {
-				logger.warn(
+				logger.error(
 					{
-						err: error,
+						...toErrorLogFields(error),
 						caller
 					},
 					'discord.side_effect.failed'
@@ -149,9 +150,9 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				await interaction.editReply(toInteractionEditReplyPayload(payload));
 				logger.debug('discord.reply.edited');
 			} catch (error) {
-				logger.warn(
+				logger.error(
 					{
-						err: error,
+						...toErrorLogFields(error),
 						caller
 					},
 					'discord.side_effect.failed'
@@ -163,9 +164,9 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				await interaction.followUp(toInteractionReplyPayload(payload));
 				logger.debug('discord.follow_up.sent');
 			} catch (error) {
-				logger.warn(
+				logger.error(
 					{
-						err: error,
+						...toErrorLogFields(error),
 						caller
 					},
 					'discord.side_effect.failed'

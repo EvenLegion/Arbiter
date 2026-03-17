@@ -6,7 +6,10 @@ export function mapNicknameSyncResult<TMember>(result: SyncNicknameForUserResult
 	if (result.kind !== 'synced') {
 		return {
 			kind: 'sync_failed',
-			reason: result.kind
+			reason: result.kind,
+			...('errorMessage' in result ? { errorMessage: result.errorMessage } : {}),
+			...('errorName' in result ? { errorName: result.errorName } : {}),
+			...('errorCode' in result ? { errorCode: result.errorCode } : {})
 		};
 	}
 	if (result.outcome === 'skipped') {

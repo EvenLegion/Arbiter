@@ -221,7 +221,9 @@ describe('nameChangeService', () => {
 
 		expect(result).toEqual({
 			kind: 'reviewed_sync_failed',
-			reviewed: reviewedRequest
+			reviewed: reviewedRequest,
+			errorMessage: 'sync failed',
+			errorName: 'Error'
 		});
 	});
 });
@@ -250,7 +252,7 @@ function createSubmitDeps({
 		| { kind: 'valid' }
 		| { kind: 'member-not-found' }
 		| { kind: 'nickname-too-long' }
-		| { kind: 'validation-failed' };
+		| { kind: 'validation-failed'; errorMessage: string; errorName?: string; errorCode?: string };
 } = {}) {
 	return {
 		getDivisionPrefixes: vi.fn().mockResolvedValue(['ARC']),

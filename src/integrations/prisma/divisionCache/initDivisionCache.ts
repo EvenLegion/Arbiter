@@ -52,7 +52,7 @@ export async function initializeDivisionCache() {
 
 export async function getDivisionCacheState() {
 	if (!divisionCache) {
-		container.logger.warn('Division cache not initialized, initializing now');
+		container.logger.info('Division cache not initialized, initializing now');
 		await initializeDivisionCache();
 	}
 

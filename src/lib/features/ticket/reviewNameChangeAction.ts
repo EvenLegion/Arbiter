@@ -66,6 +66,20 @@ export async function reviewNameChangeAction({
 	}
 
 	if (reviewResult.kind !== 'reviewed' && reviewResult.kind !== 'reviewed_sync_failed') {
+		if (
+			reviewResult.kind === 'reviewer_not_found' ||
+			reviewResult.kind === 'requester_member_not_found' ||
+			reviewResult.kind === 'validation_failed'
+		) {
+			logger.error(
+				{
+					nameChangeRequestId: requestId,
+					reviewerDiscordUserId: interaction.user.id,
+					reviewResult
+				},
+				'name_change.review.failed'
+			);
+		}
 		const failure = getNameChangeReviewFailureMessage(reviewResult);
 		await responder.fail(failure.content, {
 			requestId: failure.requestId ?? false
@@ -75,6 +89,18 @@ export async function reviewNameChangeAction({
 
 	const reviewed = reviewResult.reviewed;
 	if (reviewResult.kind === 'reviewed_sync_failed') {
+		logger.error(
+			{
+				nameChangeRequestId: requestId,
+				reviewerDiscordUserId: interaction.user.id,
+				requesterDiscordUserId: reviewed.requesterUser.discordUserId,
+				status: reviewed.status,
+				errorMessage: reviewResult.errorMessage,
+				errorName: reviewResult.errorName,
+				errorCode: reviewResult.errorCode
+			},
+			'name_change.review.failed'
+		);
 		await responder.fail('Request was reviewed, but nickname sync failed. Please contact TECH with:', {
 			requestId: true
 		});

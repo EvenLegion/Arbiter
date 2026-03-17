@@ -88,7 +88,10 @@ export async function syncAwardedMemberNicknamesAndNotifyRankUp({
 			logger.error(
 				{
 					discordUserId,
-					outcome: nicknameSyncResult.kind
+					outcome: nicknameSyncResult.kind,
+					...('errorMessage' in nicknameSyncResult ? { errorMessage: nicknameSyncResult.errorMessage } : {}),
+					...('errorName' in nicknameSyncResult ? { errorName: nicknameSyncResult.errorName } : {}),
+					...('errorCode' in nicknameSyncResult ? { errorCode: nicknameSyncResult.errorCode } : {})
 				},
 				'Failed to sync awarded member nickname after review finalization'
 			);

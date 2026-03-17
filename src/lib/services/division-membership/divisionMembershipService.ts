@@ -17,8 +17,8 @@ type DivisionMembershipNicknameSyncResult =
 	| { kind: 'updated' | 'unchanged'; computedNickname: string }
 	| { kind: 'skipped'; reason: string }
 	| { kind: 'member-not-found' }
-	| { kind: 'guild-unavailable' }
-	| { kind: 'failed' };
+	| { kind: 'guild-unavailable'; errorMessage?: string; errorName?: string; errorCode?: string }
+	| { kind: 'failed'; errorMessage?: string; errorName?: string; errorCode?: string };
 
 type DivisionMembershipServiceDeps = {
 	findTargetUser: (discordUserId: string) => Promise<DivisionMembershipTargetUser | null>;

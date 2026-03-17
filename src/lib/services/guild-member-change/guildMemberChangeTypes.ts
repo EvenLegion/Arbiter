@@ -23,7 +23,7 @@ export type GuildMemberChangeMembershipResult = {
 };
 
 export type GuildMemberNicknameOutcome =
-	| { kind: 'sync_failed'; reason: string }
+	| { kind: 'sync_failed'; reason: string; errorMessage?: string; errorName?: string; errorCode?: string }
 	| { kind: 'skipped'; reason: string | undefined }
 	| { kind: 'unchanged'; computedNickname: string }
 	| { kind: 'updated'; computedNickname: string };

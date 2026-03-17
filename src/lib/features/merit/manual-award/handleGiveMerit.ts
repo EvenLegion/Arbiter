@@ -111,17 +111,21 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 	});
 
 	if (result.kind === 'awarded') {
-		logger.info(
-			{
-				targetDiscordUserId: result.targetDiscordUserId,
-				awarderDiscordUserId: interaction.user.id,
-				amount: result.meritAmount,
-				meritTypeCode: result.meritTypeCode,
-				reason: result.reason,
-				eventSessionId: parsedEventSessionId?.success ? parsedEventSessionId.data : null,
-				meritRecordId: result.meritRecordId
-			},
-			'merit.manual_award.completed'
-		);
+		const logBindings = {
+			targetDiscordUserId: result.targetDiscordUserId,
+			awarderDiscordUserId: interaction.user.id,
+			amount: result.meritAmount,
+			meritTypeCode: result.meritTypeCode,
+			reason: result.reason,
+			eventSessionId: parsedEventSessionId?.success ? parsedEventSessionId.data : null,
+			meritRecordId: result.meritRecordId,
+			dmSent: result.dmSent,
+			recipientNicknameTooLong: result.recipientNicknameTooLong
+		};
+		if (!result.dmSent || result.recipientNicknameTooLong) {
+			logger.warn(logBindings, 'merit.manual_award.completed_with_warnings');
+		} else {
+			logger.info(logBindings, 'merit.manual_award.completed');
+		}
 	}
 }

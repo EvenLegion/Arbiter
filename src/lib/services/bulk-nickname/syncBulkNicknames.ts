@@ -1,3 +1,4 @@
+import { toErrorDetails } from '../../logging/errorDetails';
 import type { SyncBulkNicknamesDeps, SyncBulkNicknamesResult } from './bulkNicknameTypes';
 import { buildBulkNicknameFailure, loadMembersByDiscordUserId, resolveBulkNicknameScope } from './bulkNicknameShared';
 
@@ -12,10 +13,11 @@ export async function syncBulkNicknames<TMember>(
 	if (deps.prepare) {
 		try {
 			await deps.prepare();
-		} catch {
+		} catch (error) {
 			return {
 				kind: 'prepare_failed',
-				scope
+				scope,
+				...toErrorDetails(error)
 			};
 		}
 	}

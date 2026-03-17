@@ -71,7 +71,11 @@ export async function handleDevNicknameTransform({ interaction, context, mode }:
 			return;
 		}
 
-		logger.info(result, 'nickname.transform.completed');
+		if (result.failed > 0) {
+			logger.warn(result, 'nickname.transform.completed_with_failures');
+		} else {
+			logger.info(result, 'nickname.transform.completed');
+		}
 
 		await responder.safeEditReply(
 			buildBulkNicknameTransformPayload({

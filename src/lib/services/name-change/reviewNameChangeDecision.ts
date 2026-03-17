@@ -3,6 +3,7 @@ import { NameChangeRequestStatus } from '@prisma/client';
 import type { ActorContext } from '../_shared/actor';
 import { InvariantViolationError } from '../_shared/errors';
 import type { NicknameValidationResult } from '../nickname/nicknameService';
+import { toErrorDetails } from '../../logging/errorDetails';
 import type { PendingNameChangeRequest, ReviewedNameChangeRequest } from './nameChangeTypes';
 import type { PendingNameChangeRequestLookupDeps } from './getPendingNameChangeRequestForEdit';
 
@@ -23,9 +24,9 @@ export type ReviewNameChangeDecisionResult =
 	| { kind: 'already_reviewed' }
 	| { kind: 'requester_member_not_found' }
 	| { kind: 'nickname_too_long' }
-	| { kind: 'validation_failed' }
+	| { kind: 'validation_failed'; errorMessage: string; errorName?: string; errorCode?: string }
 	| { kind: 'reviewed'; reviewed: ReviewedNameChangeRequest }
-	| { kind: 'reviewed_sync_failed'; reviewed: ReviewedNameChangeRequest };
+	| { kind: 'reviewed_sync_failed'; reviewed: ReviewedNameChangeRequest; errorMessage: string; errorName?: string; errorCode?: string };
 
 export async function reviewNameChangeDecision(
 	deps: ReviewNameChangeDecisionDeps,
@@ -72,7 +73,10 @@ export async function reviewNameChangeDecision(
 		}
 		if (nicknameValidation.kind === 'validation-failed') {
 			return {
-				kind: 'validation_failed'
+				kind: 'validation_failed',
+				errorMessage: nicknameValidation.errorMessage,
+				errorName: nicknameValidation.errorName,
+				errorCode: nicknameValidation.errorCode
 			};
 		}
 	}
@@ -99,10 +103,11 @@ export async function reviewNameChangeDecision(
 				discordNickname: reviewedRequest.requestedName
 			});
 			await deps.syncApprovedNickname(reviewedRequest);
-		} catch {
+		} catch (error) {
 			return {
 				kind: 'reviewed_sync_failed',
-				reviewed: reviewedRequest
+				reviewed: reviewedRequest,
+				...toErrorDetails(error)
 			};
 		}
 	}

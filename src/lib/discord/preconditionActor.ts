@@ -67,7 +67,7 @@ export async function resolvePreconditionActor({
 	}
 
 	if (resolved.kind === 'member_not_found') {
-		logger.warn(
+		logger.info(
 			{
 				precondition: preconditionName
 			},
@@ -80,7 +80,7 @@ export async function resolvePreconditionActor({
 	}
 
 	if (resolved.kind === 'insufficient_capability' && capabilityRequirement === 'staff') {
-		logger.warn(
+		logger.info(
 			{
 				precondition: preconditionName
 			},
@@ -93,7 +93,7 @@ export async function resolvePreconditionActor({
 	}
 
 	if (resolved.kind === 'insufficient_capability' && capabilityRequirement === 'staff-or-centurion') {
-		logger.warn(
+		logger.info(
 			{
 				precondition: preconditionName
 			},
@@ -106,7 +106,7 @@ export async function resolvePreconditionActor({
 	}
 
 	if (resolved.kind !== 'ok') {
-		logger.warn(
+		logger.info(
 			{
 				precondition: preconditionName,
 				resolvedKind: resolved.kind

@@ -17,7 +17,7 @@ export class UserEvent extends Listener<typeof Events.ChatInputCommandDenied> {
 				caller: 'chatInputCommandDenied'
 			}
 		});
-		executionContext.logger.warn(
+		executionContext.logger.info(
 			{
 				denialMessage: content
 			},
