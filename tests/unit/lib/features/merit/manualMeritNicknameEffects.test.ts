@@ -5,11 +5,11 @@ const mocks = vi.hoisted(() => ({
 	notifyMeritRankUp: vi.fn()
 }));
 
-vi.mock('../../../../../src/lib/features/guild-member/guildNicknameWorkflowGateway', () => ({
+vi.mock('../../../../../src/lib/services/nickname/createGuildNicknameWorkflowGateway', () => ({
 	createGuildNicknameWorkflowGateway: mocks.createGuildNicknameWorkflowGateway
 }));
 
-vi.mock('../../../../../src/lib/features/merit/notifyMeritRankUp', () => ({
+vi.mock('../../../../../src/lib/services/merit-rank/notifyMeritRankUp', () => ({
 	notifyMeritRankUp: mocks.notifyMeritRankUp
 }));
 

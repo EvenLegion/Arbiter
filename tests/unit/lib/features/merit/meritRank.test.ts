@@ -6,7 +6,7 @@ import {
 	getMeritRankSymbol,
 	resolveMeritRankLevel,
 	resolveMeritRankProgress
-} from '../../../../../src/lib/features/merit/meritRank';
+} from '../../../../../src/lib/services/merit-rank/meritRank';
 
 describe('resolveMeritRankLevel', () => {
 	it('returns null below the first threshold', () => {

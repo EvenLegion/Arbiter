@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseMeritListButton } from '../../../../../src/lib/features/merit/parseMeritListButton';
+import { parseMeritListButtonCustomId } from '../../../../../src/lib/features/merit/read/meritListButtonCustomId';
 
-describe('parseMeritListButton', () => {
+describe('parseMeritListButtonCustomId', () => {
 	it('parses valid page buttons', () => {
 		expect(
-			parseMeritListButton({
+			parseMeritListButtonCustomId({
 				customId: 'merit:list:page:123456789012345678:2'
 			})
 		).toEqual({
@@ -17,7 +17,7 @@ describe('parseMeritListButton', () => {
 
 	it('rejects invalid page values', () => {
 		expect(
-			parseMeritListButton({
+			parseMeritListButtonCustomId({
 				customId: 'merit:list:page:123456789012345678:not-a-number'
 			})
 		).toBeNull();
@@ -25,7 +25,7 @@ describe('parseMeritListButton', () => {
 
 	it('rejects invalid user ids', () => {
 		expect(
-			parseMeritListButton({
+			parseMeritListButtonCustomId({
 				customId: 'merit:list:page:user:2'
 			})
 		).toBeNull();
@@ -33,7 +33,7 @@ describe('parseMeritListButton', () => {
 
 	it('rejects invalid actions', () => {
 		expect(
-			parseMeritListButton({
+			parseMeritListButtonCustomId({
 				customId: 'merit:list:refresh:123456789012345678:2'
 			})
 		).toBeNull();
@@ -41,7 +41,7 @@ describe('parseMeritListButton', () => {
 
 	it('rejects invalid part counts', () => {
 		expect(
-			parseMeritListButton({
+			parseMeritListButtonCustomId({
 				customId: 'merit:list:page:123456789012345678'
 			})
 		).toBeNull();

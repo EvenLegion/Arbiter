@@ -6,7 +6,7 @@ import {
 	findGuildMemberByInput,
 	getGuildMemberByDiscordUserId,
 	parseDiscordUserIdInput
-} from '../../../../src/lib/discord/memberDirectory';
+} from '../../../../src/lib/discord/members/memberDirectory';
 
 type MockGuildMember = Pick<GuildMember, 'id' | 'displayName' | 'nickname' | 'user'>;
 

@@ -1,5 +1,5 @@
 import { eventRepository, meritRepository } from '../../../../integrations/prisma/repositories';
-import { buildGuildMemberAutocompleteChoices } from '../../../discord/memberDirectory';
+import { buildGuildMemberAutocompleteChoices } from '../../../discord/members/memberDirectory';
 
 export async function buildMeritExistingEventChoices({ query }: { query: string }) {
 	const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);

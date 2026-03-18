@@ -1,20 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-	resolveAutocompleteGuild: vi.fn(),
-	resolveAutocompleteRequester: vi.fn(),
-	respondWithAutocompleteChoices: vi.fn(),
-	respondWithEmptyAutocompleteChoices: vi.fn(),
+	getConfiguredGuild: vi.fn(),
+	getGuildMemberOrThrow: vi.fn(),
+	memberHasDivisionKindRole: vi.fn(),
 	buildMeritExistingEventChoices: vi.fn(),
 	buildManualMeritTypeChoices: vi.fn(),
 	buildMeritMemberChoices: vi.fn()
 }));
 
-vi.mock('../../../../../src/lib/discord/autocompleteResponder', () => ({
-	resolveAutocompleteGuild: mocks.resolveAutocompleteGuild,
-	resolveAutocompleteRequester: mocks.resolveAutocompleteRequester,
-	respondWithAutocompleteChoices: mocks.respondWithAutocompleteChoices,
-	respondWithEmptyAutocompleteChoices: mocks.respondWithEmptyAutocompleteChoices
+vi.mock('../../../../../src/lib/discord/guild/configuredGuild', () => ({
+	getConfiguredGuild: mocks.getConfiguredGuild
+}));
+
+vi.mock('../../../../../src/lib/discord/guild/guildMembers', () => ({
+	getGuildMemberOrThrow: mocks.getGuildMemberOrThrow
+}));
+
+vi.mock('../../../../../src/lib/discord/guild/divisions', () => ({
+	memberHasDivisionKindRole: mocks.memberHasDivisionKindRole
 }));
 
 vi.mock('../../../../../src/lib/features/merit/autocomplete/meritAutocompleteChoices', () => ({
@@ -27,10 +31,9 @@ import { handleMeritAutocomplete } from '../../../../../src/lib/features/merit/a
 
 describe('meritAutocompleteProvider', () => {
 	beforeEach(() => {
-		mocks.resolveAutocompleteGuild.mockReset();
-		mocks.resolveAutocompleteRequester.mockReset();
-		mocks.respondWithAutocompleteChoices.mockReset();
-		mocks.respondWithEmptyAutocompleteChoices.mockReset();
+		mocks.getConfiguredGuild.mockReset();
+		mocks.getGuildMemberOrThrow.mockReset();
+		mocks.memberHasDivisionKindRole.mockReset();
 		mocks.buildMeritExistingEventChoices.mockReset();
 		mocks.buildManualMeritTypeChoices.mockReset();
 		mocks.buildMeritMemberChoices.mockReset();
@@ -48,22 +51,20 @@ describe('meritAutocompleteProvider', () => {
 			interaction
 		});
 
-		expect(mocks.respondWithEmptyAutocompleteChoices).toHaveBeenCalledWith(interaction);
-		expect(mocks.resolveAutocompleteGuild).not.toHaveBeenCalled();
+		expect(interaction.respond).toHaveBeenCalledWith([]);
+		expect(mocks.getConfiguredGuild).not.toHaveBeenCalled();
 	});
 
 	it('routes staff event lookup through the existing-event option builder', async () => {
 		const guild = {
 			id: 'guild-1'
 		};
-		mocks.resolveAutocompleteGuild.mockResolvedValue(guild);
-		mocks.resolveAutocompleteRequester.mockResolvedValue({
-			member: {
-				id: '42',
-				displayName: 'Requester'
-			},
-			isStaff: true
+		mocks.getConfiguredGuild.mockResolvedValue(guild);
+		mocks.getGuildMemberOrThrow.mockResolvedValue({
+			id: '42',
+			displayName: 'Requester'
 		});
+		mocks.memberHasDivisionKindRole.mockResolvedValue(true);
 		mocks.buildMeritExistingEventChoices.mockResolvedValue([
 			{
 				name: 'Today | Event',
@@ -73,7 +74,7 @@ describe('meritAutocompleteProvider', () => {
 		const interaction = createInteraction({
 			subcommandName: 'give',
 			focusedName: 'existing_event',
-			focusedValue: 'event',
+			focusedValue: '  event  ',
 			userId: '42'
 		});
 
@@ -81,38 +82,69 @@ describe('meritAutocompleteProvider', () => {
 			interaction
 		});
 
-		expect(mocks.resolveAutocompleteRequester).toHaveBeenCalledWith({
+		expect(mocks.getGuildMemberOrThrow).toHaveBeenCalledWith({
 			guild,
 			discordUserId: '42'
 		});
 		expect(mocks.buildMeritExistingEventChoices).toHaveBeenCalledWith({
 			query: 'event'
 		});
-		expect(mocks.respondWithAutocompleteChoices).toHaveBeenCalledWith(
-			expect.objectContaining({
-				interaction,
-				choices: [
-					{
-						name: 'Today | Event',
-						value: '11'
-					}
-				]
-			})
-		);
+		expect(interaction.respond).toHaveBeenCalledWith([
+			{
+				name: 'Today | Event',
+				value: '11'
+			}
+		]);
+	});
+
+	it('routes staff merit-type lookup through the merit-type choice builder', async () => {
+		const guild = {
+			id: 'guild-1'
+		};
+		mocks.getConfiguredGuild.mockResolvedValue(guild);
+		mocks.getGuildMemberOrThrow.mockResolvedValue({
+			id: '42',
+			displayName: 'Requester'
+		});
+		mocks.memberHasDivisionKindRole.mockResolvedValue(true);
+		mocks.buildManualMeritTypeChoices.mockResolvedValue([
+			{
+				name: 'Assist (+2 merits)',
+				value: 'assist'
+			}
+		]);
+		const interaction = createInteraction({
+			subcommandName: 'give',
+			focusedName: 'merit_type',
+			focusedValue: '  assist ',
+			userId: '42'
+		});
+
+		await handleMeritAutocomplete({
+			interaction
+		});
+
+		expect(mocks.buildManualMeritTypeChoices).toHaveBeenCalledWith({
+			query: 'assist'
+		});
+		expect(interaction.respond).toHaveBeenCalledWith([
+			{
+				name: 'Assist (+2 merits)',
+				value: 'assist'
+			}
+		]);
 	});
 
 	it('limits non-staff list lookups to the requester identity', async () => {
 		const guild = {
 			id: 'guild-1'
 		};
-		mocks.resolveAutocompleteGuild.mockResolvedValue(guild);
-		mocks.resolveAutocompleteRequester.mockResolvedValue({
-			member: {
-				id: '42',
-				displayName: 'Requester Name'
-			},
-			isStaff: false
+		mocks.getConfiguredGuild.mockResolvedValue(guild);
+		mocks.getGuildMemberOrThrow.mockResolvedValue({
+			id: '42',
+			displayName: 'Requester Name'
 		});
+		mocks.memberHasDivisionKindRole.mockResolvedValue(false);
 		const interaction = createInteraction({
 			subcommandName: 'list',
 			focusedName: 'player_name',
@@ -124,17 +156,12 @@ describe('meritAutocompleteProvider', () => {
 			interaction
 		});
 
-		expect(mocks.respondWithAutocompleteChoices).toHaveBeenCalledWith(
-			expect.objectContaining({
-				interaction,
-				choices: [
-					{
-						name: 'Requester Name',
-						value: '42'
-					}
-				]
-			})
-		);
+		expect(interaction.respond).toHaveBeenCalledWith([
+			{
+				name: 'Requester Name',
+				value: '42'
+			}
+		]);
 		expect(mocks.buildMeritMemberChoices).not.toHaveBeenCalled();
 	});
 
@@ -142,14 +169,12 @@ describe('meritAutocompleteProvider', () => {
 		const guild = {
 			id: 'guild-1'
 		};
-		mocks.resolveAutocompleteGuild.mockResolvedValue(guild);
-		mocks.resolveAutocompleteRequester.mockResolvedValue({
-			member: {
-				id: '42',
-				displayName: 'Requester Name'
-			},
-			isStaff: false
+		mocks.getConfiguredGuild.mockResolvedValue(guild);
+		mocks.getGuildMemberOrThrow.mockResolvedValue({
+			id: '42',
+			displayName: 'Requester Name'
 		});
+		mocks.memberHasDivisionKindRole.mockResolvedValue(false);
 		const interaction = createInteraction({
 			subcommandName: 'give',
 			focusedName: 'user_name',
@@ -161,7 +186,7 @@ describe('meritAutocompleteProvider', () => {
 			interaction
 		});
 
-		expect(mocks.respondWithEmptyAutocompleteChoices).toHaveBeenCalledWith(interaction);
+		expect(interaction.respond).toHaveBeenCalledWith([]);
 		expect(mocks.buildMeritMemberChoices).not.toHaveBeenCalled();
 	});
 });
@@ -178,6 +203,7 @@ function createInteraction({
 	userId: string;
 }) {
 	return {
+		respond: vi.fn().mockResolvedValue(undefined),
 		user: {
 			id: userId
 		},

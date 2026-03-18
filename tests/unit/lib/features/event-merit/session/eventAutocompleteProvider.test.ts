@@ -1,33 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-	resolveAutocompleteGuild: vi.fn(),
-	respondWithAutocompleteChoices: vi.fn(),
-	respondWithEmptyAutocompleteChoices: vi.fn(),
+	getConfiguredGuild: vi.fn(),
 	buildEventTierAutocompleteChoices: vi.fn(),
 	buildEventSessionAutocompleteChoices: vi.fn(),
 	buildEventVoiceChannelAutocompleteChoices: vi.fn()
 }));
 
-vi.mock('../../../../../../src/lib/discord/autocompleteResponder', () => ({
-	resolveAutocompleteGuild: mocks.resolveAutocompleteGuild,
-	respondWithAutocompleteChoices: mocks.respondWithAutocompleteChoices,
-	respondWithEmptyAutocompleteChoices: mocks.respondWithEmptyAutocompleteChoices
+vi.mock('../../../../../../src/lib/discord/guild/configuredGuild', () => ({
+	getConfiguredGuild: mocks.getConfiguredGuild
 }));
 
-vi.mock('../../../../../../src/lib/features/event-merit/session/eventAutocompleteOptions', () => ({
+vi.mock('../../../../../../src/lib/features/event-merit/session/autocomplete/eventAutocompleteChoices', () => ({
 	buildEventTierAutocompleteChoices: mocks.buildEventTierAutocompleteChoices,
 	buildEventSessionAutocompleteChoices: mocks.buildEventSessionAutocompleteChoices,
 	buildEventVoiceChannelAutocompleteChoices: mocks.buildEventVoiceChannelAutocompleteChoices
 }));
 
-import { handleEventAutocomplete } from '../../../../../../src/lib/features/event-merit/session/eventAutocompleteProvider';
+import { handleEventAutocomplete } from '../../../../../../src/lib/features/event-merit/session/autocomplete/eventAutocompleteProvider';
 
 describe('eventAutocompleteProvider', () => {
 	beforeEach(() => {
-		mocks.resolveAutocompleteGuild.mockReset();
-		mocks.respondWithAutocompleteChoices.mockReset();
-		mocks.respondWithEmptyAutocompleteChoices.mockReset();
+		mocks.getConfiguredGuild.mockReset();
 		mocks.buildEventTierAutocompleteChoices.mockReset();
 		mocks.buildEventSessionAutocompleteChoices.mockReset();
 		mocks.buildEventVoiceChannelAutocompleteChoices.mockReset();
@@ -53,26 +47,20 @@ describe('eventAutocompleteProvider', () => {
 		expect(mocks.buildEventTierAutocompleteChoices).toHaveBeenCalledWith({
 			query: 'tier'
 		});
-		expect(mocks.respondWithAutocompleteChoices).toHaveBeenCalledWith(
-			expect.objectContaining({
-				interaction,
-				choices: [
-					{
-						name: 'Tier One',
-						value: '1'
-					}
-				]
-			})
-		);
-		expect(mocks.resolveAutocompleteGuild).not.toHaveBeenCalled();
-		expect(mocks.respondWithEmptyAutocompleteChoices).not.toHaveBeenCalled();
+		expect(interaction.respond).toHaveBeenCalledWith([
+			{
+				name: 'Tier One',
+				value: '1'
+			}
+		]);
+		expect(mocks.getConfiguredGuild).not.toHaveBeenCalled();
 	});
 
 	it('routes voice channel autocomplete through guild resolution and the voice channel builder', async () => {
 		const guild = {
 			id: 'guild-1'
 		};
-		mocks.resolveAutocompleteGuild.mockResolvedValue(guild);
+		mocks.getConfiguredGuild.mockResolvedValue(guild);
 		mocks.buildEventVoiceChannelAutocompleteChoices.mockResolvedValue([
 			{
 				name: 'VC 1',
@@ -89,26 +77,17 @@ describe('eventAutocompleteProvider', () => {
 			interaction
 		});
 
-		expect(mocks.resolveAutocompleteGuild).toHaveBeenCalledWith(
-			expect.objectContaining({
-				interaction
-			})
-		);
+		expect(mocks.getConfiguredGuild).toHaveBeenCalledTimes(1);
 		expect(mocks.buildEventVoiceChannelAutocompleteChoices).toHaveBeenCalledWith({
 			guild,
 			query: 'vc'
 		});
-		expect(mocks.respondWithAutocompleteChoices).toHaveBeenCalledWith(
-			expect.objectContaining({
-				interaction,
-				choices: [
-					{
-						name: 'VC 1',
-						value: 'vc-1'
-					}
-				]
-			})
-		);
+		expect(interaction.respond).toHaveBeenCalledWith([
+			{
+				name: 'VC 1',
+				value: 'vc-1'
+			}
+		]);
 	});
 
 	it('returns an empty autocomplete response for unsupported option branches', async () => {
@@ -122,8 +101,7 @@ describe('eventAutocompleteProvider', () => {
 			interaction
 		});
 
-		expect(mocks.respondWithEmptyAutocompleteChoices).toHaveBeenCalledWith(interaction);
-		expect(mocks.respondWithAutocompleteChoices).not.toHaveBeenCalled();
+		expect(interaction.respond).toHaveBeenCalledWith([]);
 	});
 });
 
@@ -140,6 +118,7 @@ function createInteraction({
 }) {
 	return {
 		responded,
+		respond: vi.fn().mockResolvedValue(undefined),
 		options: {
 			getFocused: vi.fn(() => ({
 				name: focusedName,

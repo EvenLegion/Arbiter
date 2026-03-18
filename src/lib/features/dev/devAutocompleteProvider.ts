@@ -1,12 +1,8 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 
-import { routeAutocompleteInteraction, type AutocompleteRoute } from '../../discord/autocompleteRouter';
-import {
-	buildAutocompleteLoggerContext,
-	getAutocompleteQuery,
-	respondWithGuildScopedAutocompleteChoices
-} from '../../discord/autocompleteRouteHelpers';
-import { buildGuildMemberAutocompleteChoices } from '../../discord/memberDirectory';
+import { routeAutocompleteInteraction, type AutocompleteRoute } from '../../discord/autocomplete/autocompleteRouter';
+import { createGuildScopedAutocompleteRoute, getAutocompleteQuery } from '../../discord/autocomplete/autocompleteHelpers';
+import { buildGuildMemberAutocompleteChoices } from '../../discord/members/memberDirectory';
 
 type HandleDevAutocompleteParams = {
 	interaction: Subcommand.AutocompleteInteraction;
@@ -22,34 +18,21 @@ export async function handleDevAutocomplete({ interaction, commandName = 'dev' }
 }
 
 const DEV_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
-	{
-		matches: ({ subcommandGroupName, focused }) => subcommandGroupName === 'nickname' && focused.name === 'user',
-		run: async ({ interaction, context, commandName, subcommandGroupName, focused }) => {
-			const query = getAutocompleteQuery(focused.value, {
+	createGuildScopedAutocompleteRoute({
+		match: {
+			subcommandGroupName: 'nickname',
+			focusedOptionName: 'user'
+		},
+		guildLogMessage: 'Failed to resolve configured guild during dev command autocomplete',
+		choiceLogMessage: 'Failed to respond to dev command autocomplete',
+		resolveQuery: (value) =>
+			getAutocompleteQuery(value, {
 				lowercase: true
-			});
-			await respondWithGuildScopedAutocompleteChoices({
-				interaction,
-				logger: context.logger,
-				guildLoggerContext: buildAutocompleteLoggerContext({
-					commandName,
-					subcommandGroupName,
-					focusedOptionName: focused.name
-				}),
-				guildLogMessage: 'Failed to resolve configured guild during dev command autocomplete',
-				choiceLoggerContext: buildAutocompleteLoggerContext({
-					commandName,
-					subcommandGroupName,
-					focusedOptionName: focused.name,
-					query
-				}),
-				choiceLogMessage: 'Failed to respond to dev command autocomplete',
-				loadChoices: (guild) =>
-					buildGuildMemberAutocompleteChoices({
-						guild,
-						query
-					})
-			});
-		}
-	}
+			}),
+		loadChoices: ({ guild, query }) =>
+			buildGuildMemberAutocompleteChoices({
+				guild,
+				query
+			})
+	})
 ];

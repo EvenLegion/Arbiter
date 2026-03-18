@@ -5,11 +5,11 @@ const mocks = vi.hoisted(() => ({
 	getDbUserOrThrow: vi.fn()
 }));
 
-vi.mock('../../../../../../src/lib/discord/userDirectoryGateway', () => ({
+vi.mock('../../../../../../src/lib/discord/guild/users', () => ({
 	getDbUserOrThrow: mocks.getDbUserOrThrow
 }));
 
-import { resolveEventStartCommand } from '../../../../../../src/lib/features/event-merit/session/eventStartCommandAdapter';
+import { resolveEventStartCommand } from '../../../../../../src/lib/features/event-merit/session/draft/resolveEventStartCommand';
 
 describe('eventStartCommandAdapter', () => {
 	beforeEach(() => {

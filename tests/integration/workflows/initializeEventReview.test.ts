@@ -16,13 +16,13 @@ import { createMockExecutionContext } from '../../support/logger';
 describe('initializeEventReview integration', () => {
 	let containers: IntegrationContainers;
 	let standalone: StandalonePrisma;
-	let initializeEventReview: typeof import('../../../src/lib/features/event-merit/review/initializeEventReview').initializeEventReview;
+	let initializeEventReview: typeof import('../../../src/lib/features/event-merit/review/initialization/initializeEventReview').initializeEventReview;
 	let startTrackingSession: typeof import('../../../src/integrations/redis/eventTracking').startTrackingSession;
 	let applyTrackingTick: typeof import('../../../src/integrations/redis/eventTracking').applyTrackingTick;
 	let getTrackingParticipantsSnapshot: typeof import('../../../src/integrations/redis/eventTracking').getTrackingParticipantsSnapshot;
 	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 	let closeRedisClient: typeof import('../../../src/integrations/redis/client').closeRedisClient;
-	const syncEventReviewMessage = vi.fn();
+	const syncEventReviewPresentation = vi.fn();
 
 	beforeAll(async () => {
 		containers = await startIntegrationContainers();
@@ -33,10 +33,10 @@ describe('initializeEventReview integration', () => {
 		pushPrismaSchema(containers.databaseUrl);
 		standalone = createStandalonePrisma(containers.databaseUrl);
 		vi.resetModules();
-		vi.doMock('../../../src/lib/features/event-merit/review/syncEventReviewMessage', () => ({
-			syncEventReviewMessage
+		vi.doMock('../../../src/lib/features/event-merit/presentation/syncEventReviewPresentation', () => ({
+			syncEventReviewPresentation
 		}));
-		({ initializeEventReview } = await import('../../../src/lib/features/event-merit/review/initializeEventReview'));
+		({ initializeEventReview } = await import('../../../src/lib/features/event-merit/review/initialization/initializeEventReview'));
 		({ startTrackingSession, applyTrackingTick, getTrackingParticipantsSnapshot } =
 			await import('../../../src/integrations/redis/eventTracking'));
 		({ closeDb } = await import('../../../src/integrations/prisma'));
@@ -44,7 +44,7 @@ describe('initializeEventReview integration', () => {
 	});
 
 	beforeEach(async () => {
-		syncEventReviewMessage.mockReset().mockResolvedValue(true);
+		syncEventReviewPresentation.mockReset().mockResolvedValue(true);
 		await resetDatabase(standalone.prisma);
 		await seedReferenceData(standalone.prisma);
 		await flushRedisDatabase(containers.redisUrl);
@@ -154,7 +154,7 @@ describe('initializeEventReview integration', () => {
 				eventSessionId: eventSession.id
 			})
 		).resolves.toEqual([]);
-		expect(syncEventReviewMessage).toHaveBeenCalledWith(
+		expect(syncEventReviewPresentation).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventSessionId: eventSession.id,
 				page: 1
@@ -215,6 +215,6 @@ describe('initializeEventReview integration', () => {
 				attendedSeconds: 900
 			}
 		]);
-		expect(syncEventReviewMessage).not.toHaveBeenCalled();
+		expect(syncEventReviewPresentation).not.toHaveBeenCalled();
 	});
 });

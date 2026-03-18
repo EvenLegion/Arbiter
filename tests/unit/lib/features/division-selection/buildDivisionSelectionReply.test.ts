@@ -6,7 +6,7 @@ vi.mock('../../../../../src/config/env/discord', () => ({
 	}
 }));
 
-import { buildDivisionSelectionReply } from '../../../../../src/lib/features/division-selection/buildDivisionSelectionReply';
+import { buildDivisionSelectionReply } from '../../../../../src/lib/features/division-selection/presentation/buildDivisionSelectionReply';
 
 describe('buildDivisionSelectionReply', () => {
 	it('includes the request id for forbidden selections', () => {

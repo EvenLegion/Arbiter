@@ -6,15 +6,15 @@ const mocks = vi.hoisted(() => ({
 	memberHasDivisionKindRole: vi.fn()
 }));
 
-vi.mock('../../../../src/lib/discord/configuredGuildGateway', () => ({
+vi.mock('../../../../src/lib/discord/guild/configuredGuild', () => ({
 	getConfiguredGuild: mocks.getConfiguredGuild
 }));
 
-vi.mock('../../../../src/lib/discord/guildMemberGateway', () => ({
+vi.mock('../../../../src/lib/discord/guild/guildMembers', () => ({
 	getGuildMemberOrThrow: mocks.getGuildMemberOrThrow
 }));
 
-vi.mock('../../../../src/lib/discord/divisionPolicyGateway', () => ({
+vi.mock('../../../../src/lib/discord/guild/divisions', () => ({
 	memberHasDivisionKindRole: mocks.memberHasDivisionKindRole
 }));
 
@@ -23,7 +23,7 @@ import {
 	resolveAutocompleteRequester,
 	respondWithAutocompleteChoices,
 	respondWithEmptyAutocompleteChoices
-} from '../../../../src/lib/discord/autocompleteResponder';
+} from '../../../../src/lib/discord/autocomplete/autocompleteHelpers';
 
 describe('autocompleteResponder', () => {
 	const error = vi.fn();

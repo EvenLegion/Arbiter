@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { presentEventStartResult } from '../../../../../../src/lib/features/event-merit/session/eventStartResultPresenter';
+import { presentEventStartResult } from '../../../../../../src/lib/features/event-merit/session/draft/eventStartResultPresenter';
 
 describe('eventStartResultPresenter', () => {
 	it('maps missing tiers to an inline edit-reply failure', () => {

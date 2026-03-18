@@ -2,7 +2,7 @@ import { EventSessionChannelKind, EventSessionMessageKind, EventSessionState, ty
 import type { Guild } from 'discord.js';
 
 import { eventRepository } from '../../../../integrations/prisma/repositories';
-import { buildEventTrackingSummaryPayload } from '../ui/buildEventTrackingSummaryPayload';
+import { buildEventTrackingSummaryPayload } from './shared/buildEventTrackingSummaryPayload';
 import {
 	editReferencedMessage,
 	resolveSendCapableGuildChannel,

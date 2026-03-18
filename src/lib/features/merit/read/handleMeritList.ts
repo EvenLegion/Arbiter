@@ -1,10 +1,10 @@
 import type { ButtonInteraction, ChatInputCommandInteraction } from 'discord.js';
 
-import { createInteractionResponder } from '../../../discord/interactionResponder';
-import { resolveConfiguredGuild, resolveInteractionActor } from '../../../discord/interactionPreflight';
+import { createInteractionResponder } from '../../../discord/interactions/interactionResponder';
+import { resolveConfiguredGuild, resolveInteractionActor } from '../../../discord/interactions/interactionPreflight';
 import type { ExecutionContext } from '../../../logging/executionContext';
-import type { ParsedMeritListButton } from '../parseMeritListButton';
-import { loadInitialMeritListView, loadMeritListPageView } from './meritListController';
+import { loadInitialMeritListView, loadMeritListPageView } from './loadMeritListView';
+import type { ParsedMeritListButton } from './meritListButtonCustomId';
 
 type HandleMeritListParams = {
 	interaction: ChatInputCommandInteraction;

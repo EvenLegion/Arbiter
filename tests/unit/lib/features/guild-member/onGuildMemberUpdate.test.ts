@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 	listCachedDivisions: vi.fn()
 }));
 
-vi.mock('../../../../../src/lib/features/guild-member/guildMemberChangeServiceAdapters', () => ({
+vi.mock('../../../../../src/lib/features/guild-member/membership/createGuildMemberChangeDeps', () => ({
 	createGuildMemberChangeDeps: mocks.createGuildMemberChangeDeps
 }));
 
@@ -17,11 +17,11 @@ vi.mock('../../../../../src/lib/services/guild-member-change/guildMemberChangeSe
 	processGuildMemberRoleChange: mocks.processGuildMemberRoleChange
 }));
 
-vi.mock('../../../../../src/lib/discord/divisionCacheGateway', () => ({
+vi.mock('../../../../../src/lib/discord/guild/divisions', () => ({
 	listCachedDivisions: mocks.listCachedDivisions
 }));
 
-import { handleGuildMemberUpdate } from '../../../../../src/lib/features/guild-member/onGuildMemberUpdate';
+import { handleGuildMemberUpdate } from '../../../../../src/lib/features/guild-member/handlers/handleGuildMemberUpdate';
 
 describe('handleGuildMemberUpdate', () => {
 	beforeEach(() => {

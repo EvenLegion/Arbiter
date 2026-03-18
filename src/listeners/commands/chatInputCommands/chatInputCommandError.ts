@@ -1,5 +1,5 @@
 import { Events, Listener, type ChatInputCommandErrorPayload } from '@sapphire/framework';
-import { createInteractionResponder } from '../../../lib/discord/interactionResponder';
+import { createInteractionResponder } from '../../../lib/discord/interactions/interactionResponder';
 import { createCommandExecutionContext } from '../../../lib/logging/commandExecutionContext';
 
 export class UserEvent extends Listener<typeof Events.ChatInputCommandError> {

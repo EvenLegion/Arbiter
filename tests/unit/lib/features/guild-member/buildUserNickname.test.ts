@@ -1,7 +1,7 @@
 import { DivisionKind } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
-import { buildUserNickname } from '../../../../../src/lib/features/guild-member/buildUserNickname';
+import { buildUserNickname } from '../../../../../src/lib/services/nickname/buildUserNickname';
 
 describe('buildUserNickname', () => {
 	it('skips nickname computation for the guild owner', () => {

@@ -1,5 +1,5 @@
 import type { AwardManualMeritWorkflowResult } from '../../../services/manual-merit/manualMeritService';
-import { buildManualMeritAwardReply } from '../presentation/buildManualMeritAwardReply';
+import { buildManualMeritAwardReply } from './buildManualMeritAwardReply';
 
 type ManualMeritResponse =
 	| {

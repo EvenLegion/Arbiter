@@ -2,9 +2,9 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { type InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
 
-import { RoutedButtonInteractionHandler, type RoutedButtonRouteParams } from '../lib/discord/routedInteractionHandler';
-import { handleNameChangeReviewButton } from '../lib/features/ticket/handleNameChangeReviewButton';
-import { parseNameChangeReviewButton } from '../lib/features/ticket/nameChangeReviewButtons';
+import { RoutedButtonInteractionHandler, type RoutedButtonRouteParams } from '../lib/discord/interactions/routedInteractionHandler';
+import { handleNameChangeReviewButton } from '../lib/features/ticket/review/handlers/handleNameChangeReviewButton';
+import { parseNameChangeReviewButton } from '../lib/features/ticket/review/nameChangeReviewCustomId';
 
 @ApplyOptions<InteractionHandler.Options>({
 	interactionHandlerType: InteractionHandlerTypes.Button

@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
 	createGuildMemberAccessGateway: vi.fn()
 }));
 
-vi.mock('../../../../../src/lib/features/guild-member/guildMemberAccessGateway', () => ({
+vi.mock('../../../../../src/lib/services/guild-member/guildMemberAccessGateway', () => ({
 	createGuildMemberAccessGateway: mocks.createGuildMemberAccessGateway
 }));
 

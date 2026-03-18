@@ -1,6 +1,6 @@
 import { type Guild, type GuildMember } from 'discord.js';
 
-import { createGuildMemberAccessGateway } from '../../guild-member/guildMemberAccessGateway';
+import { createGuildMemberAccessGateway } from '../../../services/guild-member/guildMemberAccessGateway';
 
 export function createManualMeritMemberResolver({ guild, awarderMember }: { guild: Guild; awarderMember: GuildMember }) {
 	const members = createGuildMemberAccessGateway({

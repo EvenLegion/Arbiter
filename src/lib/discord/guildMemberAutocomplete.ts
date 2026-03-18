@@ -1,1 +1,0 @@
-export { buildGuildMemberAutocompleteChoices } from './memberDirectory';

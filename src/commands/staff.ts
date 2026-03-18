@@ -2,10 +2,10 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { ENV_DISCORD } from '../config/env';
-import { handleDivisionMembershipCommand } from '../lib/features/staff/handleDivisionMembershipCommand';
-import { handlePostDivisionMessage } from '../lib/features/staff/postDivisionSelectionMessage';
-import { handleStaffSyncNickname } from '../lib/features/staff/handleStaffSyncNickname';
-import { handleStaffAutocomplete } from '../lib/features/staff/staffAutocompleteProvider';
+import { handleStaffAutocomplete } from '../lib/features/staff/autocomplete/staffAutocompleteProvider';
+import { handlePostDivisionSelectionMessage } from '../lib/features/staff/division-selection/handlePostDivisionSelectionMessage';
+import { handleDivisionMembershipCommand } from '../lib/features/staff/division-membership/handleDivisionMembershipCommand';
+import { handleStaffSyncNickname } from '../lib/features/staff/nickname-sync/handleStaffSyncNickname';
 import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
@@ -108,7 +108,7 @@ export class StaffCommand extends Subcommand {
 			flow: 'staff.postDivisionMessage'
 		});
 
-		return handlePostDivisionMessage({ interaction, context });
+		return handlePostDivisionSelectionMessage({ interaction, context });
 	}
 
 	public async chatInputSyncNickname(interaction: Subcommand.ChatInputCommandInteraction) {

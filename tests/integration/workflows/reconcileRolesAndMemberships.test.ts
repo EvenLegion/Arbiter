@@ -8,11 +8,11 @@ import { createDivision, createUser } from '../setup/fixtures';
 import { applyDatabaseTestEnv, startPostgresTestContainer, stopPostgresTestContainer } from '../setup/testcontainers';
 import { createMockExecutionContext, createMockLogger } from '../../support/logger';
 
-describe('reconcileRolesAndMemberships integration', () => {
+describe('reconcileGuildMemberDivisionMemberships integration', () => {
 	let databaseUrl: string;
 	let postgresContainer: Awaited<ReturnType<typeof startPostgresTestContainer>>['postgres'];
 	let standalone: StandalonePrisma;
-	let reconcileRolesAndMemberships: typeof import('../../../src/lib/features/guild-member/reconcileRolesAndMemberships').reconcileRolesAndMemberships;
+	let reconcileGuildMemberDivisionMemberships: typeof import('../../../src/lib/services/division-membership/reconcileGuildMemberDivisionMemberships').reconcileGuildMemberDivisionMemberships;
 	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 	const divisionCacheGet = vi.fn();
 
@@ -30,7 +30,8 @@ describe('reconcileRolesAndMemberships integration', () => {
 			}
 		};
 		vi.resetModules();
-		({ reconcileRolesAndMemberships } = await import('../../../src/lib/features/guild-member/reconcileRolesAndMemberships'));
+		({ reconcileGuildMemberDivisionMemberships } =
+			await import('../../../src/lib/services/division-membership/reconcileGuildMemberDivisionMemberships'));
 		({ closeDb } = await import('../../../src/integrations/prisma'));
 	});
 
@@ -83,7 +84,7 @@ describe('reconcileRolesAndMemberships integration', () => {
 		});
 		divisionCacheGet.mockResolvedValue([navyDivision, supportDivision, reserveDivision]);
 
-		await reconcileRolesAndMemberships({
+		await reconcileGuildMemberDivisionMemberships({
 			discordUser: {
 				id: user.discordUserId,
 				nickname: user.discordNickname,

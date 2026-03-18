@@ -2,9 +2,9 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { ENV_DISCORD } from '../config/env';
-import { handleEventAutocomplete } from '../lib/features/event-merit/session/eventAutocompleteProvider';
-import { handleEventAddVc } from '../lib/features/event-merit/session/handleEventAddVc';
-import { handleEventStart } from '../lib/features/event-merit/session/handleEventStart';
+import { handleEventAutocomplete } from '../lib/features/event-merit/session/autocomplete/eventAutocompleteProvider';
+import { handleEventAddVc } from '../lib/features/event-merit/session/add-vc/handleEventAddVc';
+import { handleEventStart } from '../lib/features/event-merit/session/draft/handleEventStart';
 import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({

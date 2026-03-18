@@ -1,6 +1,5 @@
-export { ALLOWED_EVENT_TRANSITIONS } from './eventLifecycleStateMachine';
-
 export type { EventLifecycleEventSession } from './eventLifecycleTypes';
+export { computeEventDurationSeconds } from './initializeEventReviewState';
 
 export { createEventDraft } from './createEventDraft';
 export type { CreateEventDraftResult } from './createEventDraft';

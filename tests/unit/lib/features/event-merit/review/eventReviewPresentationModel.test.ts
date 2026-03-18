@@ -1,7 +1,7 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
-import { buildEventReviewPresentationModel } from '../../../../../../src/lib/features/event-merit/review/eventReviewPresentationModel';
+import { buildEventReviewPresentationModel } from '../../../../../../src/lib/features/event-merit/review/presentation/eventReviewPresentationModel';
 
 describe('eventReviewPresentationModel', () => {
 	it('marks review as open only for ended-pending-review sessions', () => {

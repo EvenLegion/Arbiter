@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createCustomIdCodec, extractCustomIdParts, hasCustomIdPrefix, joinCustomId } from '../../../../src/lib/discord/customId';
+import { createCustomIdCodec, extractCustomIdParts, hasCustomIdPrefix, joinCustomId } from '../../../../src/lib/discord/interactions/customId';
 
 describe('customId', () => {
 	it('builds and parses ids through a typed codec', () => {

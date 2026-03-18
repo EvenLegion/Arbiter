@@ -1,6 +1,6 @@
 import type { Guild, GuildBasedChannel, VoiceBasedChannel } from 'discord.js';
 
-import { getGuildChannel, getVoiceBasedGuildChannel } from '../../../discord/configuredGuildGateway';
+import { getGuildChannel, getVoiceBasedGuildChannel } from '../../../discord/guild/configuredGuild';
 
 export async function resolveEventGuildChannel(guild: Guild, channelId: string): Promise<GuildBasedChannel | null> {
 	return getGuildChannel({

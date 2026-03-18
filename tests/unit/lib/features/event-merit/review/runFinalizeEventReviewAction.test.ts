@@ -10,15 +10,15 @@ vi.mock('../../../../../../src/lib/services/event-lifecycle/eventLifecycleServic
 	finalizeEventReviewLifecycle: mocks.finalizeEventReviewLifecycle
 }));
 
-vi.mock('../../../../../../src/lib/features/event-merit/review/eventReviewServiceAdapters', () => ({
+vi.mock('../../../../../../src/lib/features/event-merit/review/actions/createFinalizeEventReviewLifecycleDeps', () => ({
 	createFinalizeEventReviewLifecycleDeps: mocks.createFinalizeEventReviewLifecycleDeps
 }));
 
-vi.mock('../../../../../../src/lib/features/event-merit/review/eventReviewActionResultPresenter', () => ({
+vi.mock('../../../../../../src/lib/features/event-merit/review/actions/eventReviewActionResultPresenter', () => ({
 	presentFinalizeEventReviewResult: mocks.presentFinalizeEventReviewResult
 }));
 
-import { runFinalizeEventReviewAction } from '../../../../../../src/lib/features/event-merit/review/runFinalizeEventReviewAction';
+import { runFinalizeEventReviewAction } from '../../../../../../src/lib/features/event-merit/review/actions/runFinalizeEventReviewAction';
 
 describe('runFinalizeEventReviewAction', () => {
 	beforeEach(() => {

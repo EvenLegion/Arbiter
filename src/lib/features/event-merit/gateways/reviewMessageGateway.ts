@@ -1,7 +1,7 @@
 import type { Guild } from 'discord.js';
 
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { syncEventReviewMessage } from '../review/syncEventReviewMessage';
+import { syncEventReviewPresentation } from '../presentation/syncEventReviewPresentation';
 
 export async function syncEventReviewPageMessage({
 	guild,
@@ -14,7 +14,7 @@ export async function syncEventReviewPageMessage({
 	page: number;
 	logger: ExecutionContext['logger'];
 }) {
-	return syncEventReviewMessage({
+	return syncEventReviewPresentation({
 		guild,
 		eventSessionId,
 		page,

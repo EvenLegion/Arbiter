@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { resolveActorCoreWithDeps } from '../../../../src/lib/discord/actorCapabilityResolver';
+import { resolveActorCoreWithDeps } from '../../../../src/lib/discord/actor/actorResolver';
 
 describe('actorCapabilityResolver', () => {
 	it('returns guild_not_found when the configured guild lookup fails', async () => {

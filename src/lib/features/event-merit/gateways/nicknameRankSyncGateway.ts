@@ -2,10 +2,10 @@ import type { Guild } from 'discord.js';
 
 import { meritRepository } from '../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../logging/executionContext';
+import { createGuildMemberAccessGateway } from '../../../services/guild-member/guildMemberAccessGateway';
+import { notifyMeritRankUp } from '../../../services/merit-rank/notifyMeritRankUp';
+import { createGuildNicknameServiceDeps } from '../../../services/nickname/createGuildNicknameServiceDeps';
 import { syncNicknameForUser } from '../../../services/nickname/nicknameService';
-import { createGuildMemberAccessGateway } from '../../guild-member/guildMemberAccessGateway';
-import { createGuildNicknameServiceDeps } from '../../guild-member/nicknameServiceAdapters';
-import { notifyMeritRankUp } from '../../merit/notifyMeritRankUp';
 
 const AWARDED_MEMBER_SYNC_CONCURRENCY = 3;
 

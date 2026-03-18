@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	addTrackedChannel: vi.fn(),
-	createAddTrackedChannelDeps: vi.fn(),
 	presentEventAddVcResult: vi.fn()
 }));
 
@@ -10,34 +9,25 @@ vi.mock('../../../../../../src/lib/services/event-lifecycle/eventLifecycleServic
 	addTrackedChannel: mocks.addTrackedChannel
 }));
 
-vi.mock('../../../../../../src/lib/features/event-merit/session/createAddTrackedChannelDeps', () => ({
-	createAddTrackedChannelDeps: mocks.createAddTrackedChannelDeps
-}));
-
-vi.mock('../../../../../../src/lib/features/event-merit/session/eventAddVcResultPresenter', () => ({
+vi.mock('../../../../../../src/lib/features/event-merit/session/add-vc/eventAddVcResultPresenter', () => ({
 	presentEventAddVcResult: mocks.presentEventAddVcResult
 }));
 
-import { runAddTrackedChannelAction } from '../../../../../../src/lib/features/event-merit/session/runAddTrackedChannelAction';
+import { runAddTrackedChannelAction } from '../../../../../../src/lib/features/event-merit/session/add-vc/runAddTrackedChannelAction';
 
 describe('runAddTrackedChannelAction', () => {
 	beforeEach(() => {
 		mocks.addTrackedChannel.mockReset();
-		mocks.createAddTrackedChannelDeps.mockReset();
 		mocks.presentEventAddVcResult.mockReset();
 	});
 
-	it('builds workflow deps, runs the lifecycle action, and presents the result', async () => {
-		const deps = {
-			id: 'deps'
-		};
+	it('builds workflow deps inline, runs the lifecycle action, and presents the result', async () => {
 		const lifecycleResult = {
 			kind: 'channel_added'
 		};
 		const presented = {
 			content: 'Added VC'
 		};
-		mocks.createAddTrackedChannelDeps.mockReturnValue(deps);
 		mocks.addTrackedChannel.mockResolvedValue(lifecycleResult);
 		mocks.presentEventAddVcResult.mockReturnValue(presented);
 
@@ -67,9 +57,16 @@ describe('runAddTrackedChannelAction', () => {
 			}
 		});
 
-		expect(mocks.createAddTrackedChannelDeps).toHaveBeenCalled();
 		expect(mocks.addTrackedChannel).toHaveBeenCalledWith(
-			deps,
+			expect.objectContaining({
+				findEventSession: expect.any(Function),
+				findReservedChannelReservation: expect.any(Function),
+				upsertTrackedChannel: expect.any(Function),
+				renameVoiceChannel: expect.any(Function),
+				syncTrackingSummary: expect.any(Function),
+				postEventThreadLog: expect.any(Function),
+				postPublicAnnouncement: expect.any(Function)
+			}),
 			expect.objectContaining({
 				eventSessionId: 55
 			})

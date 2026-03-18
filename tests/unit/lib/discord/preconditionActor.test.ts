@@ -7,20 +7,20 @@ const mocks = vi.hoisted(() => ({
 	memberHasDivision: vi.fn()
 }));
 
-vi.mock('../../../../src/lib/discord/configuredGuildGateway', () => ({
+vi.mock('../../../../src/lib/discord/guild/configuredGuild', () => ({
 	getConfiguredGuild: mocks.getConfiguredGuild
 }));
 
-vi.mock('../../../../src/lib/discord/guildMemberGateway', () => ({
+vi.mock('../../../../src/lib/discord/guild/guildMembers', () => ({
 	getGuildMemberOrThrow: mocks.getGuildMemberOrThrow
 }));
 
-vi.mock('../../../../src/lib/discord/divisionPolicyGateway', () => ({
+vi.mock('../../../../src/lib/discord/guild/divisions', () => ({
 	memberHasDivisionKindRole: mocks.memberHasDivisionKindRole,
 	memberHasDivision: mocks.memberHasDivision
 }));
 
-import { resolvePreconditionActor } from '../../../../src/lib/discord/preconditionActor';
+import { resolvePreconditionActor } from '../../../../src/lib/discord/actor/preconditionActor';
 
 describe('preconditionActor', () => {
 	beforeEach(() => {

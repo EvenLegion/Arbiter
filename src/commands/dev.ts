@@ -3,10 +3,18 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { ENV_CONFIG, ENV_DISCORD } from '../config/env';
 import { handleDevAutocomplete } from '../lib/features/dev/devAutocompleteProvider';
-import { handleDevNicknameTransform } from '../lib/features/dev/handleDevNicknameTransform';
-import { handleSyncGuildMembers } from '../lib/features/dev/handleSyncGuildMembers';
-import { type NicknameTransformMode } from '../lib/features/dev/nicknameTransform';
+import { DEV_NICKNAME_MODE_CONFIG } from '../lib/features/dev/devNicknameModes';
+import { handleDevNicknameTransform } from '../lib/features/dev/handlers/handleDevNicknameTransform';
+import { handleSyncGuildMembers } from '../lib/features/dev/handlers/handleSyncGuildMembers';
 import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
+import { isNicknameTransformMode, type NicknameTransformMode } from '../lib/services/bulk-nickname/nicknameTransform';
+
+const DEV_NICKNAME_USER_OPTION_DESCRIPTION = 'Optional target user (search by guild nickname).';
+
+const DEV_NICKNAME_SUBCOMMAND_ENTRIES = DEV_NICKNAME_MODE_CONFIG.map(({ mode }) => ({
+	name: mode,
+	chatInputRun: 'chatInputNicknameTransform' as const
+}));
 
 @ApplyOptions<Subcommand.Options>({
 	description: 'Development commands',
@@ -20,20 +28,7 @@ import { createCommandExecutionContext } from '../lib/logging/commandExecutionCo
 		{
 			type: 'group',
 			name: 'nickname',
-			entries: [
-				{
-					name: 'remove-prefix',
-					chatInputRun: 'chatInputNicknameRemovePrefix'
-				},
-				{
-					name: 'remove-suffix',
-					chatInputRun: 'chatInputNicknameRemoveSuffix'
-				},
-				{
-					name: 'reset',
-					chatInputRun: 'chatInputNicknameReset'
-				}
-			]
+			entries: DEV_NICKNAME_SUBCOMMAND_ENTRIES
 		}
 	]
 })
@@ -54,45 +49,22 @@ export class DevCommand extends Subcommand {
 							.setDescription('Sync all guild members with the database (users, divisions, and nicknames).')
 					)
 					.addSubcommandGroup((group) =>
-						group
-							.setName('nickname')
-							.setDescription('Development nickname mutation commands.')
-							.addSubcommand((subcommand) =>
-								subcommand
-									.setName('remove-prefix')
-									.setDescription('Remove division-style prefixes from nicknames for one user or all users in the DB.')
-									.addStringOption((option) =>
-										option
-											.setName('user')
-											.setDescription('Optional target user (search by guild nickname).')
-											.setRequired(false)
-											.setAutocomplete(true)
-									)
-							)
-							.addSubcommand((subcommand) =>
-								subcommand
-									.setName('remove-suffix')
-									.setDescription('Remove merit-rank suffixes from nicknames for one user or all users in the DB.')
-									.addStringOption((option) =>
-										option
-											.setName('user')
-											.setDescription('Optional target user (search by guild nickname).')
-											.setRequired(false)
-											.setAutocomplete(true)
-									)
-							)
-							.addSubcommand((subcommand) =>
-								subcommand
-									.setName('reset')
-									.setDescription('Reset nicknames to raw nickname values from the User table.')
-									.addStringOption((option) =>
-										option
-											.setName('user')
-											.setDescription('Optional target user (search by guild nickname).')
-											.setRequired(false)
-											.setAutocomplete(true)
-									)
-							)
+						DEV_NICKNAME_MODE_CONFIG.reduce(
+							(builder, { mode, description }) =>
+								builder.addSubcommand((subcommand) =>
+									subcommand
+										.setName(mode)
+										.setDescription(description)
+										.addStringOption((option) =>
+											option
+												.setName('user')
+												.setDescription(DEV_NICKNAME_USER_OPTION_DESCRIPTION)
+												.setRequired(false)
+												.setAutocomplete(true)
+										)
+								),
+							group.setName('nickname').setDescription('Development nickname mutation commands.')
+						)
 					),
 			{
 				guildIds: [ENV_DISCORD.DISCORD_GUILD_ID]
@@ -112,16 +84,13 @@ export class DevCommand extends Subcommand {
 		});
 	}
 
-	public async chatInputNicknameRemovePrefix(interaction: Subcommand.ChatInputCommandInteraction) {
-		return this.runNicknameTransform(interaction, 'remove-prefix');
-	}
+	public async chatInputNicknameTransform(interaction: Subcommand.ChatInputCommandInteraction) {
+		const mode = interaction.options.getSubcommand(true);
+		if (!isNicknameTransformMode(mode)) {
+			throw new Error(`Unsupported dev nickname transform mode: ${mode}`);
+		}
 
-	public async chatInputNicknameRemoveSuffix(interaction: Subcommand.ChatInputCommandInteraction) {
-		return this.runNicknameTransform(interaction, 'remove-suffix');
-	}
-
-	public async chatInputNicknameReset(interaction: Subcommand.ChatInputCommandInteraction) {
-		return this.runNicknameTransform(interaction, 'reset');
+		return this.runNicknameTransform(interaction, mode);
 	}
 
 	public override async autocompleteRun(interaction: Subcommand.AutocompleteInteraction) {

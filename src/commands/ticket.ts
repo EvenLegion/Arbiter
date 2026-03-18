@@ -3,7 +3,7 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { ENV_DISCORD } from '../config/env';
 import { DISCORD_MAX_NICKNAME_LENGTH } from '../lib/constants';
-import { handleNameChangeTicket } from '../lib/features/ticket/handleNameChangeTicket';
+import { handleNameChangeTicket } from '../lib/features/ticket/request/handleNameChangeTicket';
 import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({

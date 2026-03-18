@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildMeritListPayload } from '../../../../../src/lib/features/merit/presentation/buildMeritListPayload';
+import { buildMeritListPayload } from '../../../../../src/lib/features/merit/read/buildMeritListPayload';
 
 describe('buildMeritListPayload', () => {
 	it('builds the merit summary embed and page controls', () => {

@@ -1,6 +1,6 @@
 import { AllFlowsPrecondition, type ChatInputCommand, type ContextMenuCommand, type MessageCommand, type Precondition } from '@sapphire/framework';
 import type { ChatInputCommandInteraction, ContextMenuCommandInteraction, Message } from 'discord.js';
-import { resolvePreconditionActor } from '../lib/discord/preconditionActor';
+import { resolvePreconditionActor } from '../lib/discord/actor/preconditionActor';
 
 export class EventOperatorOnlyPrecondition extends AllFlowsPrecondition {
 	public override messageRun(_message: Message, _command: MessageCommand, _context: Precondition.Context) {

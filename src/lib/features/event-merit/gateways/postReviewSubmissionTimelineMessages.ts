@@ -2,7 +2,7 @@ import { EventSessionChannelKind } from '@prisma/client';
 import type { Guild } from 'discord.js';
 
 import type { ExecutionContext } from '../../../logging/executionContext';
-import type { EventLifecycleEventSession } from '../../../services/event-lifecycle/eventLifecycleTypes';
+import type { EventLifecycleEventSession } from '../../../services/event-lifecycle/eventLifecycleService';
 import { resolveEventGuildChannel } from './resolveEventChannels';
 
 export async function postReviewSubmissionTimelineMessages({

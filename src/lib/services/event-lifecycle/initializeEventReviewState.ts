@@ -1,7 +1,5 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 
-import { computeEventDurationSeconds } from '../../features/event-merit/review/computeEventDurationSeconds';
-import { clampAttendedSecondsForReview, resolveDefaultReviewDecision } from './eventReviewAttendancePolicy';
 import type { EventReviewParticipantSnapshot, EventReviewUserLookup } from './eventLifecycleTypes';
 
 type InitializeEventReviewDeps = {
@@ -48,6 +46,14 @@ export type InitializeEventReviewResult =
 			snapshotParticipantCount: number;
 			persistedParticipantCount: number;
 	  };
+
+export function computeEventDurationSeconds({ startedAt, endedAt }: { startedAt: Date | null; endedAt: Date | null }) {
+	if (!startedAt || !endedAt) {
+		return 0;
+	}
+
+	return Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000));
+}
 
 export async function initializeEventReviewState(
 	deps: InitializeEventReviewDeps,
@@ -122,4 +128,29 @@ export async function initializeEventReviewState(
 		snapshotParticipantCount: participantSnapshots.length,
 		persistedParticipantCount: participants.length
 	};
+}
+
+function clampAttendedSecondsForReview(attendedSeconds: number, durationSeconds: number) {
+	const safeAttendedSeconds = Math.max(0, attendedSeconds);
+	if (durationSeconds <= 0) {
+		return safeAttendedSeconds;
+	}
+
+	return Math.min(durationSeconds, safeAttendedSeconds);
+}
+
+function resolveDefaultReviewDecision({
+	attendedSeconds,
+	durationSeconds,
+	defaultMinAttendancePercent
+}: {
+	attendedSeconds: number;
+	durationSeconds: number;
+	defaultMinAttendancePercent: number;
+}) {
+	if (durationSeconds <= 0) {
+		return EventReviewDecisionKind.NO_MERIT;
+	}
+
+	return attendedSeconds / durationSeconds >= defaultMinAttendancePercent / 100 ? EventReviewDecisionKind.MERIT : EventReviewDecisionKind.NO_MERIT;
 }

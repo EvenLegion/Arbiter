@@ -1,7 +1,7 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Listener } from '@sapphire/framework';
 import type { GuildMember } from 'discord.js';
-import { handleGuildMemberAdd } from '../lib/features/guild-member/onGuildMemberAdd';
+import { handleGuildMemberAdd } from '../lib/features/guild-member/handlers/handleGuildMemberAdd';
 import { createListenerExecutionContext } from '../lib/logging/ingressExecutionContext';
 
 @ApplyOptions<Listener.Options>({

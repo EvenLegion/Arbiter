@@ -1,7 +1,7 @@
 import { MessageFlags } from 'discord.js';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createInteractionResponder } from '../../../../src/lib/discord/interactionResponder';
+import { createInteractionResponder } from '../../../../src/lib/discord/interactions/interactionResponder';
 
 describe('interactionResponder', () => {
 	it('routes automatic failures to reply before any defer', async () => {

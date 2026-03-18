@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { NicknameTooLongError } from '../../../../../src/lib/errors/nicknameTooLongError';
 import { computeNicknameForUser, syncNicknameForUser, validateRequestedNickname } from '../../../../../src/lib/services/nickname/nicknameService';
 
 describe('nicknameService', () => {
@@ -91,10 +90,7 @@ describe('nicknameService', () => {
 	});
 
 	it('surfaces nickname-too-long when nickname sync exceeds Discord limits', async () => {
-		const nicknameTooLongError = new NicknameTooLongError({
-			computedNickname: 'A Very Long Nickname',
-			computedLength: 40
-		});
+		const nicknameTooLongError = createNicknameTooLongError();
 
 		await expect(
 			syncNicknameForUser(
@@ -165,3 +161,9 @@ describe('nicknameService', () => {
 		);
 	});
 });
+
+function createNicknameTooLongError() {
+	const error = new Error('Computed nickname exceeds Discord limit');
+	error.name = 'NicknameTooLongError';
+	return error;
+}

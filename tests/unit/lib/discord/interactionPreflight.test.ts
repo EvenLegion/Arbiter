@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { resolveConfiguredGuildWithDeps } from '../../../../src/lib/discord/resolveConfiguredGuild';
-import { resolveGuildMemberWithDeps } from '../../../../src/lib/discord/resolveGuildMember';
-import { resolveInteractionActorWithDeps } from '../../../../src/lib/discord/resolveInteractionActor';
+import { resolveConfiguredGuildWithDeps } from '../../../../src/lib/discord/interactions/interactionPreflight';
+import { resolveGuildMemberWithDeps } from '../../../../src/lib/discord/interactions/interactionPreflight';
+import { resolveInteractionActorWithDeps } from '../../../../src/lib/discord/interactions/interactionPreflight';
 
 describe('interactionPreflight helpers', () => {
 	it('fails through the responder when configured guild lookup fails', async () => {

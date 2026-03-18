@@ -1,7 +1,7 @@
 import { Collection, ChannelType } from 'discord.js';
 import { describe, expect, it } from 'vitest';
 
-import { buildAvailableEventVoiceChannelChoices } from '../../../../../../src/lib/features/event-merit/session/eventVoiceChannelAutocomplete';
+import { buildAvailableEventVoiceChannelChoices } from '../../../../../../src/lib/features/event-merit/session/autocomplete/eventVoiceChannelAutocomplete';
 
 describe('eventVoiceChannelAutocomplete', () => {
 	it('filters reserved channels and ranks prefix matches ahead of later matches', async () => {

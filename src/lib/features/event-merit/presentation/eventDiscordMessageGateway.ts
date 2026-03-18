@@ -1,6 +1,6 @@
 import type { Guild, Message } from 'discord.js';
 
-import { getGuildChannel, getVoiceBasedGuildChannel } from '../../../discord/configuredGuildGateway';
+import { getGuildChannel, getVoiceBasedGuildChannel } from '../../../discord/guild/configuredGuild';
 
 type EventMessageLogger = {
 	warn: (...values: readonly unknown[]) => void;

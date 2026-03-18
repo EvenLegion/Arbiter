@@ -5,7 +5,7 @@ import {
 	presentFinalizeEventReviewResult,
 	presentRecordEventReviewDecisionResult,
 	presentRefreshEventReviewPageResult
-} from '../../../../../../src/lib/features/event-merit/review/eventReviewActionResultPresenter';
+} from '../../../../../../src/lib/features/event-merit/review/actions/eventReviewActionResultPresenter';
 
 describe('eventReviewActionResultPresenter', () => {
 	it('formats invalid review page state failures', () => {

@@ -1,8 +1,8 @@
 import type { Guild, GuildMember } from 'discord.js';
 
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { createGuildNicknameWorkflowGateway } from '../../guild-member/guildNicknameWorkflowGateway';
-import { notifyMeritRankUp } from '../notifyMeritRankUp';
+import { notifyMeritRankUp } from '../../../services/merit-rank/notifyMeritRankUp';
+import { createGuildNicknameWorkflowGateway } from '../../../services/nickname/createGuildNicknameWorkflowGateway';
 
 export function createManualMeritNicknameEffects({
 	guild,

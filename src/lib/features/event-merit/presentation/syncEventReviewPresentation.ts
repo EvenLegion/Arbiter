@@ -2,9 +2,9 @@ import { EventSessionMessageKind } from '@prisma/client';
 import type { Guild } from 'discord.js';
 
 import { eventRepository, eventReviewRepository } from '../../../../integrations/prisma/repositories';
+import { computeEventDurationSeconds } from '../../../services/event-lifecycle/eventLifecycleService';
 import { loadEventReviewPage } from '../../../services/event-review/eventReviewService';
-import { buildEventReviewPayload } from '../review/buildEventReviewPayload';
-import { computeEventDurationSeconds } from '../review/computeEventDurationSeconds';
+import { buildEventReviewPayload } from '../review/presentation/buildEventReviewPayload';
 import { editReferencedMessage, resolveSendCapableGuildChannel, sendMessageToChannel } from './eventDiscordMessageGateway';
 
 export async function syncEventReviewPresentation({

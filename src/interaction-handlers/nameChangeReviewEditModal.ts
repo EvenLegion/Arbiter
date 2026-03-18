@@ -2,9 +2,9 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { type InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ModalSubmitInteraction } from 'discord.js';
 
-import { handleNameChangeReviewEditModal } from '../lib/features/ticket/handleNameChangeReviewEditModal';
-import { RoutedModalInteractionHandler, type RoutedModalRouteParams } from '../lib/discord/routedInteractionHandler';
-import { parseNameChangeReviewModal } from '../lib/features/ticket/nameChangeReviewButtons';
+import { handleNameChangeReviewEditModal } from '../lib/features/ticket/review/handlers/handleNameChangeReviewEditModal';
+import { RoutedModalInteractionHandler, type RoutedModalRouteParams } from '../lib/discord/interactions/routedInteractionHandler';
+import { parseNameChangeReviewModal } from '../lib/features/ticket/review/nameChangeReviewCustomId';
 
 @ApplyOptions<InteractionHandler.Options>({
 	interactionHandlerType: InteractionHandlerTypes.ModalSubmit

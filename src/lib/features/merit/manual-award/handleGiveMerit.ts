@@ -1,11 +1,11 @@
 import { type ChatInputCommandInteraction } from 'discord.js';
 import { z } from 'zod';
 
-import { createInteractionResponder } from '../../../discord/interactionResponder';
-import { resolveConfiguredGuild, resolveInteractionActor } from '../../../discord/interactionPreflight';
+import { createInteractionResponder } from '../../../discord/interactions/interactionResponder';
+import { resolveConfiguredGuild, resolveInteractionActor } from '../../../discord/interactions/interactionPreflight';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { awardManualMeritWorkflow } from '../../../services/manual-merit/manualMeritService';
-import { createManualMeritWorkflowDeps, mapMemberToResolvedMember } from './manualMeritServiceAdapters';
+import { createManualMeritWorkflowDeps, mapMemberToResolvedMember } from './createManualMeritWorkflowDeps';
 import { presentManualMeritResult } from './manualMeritResultPresenter';
 
 type HandleGiveMeritParams = {
