@@ -1,10 +1,10 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 
+import { prepareGuildInteraction } from '../../../discord/interactions/prepareGuildInteraction';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { createGuildMemberSyncDeps } from '../../../services/guild-member-sync/createGuildMemberSyncDeps';
 import { syncGuildMembers } from '../../../services/guild-member-sync/guildMemberSyncService';
 import { buildGuildMemberSyncPayload } from '../presenters/buildGuildMemberSyncPayload';
-import { prepareDevGuildCommand } from './prepareDevGuildCommand';
 
 type HandleSyncGuildMembersParams = {
 	interaction: Subcommand.ChatInputCommandInteraction;
@@ -12,12 +12,14 @@ type HandleSyncGuildMembersParams = {
 };
 
 export async function handleSyncGuildMembers({ interaction, context }: HandleSyncGuildMembersParams) {
-	const prepared = await prepareDevGuildCommand({
+	const prepared = await prepareGuildInteraction({
 		interaction,
 		context,
 		caller: 'handleSyncGuildMembers',
 		guildLogMessage: 'Failed to resolve configured guild for dev sync command',
-		guildFailureMessage: 'This command can only be used in a guild.'
+		guildFailureMessage: 'This command can only be used in a guild.',
+		requestId: true,
+		defer: 'ephemeralReply'
 	});
 	if (!prepared) {
 		return;

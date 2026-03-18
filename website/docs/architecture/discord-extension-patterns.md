@@ -17,8 +17,8 @@ Current example:
   `src/lib/features/merit/manual-award/handleGiveMerit.ts`
 - service:
   `src/lib/services/manual-merit/manualMeritService.ts`
-- adapter assembly:
-  `src/lib/features/merit/manual-award/manualMeritServiceAdapters.ts`
+- runtime support:
+  `src/lib/features/merit/manual-award/createManualMeritWorkflowDeps.ts`
 - presenter:
   `src/lib/features/merit/manual-award/manualMeritResultPresenter.ts`
 
@@ -34,25 +34,23 @@ Checklist:
 1. create the command shell
 2. create a feature handler that does preflight and input parsing
 3. call a service with typed input
-4. assemble Discord and persistence dependencies in adapters or gateways
+4. assemble Discord and persistence dependencies inline or in small runtime-support modules
 5. map the service result through a presenter when the output has more than one branch
 
-The adapter step is not accidental. It exists so the service can receive named collaborators instead of reaching into global helpers or container state on its own.
+The runtime-support step is not accidental. It exists so the service can receive named collaborators instead of reaching into global helpers or container state on its own.
 
 ## Pattern 2: Autocomplete Route Table
 
 Current examples:
 
 - `src/lib/features/merit/autocomplete/meritAutocompleteProvider.ts`
-- `src/lib/features/merit/autocomplete/meritAutocompleteRoutes.ts`
-- `src/lib/features/event-merit/session/eventAutocompleteProvider.ts`
-- `src/lib/features/staff/staffAutocompleteProvider.ts`
+- `src/lib/features/event-merit/session/autocomplete/eventAutocompleteProvider.ts`
+- `src/lib/features/staff/autocomplete/staffAutocompleteProvider.ts`
 
 Core helpers:
 
-- `src/lib/discord/autocompleteRouter.ts`
-- `src/lib/discord/autocompleteRouteHelpers.ts`
-- `src/lib/discord/autocompleteResponder.ts`
+- `src/lib/discord/autocomplete/autocompleteRouter.ts`
+- `src/lib/discord/autocomplete/autocompleteHelpers.ts`
 
 Use this pattern when:
 
@@ -77,7 +75,7 @@ Current examples:
 
 Core helper:
 
-- `src/lib/discord/routedInteractionHandler.ts`
+- `src/lib/discord/interactions/routedInteractionHandler.ts`
 
 Use this pattern when:
 
@@ -96,14 +94,13 @@ The feature handler still owns preflight and response behavior.
 
 Core helper:
 
-- `src/lib/discord/customId.ts`
+- `src/lib/discord/interactions/customId.ts`
 
 Current examples:
 
-- `src/lib/features/merit/parseMeritListButton.ts`
-- `src/lib/features/event-merit/review/eventReviewDecisionCustomId.ts`
-- `src/lib/features/event-merit/review/eventReviewPagingCustomId.ts`
-- `src/lib/features/division-selection/parseDivisionSelection.ts`
+- `src/lib/features/merit/read/meritListButtonCustomId.ts`
+- `src/lib/features/event-merit/review/buttons/eventReviewButtonProtocol.ts`
+- `src/lib/features/division-selection/divisionSelectionCustomId.ts`
 
 Use this pattern when:
 
@@ -124,12 +121,12 @@ Current example:
   `src/lib/features/merit/read/handleMeritList.ts`
 - read service:
   `src/lib/services/merit-read/meritReadService.ts`
-- adapters:
-  `src/lib/features/merit/read/meritReadServiceAdapters.ts`
+- runtime support:
+  `src/lib/features/merit/read/createMeritReadServiceDeps.ts`
 - presenter:
-  `src/lib/features/merit/read/meritListView.ts`
+  `src/lib/features/merit/read/presentMeritListView.ts`
 - payload builder:
-  `src/lib/features/merit/presentation/buildMeritListPayload.ts`
+  `src/lib/features/merit/read/buildMeritListPayload.ts`
 
 Use this pattern for:
 

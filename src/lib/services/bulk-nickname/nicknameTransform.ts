@@ -1,4 +1,4 @@
-import { stripTrailingMeritRankSuffix } from '../nickname/stripTrailingMeritRankSuffix';
+import { stripTrailingMeritRankSuffix } from '../nickname/buildUserNickname';
 
 export const NICKNAME_TRANSFORM_MODES = ['remove-prefix', 'remove-suffix', 'reset'] as const;
 

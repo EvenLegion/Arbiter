@@ -1,12 +1,11 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 
-import { createInteractionResponder } from '../../../discord/interactions/interactionResponder';
-import { resolveConfiguredGuild } from '../../../discord/interactions/interactionPreflight';
+import { prepareGuildInteraction } from '../../../discord/interactions/prepareGuildInteraction';
 import { parseDiscordUserIdInput } from '../../../discord/members/memberDirectory';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { applyDivisionMembershipMutation } from '../../../services/division-membership/divisionMembershipService';
 import { buildDivisionMembershipMutationReply } from './buildDivisionMembershipMutationReply';
-import { createDivisionMembershipMutationDeps } from './createDivisionMembershipMutationDeps';
+import { createDivisionMembershipMutationRuntime } from './divisionMembershipMutationRuntime';
 
 type HandleDivisionMembershipCommandParams = {
 	interaction: Subcommand.ChatInputCommandInteraction;
@@ -16,15 +15,22 @@ type HandleDivisionMembershipCommandParams = {
 
 export async function handleDivisionMembershipCommand({ interaction, context, mode }: HandleDivisionMembershipCommandParams) {
 	const caller = 'handleDivisionMembershipCommand';
-	const logger = context.logger.child({ caller, mode });
-	const responder = createInteractionResponder({
+	const prepared = await prepareGuildInteraction({
 		interaction,
 		context,
-		logger,
-		caller
+		caller,
+		loggerBindings: {
+			mode
+		},
+		guildLogMessage: 'Failed to resolve configured guild for staff division membership command',
+		guildFailureMessage: 'Failed to resolve guild for division membership update.',
+		requestId: true,
+		defer: 'ephemeralReply'
 	});
-
-	await responder.deferEphemeralReply();
+	if (!prepared) {
+		return;
+	}
+	const { guild, logger, responder } = prepared;
 
 	const requestedDiscordUserId = parseDiscordUserIdInput(interaction.options.getString('nickname', true));
 	if (!requestedDiscordUserId) {
@@ -34,21 +40,9 @@ export async function handleDivisionMembershipCommand({ interaction, context, mo
 		return;
 	}
 
-	const guild = await resolveConfiguredGuild({
-		interaction,
-		responder,
-		logger,
-		logMessage: 'Failed to resolve configured guild for staff division membership command',
-		failureMessage: 'Failed to resolve guild for division membership update.',
-		requestId: true
-	});
-	if (!guild) {
-		return;
-	}
-
 	try {
 		const result = await applyDivisionMembershipMutation(
-			createDivisionMembershipMutationDeps({
+			createDivisionMembershipMutationRuntime({
 				guild,
 				context
 			}),

@@ -23,6 +23,18 @@ export type BulkNicknameResolutionDeps<TMember> = {
 	listMembers: () => Promise<Map<string, TMember>>;
 };
 
+type BulkNicknameUserDirectoryRecord = {
+	id: string;
+	discordUserId: string;
+	discordUsername: string;
+	discordNickname: string;
+};
+
+type BulkNicknameUserDirectory = {
+	get: (params: { discordUserId: string }) => Promise<BulkNicknameUserDirectoryRecord | null>;
+	findMany: () => Promise<BulkNicknameUserDirectoryRecord[]>;
+};
+
 export type SyncBulkNicknamesDeps<TMember> = BulkNicknameResolutionDeps<TMember> & {
 	prepare?: () => Promise<void>;
 	syncNickname: (params: { target: BulkNicknameTarget; member: TMember; includeStaff: boolean }) => Promise<{
@@ -78,6 +90,36 @@ export type TransformBulkNicknamesResult =
 			failed: number;
 			failures: BulkNicknameFailure[];
 	  };
+
+export async function resolveBulkNicknameTargets(
+	userDirectory: BulkNicknameUserDirectory,
+	{ requestedDiscordUserId }: { requestedDiscordUserId?: string }
+): Promise<BulkNicknameTarget[]> {
+	if (requestedDiscordUserId) {
+		const target = await userDirectory.get({
+			discordUserId: requestedDiscordUserId
+		});
+
+		return target
+			? [
+					{
+						id: target.id,
+						discordUserId: target.discordUserId,
+						discordUsername: target.discordUsername,
+						discordNickname: target.discordNickname
+					}
+				]
+			: [];
+	}
+
+	const users = await userDirectory.findMany();
+	return users.map((user) => ({
+		id: user.id,
+		discordUserId: user.discordUserId,
+		discordUsername: user.discordUsername,
+		discordNickname: user.discordNickname
+	}));
+}
 
 export async function syncBulkNicknames<TMember>(
 	deps: SyncBulkNicknamesDeps<TMember>,

@@ -7,7 +7,7 @@ sidebar_position: 7
 
 Use this page when you need to answer:
 
-- what terms like `runtime shell`, `service`, `repository`, `gateway`, and `adapter` actually mean in Arbiter
+- what terms like `runtime shell`, `service`, `repository`, `gateway`, and `runtime support` actually mean in Arbiter
 - how those layers fit together in one end-to-end flow
 - why the repo uses those terms instead of simpler all-in-one handlers
 
@@ -17,7 +17,7 @@ Arbiter is split so that each layer owns one kind of responsibility:
 
 - runtime shells receive Discord or scheduled-task events
 - feature handlers translate transport into domain input
-- adapters assemble dependencies
+- runtime support assembles dependencies when inline wiring would be noisy
 - services own workflow rules
 - repositories own persistence
 - gateways own side-effect boundaries
@@ -37,7 +37,7 @@ Here is the intended shape of a typical write workflow:
 flowchart LR
     A["Discord command / button / modal / listener"] --> B["Runtime shell"]
     B --> C["Feature handler"]
-    C --> D["Adapter or dependency factory"]
+    C --> D["Inline deps or runtime support"]
     D --> E["Service"]
     E --> F["Repository"]
     E --> G["Gateway"]
@@ -145,7 +145,7 @@ Typical locations:
 Examples:
 
 - `src/lib/features/merit/manual-award/handleGiveMerit.ts`
-- `src/lib/features/ticket/handleNameChangeTicket.ts`
+- `src/lib/features/ticket/request/handleNameChangeTicket.ts`
 
 ### What It Owns
 
@@ -184,20 +184,21 @@ async function handleGiveMerit({ interaction, context }) {
 }
 ```
 
-## Adapter
+## Runtime Support
 
 ### What It Is
 
-An adapter assembles the dependencies that a service needs.
+A runtime-support module assembles the dependencies that a service needs when that wiring would be noisy inline.
 
 Typical locations:
 
-- `src/lib/features/.../*Adapters.ts`
+- `src/lib/features/.../create*Deps.ts`
+- `src/lib/features/.../*Runtime.ts`
 
 Examples:
 
-- `src/lib/features/merit/manual-award/manualMeritServiceAdapters.ts`
-- `src/lib/features/event-merit/review/eventReviewServiceAdapters.ts`
+- `src/lib/features/merit/manual-award/createManualMeritWorkflowDeps.ts`
+- `src/lib/features/event-merit/session/lifecycle/eventSessionTransitionRuntime.ts`
 
 ### What It Owns
 
@@ -212,13 +213,13 @@ Examples:
 
 ### Why This Exists
 
-The adapter is the line between:
+This module is the line between:
 
 - "the runtime gave us a guild, interaction, logger, and actor"
 - and
 - "the service wants a small set of named capabilities"
 
-Without adapters, services either become runtime-aware or handlers become giant wiring files.
+Without this pattern, services either become runtime-aware or handlers become giant wiring files. But if the dependency object is short and obvious, it should stay inline instead of being split out into ceremony.
 
 ### Pseudo Code
 
@@ -604,7 +605,7 @@ If you are lost in a file, use this shortcut:
 
 - **runtime shell**: receives the event
 - **feature handler**: reads Discord input and calls the workflow
-- **adapter**: wires dependencies
+- **runtime support**: wires dependencies when inline deps would be noisy
 - **service**: decides what happens
 - **repository**: reads or writes the DB
 - **gateway**: talks to Discord/runtime/infrastructure

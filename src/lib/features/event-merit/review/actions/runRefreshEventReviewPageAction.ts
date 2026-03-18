@@ -3,7 +3,7 @@ import type { Guild } from 'discord.js';
 import { eventReviewRepository } from '../../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../../logging/executionContext';
 import { refreshEventReviewPage } from '../../../../services/event-review/eventReviewService';
-import { syncEventReviewPageMessage } from '../../gateways/reviewMessageGateway';
+import { syncEventReviewPresentation } from '../../presentation/syncEventReviewPresentation';
 import { presentRefreshEventReviewPageResult } from './eventReviewActionResultPresenter';
 import type { ParsedEventReviewPageAction } from '../buttons/eventReviewButtonProtocol';
 
@@ -24,7 +24,7 @@ export async function runRefreshEventReviewPageAction({
 					page
 				}),
 			syncReviewMessage: async ({ eventSessionId, page }: { eventSessionId: number; page: number }) =>
-				syncEventReviewPageMessage({
+				syncEventReviewPresentation({
 					guild,
 					eventSessionId,
 					page,

@@ -1,10 +1,10 @@
-import { createInteractionResponder } from '../../../../discord/interactions/interactionResponder';
-import { resolveConfiguredGuild, resolveGuildMember } from '../../../../discord/interactions/interactionPreflight';
+import { prepareGuildInteraction } from '../../../../discord/interactions/prepareGuildInteraction';
+import { resolveGuildMember } from '../../../../discord/interactions/interactionPreflight';
 import type { ExecutionContext } from '../../../../logging/executionContext';
 import { createEventDraft } from '../../../../services/event-lifecycle/eventLifecycleService';
-import { createEventDraftDeps } from './createEventDraftDeps';
 import { resolveEventStartCommand } from './resolveEventStartCommand';
 import { presentEventStartResult } from './eventStartResultPresenter';
+import { createEventDraftRuntime } from './eventDraftRuntime';
 
 type HandleEventStartParams = {
 	interaction: import('@sapphire/plugin-subcommands').Subcommand.ChatInputCommandInteraction;
@@ -13,27 +13,19 @@ type HandleEventStartParams = {
 
 export async function handleEventStart({ interaction, context }: HandleEventStartParams) {
 	const caller = 'handleEventStart';
-	const logger = context.logger.child({ caller });
-	const responder = createInteractionResponder({
+	const prepared = await prepareGuildInteraction({
 		interaction,
 		context,
-		logger,
-		caller
+		caller,
+		guildLogMessage: 'Failed to resolve configured guild while handling event start',
+		guildFailureMessage: 'Could not resolve configured guild. Please contact TECH with:',
+		requestId: true,
+		defer: 'ephemeralReply'
 	});
-
-	await responder.deferEphemeralReply();
-
-	const guild = await resolveConfiguredGuild({
-		interaction,
-		responder,
-		logger,
-		logMessage: 'Failed to resolve configured guild while handling event start',
-		failureMessage: 'Could not resolve configured guild. Please contact TECH with:',
-		requestId: true
-	});
-	if (!guild) {
+	if (!prepared) {
 		return;
 	}
+	const { guild, logger, responder } = prepared;
 
 	const issuer = await resolveGuildMember({
 		guild,
@@ -70,7 +62,7 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 		}
 
 		const result = await createEventDraft(
-			createEventDraftDeps({
+			createEventDraftRuntime({
 				guild,
 				trackingChannel: resolvedCommand.trackingChannel,
 				logger

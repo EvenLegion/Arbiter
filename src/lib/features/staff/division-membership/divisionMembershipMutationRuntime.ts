@@ -6,9 +6,9 @@ import { getDbUser } from '../../../discord/guild/users';
 import { toErrorDetails } from '../../../logging/errorDetails';
 import { createChildExecutionContext, type ExecutionContext } from '../../../logging/executionContext';
 import { findDivisionBySelection } from '../../../services/division-membership/divisionDirectory';
-import { createGuildNicknameWorkflowGateway } from '../../../services/nickname/createGuildNicknameWorkflowGateway';
+import { createGuildNicknameWorkflowGateway } from '../../../services/nickname/createGuildNicknameServiceDeps';
 
-export function createDivisionMembershipMutationDeps({ guild, context }: { guild: Guild; context: ExecutionContext }) {
+export function createDivisionMembershipMutationRuntime({ guild, context }: { guild: Guild; context: ExecutionContext }) {
 	return {
 		findTargetUser: (discordUserId: string) => getDbUser({ discordUserId }),
 		findDivision: (selection: string) => findDivisionBySelection(selection),

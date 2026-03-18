@@ -16,7 +16,7 @@ Use this page when you need to answer:
 In Arbiter, dependency injection is simple:
 
 - a service owns workflow rules
-- a feature adapter assembles named collaborators
+- a feature handler or small runtime-support module assembles named collaborators
 - the service receives those collaborators as typed dependencies
 
 That usually means a service depends on things like:
@@ -71,6 +71,7 @@ The current pattern avoids that by keeping:
 - persistence in repositories
 - Discord side effects in gateways
 - transport in handlers
+- dependency assembly in the smallest place that still reads clearly
 
 ## Why Not Global Container Access In Services
 
@@ -83,7 +84,7 @@ If a service reaches into the container directly:
 - contributors cannot tell which external systems the workflow actually needs
 - workflows become coupled to the framework instead of the domain
 
-That is why listener shells, command shells, and feature adapters can touch runtime helpers, but service code should not.
+That is why listener shells, command shells, and feature runtime-support modules can touch runtime helpers, but service code should not.
 
 ## Why Not Large Service Classes
 
@@ -103,7 +104,7 @@ The goal is explicitness, not framework-style inversion-of-control.
 ```mermaid
 flowchart LR
     A["Command / Interaction / Listener"] --> B["Feature Handler"]
-    B --> C["Adapter Or Dependency Factory"]
+    B --> C["Inline Deps Or Runtime Support"]
     C --> D["Service(input, deps)"]
     D --> E["Repository / Gateway Calls"]
     D --> F["Typed Result"]
@@ -113,7 +114,7 @@ flowchart LR
 The important split is:
 
 - handler knows transport
-- adapter knows wiring
+- runtime support knows wiring when wiring is non-trivial
 - service knows rules
 - presenter knows Discord output
 
@@ -168,7 +169,7 @@ When adding new workflow behavior:
 1. decide whether the change is a rule change, a side-effect change, or both
 2. keep rule changes inside the service
 3. add a new gateway or repository method if a new side effect is needed
-4. assemble that dependency in the feature adapter
+4. assemble that dependency inline or in a small runtime-support module
 5. return a typed result if the new behavior changes reply branching
 
 That keeps the service readable even as the feature grows.
@@ -178,7 +179,8 @@ That keeps the service readable even as the feature grows.
 - service imports from `@sapphire/framework`
 - service imports raw Discord interaction types
 - service imports `prisma` directly
-- adapter files that start owning branching workflow logic
+- runtime-support files that start owning branching workflow logic
+- `create*Deps.ts` files that hide workflow branching or error translation
 - “utility” helpers that secretly do database reads and Discord writes together
 - passing the whole container when the service only needs one collaborator
 

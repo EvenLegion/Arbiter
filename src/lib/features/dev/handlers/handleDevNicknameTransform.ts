@@ -1,12 +1,12 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 
+import { prepareGuildInteraction } from '../../../discord/interactions/prepareGuildInteraction';
 import { parseDiscordUserIdInput } from '../../../discord/members/memberDirectory';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { transformBulkNicknames } from '../../../services/bulk-nickname/bulkNicknameService';
 import { createBulkNicknameTransformDeps } from '../../../services/bulk-nickname/createBulkNicknameTransformDeps';
 import { type NicknameTransformMode } from '../../../services/bulk-nickname/nicknameTransform';
 import { buildBulkNicknameTransformPayload } from '../presenters/buildBulkNicknameTransformPayload';
-import { prepareDevGuildCommand } from './prepareDevGuildCommand';
 
 type HandleDevNicknameTransformParams = {
 	interaction: Subcommand.ChatInputCommandInteraction;
@@ -16,7 +16,7 @@ type HandleDevNicknameTransformParams = {
 
 export async function handleDevNicknameTransform({ interaction, context, mode }: HandleDevNicknameTransformParams) {
 	const caller = 'handleDevNicknameTransform';
-	const prepared = await prepareDevGuildCommand({
+	const prepared = await prepareGuildInteraction({
 		interaction,
 		context,
 		caller,
@@ -24,7 +24,9 @@ export async function handleDevNicknameTransform({ interaction, context, mode }:
 			mode
 		},
 		guildLogMessage: 'Failed to resolve configured guild for dev nickname command',
-		guildFailureMessage: 'Failed to resolve guild for dev nickname command.'
+		guildFailureMessage: 'Failed to resolve guild for dev nickname command.',
+		requestId: true,
+		defer: 'ephemeralReply'
 	});
 	if (!prepared) {
 		return;

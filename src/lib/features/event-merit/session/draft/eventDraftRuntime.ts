@@ -8,7 +8,7 @@ import { postDraftEventTrackingSummaryPresentation } from '../../presentation/sy
 import { createVoiceChannelGateway } from '../shared/voiceChannelGateway';
 import { createTrackingThreadGateway } from './createTrackingThreadGateway';
 
-export function createEventDraftDeps({
+export function createEventDraftRuntime({
 	guild,
 	trackingChannel,
 	logger

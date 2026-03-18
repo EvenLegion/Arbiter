@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
 	syncGuildMembers: vi.fn(),
 	createGuildMemberSyncDeps: vi.fn(),
 	buildGuildMemberSyncPayload: vi.fn(),
-	prepareDevGuildCommand: vi.fn()
+	prepareGuildInteraction: vi.fn()
 }));
 
 vi.mock('../../../../../src/lib/services/guild-member-sync/guildMemberSyncService', () => ({
@@ -19,8 +19,8 @@ vi.mock('../../../../../src/lib/features/dev/presenters/buildGuildMemberSyncPayl
 	buildGuildMemberSyncPayload: mocks.buildGuildMemberSyncPayload
 }));
 
-vi.mock('../../../../../src/lib/features/dev/handlers/prepareDevGuildCommand', () => ({
-	prepareDevGuildCommand: mocks.prepareDevGuildCommand
+vi.mock('../../../../../src/lib/discord/interactions/prepareGuildInteraction', () => ({
+	prepareGuildInteraction: mocks.prepareGuildInteraction
 }));
 
 import { handleSyncGuildMembers } from '../../../../../src/lib/features/dev/handlers/handleSyncGuildMembers';
@@ -30,12 +30,12 @@ describe('handleSyncGuildMembers', () => {
 		mocks.syncGuildMembers.mockReset();
 		mocks.createGuildMemberSyncDeps.mockReset();
 		mocks.buildGuildMemberSyncPayload.mockReset();
-		mocks.prepareDevGuildCommand.mockReset();
+		mocks.prepareGuildInteraction.mockReset();
 	});
 
 	it('fails the interaction when division refresh fails', async () => {
 		const prepared = createPrepared();
-		mocks.prepareDevGuildCommand.mockResolvedValue(prepared);
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
 		mocks.createGuildMemberSyncDeps.mockReturnValue({
 			deps: true
 		});
@@ -70,7 +70,7 @@ describe('handleSyncGuildMembers', () => {
 		const context = {
 			requestId: 'req-2'
 		};
-		mocks.prepareDevGuildCommand.mockResolvedValue(prepared);
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
 		mocks.createGuildMemberSyncDeps.mockReturnValue({
 			deps: true
 		});

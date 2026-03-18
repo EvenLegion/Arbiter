@@ -1,7 +1,6 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 
-import { createInteractionResponder } from '../../../discord/interactions/interactionResponder';
-import { resolveConfiguredGuild } from '../../../discord/interactions/interactionPreflight';
+import { prepareGuildInteraction } from '../../../discord/interactions/prepareGuildInteraction';
 import { parseDiscordUserIdInput } from '../../../discord/members/memberDirectory';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { syncBulkNicknames } from '../../../services/bulk-nickname/bulkNicknameService';
@@ -14,15 +13,19 @@ type HandleStaffSyncNicknameParams = {
 };
 
 export async function handleStaffSyncNickname({ interaction, context }: HandleStaffSyncNicknameParams) {
-	const logger = context.logger.child({ caller: 'handleStaffSyncNickname' });
-	const responder = createInteractionResponder({
+	const prepared = await prepareGuildInteraction({
 		interaction,
 		context,
-		logger,
-		caller: 'handleStaffSyncNickname'
+		caller: 'handleStaffSyncNickname',
+		guildLogMessage: 'Failed to resolve configured guild for staff nickname sync command',
+		guildFailureMessage: 'Failed to resolve guild for nickname sync.',
+		requestId: true,
+		defer: 'ephemeralReply'
 	});
-
-	await responder.deferEphemeralReply();
+	if (!prepared) {
+		return;
+	}
+	const { guild, logger, responder } = prepared;
 	await responder.safeEditReply({
 		content: `Nickname sync started. requestId=\`${context.requestId}\``
 	});
@@ -34,18 +37,6 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 		await responder.safeEditReply({
 			content: `Invalid \`user\` value. Select a user from autocomplete. requestId=\`${context.requestId}\``
 		});
-		return;
-	}
-
-	const guild = await resolveConfiguredGuild({
-		interaction,
-		responder,
-		logger,
-		logMessage: 'Failed to resolve configured guild for staff nickname sync command',
-		failureMessage: 'Failed to resolve guild for nickname sync.',
-		requestId: true
-	});
-	if (!guild) {
 		return;
 	}
 

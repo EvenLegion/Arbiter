@@ -31,9 +31,9 @@ Primary code:
 
 `/ticket name_change` routes through:
 
-- `src/lib/features/ticket/handleNameChangeTicket.ts`
-- `src/lib/services/name-change/submitNameChangeRequest.ts`
-- `src/lib/features/ticket/nameChangeTicketResultPresenter.ts`
+- `src/lib/features/ticket/request/handleNameChangeTicket.ts`
+- `src/lib/services/name-change/nameChangeService.ts`
+- `src/lib/features/ticket/request/presentNameChangeTicketResult.ts`
 
 The service owns:
 
@@ -49,21 +49,21 @@ The feature layer owns Discord thread creation and ticket-facing copy.
 
 Review buttons route through:
 
-- `src/lib/features/ticket/handleNameChangeReviewButton.ts`
-- `src/lib/features/ticket/reviewNameChangeAction.ts`
-- `src/lib/services/name-change/reviewNameChangeDecision.ts`
+- `src/lib/features/ticket/review/handlers/handleNameChangeReviewButton.ts`
+- `src/lib/features/ticket/review/handlers/reviewNameChangeAction.ts`
+- `src/lib/services/name-change/nameChangeService.ts`
 
 Editing a pending request uses:
 
-- `src/lib/features/ticket/handleNameChangeReviewEditModal.ts`
-- `src/lib/services/name-change/editPendingNameChangeRequest.ts`
+- `src/lib/features/ticket/review/handlers/handleNameChangeReviewEditModal.ts`
+- `src/lib/services/name-change/nameChangeService.ts`
 
 Current presentation files include:
 
-- `nameChangeReviewPresenter.ts`
-- `nameChangeReviewEditModalPresenter.ts`
-- `nameChangeReviewResultPresenter.ts`
-- `nameChangeTicketResultPresenter.ts`
+- `src/lib/features/ticket/review/presentation/nameChangeReviewPresentation.ts`
+- `src/lib/features/ticket/review/presentation/presentNameChangeReviewEditModalResult.ts`
+- `src/lib/features/ticket/review/presentation/nameChangeReviewResultPresenter.ts`
+- `src/lib/features/ticket/request/presentNameChangeTicketResult.ts`
 
 ## Why It Is Built This Way
 
@@ -77,7 +77,7 @@ Name changes are more than a single Discord nickname mutation:
 That is why the workflow is split into:
 
 - service logic for validation and state transitions
-- feature adapters and gateways for Discord thread and member effects
+- feature runtime support and gateways for Discord thread and member effects
 - presenters for embeds, modals, and ticket-facing result copy
 
 ## Common Extension Points
@@ -94,9 +94,9 @@ That is why the workflow is split into:
 Read these first:
 
 - `src/commands/ticket.ts`
-- `src/lib/features/ticket/handleNameChangeTicket.ts`
-- `src/lib/features/ticket/handleNameChangeReviewButton.ts`
-- `src/lib/features/ticket/handleNameChangeReviewEditModal.ts`
+- `src/lib/features/ticket/request/handleNameChangeTicket.ts`
+- `src/lib/features/ticket/review/handlers/handleNameChangeReviewButton.ts`
+- `src/lib/features/ticket/review/handlers/handleNameChangeReviewEditModal.ts`
 - `src/lib/services/name-change/nameChangeService.ts`
 
 ## Related Docs

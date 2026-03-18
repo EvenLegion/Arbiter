@@ -1,12 +1,15 @@
 import { type ChatInputCommandInteraction } from 'discord.js';
 
+import { nameChangeRepository } from '../../../../integrations/prisma/repositories';
+import { getDbUser } from '../../../discord/guild/users';
+import { prepareGuildInteraction } from '../../../discord/interactions/prepareGuildInteraction';
 import { createInteractionResponder } from '../../../discord/interactions/interactionResponder';
-import { resolveConfiguredGuild } from '../../../discord/interactions/interactionPreflight';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { submitNameChangeRequest } from '../../../services/name-change/nameChangeService';
+import { createRequestedNicknameValidator, listNameChangeDivisionPrefixes } from '../nameChangeWorkflowSupport';
 import { buildNameChangeReviewActionRow } from '../review/presentation/nameChangeReviewPresentation';
+import { createNameChangeReviewThread } from '../thread/createNameChangeReviewThread';
 import { buildInitialNameChangeReviewEmbed } from './buildInitialNameChangeReviewEmbed';
-import { createSubmitNameChangeRequestDeps } from './createSubmitNameChangeRequestDeps';
 import { presentNameChangeTicketResult } from './presentNameChangeTicketResult';
 
 type HandleNameChangeTicketParams = {
@@ -17,7 +20,7 @@ type HandleNameChangeTicketParams = {
 export async function handleNameChangeTicket({ interaction, context }: HandleNameChangeTicketParams) {
 	const caller = 'handleNameChangeTicket';
 	const logger = context.logger.child({ caller });
-	const responder = createInteractionResponder({
+	const initialResponder = createInteractionResponder({
 		interaction,
 		context,
 		logger,
@@ -27,34 +30,58 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 	const rawRequestedName = interaction.options.getString('requested_name', true).trim();
 	const reason = interaction.options.getString('reason', true).trim();
 	if (!rawRequestedName || !reason) {
-		await responder.fail('Requested name and reason are required.');
+		await initialResponder.fail('Requested name and reason are required.');
 		return;
 	}
 
-	await responder.deferEphemeralReply();
-
-	const guild = await resolveConfiguredGuild({
+	const prepared = await prepareGuildInteraction({
 		interaction,
-		responder,
-		logger,
-		logMessage: 'Failed to resolve configured guild while handling name change ticket',
-		failureMessage: 'Could not resolve configured guild. Please contact TECH with:',
-		requestId: true
+		context,
+		caller,
+		guildLogMessage: 'Failed to resolve configured guild while handling name change ticket',
+		guildFailureMessage: 'Could not resolve configured guild. Please contact TECH with:',
+		requestId: true,
+		defer: 'ephemeralReply'
 	});
-	if (!guild) {
+	if (!prepared) {
 		return;
 	}
+	const { guild, responder } = prepared;
 
 	let result: Awaited<ReturnType<typeof submitNameChangeRequest>>;
 	try {
 		result = await submitNameChangeRequest(
-			createSubmitNameChangeRequestDeps({
-				guild,
-				context,
-				fallbackUsername: interaction.user.username,
-				buildReviewEmbed: buildInitialNameChangeReviewEmbed,
-				buildReviewActionRow: buildNameChangeReviewActionRow
-			}),
+			{
+				getDivisionPrefixes: listNameChangeDivisionPrefixes,
+				getRequester: async (discordUserId: string) => {
+					const requesterDbUser = await getDbUser({ discordUserId });
+					if (!requesterDbUser) {
+						return null;
+					}
+
+					return {
+						dbUserId: requesterDbUser.id,
+						currentName: requesterDbUser.discordNickname || requesterDbUser.discordUsername || interaction.user.username
+					};
+				},
+				validateRequestedNickname: createRequestedNicknameValidator({
+					guild,
+					context
+				}),
+				createRequest: async (params: { requesterDbUserId: string; currentName: string; requestedName: string; reason: string }) =>
+					nameChangeRepository.createRequest(params),
+				createReviewThread: createNameChangeReviewThread({
+					guild,
+					buildReviewEmbed: buildInitialNameChangeReviewEmbed,
+					buildReviewActionRow: buildNameChangeReviewActionRow
+				}),
+				saveReviewThreadReference: async (params: { requestId: number; reviewThreadId: string }) => {
+					await nameChangeRepository.saveReviewThreadReference({
+						requestId: params.requestId,
+						reviewThreadId: params.reviewThreadId
+					});
+				}
+			},
 			{
 				actor: {
 					discordUserId: interaction.user.id,

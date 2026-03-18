@@ -2,7 +2,7 @@ import { createInteractionResponder } from '../../../../discord/interactions/int
 import { resolveConfiguredGuild, resolveInteractionActor } from '../../../../discord/interactions/interactionPreflight';
 import type { ExecutionContext } from '../../../../logging/executionContext';
 import { activateDraftEvent, cancelDraftEvent, endActiveEvent } from '../../../../services/event-lifecycle/eventLifecycleService';
-import { createEventSessionTransitionDeps } from '../lifecycle/createEventSessionTransitionDeps';
+import { createEventSessionTransitionRuntime } from '../lifecycle/eventSessionTransitionRuntime';
 import type { ParsedEventStartButton } from './eventStartButtonCustomId';
 import { presentEventStartButtonResult } from './eventStartButtonResultPresenter';
 
@@ -48,7 +48,7 @@ export async function handleEventStartButton({ interaction, parsedEventStartButt
 		return;
 	}
 
-	const lifecycleDeps = createEventSessionTransitionDeps({
+	const lifecycleDeps = createEventSessionTransitionRuntime({
 		guild,
 		interaction,
 		context,

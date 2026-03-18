@@ -28,9 +28,9 @@ Primary code:
 
 Main files:
 
-- `src/lib/features/event-merit/session/handleEventStart.ts`
-- `src/lib/features/event-merit/session/eventStartCommandAdapter.ts`
-- `src/lib/features/event-merit/session/createEventDraftDeps.ts`
+- `src/lib/features/event-merit/session/draft/handleEventStart.ts`
+- `src/lib/features/event-merit/session/draft/resolveEventStartCommand.ts`
+- `src/lib/features/event-merit/session/draft/eventDraftRuntime.ts`
 - `src/lib/services/event-lifecycle/createEventDraft.ts`
 
 ```mermaid
@@ -38,7 +38,7 @@ sequenceDiagram
     participant User
     participant Command as "/event start"
     participant Handler as "handleEventStart"
-    participant Adapter as "resolveEventStartCommand + createEventDraftDeps"
+    participant Adapter as "resolveEventStartCommand + eventDraftRuntime"
     participant Service as "createEventDraft"
     participant Repo as "eventRepository"
     participant Discord as "thread/channel gateways"
@@ -58,8 +58,8 @@ sequenceDiagram
 
 Main files:
 
-- `src/lib/features/event-merit/session/handleEventAddVc.ts`
-- `src/lib/features/event-merit/session/createAddTrackedChannelDeps.ts`
+- `src/lib/features/event-merit/session/add-vc/handleEventAddVc.ts`
+- `src/lib/features/event-merit/session/add-vc/runAddTrackedChannelAction.ts`
 - `src/lib/services/event-lifecycle/addTrackedChannel.ts`
 
 This flow:
@@ -74,10 +74,9 @@ This flow:
 
 Main files:
 
-- `src/lib/features/event-merit/session/handleEventStartButton.ts`
-- `src/lib/features/event-merit/session/eventLifecycleTransitionAdapters.ts`
+- `src/lib/features/event-merit/session/buttons/handleEventStartButton.ts`
+- `src/lib/features/event-merit/session/lifecycle/eventSessionTransitionRuntime.ts`
 - `src/lib/services/event-lifecycle/transitionEventSession.ts`
-- `src/lib/services/event-lifecycle/eventLifecycleStateMachine.ts`
 
 Lifecycle actions currently include:
 
@@ -85,7 +84,7 @@ Lifecycle actions currently include:
 - `cancelDraftEvent`
 - `endActiveEvent`
 
-The state machine is centralized in `eventLifecycleStateMachine.ts`. Add transition rules there first, then update the workflow and presentation layers.
+The transition rules are centralized in `src/lib/services/event-lifecycle/transitionEventSession.ts`. Add transition rules there first, then update the workflow and presentation layers.
 
 ## Why This Split Exists
 
@@ -97,14 +96,14 @@ Lifecycle code has to coordinate:
 - presentation sync
 - review initialization
 
-That is why the service owns state changes while feature adapters assemble the Discord and repository collaborators.
+That is why the service owns state changes while feature runtime support assembles the Discord and repository collaborators.
 
 ## Common Extension Points
 
 - new lifecycle action:
   `src/lib/services/event-lifecycle/`
 - new start-command validation:
-  `src/lib/features/event-merit/session/eventStartCommandAdapter.ts`
+  `src/lib/features/event-merit/session/draft/resolveEventStartCommand.ts`
 - new session-side Discord payload:
   session presenters and `src/lib/features/event-merit/presentation/`
 
@@ -112,20 +111,19 @@ That is why the service owns state changes while feature adapters assemble the D
 
 - do not put new state rules in button handlers
 - do not bypass the state machine for one-off transitions
-- keep channel-specific side effects in gateways or adapters, not in the command shell
+- keep channel-specific side effects in gateways or runtime support, not in the command shell
 
 ## Before Editing
 
 Read these first:
 
 - `src/commands/event.ts`
-- `src/lib/features/event-merit/session/handleEventStart.ts`
-- `src/lib/features/event-merit/session/handleEventAddVc.ts`
-- `src/lib/features/event-merit/session/handleEventStartButton.ts`
+- `src/lib/features/event-merit/session/draft/handleEventStart.ts`
+- `src/lib/features/event-merit/session/add-vc/handleEventAddVc.ts`
+- `src/lib/features/event-merit/session/buttons/handleEventStartButton.ts`
 - `src/lib/services/event-lifecycle/createEventDraft.ts`
 - `src/lib/services/event-lifecycle/addTrackedChannel.ts`
 - `src/lib/services/event-lifecycle/transitionEventSession.ts`
-- `src/lib/services/event-lifecycle/eventLifecycleStateMachine.ts`
 
 ## Related Docs
 

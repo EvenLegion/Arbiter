@@ -1,23 +1,31 @@
-import type { Subcommand } from '@sapphire/plugin-subcommands';
+import type { Guild } from 'discord.js';
 
-import { resolveConfiguredGuild } from '../../../discord/interactions/interactionPreflight';
-import { createInteractionResponder, type InteractionResponder } from '../../../discord/interactions/interactionResponder';
-import type { ExecutionContext } from '../../../logging/executionContext';
+import type { ExecutionContext } from '../../logging/executionContext';
+import { resolveConfiguredGuild } from './interactionPreflight';
+import { createInteractionResponder, type InteractionResponder } from './interactionResponder';
 
-export async function prepareDevGuildCommand({
+type GuildInteraction = Parameters<typeof createInteractionResponder>[0]['interaction'] & {
+	guild?: Guild | null;
+};
+
+export async function prepareGuildInteraction({
 	interaction,
 	context,
 	caller,
 	loggerBindings,
 	guildLogMessage,
-	guildFailureMessage
+	guildFailureMessage,
+	requestId = false,
+	defer = 'none'
 }: {
-	interaction: Subcommand.ChatInputCommandInteraction;
+	interaction: GuildInteraction;
 	context: ExecutionContext;
 	caller: string;
 	loggerBindings?: Record<string, unknown>;
 	guildLogMessage: string;
 	guildFailureMessage: string;
+	requestId?: boolean;
+	defer?: 'none' | 'reply' | 'ephemeralReply';
 }): Promise<{
 	guild: NonNullable<Awaited<ReturnType<typeof resolveConfiguredGuild>>>;
 	logger: ExecutionContext['logger'];
@@ -34,7 +42,11 @@ export async function prepareDevGuildCommand({
 		caller
 	});
 
-	await responder.deferEphemeralReply();
+	if (defer === 'ephemeralReply') {
+		await responder.deferEphemeralReply();
+	} else if (defer === 'reply') {
+		await responder.deferReply();
+	}
 
 	const guild = await resolveConfiguredGuild({
 		interaction,
@@ -42,7 +54,7 @@ export async function prepareDevGuildCommand({
 		logger,
 		logMessage: guildLogMessage,
 		failureMessage: guildFailureMessage,
-		requestId: true
+		requestId
 	});
 	if (!guild) {
 		return null;

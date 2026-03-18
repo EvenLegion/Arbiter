@@ -3,9 +3,9 @@ import type { Guild, GuildMember } from 'discord.js';
 import { refreshDivisionCache } from '../../../discord/guild/divisions';
 import { getDbUser, listDbUsers } from '../../../discord/guild/users';
 import { createChildExecutionContext, type ExecutionContext } from '../../../logging/executionContext';
+import { resolveBulkNicknameTargets } from '../../../services/bulk-nickname/bulkNicknameService';
 import { createGuildMemberAccessGateway } from '../../../services/guild-member/guildMemberAccessGateway';
-import { createGuildNicknameWorkflowGateway } from '../../../services/nickname/createGuildNicknameWorkflowGateway';
-import { resolveNicknameSyncTargets } from '../../../services/nickname/resolveNicknameSyncTargets';
+import { createGuildNicknameWorkflowGateway } from '../../../services/nickname/createGuildNicknameServiceDeps';
 
 export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Guild; context: ExecutionContext }) {
 	const members = createGuildMemberAccessGateway({
@@ -15,7 +15,7 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 	return {
 		prepare: refreshDivisionCache,
 		resolveTargets: ({ requestedDiscordUserId }: { requestedDiscordUserId?: string }) =>
-			resolveNicknameSyncTargets(
+			resolveBulkNicknameTargets(
 				{
 					get: ({ discordUserId }) => getDbUser({ discordUserId }),
 					findMany: () => listDbUsers()

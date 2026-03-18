@@ -1,8 +1,8 @@
 import type { Guild, GuildMember } from 'discord.js';
 
 import { getDbUser, listDbUsers } from '../../discord/guild/users';
+import { resolveBulkNicknameTargets } from './bulkNicknameService';
 import { createGuildMemberAccessGateway } from '../guild-member/guildMemberAccessGateway';
-import { resolveNicknameSyncTargets } from '../nickname/resolveNicknameSyncTargets';
 
 export function createBulkNicknameTransformDeps({ guild }: { guild: Guild }) {
 	const members = createGuildMemberAccessGateway({
@@ -11,7 +11,7 @@ export function createBulkNicknameTransformDeps({ guild }: { guild: Guild }) {
 
 	return {
 		resolveTargets: ({ requestedDiscordUserId }: { requestedDiscordUserId?: string }) =>
-			resolveNicknameSyncTargets(
+			resolveBulkNicknameTargets(
 				{
 					get: ({ discordUserId }) => getDbUser({ discordUserId }),
 					findMany: () => listDbUsers()

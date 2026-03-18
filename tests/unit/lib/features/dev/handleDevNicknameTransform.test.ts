@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
 	transformBulkNicknames: vi.fn(),
 	createBulkNicknameTransformDeps: vi.fn(),
 	buildBulkNicknameTransformPayload: vi.fn(),
-	prepareDevGuildCommand: vi.fn()
+	prepareGuildInteraction: vi.fn()
 }));
 
 vi.mock('../../../../../src/lib/discord/members/memberDirectory', () => ({
@@ -24,8 +24,8 @@ vi.mock('../../../../../src/lib/features/dev/presenters/buildBulkNicknameTransfo
 	buildBulkNicknameTransformPayload: mocks.buildBulkNicknameTransformPayload
 }));
 
-vi.mock('../../../../../src/lib/features/dev/handlers/prepareDevGuildCommand', () => ({
-	prepareDevGuildCommand: mocks.prepareDevGuildCommand
+vi.mock('../../../../../src/lib/discord/interactions/prepareGuildInteraction', () => ({
+	prepareGuildInteraction: mocks.prepareGuildInteraction
 }));
 
 import { handleDevNicknameTransform } from '../../../../../src/lib/features/dev/handlers/handleDevNicknameTransform';
@@ -36,12 +36,12 @@ describe('handleDevNicknameTransform', () => {
 		mocks.transformBulkNicknames.mockReset();
 		mocks.createBulkNicknameTransformDeps.mockReset();
 		mocks.buildBulkNicknameTransformPayload.mockReset();
-		mocks.prepareDevGuildCommand.mockReset();
+		mocks.prepareGuildInteraction.mockReset();
 	});
 
 	it('rejects invalid user input before running the transform', async () => {
 		const prepared = createPrepared();
-		mocks.prepareDevGuildCommand.mockResolvedValue(prepared);
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
 		mocks.parseDiscordUserIdInput.mockReturnValue(null);
 		const interaction = createInteraction('not-a-user');
 
@@ -64,7 +64,7 @@ describe('handleDevNicknameTransform', () => {
 
 	it('runs the transform and replies with the built payload', async () => {
 		const prepared = createPrepared();
-		mocks.prepareDevGuildCommand.mockResolvedValue(prepared);
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
 		mocks.parseDiscordUserIdInput.mockReturnValue('discord-user-1');
 		mocks.createBulkNicknameTransformDeps.mockReturnValue({
 			deps: true

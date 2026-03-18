@@ -1,8 +1,11 @@
 import { ENV_DISCORD } from '../../../../../config/env/discord';
+import {
+	clearTrackingSession as clearTrackedSessionState,
+	getTrackingParticipantsSnapshot as getTrackedParticipantsSnapshot
+} from '../../../../../integrations/redis/eventTracking';
 import { eventRepository, eventReviewRepository, userRepository } from '../../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../../logging/executionContext';
-import { syncEventReviewPageMessage } from '../../gateways/reviewMessageGateway';
-import { clearEventTrackingSession, getEventTrackingParticipantsSnapshot } from '../../gateways/trackingStoreGateway';
+import { syncEventReviewPresentation } from '../../presentation/syncEventReviewPresentation';
 
 export function createInitializeEventReviewDeps({ guild, logger }: { guild: import('discord.js').Guild; logger: ExecutionContext['logger'] }) {
 	return {
@@ -11,7 +14,7 @@ export function createInitializeEventReviewDeps({ guild, logger }: { guild: impo
 				eventSessionId
 			}),
 		getTrackingParticipantsSnapshot: async (eventSessionId: number) =>
-			getEventTrackingParticipantsSnapshot({
+			getTrackedParticipantsSnapshot({
 				eventSessionId
 			}),
 		findUsersByDiscordUserIds: async (discordUserIds: string[]) =>
@@ -47,12 +50,12 @@ export function createInitializeEventReviewDeps({ guild, logger }: { guild: impo
 			await eventReviewRepository.upsertReviewDecisions(params);
 		},
 		clearTrackingSession: async (eventSessionId: number) => {
-			await clearEventTrackingSession({
+			await clearTrackedSessionState({
 				eventSessionId
 			});
 		},
 		syncReviewMessage: async ({ eventSessionId, page }: { eventSessionId: number; page: number }) =>
-			syncEventReviewPageMessage({
+			syncEventReviewPresentation({
 				guild,
 				eventSessionId,
 				page,

@@ -12,7 +12,7 @@ The default shape for new behavior is:
 1. command or interaction entrypoint
 2. feature handler
 3. service
-4. adapter or gateway assembly
+4. inline deps or a small runtime-support module
 5. presenter or payload builder
 6. tests
 
@@ -25,7 +25,7 @@ That keeps Discord transport, business rules, infrastructure, and UI output sepa
 3. Create a feature handler in `src/lib/features/<feature>/`.
 4. Use preflight helpers such as `resolveConfiguredGuild`, `resolveGuildMember`, or `resolveInteractionActor`.
 5. Put business decisions in `src/lib/services/<feature>/`.
-6. If the service needs Discord or persistence side effects, assemble them through feature adapters or gateways.
+6. If the service needs Discord or persistence side effects, assemble them inline when the dependency object is short, or use a small runtime-support module when the wiring is reused or noisy.
 
 ## Add A New Button Or Modal Flow
 
@@ -53,7 +53,7 @@ For write-heavy features:
 
 - put the workflow in a service
 - keep result kinds explicit
-- assemble repositories and Discord gateways in feature adapters
+- assemble repositories and Discord gateways inline or in a small runtime-support module
 - map typed results to Discord copy in a presenter when branching grows
 - keep the service dependencies explicit instead of reaching for centralized runtime helpers
 
@@ -75,7 +75,7 @@ Use the shared autocomplete pattern:
 Current best examples:
 
 - `src/lib/features/merit/autocomplete/`
-- `src/lib/features/event-merit/session/eventAutocompleteProvider.ts`
+- `src/lib/features/event-merit/session/autocomplete/eventAutocompleteProvider.ts`
 
 ## Where To Put Shared Code
 
@@ -94,7 +94,7 @@ If shared code is only meaningful inside one feature, keep it inside that featur
 
 For service design specifically:
 
-- inject named collaborators into services through adapters or dependency factories
+- inject named collaborators into services through inline objects or small runtime-support modules
 - do not let services reach into `container.*`, raw interactions, or raw `prisma.*`
 - prefer pure helpers for local logic, but use gateways or repositories for side-effect boundaries
 
@@ -110,7 +110,7 @@ Before opening a PR, check:
 
 - does the command or interaction shell stay small?
 - does the service own the rule instead of the handler?
-- does the adapter only assemble dependencies?
+- if a `create*Deps.ts` file exists, does it only assemble dependencies?
 - is the result or payload mapping explicit?
 - did you add or update request-correlated logs where the new behavior changes state or performs important side effects?
 - is the new behavior covered by at least one targeted test?

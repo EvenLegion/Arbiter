@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
 	notifyMeritRankUp: vi.fn()
 }));
 
-vi.mock('../../../../../src/lib/services/nickname/createGuildNicknameWorkflowGateway', () => ({
+vi.mock('../../../../../src/lib/services/nickname/createGuildNicknameServiceDeps', () => ({
 	createGuildNicknameWorkflowGateway: mocks.createGuildNicknameWorkflowGateway
 }));
 

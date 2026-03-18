@@ -1,16 +1,16 @@
 import { EventSessionState } from '@prisma/client';
 import type { ButtonInteraction, Guild } from 'discord.js';
 
+import { startTrackingSession, stopTrackingSession } from '../../../../../integrations/redis/eventTracking';
 import { eventRepository } from '../../../../../integrations/prisma/repositories';
 import { createChildExecutionContext, type ExecutionContext } from '../../../../logging/executionContext';
 import type { EventLifecycleEventSession } from '../../../../services/event-lifecycle/eventLifecycleService';
-import { startEventTrackingSession, stopEventTrackingSession } from '../../gateways/trackingStoreGateway';
 import { syncEventLifecyclePresentation } from '../../presentation/syncEventLifecyclePresentation';
 import { initializeEventReview } from '../../review/initialization/initializeEventReview';
 import { EVENT_LIFECYCLE_SESSION_INCLUDE } from '../shared/eventLifecycleSessionInclude';
 import { createVoiceChannelGateway } from '../shared/voiceChannelGateway';
 
-export function createEventSessionTransitionDeps({
+export function createEventSessionTransitionRuntime({
 	guild,
 	interaction,
 	context,
@@ -87,14 +87,14 @@ export function createEventSessionTransitionDeps({
 			});
 		},
 		startTracking: async ({ eventSessionId, startedAtMs }: { eventSessionId: number; startedAtMs: number }) => {
-			await startEventTrackingSession({
+			await startTrackingSession({
 				eventSessionId,
 				guildId: guild.id,
 				startedAtMs
 			});
 		},
 		stopTracking: async ({ eventSessionId }: { eventSessionId: number }) => {
-			await stopEventTrackingSession({
+			await stopTrackingSession({
 				eventSessionId
 			});
 		},

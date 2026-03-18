@@ -5,8 +5,8 @@ import { eventRepository, eventReviewRepository } from '../../../../../integrati
 import type { ExecutionContext } from '../../../../logging/executionContext';
 import type { EventLifecycleEventSession } from '../../../../services/event-lifecycle/eventLifecycleService';
 import { syncAwardedMemberNicknamesAndNotifyRankUp } from '../../gateways/nicknameRankSyncGateway';
-import { syncEventReviewPageMessage } from '../../gateways/reviewMessageGateway';
 import { postReviewSubmissionTimelineMessages } from '../../gateways/postReviewSubmissionTimelineMessages';
+import { syncEventReviewPresentation } from '../../presentation/syncEventReviewPresentation';
 import { syncEventTrackingSummaryPresentation } from '../../presentation/syncEventTrackingPresentation';
 import { EVENT_LIFECYCLE_SESSION_INCLUDE } from '../../session/shared/eventLifecycleSessionInclude';
 
@@ -78,7 +78,7 @@ export function createFinalizeEventReviewLifecycleDeps({
 				kinds: [EventSessionChannelKind.PARENT_VC, EventSessionChannelKind.CHILD_VC]
 			}),
 		syncReviewMessage: async ({ eventSessionId, page }: { eventSessionId: number; page: number }) =>
-			syncEventReviewPageMessage({
+			syncEventReviewPresentation({
 				guild,
 				eventSessionId,
 				page,
