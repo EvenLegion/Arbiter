@@ -6,13 +6,16 @@ const sidebars: SidebarsConfig = {
 		{
 			type: 'category',
 			label: 'Onboarding',
+			collapsed: false,
 			items: ['onboarding/choose-your-task', 'onboarding/local-development', 'onboarding/repository-map']
 		},
 		{
 			type: 'category',
 			label: 'Architecture',
+			collapsed: false,
 			items: [
 				'architecture/runtime-overview',
+				'architecture/codebase-terminology',
 				'architecture/discord-execution-model',
 				'architecture/discord-extension-patterns',
 				'architecture/data-and-storage',
@@ -24,10 +27,12 @@ const sidebars: SidebarsConfig = {
 		{
 			type: 'category',
 			label: 'Features',
+			collapsed: false,
 			items: [
 				{
 					type: 'category',
 					label: 'Event System',
+					collapsed: false,
 					items: [
 						'features/event-system',
 						'features/event-session-lifecycle',
@@ -46,11 +51,13 @@ const sidebars: SidebarsConfig = {
 		{
 			type: 'category',
 			label: 'Reference',
-			items: ['architecture/vocabulary', 'reference/command-and-interaction-catalog', 'reference/aggregate-reference']
+			collapsed: false,
+			items: ['reference/command-and-interaction-catalog', 'reference/aggregate-reference']
 		},
 		{
 			type: 'category',
 			label: 'Contributing',
+			collapsed: false,
 			items: [
 				'contributing/adding-features',
 				'contributing/testing-and-refactors',

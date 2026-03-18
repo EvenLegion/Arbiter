@@ -126,6 +126,6 @@ If you add a new button or modal:
 - For worked examples:
   [Discord Extension Patterns](/architecture/discord-extension-patterns)
 - For layer definitions:
-  [Architecture Vocabulary](/architecture/vocabulary)
+  [Codebase Terminology](/architecture/codebase-terminology)
 - For public entrypoints:
   [Command And Interaction Catalog](/reference/command-and-interaction-catalog)

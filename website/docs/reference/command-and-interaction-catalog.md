@@ -64,7 +64,7 @@ These are not user-invoked command surfaces, but contributors often need them fo
 ## Read This Next
 
 - For layer definitions:
-  [Architecture Vocabulary](/architecture/vocabulary)
+  [Codebase Terminology](/architecture/codebase-terminology)
 - For aggregate ownership:
   [Aggregate Reference](/reference/aggregate-reference)
 - For extension patterns:

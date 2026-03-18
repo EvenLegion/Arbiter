@@ -57,7 +57,7 @@ Read in this order:
 
 1. the owning feature page
 2. [Service And Dependency Design](/architecture/service-dependency-design)
-3. [Architecture Vocabulary](/architecture/vocabulary)
+3. [Codebase Terminology](/architecture/codebase-terminology)
 4. [Aggregate Reference](/reference/aggregate-reference)
 5. [Testing And Refactors](/contributing/testing-and-refactors)
 
@@ -72,7 +72,7 @@ Best current service examples:
 Read in this order:
 
 1. the owning feature page
-2. [Architecture Vocabulary](/architecture/vocabulary)
+2. [Codebase Terminology](/architecture/codebase-terminology)
 3. [Adding Features](/contributing/adding-features)
 
 Best current read-service example:

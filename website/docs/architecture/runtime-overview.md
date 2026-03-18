@@ -150,7 +150,7 @@ If a task starts owning business rules, move that logic into `src/lib/services/`
 - For command and interaction boundaries:
   [Discord Execution Model](/architecture/discord-execution-model)
 - For naming and layer rules:
-  [Architecture Vocabulary](/architecture/vocabulary)
+  [Codebase Terminology](/architecture/codebase-terminology)
 - For why services use injected collaborators:
   [Service And Dependency Design](/architecture/service-dependency-design)
 - For Redis and Prisma ownership:

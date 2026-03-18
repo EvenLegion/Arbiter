@@ -102,5 +102,5 @@ Read these first:
 ## Related Docs
 
 - [Discord Extension Patterns](/architecture/discord-extension-patterns)
-- [Architecture Vocabulary](/architecture/vocabulary)
+- [Codebase Terminology](/architecture/codebase-terminology)
 - [Aggregate Reference](/reference/aggregate-reference)

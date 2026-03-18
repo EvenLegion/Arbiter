@@ -106,7 +106,7 @@ Use this rule:
 ## Read This Next
 
 - For code placement rules:
-  [Architecture Vocabulary](/architecture/vocabulary)
+  [Codebase Terminology](/architecture/codebase-terminology)
 - For feature entrypoints:
   [Command And Interaction Catalog](/reference/command-and-interaction-catalog)
 - For docs update rules:

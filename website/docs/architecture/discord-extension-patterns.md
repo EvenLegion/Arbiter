@@ -147,7 +147,7 @@ Use this pattern for:
 ## Read This Next
 
 - For layer definitions:
-  [Architecture Vocabulary](/architecture/vocabulary)
+  [Codebase Terminology](/architecture/codebase-terminology)
 - For the rationale behind service dependencies:
   [Service And Dependency Design](/architecture/service-dependency-design)
 - For extension guidance:

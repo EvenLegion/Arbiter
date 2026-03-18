@@ -158,7 +158,7 @@ The current layout exists so contributors can:
 ## Read This Next
 
 - For terminology:
-  [Architecture Vocabulary](/architecture/vocabulary)
+  [Codebase Terminology](/architecture/codebase-terminology)
 - For Prisma layer structure:
   [Prisma Integration](/architecture/prisma-integration)
 - For extension rules:

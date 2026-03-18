@@ -185,7 +185,7 @@ That keeps the service readable even as the feature grows.
 ## Read This Next
 
 - For layer definitions:
-  [Architecture Vocabulary](/architecture/vocabulary)
+  [Codebase Terminology](/architecture/codebase-terminology)
 - For extension guidance:
   [Adding Features](/contributing/adding-features)
 - For persistence boundaries:

@@ -22,13 +22,13 @@ This site is written for contributors, not end users. Its job is to answer four 
 - You need the bot running locally:
   Read [Local Development](/onboarding/local-development).
 - You need to understand where code belongs:
-  Read [Repository Map](/onboarding/repository-map) and [Architecture Vocabulary](/architecture/vocabulary).
+  Read [Repository Map](/onboarding/repository-map) and [Codebase Terminology](/architecture/codebase-terminology).
 - You are changing logging, request correlation, or Grafana/Loki setup:
   Read [Logging And Observability](/architecture/logging-and-observability) and [Runtime Overview](/architecture/runtime-overview).
 - You are changing command, interaction, or preflight behavior:
   Read [Discord Execution Model](/architecture/discord-execution-model) and [Discord Extension Patterns](/architecture/discord-extension-patterns).
 - You are changing business workflows or service logic:
-  Read [Service And Dependency Design](/architecture/service-dependency-design) and [Architecture Vocabulary](/architecture/vocabulary).
+  Read [Service And Dependency Design](/architecture/service-dependency-design) and [Codebase Terminology](/architecture/codebase-terminology).
 - You are changing persistence or Redis-backed behavior:
   Read [Data and Storage](/architecture/data-and-storage) and [Aggregate Reference](/reference/aggregate-reference).
 - You need to prepare a release or deploy the bot:

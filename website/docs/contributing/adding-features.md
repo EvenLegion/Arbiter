@@ -133,7 +133,7 @@ update the docs in the same change. Use [Maintaining Docs](/contributing/maintai
 - For worked extension examples:
   [Discord Extension Patterns](/architecture/discord-extension-patterns)
 - For code placement rules:
-  [Architecture Vocabulary](/architecture/vocabulary)
+  [Codebase Terminology](/architecture/codebase-terminology)
 - For why services are wired this way:
   [Service And Dependency Design](/architecture/service-dependency-design)
 - For logging expectations:

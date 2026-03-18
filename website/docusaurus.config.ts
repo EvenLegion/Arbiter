@@ -102,8 +102,8 @@ const config: Config = {
 							to: '/architecture/service-dependency-design'
 						},
 						{
-							label: 'Vocabulary',
-							to: '/architecture/vocabulary'
+							label: 'Codebase Terminology',
+							to: '/architecture/codebase-terminology'
 						}
 					]
 				},
@@ -111,8 +111,8 @@ const config: Config = {
 					title: 'Reference',
 					items: [
 						{
-							label: 'Vocabulary',
-							to: '/architecture/vocabulary'
+							label: 'Codebase Terminology',
+							to: '/architecture/codebase-terminology'
 						},
 						{
 							label: 'Command Catalog',
