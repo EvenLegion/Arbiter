@@ -17,7 +17,14 @@ export function createGuildNicknameServiceDeps({
 	guild,
 	context,
 	includeStaff = false,
-	resolveMember = (discordUserId) => getGuildMember({ guild, discordUserId })
+	resolveMember = (discordUserId) =>
+		getGuildMember({
+			guild,
+			discordUserId,
+			logger: context.logger.child({
+				caller: 'createGuildNicknameServiceDeps.resolveMember'
+			})
+		})
 }: CreateGuildNicknameServiceDepsParams) {
 	return {
 		getMember: resolveMember,

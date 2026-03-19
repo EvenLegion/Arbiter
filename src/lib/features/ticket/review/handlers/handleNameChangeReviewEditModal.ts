@@ -144,5 +144,15 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 		'Edited pending name change request requested name'
 	);
 
-	await interaction.deleteReply().catch(() => null);
+	await interaction.deleteReply().catch((error: unknown) => {
+		logger.warn(
+			{
+				err: error,
+				nameChangeRequestId: parsedNameChangeReviewModal.requestId,
+				reviewerDiscordUserId: interaction.user.id
+			},
+			'Failed to delete deferred reply after editing name change request'
+		);
+		return null;
+	});
 }

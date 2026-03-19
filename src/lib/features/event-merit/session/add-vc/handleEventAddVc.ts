@@ -146,7 +146,17 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 			},
 			'event.session.add_vc.completed'
 		);
-		await interaction.deleteReply().catch(() => null);
+		await interaction.deleteReply().catch((error: unknown) => {
+			logger.warn(
+				{
+					err: error,
+					eventSessionId: parsedEventSessionId.data,
+					targetVoiceChannelId
+				},
+				'Failed to delete add-vc ephemeral reply after successful completion'
+			);
+			return null;
+		});
 		return;
 	}
 

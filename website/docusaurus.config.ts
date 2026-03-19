@@ -54,44 +54,19 @@ const config: Config = {
 			style: 'dark',
 			links: [
 				{
-					title: 'Onboarding',
+					title: 'Start Here',
 					items: [
-						{
-							label: 'Choose Your Task',
-							to: '/onboarding/choose-your-task'
-						},
 						{
 							label: 'Intro',
 							to: '/'
 						},
 						{
-							label: 'Local Development',
-							to: '/onboarding/local-development'
+							label: 'Getting Started',
+							to: '/onboarding/getting-started'
 						},
 						{
-							label: 'Codebase Tour',
-							to: '/onboarding/repository-map'
-						}
-					]
-				},
-				{
-					title: 'Architecture',
-					items: [
-						{
-							label: 'System Overview',
-							to: '/architecture/runtime-overview'
-						},
-						{
-							label: 'Request Flow',
-							to: '/architecture/discord-execution-model'
-						},
-						{
-							label: 'State And Storage',
-							to: '/architecture/data-and-storage'
-						},
-						{
-							label: 'Logging and Observability',
-							to: '/architecture/logging-and-observability'
+							label: 'System Guide',
+							to: '/architecture/system-guide'
 						}
 					]
 				},
@@ -112,16 +87,12 @@ const config: Config = {
 					title: 'Contributing',
 					items: [
 						{
-							label: 'Making Changes Safely',
-							to: '/contributing/adding-features'
+							label: 'Contributor Guide',
+							to: '/contributing/change-guide'
 						},
 						{
-							label: 'Release Workflow',
-							to: '/contributing/release-workflow'
-						},
-						{
-							label: 'Production Deployment',
-							to: '/contributing/production-deployment'
+							label: 'Operations',
+							to: '/operations/release-and-deploy'
 						}
 					]
 				}

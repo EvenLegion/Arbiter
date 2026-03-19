@@ -1,6 +1,6 @@
 import type { Guild, GuildMember } from 'discord.js';
 
-import { getGuildMemberOrThrow } from '../../../discord/guild/guildMembers';
+import { getGuildMember } from '../../../discord/guild/guildMembers';
 import { createChildExecutionContext, type ExecutionContext } from '../../../logging/executionContext';
 import { createDivisionMembershipDeps } from '../../../services/division-membership/createDivisionMembershipDeps';
 import { mapNicknameSyncResult, processGuildMemberRoleChange } from '../../../services/guild-member-change/guildMemberChangeService';
@@ -9,12 +9,17 @@ import { createGuildNicknameServiceDeps } from '../../../services/nickname/creat
 import { syncNicknameForUser } from '../../../services/nickname/nicknameService';
 
 export function createGuildMemberChangeDeps({ guild, context }: { guild: Guild; context: ExecutionContext }) {
+	const resolveMemberLogger = context.logger.child({
+		caller: 'createGuildMemberChangeDeps.resolveMember'
+	});
+
 	return {
 		resolveMember: ({ discordUserId }: { discordUserId: string }) =>
-			getGuildMemberOrThrow({
+			getGuildMember({
 				guild,
-				discordUserId
-			}).catch(() => null),
+				discordUserId,
+				logger: resolveMemberLogger
+			}),
 		reconcileMemberships: async ({ member }: { member: GuildMember }) =>
 			reconcileDivisionMemberships(createDivisionMembershipDeps(), {
 				discordUserId: member.id,

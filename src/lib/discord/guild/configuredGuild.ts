@@ -1,6 +1,7 @@
 import type { Guild, GuildBasedChannel, VoiceBasedChannel } from 'discord.js';
 
 import { ENV_DISCORD } from '../../../config/env/discord';
+import { PINO_LOGGER } from '../../../integrations/pino';
 import { getRuntimeClient } from '../../../integrations/sapphire/runtimeGateway';
 
 export async function getConfiguredGuild() {
@@ -11,16 +12,44 @@ export async function getConfiguredGuild() {
 		return cachedGuild;
 	}
 
-	const guild = await client.guilds.fetch(ENV_DISCORD.DISCORD_GUILD_ID).catch(() => null);
-	if (!guild) {
-		throw new Error(`Configured guild not found: ${ENV_DISCORD.DISCORD_GUILD_ID}`);
+	try {
+		return await client.guilds.fetch(ENV_DISCORD.DISCORD_GUILD_ID);
+	} catch (error) {
+		throw new Error(`Configured guild not found: ${ENV_DISCORD.DISCORD_GUILD_ID}`, {
+			cause: error
+		});
 	}
-
-	return guild;
 }
 
-export async function getGuildChannel({ guild, channelId }: { guild: Guild; channelId: string }): Promise<GuildBasedChannel | null> {
-	return guild.channels.cache.get(channelId) ?? guild.channels.fetch(channelId).catch(() => null);
+type GuildChannelLookupLogger = {
+	warn: (...values: readonly unknown[]) => void;
+};
+
+export async function getGuildChannel({
+	guild,
+	channelId,
+	logger = PINO_LOGGER
+}: {
+	guild: Guild;
+	channelId: string;
+	logger?: GuildChannelLookupLogger;
+}): Promise<GuildBasedChannel | null> {
+	const cachedChannel = guild.channels.cache.get(channelId);
+	if (cachedChannel) {
+		return cachedChannel;
+	}
+
+	return guild.channels.fetch(channelId).catch((error: unknown) => {
+		logger.warn(
+			{
+				err: error,
+				guildId: guild.id,
+				channelId
+			},
+			'Failed to fetch guild channel'
+		);
+		return null;
+	});
 }
 
 export async function getVoiceBasedGuildChannel({ guild, channelId }: { guild: Guild; channelId: string }): Promise<VoiceBasedChannel | null> {

@@ -1,6 +1,6 @@
 ---
 title: Event And Merit Workflows
-sidebar_position: 1
+sidebar_position: 4
 ---
 
 # Event And Merit Workflows
@@ -15,6 +15,19 @@ The event and merit area is the most stateful part of Arbiter. It combines:
 - Discord presentation that is updated over time rather than posted once and forgotten
 
 If you can follow this area, the rest of the repo becomes much easier.
+
+## Source Of Truth By Phase
+
+This workflow family makes more sense once you stop thinking of "the event system" as one block of state.
+
+| Phase           | Primary source of truth                                        | Why                                                                     |
+| --------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Draft creation  | Postgres plus stored message references                        | The event needs durable identity and presentation anchors immediately   |
+| Active tracking | Postgres for session truth, Redis for live attendance counters | Live ticks are frequent, but legal session state must survive restarts  |
+| Review          | Postgres participant stats and review decisions                | Review must be restart-safe and auditable                               |
+| Finalization    | Postgres merits and final session state                        | The outcome needs to survive and feed later workflows such as nicknames |
+
+The important boundary is event end: Arbiter snapshots Redis attendance state into durable Postgres review state before finalization happens.
 
 ## The Event Lifecycle At A Glance
 
@@ -32,8 +45,6 @@ That sequence is why the code is split into lifecycle, tracking, review, and pre
 
 ## Draft Creation
 
-The event flow starts when an operator uses the event start command.
-
 At draft creation time, Arbiter does more than insert a row:
 
 - validates the selected event tier
@@ -43,42 +54,30 @@ At draft creation time, Arbiter does more than insert a row:
 - stores channel and message references needed for future syncs
 - posts the initial tracking summary
 
-The important design point is that draft creation establishes both durable state and future presentation anchors. That is why the workflow stores message references instead of treating Discord posts as write-only side effects.
+Draft creation establishes both durable state and future presentation anchors. That is why the workflow stores message references instead of treating Discord posts as write-only side effects.
 
-## Draft To Active
+## Activation And Mutable Session Work
 
-A draft event becomes active through a button-driven transition.
+A draft becomes active through a button-driven transition. That transition:
 
-That transition is responsible for:
+- validates the current session state
+- records the start timestamp
+- updates lifecycle presentation
+- starts Redis-backed live attendance tracking
 
-- validating the current session state
-- recording the start timestamp
-- updating lifecycle presentation
-- starting Redis-backed live attendance tracking
+Active or draft events can also track more than one voice channel. The add-voice-channel workflow must:
 
-The state transition itself is a service concern. The button handler only supplies actor context and decides how to present the result.
-
-## Adding Child Voice Channels
-
-Active or draft events can track more than one voice channel.
-
-The add-voice-channel workflow exists because event operations are not always confined to a single parent channel.
-
-That workflow must:
-
-- verify that the actor is allowed to perform the action
-- verify that the target event is in a mutable state
+- verify actor permissions
+- verify the session is still mutable
 - prevent channel collisions across event sessions
 - optionally rename the new voice channel
 - update the stored tracked-channel set
 - synchronize tracking summary presentation
 - post timeline or announcement messages where appropriate
 
-This is a good example of why Arbiter prefers explicit workflow services over ad hoc handler logic. The operation has enough state and side effects that hiding it in a command handler would be fragile.
-
 ## Live Attendance Tracking
 
-While an event is active, a scheduled task periodically inspects the tracked voice channels and applies attendance ticks.
+While an event is active, a scheduled task periodically inspects tracked voice channels and applies attendance ticks.
 
 The tracking loop works roughly like this:
 
@@ -88,12 +87,12 @@ The tracking loop works roughly like this:
 4. gather the current non-bot attendees
 5. increment attendance counters in Redis
 
-Two design choices matter here:
+Two design choices matter:
 
 - Redis is used because live tick updates are transient and frequent
 - Postgres still determines which sessions are actually active, so stale Redis state can be cleaned up safely
 
-If you are changing live attendance behavior, you usually need to think about both the scheduled task and the service that applies the tracking tick.
+If you are changing live attendance behavior, think about both the scheduled task and the service that applies the tracking tick.
 
 ## Ending An Event And Initializing Review
 
@@ -107,9 +106,9 @@ When an active event ends, Arbiter:
 - seeds review decisions based on the configured minimum attendance threshold
 - synchronizes the review message
 
-That split is important because it gives staff a chance to inspect and adjust the review before merits are awarded.
+That split gives staff a chance to inspect and adjust the review before merits are awarded.
 
-## Review Flow
+## Review And Finalization
 
 The review phase lives on durable data, not live tracking state.
 
@@ -122,13 +121,7 @@ Review presentation is paginated and includes:
 - controls for paging and changing decisions
 - controls for finalizing with merits or without merits
 
-By the time the review is visible, the workflow should be operating on persisted participant stats and review decisions. That makes the review phase restart-safe and auditable.
-
-## Finalization
-
-Finalizing review is the point where event tracking turns into final business outcomes.
-
-Depending on the chosen mode, finalization may:
+Finalization is the point where tracking turns into final business outcomes. Depending on the chosen mode, finalization may:
 
 - award merits to approved participants
 - update event session final state
@@ -138,47 +131,39 @@ Depending on the chosen mode, finalization may:
 
 If you are changing what "finalization" means, start in the finalization service first. Presentation changes come second.
 
-## Why Presentation Is Separate In This Area
-
-Event workflows update Discord messages repeatedly over the lifetime of a session.
-
-That is why the repo stores message references and has dedicated presentation sync helpers. Presentation here is not a one-time reply. It is a long-lived projection of evolving workflow state.
-
-This separation pays off because contributors can change:
-
-- lifecycle rules
-- review rules
-- embed and button layout
-- message-sync behavior
-
-without forcing all of those concerns into one file.
-
-## Manual Merit Awards
+## Manual Merit Awards And Merit Reads
 
 Not all merits come from event finalization.
 
-Arbiter also supports manual merit awards. That flow typically:
+Manual merit awards typically:
 
-- resolves the target member
-- validates the requested merit type
-- optionally links the award to a recent event session
-- persists the award
-- synchronizes the recipient nickname
-- sends rank-up or direct-message notifications when appropriate
+- resolve the target member
+- validate the requested merit type
+- optionally link the award to a recent event session
+- persist the award
+- synchronize the recipient nickname
+- send rank-up or direct-message notifications when appropriate
 
-This workflow is intentionally separate from event finalization because the business rules and operator intent are different.
+The merit list flow is the main read-oriented merit workflow. It loads a user's merit summary and paginated entries, then maps that summary into a Discord-friendly view. Staff can inspect other users; non-staff are restricted to their own records.
 
-## Merit Read Flow
+## Where The Code Usually Lives
 
-The merit list flow is the main read-oriented merit workflow.
+Today this area is concentrated in a few predictable places:
 
-It loads a user's merit summary and paginated entries, then maps that summary into a Discord-friendly view. Staff can inspect other users; non-staff are restricted to their own records.
+| Concern                     | Main feature directories                    | Main service directories                           |
+| --------------------------- | ------------------------------------------- | -------------------------------------------------- |
+| Event session lifecycle     | `src/lib/features/event-merit/session`      | `src/lib/services/event-lifecycle`                 |
+| Live tracking               | `src/lib/features/event-merit/tracking`     | `src/lib/services/event-tracking`                  |
+| Review flow                 | `src/lib/features/event-merit/review`       | `src/lib/services/event-review`                    |
+| Event presentation and sync | `src/lib/features/event-merit/presentation` | usually driven by the lifecycle or review services |
+| Manual merit awards         | `src/lib/features/merit/manual-award`       | `src/lib/services/manual-merit`                    |
+| Merit read flow             | `src/lib/features/merit/read`               | `src/lib/services/merit-read`                      |
 
-This is a useful example of the "read service plus presenter" pattern in the repo.
+That path map is meant as a current orientation aid, not a contract that file names will never move.
 
-## Merit Rank And Nickname Interaction
+## Cross-Feature Coupling To Remember
 
-Merit totals are not just reporting data. They also feed nickname computation through merit-rank symbols.
+Merit totals are not just reporting data. They feed nickname computation through merit-rank symbols.
 
 That means changes to:
 
@@ -187,53 +172,7 @@ That means changes to:
 - finalization behavior
 - nickname rules
 
-can interact in ways that cross feature boundaries. Be careful when changing one without checking the others.
-
-## Where To Start For Common Changes
-
-### Change Event State Rules
-
-Start in the event lifecycle services.
-
-Typical examples:
-
-- who can start or end
-- which transitions are legal
-- what happens when a draft is canceled
-
-### Change Live Tracking Behavior
-
-Start in the event tracking service and the scheduled task that drives it.
-
-Typical examples:
-
-- which attendees count
-- how stale sessions are handled
-- how missing channels are treated
-
-### Change Review Defaults Or Finalization Rules
-
-Start in review initialization or finalization services.
-
-Typical examples:
-
-- default merit threshold behavior
-- who receives merits
-- what gets cleaned up after finalization
-
-### Change Embeds, Buttons, Or Timeline Messages
-
-Start in the presentation builders and sync helpers.
-
-Typical examples:
-
-- review page layout
-- summary message controls
-- lifecycle timeline copy
-
-### Change Manual Merit Awards
-
-Start in the manual merit service and only touch presentation once the workflow contract is right.
+can interact across feature boundaries. Check the membership and identity workflow before assuming a merit-only change is isolated.
 
 ## Testing Guidance For This Area
 
@@ -255,7 +194,7 @@ If a change crosses Redis and Postgres boundaries, assume integration coverage i
 
 ## Search Terms That Work Well
 
-When navigating this area, useful search terms include:
+Useful search terms in this area include:
 
 - public command names such as `event` or `merit`
 - workflow verbs such as `createEventDraft`, `tickAllActiveEventTrackingSessions`, `initializeEventReview`, `finalizeEventReview`, and `awardManualMerit`

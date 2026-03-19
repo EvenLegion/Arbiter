@@ -1,6 +1,6 @@
 ---
 title: Membership, Identity, And Guild Automation
-sidebar_position: 2
+sidebar_position: 5
 ---
 
 # Membership, Identity, And Guild Automation
@@ -15,11 +15,22 @@ That includes:
 - guild-member lifecycle automation
 - development repair commands for syncing existing state
 
+## Source Of Truth In This Area
+
+This workflow family is easier to reason about when you separate four related but different things:
+
+| Concern                   | Primary source of truth                                          | Notes                                                                             |
+| ------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Division definitions      | Postgres plus the in-process division cache                      | Definitions drive permissions, prefixes, role mappings, and merit-rank visibility |
+| Public division selection | Discord role state first, then reconciliation into durable state | The public selector updates roles directly                                        |
+| Staff membership mutation | Durable division membership plus follow-up sync behavior         | Used for administrative correction and maintenance                                |
+| Effective nickname        | Computed projection, not free-form text                          | Depends on base nickname, divisions, merit totals, and policy rules               |
+
 ## The Core Identity Model
 
 Arbiter does not treat a Discord nickname as a free-form display string.
 
-A member's effective nickname is a computed projection of several inputs:
+A member's effective nickname is a computed projection of:
 
 - the stored base nickname
 - the member's durable division memberships
@@ -27,13 +38,11 @@ A member's effective nickname is a computed projection of several inputs:
 - whether the selected division shows merit rank
 - the member's current total merits
 
-That is why nickname behavior is its own workflow area instead of a few string helpers sprinkled throughout the repo.
+That is why nickname behavior is its own workflow area instead of a few string helpers scattered around the repo.
 
 ## Division Data And Why It Matters
 
-Division records carry more than a label.
-
-They define:
+Division records carry more than a label. They define:
 
 - kind and priority implications
 - optional display prefix
@@ -42,7 +51,9 @@ They define:
 
 Because those rules affect permissions, role reconciliation, public division selection, and nickname output, the repo keeps division data cached in memory and refreshes it on a schedule.
 
-## Public Division Selection
+## Two Kinds Of Membership Mutation
+
+### Public Division Selection
 
 Arbiter supports a public division-selection message for the user-facing Navy, Marines, and Support choices.
 
@@ -52,23 +63,21 @@ That flow is intentionally narrow:
 - legionnaires can join or leave the selectable divisions
 - the workflow updates Discord roles directly
 
-The selection service is responsible for preventing contradictory membership inside the selectable set. Joining one selectable division replaces any conflicting selectable role already held by the member.
+The selection service prevents contradictory membership inside the selectable set. Joining one selectable division replaces any conflicting selectable role already held by the member.
 
-## Staff Division Membership Mutation
+### Staff Division Membership Mutation
 
-There is also a staff-facing division membership workflow.
-
-This flow is different from public division selection:
+There is also a staff-facing division membership workflow. This flow is different:
 
 - it mutates durable division membership records
 - it targets arbitrary users rather than the actor only
 - it can optionally trigger nickname synchronization
 
-This is useful for administrative correction and durable membership maintenance, especially when Discord role state and database state need to be brought back into alignment.
+This is useful when Discord role state and database state need to be brought back into alignment deliberately.
 
-## Role Reconciliation On Guild Member Update
+## Role Reconciliation And Guild-Member Automation
 
-Arbiter treats guild-member role changes as an important source of truth for some automation paths.
+Guild-member role changes are an important source of truth for some automation paths.
 
 When a member's Discord roles change, the guild-member update listener can:
 
@@ -76,13 +85,16 @@ When a member's Discord roles change, the guild-member update listener can:
 - reconcile durable division memberships from the current Discord role set
 - recompute the member's nickname
 
-This is the bridge between Discord-side role administration and Arbiter's durable identity model.
+When a new guild member joins, Arbiter currently:
+
+- upserts the user into durable state
+- sends the welcome message in the configured welcome channel
+
+Together, those flows keep the durable user directory warm and keep Discord-side role administration connected to Arbiter's identity model.
 
 ## Nickname Computation
 
-Nickname computation has real policy behind it.
-
-The workflow considers:
+Nickname computation has real policy behind it. The workflow considers:
 
 - whether the member is the guild owner
 - which division should win prefix priority
@@ -90,13 +102,7 @@ The workflow considers:
 - current total merits
 - Discord's nickname length limit
 
-This is why the nickname service exists as a first-class workflow. The rules are too important and too failure-prone to leave implicit.
-
-## Why Staff Nicknames Are Special
-
-Many bulk nickname workflows skip staff by default.
-
-That is not an accident. Staff often need operational flexibility or carry role combinations that make automatic mass updates riskier. When a workflow includes staff, it should do so intentionally.
+Many bulk nickname workflows skip staff by default. That is intentional. Staff often need operational flexibility or carry role combinations that make automatic mass updates riskier.
 
 ## Name-Change Requests
 
@@ -112,24 +118,11 @@ The flow looks like this:
 
 Normalization matters here. The requested name is expected to be a base name, not a full decorated nickname with division prefixes or merit-rank suffixes.
 
-## Why Name Changes Use Review Threads
-
 The thread-based review flow gives the repo three things:
 
 - durable request state in Postgres
 - collaborative staff review in Discord
 - a stable reference that can be edited, updated, and archived as the request progresses
-
-This is another example of Arbiter treating Discord messages as an operational interface, not just as a disposable chat response.
-
-## Guild-Member Add Automation
-
-When a new guild member joins, Arbiter currently handles two important tasks:
-
-- upsert the user into durable state
-- send the welcome message in the configured welcome channel
-
-This keeps the durable user directory warm from the beginning rather than waiting for the member to use a command later.
 
 ## Development Repair Commands
 
@@ -143,58 +136,19 @@ Current repair-style workflows include:
 
 These are intentionally kept behind development mode because they are operational tools, not normal production user flows.
 
-## Where To Start For Common Changes
+## Where The Code Usually Lives
 
-### Change Division Selection Behavior
+Today this area is concentrated in a few predictable places:
 
-Start in the division-selection workflow.
+| Concern                            | Main feature directories                                                                              | Main service directories                                                                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Public division selection          | `src/lib/features/division-selection`, `src/lib/features/staff/division-selection`                    | `src/lib/services/division-selection`                                                                         |
+| Staff membership mutation          | `src/lib/features/staff/division-membership`                                                          | `src/lib/services/division-membership`                                                                        |
+| Guild-member add/update automation | `src/lib/features/guild-member`                                                                       | `src/lib/services/guild-member`, `src/lib/services/guild-member-change`, `src/lib/services/guild-member-sync` |
+| Nickname computation and bulk sync | `src/lib/features/staff/nickname-sync`                                                                | `src/lib/services/nickname`, `src/lib/services/bulk-nickname`, `src/lib/services/merit-rank`                  |
+| Name-change request and review     | `src/lib/features/ticket/request`, `src/lib/features/ticket/review`, `src/lib/features/ticket/thread` | `src/lib/services/name-change`                                                                                |
 
-Typical examples:
-
-- who is allowed to join
-- which divisions are treated as mutually exclusive
-- how join or leave results are presented
-
-### Change Durable Membership Mutation Rules
-
-Start in the division-membership service.
-
-Typical examples:
-
-- how administrative adds or removals work
-- whether nickname sync should follow the mutation
-
-### Change Nickname Rules
-
-Start in the nickname services and nickname-building logic.
-
-Typical examples:
-
-- prefix priority
-- merit rank suffix behavior
-- staff skip rules
-- nickname length failure behavior
-
-### Change Name-Change Review Behavior
-
-Start in the name-change service.
-
-Typical examples:
-
-- normalization rules
-- validation rules
-- approval or denial behavior
-- thread update behavior
-
-### Change Guild-Member Automation
-
-Start in the guild-member listeners and the service they call.
-
-Typical examples:
-
-- role reconciliation behavior
-- welcome flow behavior
-- automatic nickname sync on role updates
+That map is a current orientation aid, not a promise that file paths will never move.
 
 ## Testing Guidance For This Area
 

@@ -9,10 +9,20 @@ export type NameChangeReviewLogger = {
 
 export type NameChangeReviewMessage = Pick<Message, 'embeds' | 'edit'>;
 
-export async function resolveBotRequestsChannel(guild: Guild): Promise<ForumChannel | TextChannel | null> {
+export async function resolveBotRequestsChannel(guild: Guild, logger?: NameChangeReviewLogger): Promise<ForumChannel | TextChannel | null> {
 	const channel =
 		guild.channels.cache.get(ENV_DISCORD.BOT_REQUESTS_CHANNEL_ID) ??
-		(await guild.channels.fetch(ENV_DISCORD.BOT_REQUESTS_CHANNEL_ID).catch(() => null));
+		(await guild.channels.fetch(ENV_DISCORD.BOT_REQUESTS_CHANNEL_ID).catch((error: unknown) => {
+			logger?.warn(
+				{
+					err: error,
+					guildId: guild.id,
+					channelId: ENV_DISCORD.BOT_REQUESTS_CHANNEL_ID
+				},
+				'Failed to fetch configured bot requests channel'
+			);
+			return null;
+		}));
 	if (!channel) {
 		return null;
 	}

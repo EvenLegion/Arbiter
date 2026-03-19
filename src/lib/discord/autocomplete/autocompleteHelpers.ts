@@ -162,9 +162,18 @@ export async function respondWithQueryAutocompleteChoices({
 	choiceLogMessage: string;
 	loadChoices: () => Promise<AutocompleteChoice[]>;
 }) {
-	const choices = await loadChoices().catch(() => null);
-	if (!choices) {
+	const choices = await loadChoices().catch(async (error: unknown) => {
+		logger.error(
+			{
+				err: error,
+				...loggerContext
+			},
+			choiceLogMessage
+		);
 		await respondWithEmptyAutocompleteChoices(interaction);
+		return null;
+	});
+	if (!choices) {
 		return;
 	}
 

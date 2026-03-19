@@ -131,7 +131,18 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 			return;
 		}
 
-		await interaction.deleteReply().catch(() => null);
+		await interaction.deleteReply().catch((error: unknown) => {
+			logger.warn(
+				{
+					err: error,
+					hostDiscordUserId: issuer.id,
+					eventTierId: resolvedCommand.createDraftInput.eventTierId,
+					eventName: resolvedCommand.createDraftInput.eventName
+				},
+				'Failed to delete event start ephemeral reply after successful draft creation'
+			);
+			return null;
+		});
 
 		if (result.kind === 'draft_created') {
 			logger.info(

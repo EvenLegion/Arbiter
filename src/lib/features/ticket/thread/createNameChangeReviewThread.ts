@@ -9,7 +9,7 @@ import {
 	type TextChannel
 } from 'discord.js';
 
-import { getNameChangeReviewStaffRoleIds, resolveBotRequestsChannel } from './nameChangeReviewThreadUtils';
+import { getNameChangeReviewStaffRoleIds, resolveBotRequestsChannel, type NameChangeReviewLogger } from './nameChangeReviewThreadUtils';
 
 export function createNameChangeReviewThread({
 	guild,
@@ -18,9 +18,8 @@ export function createNameChangeReviewThread({
 	buildReviewActionRow
 }: {
 	guild: Guild;
-	logger: {
+	logger: NameChangeReviewLogger & {
 		info: (...values: readonly unknown[]) => void;
-		error: (...values: readonly unknown[]) => void;
 	};
 	buildReviewEmbed: (params: {
 		requestId: number;
@@ -48,7 +47,7 @@ export function createNameChangeReviewThread({
 			'name_change.review_thread.creating'
 		);
 
-		const botRequestsChannel = await resolveBotRequestsChannel(guild);
+		const botRequestsChannel = await resolveBotRequestsChannel(guild, logger);
 		if (!botRequestsChannel) {
 			logger.error(
 				{
@@ -63,6 +62,7 @@ export function createNameChangeReviewThread({
 		try {
 			const thread = await createReviewThread({
 				channel: botRequestsChannel,
+				logger,
 				requestedName: payload.requestedName,
 				requestId: payload.requestId,
 				requesterTag: payload.requesterTag,
@@ -107,6 +107,7 @@ export function createNameChangeReviewThread({
 
 async function createReviewThread({
 	channel,
+	logger,
 	requestedName,
 	requestId,
 	requesterTag,
@@ -115,6 +116,7 @@ async function createReviewThread({
 	components
 }: {
 	channel: ForumChannel | TextChannel;
+	logger: NameChangeReviewLogger;
 	requestedName: string;
 	requestId: number;
 	requesterTag: string;
@@ -141,7 +143,17 @@ async function createReviewThread({
 			},
 			reason
 		});
-		await thread.fetchStarterMessage().catch(() => null);
+		await thread.fetchStarterMessage().catch((error: unknown) => {
+			logger.warn(
+				{
+					err: error,
+					nameChangeRequestId: requestId,
+					threadId: thread.id
+				},
+				'Failed to fetch starter message for created name change review thread'
+			);
+			return null;
+		});
 		return thread;
 	}
 
