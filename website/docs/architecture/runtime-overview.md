@@ -1,159 +1,181 @@
 ---
-title: Runtime Overview
+title: System Overview
 sidebar_position: 1
 ---
 
-# Runtime Overview
+# System Overview
 
-## Boot Sequence
+Arbiter is a long-running Discord bot with several kinds of ingress and several kinds of state. The code is split so contributors can follow one workflow at a time without carrying the whole runtime in their heads.
 
-The app starts in `src/index.ts`.
-
-Startup path:
-
-1. `src/lib/setup.ts` loads environment variables and Sapphire plugin registration.
-2. `src/index.ts` creates the `SapphireClient` with:
-    - guild, guild member, and voice state intents
-    - scheduled tasks
-    - utility-store support for long-lived runtime utilities
-3. the client logs in with `DISCORD_TOKEN`
-4. `src/listeners/ready.ts` performs startup initialization, including division cache initialization
-
-## High-Level Flow
+## High-Level Shape
 
 ```mermaid
 flowchart LR
-    A["Discord Gateway Event"] --> B["Command / Listener / Interaction Handler"]
-    B --> C["Feature Handler Or Runtime Shell"]
+    A["Discord command, button, modal, listener, or task"] --> B["Runtime shell"]
+    B --> C["Feature handler"]
     C --> D["Service"]
-    D --> E["Repository Or Gateway"]
-    E --> F["Discord API / Prisma / Redis"]
-    D --> G["Typed Result"]
-    G --> H["Presenter Or Payload Builder"]
-    H --> I["Reply / Edit / Follow-up / Message Sync"]
+    D --> E["Repository or gateway"]
+    D --> F["Typed result"]
+    F --> G["Presenter or payload builder"]
+    G --> H["Discord reply, edit, sync, or follow-up"]
 ```
 
-## Execution Context And Logging
+This is the core architectural bet of the repo:
 
-There are two main layers:
+- runtime shells stay thin
+- services own rules
+- repositories and gateways own side-effect boundaries
+- presentation stays explicit instead of leaking into domain logic
 
-- `src/lib/logging/executionContext.ts`
-  base request-id-aware context creation
-- `src/lib/logging/ingressExecutionContext.ts`
-  command, autocomplete, button, modal, listener, and scheduled-task context helpers
+## Boot Sequence
 
-`src/lib/logging/commandExecutionContext.ts` exists as a small compatibility export for command shells.
+At startup, the runtime does four important things:
 
-Execution context carries:
+1. loads environment configuration and Sapphire plugins
+2. constructs the Discord client with guild and member intents plus scheduled-task support
+3. logs into Discord
+4. runs the startup listener, which initializes the division cache and logs the effective runtime configuration
 
-- a request id
-- a logger with bound metadata
-- flow bindings such as interaction id, user id, command name, event session id, or custom-id details
+That startup cache warm matters because division-aware behavior is used throughout the bot and should not depend on repeated database reads at every permission or nickname check.
 
-Why it exists:
+## The Runtime Shells
 
-- logs stay correlated across handlers, services, and adapters
-- failure responses can include request ids
-- scheduled tasks and listeners use the same logging model as command flows
+Arbiter has four main ingress families.
 
-## Logging And Observability Runtime Shape
+### Commands
 
-The current runtime logging path is:
+Slash command classes define the public command surface and hand off quickly. They should not become the place where permissions, persistence, and presentation all pile up together.
 
-- app logging:
-  `src/integrations/pino.ts`
-- validated env config:
-  `src/config/env/config.ts`
-- local and production collector stack:
-  `observability/`
-- local compose stack:
-  `docker-compose.observability.yml`
-- production compose stack:
-  `docker-compose.prod.yml`
+### Interaction Handlers
 
-The important rule is that logs are file-first in both development and production:
+Buttons and modals are routed by typed custom-id protocols. The interaction handler is responsible for decoding that protocol and creating a request context, not for owning the entire business rule behind the interaction.
 
-- the bot always writes structured logs to `LOG_FILE_PATH`
-- Grafana is the primary viewing surface
-- console output is optional and secondary
+### Listeners
 
-Read [Logging And Observability](/architecture/logging-and-observability) for the full operator model.
+Listeners react to gateway events such as startup or guild-member lifecycle changes. They are best treated as transport ingress, just like commands, even though the user did not invoke them directly.
 
-## Runtime Utilities And Runtime Gateways
+### Scheduled Tasks
 
-The bot still uses a small set of Sapphire utilities for app-lifetime concerns:
+Scheduled tasks are used for recurring maintenance and event tracking. They run with the same structured execution context approach as the Discord-facing shells.
 
-- division cache
-- division role policy
-- configured guild lookup
-- member lookup
-- user directory
+## Why The Layers Exist
 
-At the app boundary, listener and scheduled-task shells use `src/integrations/sapphire/runtimeGateway.ts` when they need shared runtime access.
+Without the split above, one file ends up doing all of the following at once:
 
-They do not reach into `this.container.*` directly.
+- reading Discord input
+- checking permissions
+- loading data
+- mutating data
+- calling Discord side effects
+- formatting user-facing output
+- logging success and failure
 
-That split matters:
+That shape feels simpler at first, but it becomes hard to test and hard to reason about once workflows become multi-step or stateful. Arbiter crossed that threshold already, especially in event tracking, merit review, and identity automation.
 
-- utilities own long-lived shared runtime state
-- runtime gateways make shell code more uniform
-- feature code should not depend on framework container access
+## What Each Layer Is Supposed To Own
 
-## Why Services Avoid Runtime Access
+### Runtime Shell
 
-`src/lib/services/` is intentionally not the place to reach into runtime globals.
+Owns:
 
-The repo uses adapters and gateways so services can stay focused on:
+- transport-specific input
+- request or event context creation
+- top-level defer or reply strategy
+- handoff to a clearer workflow layer
 
-- rule sequencing
-- typed results
-- named side effects
+Should not own:
 
-That keeps workflow code readable for new contributors and keeps tests smaller than “boot a fake bot runtime and hope the helper graph matches production”.
+- domain validation
+- persistence rules
+- embed construction beyond trivial one-offs
 
-## Event Tracking Runtime Shape
+### Feature Handler
 
-Event tracking is no longer a standalone utility-owned workflow.
+Owns:
 
-The current shape is:
+- preflight around guild, member, actor, or parsed options
+- shaping raw input into workflow input
+- deciding which service or presenter to call
 
-- scheduled task shell:
-  `src/scheduled-tasks/eventTrackingTick.ts`
-- service:
-  `src/lib/services/event-tracking/`
-- feature dependency assembly:
-  `src/lib/features/event-merit/tracking/createEventTrackingServiceDeps.ts`
-- Redis integration:
-  `src/integrations/redis/eventTracking/`
-- event-tracking helper modules and warning-store logic:
-  `src/lib/services/event-tracking/`
+Should not own:
 
-That means event tracking is fully service-backed now. Its helper modules live with the service instead of under `src/utilities/`, because they are workflow support code rather than Sapphire utility-store pieces.
+- complex branching about business policy
+- direct storage details unless it is only wiring collaborators together
 
-## Scheduled Work
+### Service
 
-Current scheduled tasks:
+Owns:
 
-- `src/scheduled-tasks/divisionCacheRefresh.ts`
-- `src/scheduled-tasks/eventTrackingTick.ts`
+- business rules
+- state transitions
+- reconciliation logic
+- typed results that explain what happened
 
-These tasks should stay thin:
+Should not own:
 
-- check runtime readiness
-- create context if needed
-- call a service or runtime helper
+- raw Discord interaction objects
+- hidden container lookups
+- ad hoc UI formatting
 
-If a task starts owning business rules, move that logic into `src/lib/services/` or feature gateways.
+### Repository Or Gateway
 
-## Read This Next
+Owns:
 
-- For command and interaction boundaries:
-  [Discord Execution Model](/architecture/discord-execution-model)
-- For naming and layer rules:
-  [Codebase Terminology](/architecture/codebase-terminology)
-- For why services use injected collaborators:
-  [Service And Dependency Design](/architecture/service-dependency-design)
-- For Redis and Prisma ownership:
-  [Data And Storage](/architecture/data-and-storage)
-- For the logging stack:
-  [Logging And Observability](/architecture/logging-and-observability)
+- concrete storage operations
+- Redis interaction
+- Discord side effects that are better treated as dependencies
+
+Should not own:
+
+- higher-level workflow policy
+
+### Presenter
+
+Owns:
+
+- mapping typed results into messages, embeds, buttons, rows, and other response payloads
+
+Should not own:
+
+- mutation logic
+- hidden storage access
+
+## Dependency Assembly
+
+Arbiter does not use one giant dependency injection container for feature logic. Instead, the repo prefers explicit assembly near the feature that needs it.
+
+Common patterns:
+
+- inline dependency objects when the wiring is short and obvious
+- `create*Deps` helpers when the wiring is reused
+- `*Runtime` helpers when a workflow needs several related Discord or persistence collaborators
+
+That keeps service dependencies visible at the call site and makes refactors easier because you can see exactly what the workflow needs.
+
+## Runtime State That Matters
+
+The bot keeps three different kinds of state in play:
+
+- durable domain state in Postgres
+- transient coordination and tracking state in Redis
+- process-local cached division metadata used for fast role-aware decisions
+
+The distinction matters because contributors need to know what must survive restarts and what can be rebuilt.
+
+## Current Runtime Responsibilities
+
+The bot's current responsibilities cluster into two broad workflow families:
+
+- event and merit workflows
+- membership, identity, and guild automation workflows
+
+Those families are documented separately because they have different source-of-truth rules and different failure modes.
+
+## What To Read Next
+
+- how requests move through the bot:
+  [Request Flow And Extension Points](/architecture/discord-execution-model)
+- where state lives and why:
+  [State, Storage, And Integrations](/architecture/data-and-storage)
+- how to change a real workflow:
+  [Event And Merit Workflows](/features/event-system) or [Membership, Identity, And Guild Automation](/features/division-and-membership)

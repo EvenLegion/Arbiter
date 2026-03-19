@@ -1,131 +1,200 @@
 ---
-title: Discord Execution Model
+title: Request Flow And Extension Points
 sidebar_position: 2
 ---
 
-# Discord Execution Model
+# Request Flow And Extension Points
 
-## Slash Commands
+This page explains how a request moves through Arbiter and where contributors are expected to extend the system.
 
-Command classes in `src/commands/` should be treated as routing tables.
+The core rule is simple:
 
-They are responsible for:
+Transport-specific code should stay close to the edge. Workflow-specific code should stay in the workflow.
 
-- registering slash commands and autocomplete options
-- creating command-scoped execution context through `createCommandExecutionContext(...)`
-- dispatching to feature handlers
+## One Typical Command Flow
 
-They are not supposed to own workflows.
+```mermaid
+sequenceDiagram
+    participant U as Discord User
+    participant C as Command Shell
+    participant H as Feature Handler
+    participant S as Service
+    participant R as Repository or Gateway
+    participant P as Presenter
 
-Current command shells:
+    U->>C: Slash command
+    C->>C: Create execution context
+    C->>H: Handoff
+    H->>H: Resolve guild and actor
+    H->>S: Call workflow
+    S->>R: Read or write state
+    R-->>S: Data or side-effect result
+    S-->>H: Typed workflow result
+    H->>P: Map result to Discord payload
+    P-->>H: Payload
+    H-->>U: Reply, edit, or follow-up
+```
 
-- `src/commands/event.ts`
-- `src/commands/merit.ts`
-- `src/commands/staff.ts`
-- `src/commands/ticket.ts`
-- `src/commands/dev.ts`
+The exact ingress type changes, but the responsibilities are meant to stay consistent.
 
-## Buttons And Modals
+## Execution Contexts
 
-Buttons and modals are routed through `src/interaction-handlers/`.
+Every ingress creates an execution context with structured log bindings.
 
-The common pattern is:
+That context normally includes:
 
-1. decode `customId`
-2. create execution context
-3. route to a feature handler
+- a request or event identifier
+- a `flow` name
+- transport metadata such as command name, custom ID, or event name
+- optional domain bindings such as user ID, event session ID, or action name
 
-That pattern is shared by:
+This is why Arbiter logs are actually usable in production: the runtime does not rely on ad hoc string logs without correlation.
 
-- `src/lib/discord/routedInteractionHandler.ts`
-- feature-local codec modules built on `src/lib/discord/customId.ts`
+## Preflight And Actor Resolution
 
-## Shared Discord Edge Helpers
+Most Discord-facing handlers perform some combination of:
 
-The main Discord-facing helpers live in `src/lib/discord/`.
+- configured guild resolution
+- guild-member resolution
+- database user resolution when the workflow needs persistent identity
+- capability checks such as staff-only or staff-or-centurion
 
-Important groups:
+Those checks are intentionally centralized into reusable helpers so command handlers do not all invent their own permission and failure behavior.
 
-- preflight and actor resolution
-    - `resolveConfiguredGuild.ts`
-    - `resolveGuildMember.ts`
-    - `resolveInteractionActor.ts`
-    - `interactionPreflight.ts`
-- response delivery
-    - `interactionResponder.ts`
-    - `interactionResponderDelivery.ts`
-    - `interactionFailurePayload.ts`
-- autocomplete
-    - `autocompleteRouter.ts`
-    - `autocompleteRouteHelpers.ts`
-    - `autocompleteResponder.ts`
-- custom-id and interaction routing
-    - `customId.ts`
-    - `routedInteractionHandler.ts`
+## The Main Transport Patterns
 
-These helpers exist so handlers can show domain intent early instead of spending half the file on Discord plumbing.
+### Slash Commands
 
-## Preconditions
+Expected shape:
 
-Preconditions such as `StaffOnly` and `EventOperatorOnly` live in `src/preconditions/`.
+1. define the command surface
+2. create a command execution context
+3. hand off to a feature handler
 
-Use a precondition when:
+If you are adding a command, the command class should stay boring. Boring is good.
 
-- the rule applies to an entire command
-- early rejection is the right UX
+### Buttons And Modals
 
-Use a service-level capability check when:
+Expected shape:
 
-- the same workflow can be reached through more than one transport
-- the rule depends on domain state, not just Discord roles
+1. define a custom-id protocol
+2. decode the custom ID in the interaction handler
+3. create a button or modal execution context
+4. hand off to a feature handler
 
-## Listener And Scheduled-Task Shells
+The custom-id codec is important because it is the typed bridge between presentation and behavior. Treat it like a protocol, not a throwaway string convention.
 
-Listeners and scheduled tasks follow the same shell idea:
+### Autocomplete
 
-- create execution context with `createExecutionContext(...)`
-- gather minimal runtime state
-- dispatch into feature or service code
+Autocomplete follows a router pattern:
 
-Examples:
+1. route by command, subcommand, and focused option
+2. resolve the minimal context needed
+3. return choices
+4. never mutate state
 
-- `src/listeners/guildMemberAdd.ts`
-- `src/listeners/guildMemberUpdate.ts`
-- `src/scheduled-tasks/eventTrackingTick.ts`
+Autocomplete should stay fast and side-effect free.
 
-## Error And Denied Paths
+### Listeners
 
-Fallback command edges live in:
+Listeners follow the same high-level contract as commands:
 
-- `src/listeners/commands/chatInputCommands/chatInputCommandDenied.ts`
-- `src/listeners/commands/chatInputCommands/chatInputCommandError.ts`
-- `src/listeners/commands/chatInputCommands/chatInputCommandSuccess.ts`
+1. create a listener execution context
+2. hand off to a workflow
+3. log the outcome
 
-These are shell-level concerns. Feature handlers should still return typed results when they can.
+The main difference is that the ingress event came from Discord itself rather than from a user-visible slash command.
 
-## Extension Checklist
+### Scheduled Tasks
 
-If you add a new command:
+Scheduled tasks create their own execution context and call service code. They are the right home for recurring work, but not the right home for domain rules that should be shared with manual flows.
 
-1. keep the command class small
-2. use `createCommandExecutionContext(...)`
-3. route to a feature handler
-4. use preflight and responder helpers in the handler
-5. move real business logic into a service
+## Response Delivery
 
-If you add a new button or modal:
+Arbiter uses a responder abstraction for Discord interactions so handlers do not have to repeat the same reply and error-delivery logic everywhere.
 
-1. create or extend a typed codec
-2. register an interaction handler
-3. use `RoutedButtonInteractionHandler` or `RoutedModalInteractionHandler`
-4. keep the decoded payload typed
-5. route to a feature handler that uses the same preflight and responder vocabulary
+The responder handles concerns like:
 
-## Read This Next
+- when to defer
+- whether to reply, edit, or follow up
+- ephemeral failure responses
+- including request IDs in user-visible failure messages when appropriate
+- safe logging around Discord-side delivery failures
 
-- For worked examples:
-  [Discord Extension Patterns](/architecture/discord-extension-patterns)
-- For layer definitions:
-  [Codebase Terminology](/architecture/codebase-terminology)
-- For public entrypoints:
-  [Command And Interaction Catalog](/reference/command-and-interaction-catalog)
+That gives feature handlers a cleaner contract: decide what to say, not how Discord's reply state machine works.
+
+## Where To Extend The System
+
+### Add A New Command
+
+Add or extend:
+
+- a command definition
+- a feature handler
+- a service if the command changes business state
+- a presenter if the response is more than trivial
+
+Do not put the entire workflow directly in the command class.
+
+### Add A New Button Or Modal Action
+
+Add or extend:
+
+- a custom-id builder and parser
+- an interaction handler
+- a feature handler
+- a service if domain state changes
+
+If the change only affects how the controls look, you may only need to touch the presenter and protocol.
+
+### Add A New Autocomplete Surface
+
+Add or extend:
+
+- the autocomplete route table
+- the choice builder or query helper
+- optional actor or guild scoping
+
+If the autocomplete needs expensive logic, first ask whether the UX should be changed instead.
+
+### Add A New Listener Or Task
+
+Add or extend:
+
+- the ingress shell
+- the relevant feature or service workflow
+- logging
+- tests for the called workflow
+
+Do not hide one-off business rules in the ingress just because the trigger is not a slash command.
+
+## A Useful Smell Test
+
+If a file knows about all of the following at once:
+
+- Discord interaction details
+- domain rules
+- storage layout
+- embed construction
+- retry or response delivery behavior
+
+then the file is almost certainly doing too much.
+
+## Search Strategy For Real Work
+
+When you need to find the code quickly:
+
+- search the public command name for slash-command entrypoints
+- search the custom-id prefix or visible button label for interaction flows
+- search the `flow` name from logs when debugging a production issue
+- search `handle<Thing>` first, then trace toward the service
+- search `build*Payload` or `present*` when the problem is presentation-only
+
+## What To Read Next
+
+- the architectural reason the repo is split this way:
+  [System Overview](/architecture/runtime-overview)
+- where data and caches live:
+  [State, Storage, And Integrations](/architecture/data-and-storage)
+- how to land a change cleanly:
+  [Making Changes Safely](/contributing/adding-features)

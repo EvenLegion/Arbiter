@@ -1,169 +1,192 @@
 ---
-title: Repository Map
+title: Codebase Tour
 sidebar_position: 3
 ---
 
-# Repository Map
+# Codebase Tour
+
+This page explains how the repository is organized today and, more importantly, what each part is responsible for.
+
+The goal is not for you to memorize paths. The goal is for you to understand what kind of code belongs where.
 
 ## Top-Level Directories
 
-- `src/`: bot runtime code
-- `tests/`: unit and integration tests
-- `prisma/`: schema and migration tooling
-- `observability/`: Loki, Alloy, and Grafana provisioning/config
-- `website/`: Docusaurus docs site
-- `docker-compose.*.yml`: local and production service stacks
-
-## `src/` Layout
-
-### Command and interaction entrypoints
-
-- `src/commands/`
-  Slash command registration and top-level dispatch.
-- `src/interaction-handlers/`
-  Button and modal decoding plus top-level dispatch.
-
-### Runtime shells
-
-- `src/listeners/`
-  Gateway lifecycle listeners such as `guildMemberAdd`, `guildMemberUpdate`, and `clientReady`.
-- `src/preconditions/`
-  Whole-command permission gates.
-- `src/scheduled-tasks/`
-  Periodic jobs backed by Sapphire scheduled tasks.
-
-### Shared Discord edge code
-
-- `src/lib/discord/`
-  Shared preflight, response delivery, autocomplete, custom-id, member lookup, and routed interaction helpers.
-
-### Feature code
-
-- `src/lib/features/`
-  Discord-facing handlers, presenters, gateways, adapter assembly, and feature-local helper modules.
-
-Common feature shapes:
-
-- `src/lib/features/event-merit/session/`
-- `src/lib/features/event-merit/review/`
-- `src/lib/features/event-merit/presentation/`
-- `src/lib/features/merit/autocomplete/`
-- `src/lib/features/merit/read/`
-- `src/lib/features/merit/manual-award/`
-
-### Domain services
-
-- `src/lib/services/`
-  Business workflows and domain rules.
-
-Examples:
-
-- `event-lifecycle/`
-- `event-review/`
-- `event-tracking/`
-- `manual-merit/`
-- `merit-read/`
-- `name-change/`
-- `nickname/`
-
-### Infrastructure
-
-- `src/integrations/prisma/`
-  Prisma client, repositories, and aggregate-specific concrete query modules.
-- `src/integrations/redis/`
-  Redis-backed event tracking state.
-- `src/integrations/sapphire/`
-  Shared runtime shell access such as `runtimeGateway.ts`. Listener and scheduled-task shells should use this boundary instead of `this.container.*`.
-
-### Persistence and operational tooling at repo root
-
-- `prisma/schema.prisma`
-  Prisma schema and normal schema migration ownership
-- `prisma/migration/`
-  legacy-data migration and repair utilities, not the normal deploy-time migration path
+- `src/`
+  Runtime application code.
+- `tests/`
+  Unit and integration tests.
+- `prisma/`
+  Split Prisma schema files, seed data, and migration or repair utilities.
 - `observability/`
-  Grafana/Loki/Alloy config used in both local and production setups
-- `docker-compose.db.yml`
-  local Postgres
-- `docker-compose.redis.yml`
-  local Redis
-- `docker-compose.observability.yml`
-  local Grafana/Loki/Alloy
-- `docker-compose.prod.yml`
-  VPS production stack
+  Loki, Alloy, and Grafana provisioning and configuration.
+- `website/`
+  The Docusaurus docs site.
+- `scripts/`
+  Repository automation such as release tooling.
+- `.github/workflows/`
+  CI, docs publish, and release automation.
+- `docker-compose.*.yml`
+  Local and production infrastructure entrypoints.
 
-### Runtime utilities
+## The Runtime Tree In One Pass
 
-- `src/utilities/`
-  Long-lived runtime services that are real Sapphire utility-store pieces or otherwise own app-lifetime state.
+### `src/commands`
 
-Current examples:
+Slash command registration and top-level dispatch.
 
-- division cache
-- division role policy
-- guild lookup
-- user directory
+This layer should describe command shape, create an execution context, and hand off. It should not become the home of domain rules.
 
-Do not put plain helper modules or service support files under `src/utilities/`. That folder is scanned by the Sapphire utilities store.
+### `src/interaction-handlers`
 
-## Where New Code Should Go
+Top-level button and modal routing.
 
-### Add a new slash command
+This is where custom IDs are decoded and handed off to feature handlers. If you are changing how a button or modal is recognized, this layer is involved. If you are changing what the action means, the change usually belongs deeper.
 
-- register it in `src/commands/`
-- route it to a feature handler in `src/lib/features/...`
-- put business rules in `src/lib/services/...`
+### `src/listeners`
 
-### Add a new button or modal flow
+Gateway lifecycle listeners such as startup and guild-member events.
 
-- add or extend a codec near the owning feature
-- register an interaction handler in `src/interaction-handlers/`
-- route to a feature handler
-- keep domain state changes in a service
+Listeners are runtime shells. They should gather context, call a feature or service workflow, and log the outcome.
 
-### Add a new read flow
+### `src/scheduled-tasks`
 
-- prefer a read service under `src/lib/services/...`
-- keep payload building in feature presenters
-- keep the handler focused on transport and preflight
+Periodic jobs registered through Sapphire scheduled tasks.
 
-### Add a new write flow
+Tasks are used for recurring maintenance and event-tracking progression. They are ingress points, not the place to hide domain logic.
 
-- put the workflow in a service
-- assemble Discord and persistence dependencies in feature adapters or gateways
-- keep Discord copy in presenters
+### `src/preconditions`
 
-### Add a new database operation
+Transport-level permission gates for slash commands.
 
-- add domain-shaped access in `src/integrations/prisma/repositories/`
-- keep family-local helper modules near the aggregate if a query needs extra structure
-- prefer concrete scenario files over new forwarding-only barrels
+These are for coarse access decisions such as "staff only" or "staff or centurion", not for every domain rule in the system.
 
-### Add shared Discord plumbing
+### `src/lib/discord`
 
-- prefer `src/lib/discord/` for transport-facing concerns
-- prefer `src/utilities/` only when the concern is truly long-lived runtime state and should be treated as a runtime utility piece
+Shared Discord-facing helpers.
 
-## Why The Code Is Split This Way
+This area holds reusable transport concerns such as:
 
-Earlier versions of the repo mixed transport, business logic, persistence, and UI construction in the same files.
+- interaction preflight
+- interaction response helpers
+- autocomplete routing
+- custom-id codecs
+- guild, member, and actor resolution
 
-The current layout exists so contributors can:
+If the concern is fundamentally about dealing with Discord as a transport boundary, it probably belongs here.
 
-- trace a workflow without reading unrelated Discord setup
-- test service behavior outside Discord
-- change UI payloads without rereading persistence code
-- find storage behavior by aggregate instead of by command
+### `src/lib/features`
 
-## Read This Next
+Feature-facing orchestration and presentation code.
 
-- For terminology:
-  [Codebase Terminology](/architecture/codebase-terminology)
-- For Prisma layer structure:
-  [Prisma Integration](/architecture/prisma-integration)
-- For extension rules:
-  [Adding Features](/contributing/adding-features)
-- For task-based onboarding:
-  [Choose Your Task](/onboarding/choose-your-task)
-- For deployment and host operations:
-  [Production Deployment](/contributing/production-deployment)
+This is where you will usually find:
+
+- feature handlers
+- presenters and payload builders
+- feature-local gateways
+- dependency assembly helpers such as `create*Deps` or `*Runtime`
+
+The feature layer is the bridge between raw Discord input and domain services.
+
+### `src/lib/services`
+
+Business workflows and domain rules.
+
+If the change is about validation, state transitions, reconciliation, default decisions, or multi-step business behavior, start here.
+
+Services should not need to know about raw interactions, Sapphire containers, or direct Prisma client calls. They should work through explicit collaborators.
+
+### `src/integrations`
+
+Concrete infrastructure boundaries.
+
+Current major integration areas are:
+
+- Prisma
+- Redis
+- Sapphire runtime access
+- Pino logging
+
+If something talks directly to a database, Redis, or another external runtime system, it usually belongs here or behind a feature-local gateway that wraps it.
+
+### `src/utilities`
+
+Long-lived runtime utilities, not general helper code.
+
+This folder is special because Sapphire scans it as a utilities store. Use it for application-lifetime helpers such as the division cache or shared runtime lookup utilities. Do not treat it as a dumping ground for random helpers.
+
+## Naming Conventions That Matter
+
+Arbiter is much easier to navigate once you notice its naming patterns.
+
+Search patterns worth learning:
+
+- `handle*`
+  A transport-facing or feature-facing entrypoint.
+- `create*Deps` and `*Runtime`
+  Dependency assembly. This is usually where Discord, storage, and services are wired together.
+- `build*Payload`, `build*Embed`, `build*Row`, `present*`
+  Presentation or result mapping.
+- `*Repository`
+  Domain-shaped storage access surface.
+- `sync*`, `reconcile*`, `finalize*`, `initialize*`, `load*`, `record*`
+  Service verbs that usually tell you what the workflow owns.
+
+## How To Trace A Flow
+
+When you are new to an area, use this recipe:
+
+1. find the public command name, button action, modal action, listener event, or scheduled task name
+2. find the handler that owns that ingress
+3. find the service call made by that handler
+4. inspect the presenter if the result is rendered back to Discord
+5. inspect repositories or gateways only after you understand the workflow contract
+6. open the matching tests to see which behavior is already considered important
+
+That order keeps you from confusing transport details with actual business rules.
+
+## Where New Code Usually Belongs
+
+Add code where the responsibility naturally fits:
+
+- new slash command or subcommand:
+  command layer plus a feature handler
+- new button or modal action:
+  interaction handler plus custom-id protocol plus feature handler
+- new business rule:
+  service layer
+- new embed, buttons, or message copy:
+  presenter or payload builder
+- new storage scenario:
+  repository surface plus concrete query module
+- new Discord side effect:
+  gateway or runtime dependency assembly helper
+- new long-lived app utility:
+  `src/utilities`, but only if it truly owns runtime-lifetime behavior
+
+## Tests And Support Code
+
+The test suite mirrors the runtime split:
+
+- `tests/unit`
+  pure logic, presenters, handlers, edge helpers, and service branching
+- `tests/integration`
+  Prisma and Redis-backed workflows with real infrastructure via Testcontainers
+
+If you are changing durable state behavior, expect to add or update integration coverage. If you are only changing branching or presentation, unit tests are usually the right first stop.
+
+## Prisma And Schema Notes
+
+The Prisma schema is intentionally split across numbered files under `prisma/schema/`. There is not a single monolithic `schema.prisma` file in this repo.
+
+Also note the distinction between:
+
+- schema and migrations used by the normal application lifecycle
+- migration or repair utilities under `prisma/migration/`, which are operational helpers rather than part of the main runtime path
+
+## The Most Important Takeaway
+
+The repository is organized around responsibilities, not around Discord commands alone.
+
+If you remember only one rule from this page, make it this one:
+
+Find the smallest layer that can own the change clearly, and make that layer responsible instead of pushing the behavior outward into command classes or inward into low-level query code.

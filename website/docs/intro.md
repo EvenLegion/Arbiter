@@ -6,73 +6,89 @@ sidebar_position: 1
 
 # Arbiter Docs
 
-Arbiter is the Even Legion Discord bot. It owns event operations, merit workflows, nickname computation, division membership flows, name-change review, and the repair tooling needed to keep Discord state and persisted state aligned.
+Arbiter is Even Legion's Discord operations bot. It owns event session workflows, merit awarding and rank progression, division and nickname automation, name-change review, and the runtime plumbing that keeps Discord state aligned with persisted state.
 
-This site is written for contributors, not end users. Its job is to answer four questions quickly:
+This site is written for contributors. The assumption is that the reader has zero context on the codebase and needs to answer three questions quickly:
 
-- what the bot does
-- where each capability lives
-- which patterns the repo expects
-- how to extend the bot without re-learning the entire codebase
+- what the bot is responsible for
+- how the code is split and why
+- where to start when making a specific change
 
-## Start Here If...
+## What These Docs Optimize For
 
-- You want the fastest path into the codebase:
-  Read [Choose Your Task](/onboarding/choose-your-task).
-- You need the bot running locally:
-  Read [Local Development](/onboarding/local-development).
-- You need to understand where code belongs:
-  Read [Repository Map](/onboarding/repository-map) and [Codebase Terminology](/architecture/codebase-terminology).
-- You are changing logging, request correlation, or Grafana/Loki setup:
-  Read [Logging And Observability](/architecture/logging-and-observability) and [Runtime Overview](/architecture/runtime-overview).
-- You are changing command, interaction, or preflight behavior:
-  Read [Discord Execution Model](/architecture/discord-execution-model) and [Discord Extension Patterns](/architecture/discord-extension-patterns).
-- You are changing business workflows or service logic:
-  Read [Service And Dependency Design](/architecture/service-dependency-design) and [Codebase Terminology](/architecture/codebase-terminology).
-- You are changing persistence or Redis-backed behavior:
-  Read [Data and Storage](/architecture/data-and-storage) and [Aggregate Reference](/reference/aggregate-reference).
-- You need to prepare a release or deploy the bot:
-  Read [Release Workflow](/contributing/release-workflow) and [Production Deployment](/contributing/production-deployment).
+These docs deliberately favor stable concepts over deep path inventories.
 
-## Recommended Reading Order
+The code can move. The responsibilities are much more stable:
 
-For a first read, use this sequence:
+- runtime shells accept Discord or scheduled-task input
+- feature handlers translate that input into workflow input
+- services own business rules and typed outcomes
+- repositories and gateways talk to storage or external side effects
+- presenters build messages, embeds, buttons, and reply payloads
+
+That tradeoff is intentional. The goal is for the docs to stay useful even after a refactor, not to become wrong the moment a file moves.
+
+## Read This First
+
+If you are new to the repo, read in this order:
 
 1. [Choose Your Task](/onboarding/choose-your-task)
 2. [Local Development](/onboarding/local-development)
-3. [Repository Map](/onboarding/repository-map)
-4. [Runtime Overview](/architecture/runtime-overview)
-5. [Discord Execution Model](/architecture/discord-execution-model)
-6. the feature guide for the area you are changing
-7. [Adding Features](/contributing/adding-features) and [Testing and Refactors](/contributing/testing-and-refactors)
+3. [Codebase Tour](/onboarding/repository-map)
+4. [System Overview](/architecture/runtime-overview)
+5. [Request Flow And Extension Points](/architecture/discord-execution-model)
+6. the workflow page closest to what you are changing
+7. [Making Changes Safely](/contributing/adding-features)
 
-## Core Design Rules
+## Current Runtime Surface
 
-The repo is organized around a small set of stable patterns:
+Today the bot exposes a small number of ingress shapes:
 
-- `src/commands/` registers slash commands and dispatches to handlers.
-- `src/interaction-handlers/` decodes buttons and modals, builds context, and routes to feature handlers.
-- `src/lib/discord/` holds shared Discord edge helpers such as preflight, response delivery, autocomplete, and custom-id tooling.
-- `src/lib/features/` holds feature-facing handlers, presenters, gateways, and adapter assembly.
-- `src/lib/services/` holds business workflows and domain rules.
-- `src/integrations/` owns Prisma, Redis, Sapphire runtime edges, and other infrastructure boundaries.
-- `src/utilities/` is reserved for real long-lived runtime utilities that benefit from Sapphire utility registration or app-lifetime state.
+- slash command groups for `event`, `merit`, `staff`, and `ticket`
+- development-only slash commands under `dev` when the app runs in development mode
+- button and modal flows for event lifecycle control, event review, merit pagination, division selection, and name-change review
+- gateway listeners for startup and guild-member lifecycle events
+- scheduled tasks for refreshing the division cache and ticking active event tracking sessions
 
-The intent is:
+You do not need to memorize the source files for those surfaces. The important mental model is that Arbiter has a small set of ingress types, and each ingress is expected to hand off quickly to a better-named workflow layer.
 
-- entrypoints read Discord input and create context
-- services own decisions and state changes
-- presenters build Discord payloads
-- repositories and gateways talk to persistence or Discord side effects
+## How To Find Code When Paths Change
 
-## Why The Docs Are Structured This Way
+Use search terms instead of a deep file inventory:
 
-The bot is easiest to learn by following real contributor tasks and real feature flows.
+- slash command registration: search the public command name or `registerApplicationCommands`
+- chat-input execution: search `chatInput`
+- button or modal protocol: search `createCustomIdCodec`, `parse`, or the visible button label
+- handler entrypoint: search `handle<Thing>`
+- dependency assembly: search `create*Deps` or `*Runtime`
+- presenter or payload builder: search `build*Payload`, `build*Embed`, `build*Row`, or `present*`
+- service rule ownership: search the domain noun plus verbs like `create`, `apply`, `load`, `record`, `sync`, `finalize`, or `reconcile`
+- storage boundary: search repository names such as `eventRepository`, `eventReviewRepository`, `meritRepository`, `nameChangeRepository`, `divisionRepository`, or `userRepository`
+- request-correlated logs: search for the `flow` value or the `requestId`
 
-That is why the docs are split into:
+## Core Ideas To Keep In Mind
 
-- onboarding pages for “what should I read next?”
-- architecture pages for shared patterns and boundaries
-- feature pages for real workflows
-- reference pages for command surfaces and aggregate ownership
-- contributing pages for extension and maintenance rules
+- Arbiter is primarily a workflow bot. Most of the complexity exists to keep multi-step operational flows correct over time.
+- Discord-facing code is intentionally thin. If a rule matters, it should usually live in a service, not inside a command class or listener.
+- The bot has both durable state and transient state. Postgres owns the truth that must survive restarts; Redis only owns short-lived event-tracking and coordination state.
+- Presentation is treated as its own concern. Embeds, buttons, rows, and response payloads are not mixed freely into domain logic.
+- Logging is part of the architecture. Every ingress gets a request or event context so production debugging does not depend on reproducing a problem locally.
+
+## Which Page To Read Next
+
+- Changing onboarding or contributor guidance:
+  [Codebase Tour](/onboarding/repository-map)
+- Changing how requests are received or routed:
+  [Request Flow And Extension Points](/architecture/discord-execution-model)
+- Changing persistence, Redis, or cache behavior:
+  [State, Storage, And Integrations](/architecture/data-and-storage)
+- Changing log shape, request correlation, or Grafana/Loki setup:
+  [Logging And Observability](/architecture/logging-and-observability)
+- Changing event or merit behavior:
+  [Event And Merit Workflows](/features/event-system)
+- Changing division, nickname, name-change, or guild-member automation:
+  [Membership, Identity, And Guild Automation](/features/division-and-membership)
+- Preparing a contribution or refactor:
+  [Making Changes Safely](/contributing/adding-features)
+- Preparing a release or deploy:
+  [Release Workflow](/contributing/release-workflow) and [Production Deployment](/contributing/production-deployment)

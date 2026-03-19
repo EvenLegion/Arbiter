@@ -5,152 +5,247 @@ sidebar_position: 1
 
 # Choose Your Task
 
-Use this page when you know what you want to change, but you do not yet know which docs to read first.
+Start here when you know the change you need, but you do not yet know which slice of the repo should own it.
 
-## Add A Slash Command
+## The Default Strategy
 
-Read in this order:
+Trace from the public surface inward:
 
-1. [Repository Map](/onboarding/repository-map)
-2. [Discord Execution Model](/architecture/discord-execution-model)
-3. [Adding Features](/contributing/adding-features)
-4. the owning feature page
-5. [Command And Interaction Catalog](/reference/command-and-interaction-catalog)
+1. find the command, button, modal, listener, or task that starts the flow
+2. find the feature handler that translates transport input into workflow input
+3. find the service that owns the rule you actually want to change
+4. find the presenter, repository, or gateway only if the change is really about output, persistence, or side effects
 
-Best code examples:
+If you start in a deep query module before you understand the flow, you will usually over-edit.
 
-- `src/commands/merit.ts`
-- `src/commands/event.ts`
+## Add Or Change A Slash Command
 
-## Add Autocomplete
+Read first:
 
-Read in this order:
+- [Codebase Tour](/onboarding/repository-map)
+- [System Overview](/architecture/runtime-overview)
+- [Request Flow And Extension Points](/architecture/discord-execution-model)
+- [Making Changes Safely](/contributing/adding-features)
 
-1. [Discord Extension Patterns](/architecture/discord-extension-patterns)
-2. [Discord Execution Model](/architecture/discord-execution-model)
-3. the owning feature page
+What to search for:
 
-Best code examples:
+- the public command name
+- `registerApplicationCommands`
+- `chatInput`
 
-- `src/lib/features/merit/autocomplete/`
-- `src/lib/features/event-merit/session/eventAutocompleteProvider.ts`
-- `src/lib/features/staff/staffAutocompleteProvider.ts`
+What usually changes:
 
-## Add A Button Or Modal Flow
+- command registration and option definitions
+- one feature handler
+- one or more services or presenters
+- tests for the handler result mapping and the underlying workflow
 
-Read in this order:
+The command class should stay small. It should define options, create an execution context, and hand off.
 
-1. [Discord Extension Patterns](/architecture/discord-extension-patterns)
-2. [Discord Execution Model](/architecture/discord-execution-model)
-3. the owning feature page
-4. [Command And Interaction Catalog](/reference/command-and-interaction-catalog)
+## Add Or Change Autocomplete
 
-Best code examples:
+Read first:
 
-- `src/interaction-handlers/eventReviewButtons.ts`
-- `src/interaction-handlers/nameChangeReviewEditModal.ts`
-- `src/lib/discord/routedInteractionHandler.ts`
+- [Request Flow And Extension Points](/architecture/discord-execution-model)
+- [State, Storage, And Integrations](/architecture/data-and-storage) if the choices come from Postgres or Redis
 
-## Change A Write Workflow
+What to search for:
 
-Read in this order:
+- `autocompleteRun`
+- `routeAutocompleteInteraction`
+- `createGuildScopedAutocompleteRoute`
+- `createQueryAutocompleteRoute`
 
-1. the owning feature page
-2. [Service And Dependency Design](/architecture/service-dependency-design)
-3. [Codebase Terminology](/architecture/codebase-terminology)
-4. [Aggregate Reference](/reference/aggregate-reference)
-5. [Testing And Refactors](/contributing/testing-and-refactors)
+What usually changes:
 
-Best current service examples:
+- one new route definition
+- a small choice builder or search helper
+- actor or guild scoping if visibility rules matter
 
-- `src/lib/services/manual-merit/`
-- `src/lib/services/name-change/`
-- `src/lib/services/event-lifecycle/`
+Autocomplete should stay read-only and cheap. If the logic starts to look like workflow mutation, you are in the wrong layer.
 
-## Change A Read Flow
+## Add Or Change A Button Or Modal Flow
 
-Read in this order:
+Read first:
 
-1. the owning feature page
-2. [Codebase Terminology](/architecture/codebase-terminology)
-3. [Adding Features](/contributing/adding-features)
+- [Request Flow And Extension Points](/architecture/discord-execution-model)
+- the workflow page for the domain you are changing
 
-Best current read-service example:
+What to search for:
 
-- `src/lib/services/merit-read/`
+- the visible button label or action name
+- `createCustomIdCodec`
+- `parse...CustomId`
+- `RoutedButtonInteractionHandler` or `RoutedModalInteractionHandler`
 
-## Change Persistence Or Repositories
+What usually changes:
 
-Read in this order:
+- custom-id encode/decode rules
+- one interaction handler
+- one feature handler or presenter
+- a service if the interaction changes domain state
 
-1. [Data And Storage](/architecture/data-and-storage)
-2. [Prisma Integration](/architecture/prisma-integration)
-3. [Aggregate Reference](/reference/aggregate-reference)
-4. [Testing And Refactors](/contributing/testing-and-refactors)
+The custom-id protocol is part of the contract between presentation and behavior. Treat it as designed data, not as a random string blob.
 
-Best current entrypoints:
+## Change A Business Rule In An Existing Workflow
 
-- `src/integrations/prisma/repositories/`
-- `src/integrations/redis/eventTracking/`
+Read first:
 
-## Change Logging Or Observability
+- [System Overview](/architecture/runtime-overview)
+- the workflow page for the affected domain
+- [Making Changes Safely](/contributing/adding-features)
 
-Read in this order:
+What to search for:
 
-1. [Logging And Observability](/architecture/logging-and-observability)
-2. [Runtime Overview](/architecture/runtime-overview)
-3. [Local Development](/onboarding/local-development)
-4. [Production Deployment](/contributing/production-deployment)
+- the domain verb, not just the command name
+- service function names like `create`, `apply`, `load`, `record`, `sync`, `finalize`, or `reconcile`
 
-Best current entrypoints:
+What usually changes:
 
-- `src/integrations/pino.ts`
-- `src/lib/logging/ingressExecutionContext.ts`
-- `observability/alloy/config.alloy`
-- `observability/loki/config.yml`
-- `docker-compose.observability.yml`
-- `docker-compose.prod.yml`
+- a service
+- unit tests
+- sometimes presenters if the result contract changes
+
+If the change affects eligibility, validation, state transitions, default decisions, or mutation sequencing, the service layer is usually the right home.
+
+## Change Output, Embeds, Buttons, Or Reply Text
+
+Read first:
+
+- [Request Flow And Extension Points](/architecture/discord-execution-model)
+- the relevant workflow page
+
+What to search for:
+
+- `build*Payload`
+- `build*Embed`
+- `build*Row`
+- `present*`
+
+What usually changes:
+
+- a presenter or payload builder
+- maybe custom-id builders if buttons change
+- tests that assert payload shape or branching
+
+Do not move UI text into services just because it is convenient in the moment. Arbiter keeps result mapping explicit on purpose.
+
+## Change Postgres, Redis, Or Query Behavior
+
+Read first:
+
+- [State, Storage, And Integrations](/architecture/data-and-storage)
+- [Making Changes Safely](/contributing/adding-features)
+
+What to search for:
+
+- repository names
+- aggregate nouns like `event`, `review`, `merit`, `division`, `user`, or `name-change`
+
+What usually changes:
+
+- one repository surface
+- one or more concrete query modules
+- integration tests
+
+Postgres is the source of durable truth. Redis is only for short-lived event tracking and coordination. If a new piece of state must survive restarts or support reporting, it belongs in Postgres.
+
+## Change Event, Tracking, Review, Or Merit Logic
+
+Read first:
+
+- [Event And Merit Workflows](/features/event-system)
+- [State, Storage, And Integrations](/architecture/data-and-storage)
+- [Logging And Observability](/architecture/logging-and-observability)
+
+What to look for:
+
+- lifecycle transitions
+- tracking tick logic
+- review initialization and finalization
+- manual merit awarding and merit list read flows
+
+This area is the most stateful part of the repo. It often spans command input, background tasks, Redis snapshots, Postgres persistence, and Discord presentation in one change.
+
+## Change Divisions, Nicknames, Name Changes, Or Guild-Member Automation
+
+Read first:
+
+- [Membership, Identity, And Guild Automation](/features/division-and-membership)
+- [State, Storage, And Integrations](/architecture/data-and-storage)
+
+What to look for:
+
+- division selection and membership reconciliation
+- nickname computation and sync rules
+- name-change request review
+- guild member add and update listeners
+- development repair commands
+
+This area mixes Discord role truth, database truth, and computed nickname rules. Be explicit about which side is the source of truth for the behavior you are changing.
+
+## Change Logging, Diagnostics, Or Observability
+
+Read first:
+
+- [Logging And Observability](/architecture/logging-and-observability)
+- [System Overview](/architecture/runtime-overview)
+
+What to search for:
+
+- `create...ExecutionContext`
+- `flow`
+- `requestId`
+- Pino, Alloy, Loki, or Grafana
+
+What usually changes:
+
+- structured log fields
+- response or error logging at ingress points
+- local or production observability config
+
+If a change makes production debugging harder, it is probably not finished.
 
 ## Change A Listener Or Scheduled Task
 
-Read in this order:
+Read first:
 
-1. [Runtime Overview](/architecture/runtime-overview)
-2. [Discord Execution Model](/architecture/discord-execution-model)
-3. the relevant feature page
+- [System Overview](/architecture/runtime-overview)
+- [Request Flow And Extension Points](/architecture/discord-execution-model)
+- the workflow page for the affected domain
 
-Best current examples:
+What to search for:
 
-- `src/listeners/guildMemberUpdate.ts`
-- `src/listeners/ready.ts`
-- `src/scheduled-tasks/eventTrackingTick.ts`
+- the Discord event name or task name
+- the service entrypoint the ingress calls
 
-## Prepare A Release Or Deploy The Bot
+Listeners and tasks should follow the same rule as commands: gather context, call a workflow, log outcome. They should not become catch-all orchestration files.
 
-Read in this order:
+## Prepare A Release Or Production Deploy
 
-1. [Release Workflow](/contributing/release-workflow)
-2. [Production Deployment](/contributing/production-deployment)
-3. [Local Development](/onboarding/local-development)
+Read first:
 
-Best current entrypoints:
+- [Release Workflow](/contributing/release-workflow)
+- [Production Deployment](/contributing/production-deployment)
 
-- `scripts/release/`
-- `.github/workflows/release-pr.yml`
-- `.github/workflows/release-publish.yml`
-- `docker-compose.prod.yml`
+Release and deployment are intentionally documented separately from local development because they depend on generated release metadata and the production Docker stack, not just the runtime code.
 
-## Update Or Add Documentation
+## Update The Docs
 
-Read in this order:
+Read first:
 
-1. [Maintaining Docs](/contributing/maintaining-docs)
-2. [Repository Map](/onboarding/repository-map)
-3. the relevant feature or architecture page
+- the page you are changing
+- [Making Changes Safely](/contributing/adding-features)
 
-Use docs changes whenever you:
+Prefer documenting:
 
-- move a handler, service, presenter, or repository
-- change the extension pattern for a feature
-- add a new command, subcommand, or interaction surface
-- change onboarding or test expectations
+- responsibilities
+- naming patterns
+- contributor decisions
+- search strategies
+
+Avoid over-documenting:
+
+- deep nested file paths that will drift
+- path inventories that duplicate `rg`
+- screenshots of UI text that changes frequently

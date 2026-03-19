@@ -1,137 +1,217 @@
 ---
-title: Data and Storage
-sidebar_position: 4
+title: State, Storage, And Integrations
+sidebar_position: 3
 ---
 
-# Data And Storage
+# State, Storage, And Integrations
 
-## PostgreSQL And Prisma
+Arbiter keeps several different kinds of state, and the code makes a hard distinction between them.
 
-PostgreSQL is the system of record. Prisma access lives in `src/integrations/prisma/`.
+Understanding that distinction is one of the fastest ways to stop making accidental architectural mistakes.
 
-The intended public surface is the repository layer:
+## The Three State Buckets
 
-- `eventRepository`
-- `eventReviewRepository`
-- `divisionRepository`
-- `meritRepository`
-- `nameChangeRepository`
-- `userRepository`
+### Postgres
 
-Repositories should expose domain-shaped operations. Feature code should not reach directly for `prisma.*`.
+Postgres is the durable source of truth.
 
-The current Prisma shape is:
+It stores the domain records that must survive restarts and support reporting, review, or later reconciliation.
 
-- repositories as the only application-facing entrypoint
-- concrete scenario files grouped by aggregate under `src/integrations/prisma/<aggregate>/`
-- helper modules kept local to the aggregate family that uses them
+### Redis
 
-See [Prisma Integration](/architecture/prisma-integration) for the contributor-facing rules.
+Redis stores transient runtime coordination data.
 
-## Redis
+It is used for active event-tracking sessions, attendance counters, and short-lived synchronization needs. Redis is not the place to put business history that matters after the live workflow ends.
 
-Redis is used for:
+### In-Process Cache
 
-- active event tracking state
-- scheduled task coordination for event tracking
+Arbiter also keeps a process-local division cache. It is loaded from Postgres and refreshed on a schedule because division-aware decisions happen frequently and are referenced across many workflows.
 
-Current Redis event-tracking modules live in:
+## What Lives In Postgres
 
-- `src/integrations/redis/eventTracking/`
+The durable data model is centered on a handful of aggregates.
 
-The owning workflow is service-backed:
+### Users
 
-- `src/lib/services/event-tracking/`
+The user record is the stable persistent identity bridge between Discord and the application's domain state.
 
-## Operational Logs
+It stores:
 
-Operational logs are not business state, but they are part of the runtime storage story.
+- Discord user identifiers
+- username and nickname snapshots
+- avatar URL snapshot
 
-Current ownership:
+Other aggregates usually point back to users.
 
-- the bot writes newline-delimited JSON logs to `LOG_FILE_PATH`
-- local development usually writes into `logs/arbiter.log`
-- production usually mounts `/app/logs` from `BOT_LOGS_DIR`
-- Alloy tails the file
-- Loki stores the ingested logs for query in Grafana
+### Divisions And Memberships
 
-That means:
+Division records define:
 
-- Postgres is still the system of record
-- Redis still owns ephemeral event-tracking state
-- Loki is the query store for operational logs
-- the on-disk log file remains the canonical sink the app writes to
+- division code and name
+- division kind
+- optional display-name prefix
+- whether merit rank should appear in nicknames
+- optional emoji metadata
+- optional Discord role mapping
 
-## Aggregate Ownership
+Memberships connect users to divisions in durable state.
 
-The main aggregate owners are:
+### Name-Change Requests
 
-- user records:
-  `userRepository`
-- division and division membership:
-  `divisionRepository`
-- event sessions and event tiers:
-  `eventRepository`
-- event review decisions and participant stats:
-  `eventReviewRepository`
-- merit records and merit summaries:
-  `meritRepository`
-- name change requests:
-  `nameChangeRepository`
+Name-change requests store:
 
-See [Aggregate Reference](/reference/aggregate-reference) for per-aggregate details.
+- requester
+- current name
+- requested name
+- reason
+- review status
+- optional reviewer
+- optional review-thread reference
 
-## Runtime Directories And Caches
+This is why name-change review can survive restarts and be audited later.
 
-The runtime still uses a small set of shared lookup services:
+### Merit Types And Merit Awards
 
-- `src/utilities/divisionCache.ts`
-- `src/utilities/userDirectory.ts`
-- `src/utilities/member.ts`
-- `src/utilities/guild.ts`
+Merit types define the catalog of award kinds, amounts, and whether they can be awarded manually.
 
-Feature-level lookup code also uses:
+Merit records store who received the merit, who awarded it, what type it was, the optional reason, and the optional linked event session.
 
-- `src/lib/discord/memberDirectory.ts`
-- `src/lib/features/division-selection/divisionDirectory.ts`
+### Event Tiers And Event Sessions
 
-The rule of thumb is:
+Event tiers define the event catalog used when starting an event.
 
-- persistent business state:
-  Postgres
-- derived operational attendance state:
-  Redis
-- cached mostly-static division metadata:
-  runtime cache
-- live guild membership and nickname lookup:
-  Discord-facing edge helpers
+Event sessions store:
 
-## Testing Strategy
+- host
+- tier
+- tracking thread reference
+- event name
+- lifecycle state
+- start and end timestamps
+- review finalization metadata
 
-The repo uses:
+Event-related tables also store:
 
-- unit tests for pure logic, service branching, presenters, and edge helpers
-- integration tests with Testcontainers for Postgres and Redis-backed workflows
+- tracked channels
+- stored message references
+- participant attendance stats
+- review decisions
 
-Integration tests require a working container runtime. When Docker is unavailable, `pnpm test:integration`, which runs the Testcontainers-backed integration layer, exits cleanly without running suites.
+That split is what allows Arbiter to move from a live tracking phase into a durable review phase without losing context.
 
-## Common Rules
+## What Lives In Redis
 
-- do not bypass repositories from feature code
-- keep aggregate-specific Prisma helper modules near the aggregate family
-- prefer concrete scenario files over forwarding-only query barrels
-- keep Redis usage behind services or feature dependency assembly, not inside command shells
-- document any new aggregate or persistence ownership changes in the docs
+Redis currently owns short-lived event-tracking state.
 
-## Read This Next
+That includes:
 
-- For aggregate-by-aggregate ownership:
-  [Aggregate Reference](/reference/aggregate-reference)
-- For Prisma layer structure and file placement:
-  [Prisma Integration](/architecture/prisma-integration)
-- For logging storage and observability flow:
-  [Logging And Observability](/architecture/logging-and-observability)
-- For workflow ownership:
-  the relevant feature page
-- For contributor rules:
-  [Testing And Refactors](/contributing/testing-and-refactors)
+- the set of active tracked event session IDs
+- per-session tracking metadata
+- per-session attendance counters keyed by Discord user ID
+- short-lived coordination helpers such as review locks
+
+The key design rule is:
+
+Redis holds state that is useful while the workflow is in flight. Postgres holds state that matters afterward.
+
+## Why Event Tracking Uses Both Postgres And Redis
+
+Event tracking has two different jobs:
+
+- cheaply record live attendance over time
+- persist reviewable outcomes once the event ends
+
+Redis is good at the first job because scheduled ticks can update counters quickly. Postgres is good at the second job because review decisions, awarded merits, and finalized sessions need durable storage.
+
+When an event ends, the workflow snapshots the Redis attendance state into durable Postgres review state. That handoff is a major design boundary in this codebase.
+
+## The Division Cache
+
+Division data is read frequently enough that Arbiter keeps a refreshed in-memory view of it.
+
+That cache exists because division-aware behavior is everywhere:
+
+- permission checks
+- role-to-membership reconciliation
+- nickname computation
+- public division selection
+- division autocomplete and lookup
+
+If you change division semantics, remember that you may need to think about:
+
+- the durable table shape
+- the cache refresh path
+- the workflows that depend on cached division metadata
+
+## Repository Design
+
+Arbiter does not let most feature code talk directly to the raw Prisma client.
+
+Instead, the repo exposes domain-shaped repositories such as:
+
+- user repository
+- division repository
+- merit repository
+- name-change repository
+- event repository
+- event review repository
+
+That repository layer gives contributors two benefits:
+
+- feature and service code can depend on clearer business operations instead of raw ORM calls
+- storage changes can be localized without rewriting every caller
+
+Below those repositories, the Prisma query modules are grouped by aggregate and scenario rather than hidden behind one giant generic data-access layer.
+
+## Prisma Layout Notes
+
+The Prisma schema is split across numbered files under `prisma/schema/`. There is no single `schema.prisma` file in this repo.
+
+That matters because older mental models of the repo may still assume a monolithic schema file. Do not rely on that assumption.
+
+Also keep this distinction clear:
+
+- the numbered schema files and normal migrations are part of the application's lifecycle
+- the scripts under `prisma/migration/` are operational helpers for import, repair, and migration work, not the normal runtime path
+
+## Integration Boundaries Outside Prisma
+
+Beyond Postgres, Arbiter's main integration boundaries are:
+
+- Redis for transient tracking and coordination
+- Discord itself for side effects such as posting, editing, or renaming
+- Sapphire runtime access for client and scheduled-task integration
+- Pino for logging
+
+If you are adding behavior that reaches outside the process, make that dependency explicit. Do not hide it behind a random helper call with invisible global access.
+
+## Testing Implications
+
+Storage choices drive test choices.
+
+Use unit tests when:
+
+- the change is about branching, validation, or presentation
+- dependencies can be faked cheaply
+
+Use integration tests when:
+
+- the change depends on Prisma queries or transactions
+- the change depends on Redis semantics
+- the bug only appears when storage and workflow logic interact together
+
+## Common Contributor Mistakes
+
+- putting durable state into Redis because it was quicker to wire
+- bypassing repositories and reaching straight for the Prisma client from feature code
+- forgetting that division behavior often depends on cached data, not only on raw DB reads
+- changing event review behavior without thinking about the Redis-to-Postgres handoff at event end
+
+## What To Read Next
+
+- how requests reach these storage layers:
+  [Request Flow And Extension Points](/architecture/discord-execution-model)
+- how the event and merit domain uses both Redis and Postgres:
+  [Event And Merit Workflows](/features/event-system)
+- how division and identity workflows use durable state plus cached division metadata:
+  [Membership, Identity, And Guild Automation](/features/division-and-membership)

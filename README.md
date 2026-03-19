@@ -2,7 +2,7 @@
 
 Arbiter is the Even Legion Discord bot. It manages event workflows, merit tracking, nickname computation, division membership, name-change review, and the operational tooling that keeps Discord state aligned with persisted state.
 
-The Docusaurus docs site is the source of truth for contributor onboarding, architecture, extension patterns, release workflow, and deployment.
+The Docusaurus docs site is the source of truth for contributor onboarding, architecture, workflow ownership, release workflow, and deployment.
 
 ## Start Here
 
@@ -12,11 +12,21 @@ The Docusaurus docs site is the source of truth for contributor onboarding, arch
   [https://evenlegion.github.io/Arbiter/](https://evenlegion.github.io/Arbiter/)
 - Fastest onboarding path:
   [website/docs/intro.md](./website/docs/intro.md)
+- Task-based entrypoint:
+  [website/docs/onboarding/choose-your-task.md](./website/docs/onboarding/choose-your-task.md)
 - Local setup:
   [website/docs/onboarding/local-development.md](./website/docs/onboarding/local-development.md)
-- Repository layout:
+- Codebase tour:
   [website/docs/onboarding/repository-map.md](./website/docs/onboarding/repository-map.md)
-- Feature and extension rules:
+- Runtime architecture:
+  [website/docs/architecture/runtime-overview.md](./website/docs/architecture/runtime-overview.md)
+- State and integrations:
+  [website/docs/architecture/data-and-storage.md](./website/docs/architecture/data-and-storage.md)
+- Event and merit workflows:
+  [website/docs/features/event-system.md](./website/docs/features/event-system.md)
+- Membership and identity workflows:
+  [website/docs/features/division-and-membership.md](./website/docs/features/division-and-membership.md)
+- Contribution rules:
   [website/docs/contributing/adding-features.md](./website/docs/contributing/adding-features.md)
 - Logging and observability:
   [website/docs/architecture/logging-and-observability.md](./website/docs/architecture/logging-and-observability.md)

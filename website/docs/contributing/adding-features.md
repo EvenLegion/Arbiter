@@ -1,144 +1,210 @@
 ---
-title: Adding Features
+title: Making Changes Safely
 sidebar_position: 1
 ---
 
-# Adding Features
+# Making Changes Safely
 
-## Preferred Shape
+This page is the contributor playbook for landing changes without making the codebase harder to understand.
 
-The default shape for new behavior is:
+## The Default Shape For New Behavior
 
-1. command or interaction entrypoint
+Arbiter generally wants new behavior to follow this shape:
+
+1. runtime shell
 2. feature handler
 3. service
-4. inline deps or a small runtime-support module
+4. repository or gateway dependencies
 5. presenter or payload builder
 6. tests
 
-That keeps Discord transport, business rules, infrastructure, and UI output separate enough to evolve independently.
+Not every tiny change needs every layer, but that is the default mental model.
 
-## Add A New Slash Command
+## Design Rules That Matter Here
 
-1. Register the command in `src/commands/`.
-2. Use `createCommandExecutionContext(...)` in the command class.
-3. Create a feature handler in `src/lib/features/<feature>/`.
-4. Use preflight helpers such as `resolveConfiguredGuild`, `resolveGuildMember`, or `resolveInteractionActor`.
-5. Put business decisions in `src/lib/services/<feature>/`.
-6. If the service needs Discord or persistence side effects, assemble them inline when the dependency object is short, or use a small runtime-support module when the wiring is reused or noisy.
+### Keep Runtime Shells Small
 
-## Add A New Button Or Modal Flow
+Commands, interaction handlers, listeners, and tasks should:
 
-1. Create or extend a typed custom-id codec.
-2. Add an interaction handler in `src/interaction-handlers/`.
-3. Reuse `RoutedButtonInteractionHandler` or `RoutedModalInteractionHandler` when possible.
-4. Route into a feature handler.
-5. Reuse the service layer if the flow changes domain state.
+- create context
+- do transport-specific preflight
+- hand off
 
-## Add A New Read Flow
+If a command class is deciding business policy, loading data, editing multiple Discord messages, and formatting output, the design is drifting.
 
-For read-heavy features:
+### Put Rules In Services
 
-- put access and selection rules in a read service
-- keep payload building in a presenter or payload builder
-- keep the handler limited to transport and preflight
+If the change affects:
 
-Current best example:
+- eligibility
+- state transitions
+- reconciliation
+- default decisions
+- mutation sequencing
 
-- `src/lib/services/merit-read/`
+then a service should probably own it.
 
-## Add A New Write Flow
+### Keep Presentation Explicit
 
-For write-heavy features:
+If the change is about:
 
-- put the workflow in a service
-- keep result kinds explicit
-- assemble repositories and Discord gateways inline or in a small runtime-support module
-- map typed results to Discord copy in a presenter when branching grows
-- keep the service dependencies explicit instead of reaching for centralized runtime helpers
+- copy
+- embeds
+- buttons
+- rows
+- payload shape
 
-Current best examples:
+then a presenter or payload builder should probably own it.
 
-- `src/lib/services/manual-merit/`
-- `src/lib/services/name-change/`
-- `src/lib/services/event-lifecycle/`
+### Keep External Dependencies Visible
 
-## Add Autocomplete
+Do not hide Prisma, Redis, or Discord side effects behind magical helpers with implicit runtime access. Use explicit collaborators wired through a feature-local dependency object or runtime helper.
 
-Use the shared autocomplete pattern:
+## When To Create A New Service
 
-- provider file
-- route table
-- small guard or access-policy helpers
-- choice builders
+Create or extend a service when:
 
-Current best examples:
+- the workflow has more than one meaningful rule
+- the logic will be reused from more than one ingress
+- the result needs a typed outcome, not just a boolean
+- the workflow coordinates durable state and side effects
 
-- `src/lib/features/merit/autocomplete/`
-- `src/lib/features/event-merit/session/autocomplete/eventAutocompleteProvider.ts`
+Do not create a service just because a file is more than a few lines long. Create a service because the behavior needs a stable domain home.
 
-## Where To Put Shared Code
+## When To Create A New Presenter
 
-- shared Discord transport helpers:
-  `src/lib/discord/`
-- shared domain abstractions:
-  `src/lib/services/_shared/`
-- feature-specific Discord glue:
-  `src/lib/features/<feature>/`
-- data access:
-  `src/integrations/prisma/repositories/`
-- long-lived runtime state:
-  `src/utilities/` only when it should be a real runtime utility piece
+Create or extend a presenter when:
 
-If shared code is only meaningful inside one feature, keep it inside that feature folder.
+- there are multiple user-visible result branches
+- the payload includes embeds, rows, or buttons
+- the same result needs to be rendered in more than one place
 
-For service design specifically:
+Do not force presentation into services. Services should explain what happened. Presenters should explain how that outcome is shown to Discord.
 
-- inject named collaborators into services through inline objects or small runtime-support modules
-- do not let services reach into `container.*`, raw interactions, or raw `prisma.*`
-- prefer pure helpers for local logic, but use gateways or repositories for side-effect boundaries
+## Where New Storage Code Should Go
 
-For Prisma specifically:
+For new storage scenarios:
 
-- expose new persistence operations through a repository first
-- implement the concrete query or transaction in the owning aggregate folder
-- avoid forwarding-only `read.ts`, `write.ts`, or query-barrel files unless they add a real stability boundary
+1. add or extend the domain-shaped repository surface
+2. implement the concrete query or transaction in the aggregate-specific Prisma modules
+3. cover the behavior with integration tests if storage behavior matters
 
-## Feature Checklist
+That keeps higher-level code from becoming tightly coupled to raw ORM details.
 
-Before opening a PR, check:
+## Refactor Rules
 
-- does the command or interaction shell stay small?
-- does the service own the rule instead of the handler?
-- if a `create*Deps.ts` file exists, does it only assemble dependencies?
-- is the result or payload mapping explicit?
-- did you add or update request-correlated logs where the new behavior changes state or performs important side effects?
-- is the new behavior covered by at least one targeted test?
-- do the docs need an update?
+Good refactors in this repo usually do at least one of these:
 
-## Docs Are Part Of The Feature
+- make ownership clearer
+- reduce transport leakage into services
+- reduce persistence leakage into feature handlers
+- make result mapping more explicit
+- make tests more targeted
 
-If you change:
+Bad refactors usually do one of these:
 
-- command surfaces
-- interaction surfaces
-- feature boundaries
-- extension patterns
-- onboarding expectations
+- move logic without clarifying ownership
+- collapse layers "for simplicity" until handlers become giant again
+- replace explicit result types with ambiguous booleans or exceptions everywhere
+- increase reliance on hidden global runtime access
 
-update the docs in the same change. Use [Maintaining Docs](/contributing/maintaining-docs) for the checklist.
+## Safe Change Recipes
 
-## Read This Next
+### Add A New Slash Command
 
-- For worked extension examples:
-  [Discord Extension Patterns](/architecture/discord-extension-patterns)
-- For code placement rules:
-  [Codebase Terminology](/architecture/codebase-terminology)
-- For why services are wired this way:
-  [Service And Dependency Design](/architecture/service-dependency-design)
-- For logging expectations:
-  [Logging And Observability](/architecture/logging-and-observability)
-- For Prisma-specific persistence rules:
-  [Prisma Integration](/architecture/prisma-integration)
-- For docs updates:
-  [Maintaining Docs](/contributing/maintaining-docs)
+Expected work:
+
+- define the command surface
+- create or extend a feature handler
+- add or extend a service if the command changes behavior, not just presentation
+- add tests
+- update docs if the command changes contributor-visible behavior
+
+### Add A New Button Or Modal Flow
+
+Expected work:
+
+- define or extend a custom-id protocol
+- route the interaction
+- keep business logic in a service if state changes
+- update the presenter if controls or payloads changed
+
+### Add A New Read Flow
+
+Expected work:
+
+- put selection and visibility rules in a read-oriented service or helper
+- keep rendering in a presenter
+- keep the transport layer thin
+
+### Add A New Write Flow
+
+Expected work:
+
+- put workflow rules in a service
+- keep collaborators explicit
+- return typed outcomes
+- map those outcomes to Discord copy in a presenter if the branching is meaningful
+
+## Validation Checklist
+
+For most code changes, the safe default is:
+
+```bash
+pnpm typecheck
+pnpm exec eslint src tests
+pnpm test
+pnpm docs:build
+```
+
+Add `pnpm test:integration` when:
+
+- Prisma behavior changed
+- Redis behavior changed
+- the important risk is storage plus workflow coordination
+
+## Manual Discord Validation Checklist
+
+Do manual Discord checks when the change affects:
+
+- slash-command options or registration
+- autocomplete behavior
+- buttons or modals
+- permission and precondition behavior
+- guild-member listeners triggered by real role changes
+
+Use automation for business correctness. Use manual testing for client and transport behavior.
+
+## Docs Are Part Of The Change
+
+Update docs in the same change when you modify:
+
+- contributor entrypoints
+- architecture expectations
+- runtime responsibilities
+- storage expectations
+- workflow behavior that a new developer would need to understand before editing the area
+
+Prefer documenting:
+
+- responsibilities
+- invariants
+- extension rules
+- search strategies
+
+Avoid documenting:
+
+- long brittle file lists
+- deep path inventories that duplicate repository search
+- claims that only stay true if no one ever refactors
+
+## A Good Final Smell Test
+
+Before you open a PR, ask:
+
+- does the changed code make ownership clearer or blurrier?
+- is the business rule now easier to test?
+- can a new contributor find the right layer faster after this change than before?
+- if the files moved tomorrow, would the docs and naming still guide someone to the right place?
+
+If the answer to those questions is mostly yes, the change is probably shaped well.

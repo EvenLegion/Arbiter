@@ -1,28 +1,40 @@
 ---
 title: Production Deployment
-sidebar_position: 5
+sidebar_position: 3
 ---
 
 # Production Deployment
 
-## What Runs In Production
+This page covers the Arbiter-specific production model, not generic Linux or Docker administration.
 
-The production Docker stack is defined in `docker-compose.prod.yml`.
+## What The Production Stack Actually Runs
 
-Current services:
+The production Docker stack currently runs:
 
-- `arbiter-migrate`
-- `arbiter-bot`
-- `arbiter-redis`
-- `arbiter-loki`
-- `arbiter-alloy`
-- `arbiter-grafana`
+- a migration container
+- the bot runtime container
+- Redis
+- Loki
+- Alloy
+- Grafana
 
-This means the bot runtime, Redis, and the observability stack all run together on the VPS.
+One important detail:
 
-## Required Production Inputs
+Postgres is not part of the production compose stack. Production expects an external database reachable through `DATABASE_URL`.
 
-Use `.env.example` as the source of truth for available keys.
+## Why There Is A Separate Migration Container
+
+The migration container exists so schema migration is an explicit deployment step rather than an invisible side effect of bot startup.
+
+That separation is healthy because:
+
+- failed migrations are easier to reason about
+- the runtime container stays focused on running the bot
+- deployment operators can see exactly when schema changes are being applied
+
+## Production Inputs
+
+Use `.env.example` as the source of truth for supported configuration.
 
 At minimum, production needs:
 
@@ -30,234 +42,116 @@ At minimum, production needs:
 - `DATABASE_URL`
 - `DISCORD_TOKEN`
 - `DISCORD_GUILD_ID`
-- the Discord role and channel IDs used by the bot
+- the Discord role and channel IDs the bot depends on
 
-Operationally important values include:
+Operationally important values also include:
 
-- `LOG_FILE_PATH`
-- `FILE_LOG_LEVEL`
-- `CONSOLE_LOG_LEVEL`
-- `ALLOY_DOCKER_VERSION`
-- `LOKI_DOCKER_VERSION`
-- `GRAFANA_DOCKER_VERSION`
-- `BOT_LOGS_DIR`
-- `REDIS_DATA_DIR`
-- `LOKI_DATA_DIR`
-- `GRAFANA_DATA_DIR`
-- `ALLOY_DATA_DIR`
-- `GRAFANA_ADMIN_USER`
-- `GRAFANA_ADMIN_PASSWORD`
+- log file configuration
+- Redis connection settings
+- persistent volume directories
+- container resource limits
+- Grafana credentials
+- image tag overrides if you use them
 
-## One-Time VPS Preparation
+## Persistent Host Data
 
-### Install baseline packages
+The production stack expects persistent host directories for:
 
-```bash
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg lsb-release git ufw ripgrep
-```
+- bot logs
+- Redis data
+- Loki data
+- Grafana data
+- Alloy data
 
-### Install Docker Engine and Compose
-
-```bash
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo $VERSION_CODENAME) stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-```
-
-### Create a deploy user
-
-```bash
-sudo adduser deploy
-sudo usermod -aG docker deploy
-```
-
-Re-login, then verify:
-
-```bash
-docker --version
-docker compose version
-```
-
-### Configure firewall and time sync
-
-```bash
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow OpenSSH
-sudo ufw enable
-sudo ufw status
-timedatectl set-timezone UTC
-timedatectl set-ntp true
-timedatectl status
-```
-
-## Persistent Host Directories
-
-Create the persistent directories the compose stack expects:
-
-```bash
-sudo mkdir -p /opt/arbiter/redis-data /opt/arbiter/bot-logs
-```
-
-The default container users are:
-
-- bot: `1000:1000`
-- redis: `999:999`
-
-Set ownership accordingly:
-
-```bash
-sudo chown -R 1000:1000 /opt/arbiter/bot-logs
-sudo chown -R 999:999 /opt/arbiter/redis-data
-```
-
-If you override `BOT_UID`, `BOT_GID`, `REDIS_UID`, or `REDIS_GID`, match those values on the host as well.
+If those paths are moved or re-owned, update the environment configuration to match. The bot container and Redis container may run under explicit numeric users, so host ownership matters.
 
 ## First Deploy
 
-Use this sequence on a clean VPS:
+A normal first deploy looks like this:
+
+1. check out the repo on the host
+2. create and secure `.env`
+3. make sure the expected persistent directories exist
+4. build the images
+5. run the migration container
+6. start the stack
+7. inspect bot logs
+
+Repo-specific commands:
 
 ```bash
-git pull
-cp .env.example .env
-chmod 600 .env
-# edit .env with production values
-# take a database backup or snapshot before applying migrations
 docker compose -f docker-compose.prod.yml build --pull
 docker compose -f docker-compose.prod.yml run --rm arbiter-migrate
 docker compose -f docker-compose.prod.yml up -d --force-recreate
 docker compose -f docker-compose.prod.yml logs -f arbiter-bot
 ```
 
-Why `arbiter-migrate` exists:
+Before running migrations against production, take a database backup or otherwise ensure you have a rollback plan for the durable data.
 
-- the runtime container stays smaller
-- Prisma CLI remains available in the migration container
-- schema migration stays explicit instead of hidden inside bot startup
+## Normal Update Deploy
 
-## Ongoing Deploy Loop
-
-Use this whenever code or schema changes need to reach the VPS:
+For a standard application update, the loop is the same:
 
 ```bash
-# take a database backup or snapshot before applying migrations
 docker compose -f docker-compose.prod.yml build --pull
 docker compose -f docker-compose.prod.yml run --rm arbiter-migrate
 docker compose -f docker-compose.prod.yml up -d --force-recreate
 docker compose -f docker-compose.prod.yml logs -f arbiter-bot
 ```
 
-Use `up -d --force-recreate` when:
+Use `--force-recreate` when:
 
 - images changed
-- env values changed
-- a service is in a bad state and you want a clean recreate
+- environment values changed
+- a service is in a bad state and you want a clean replacement
 
-## Bot-Only Operations
+## What To Verify After Deploy
 
-Sometimes you only want to operate the bot container and leave Redis and observability running.
+At minimum, verify:
 
-Start:
+- the migration step completed successfully
+- the bot container stays healthy and connected
+- Redis is reachable from the bot
+- logs are still being written to the expected mounted directory
+- Alloy is shipping logs and Grafana can still query Loki
 
-```bash
-docker compose -f docker-compose.prod.yml up -d arbiter-bot
-```
+The bot log stream is usually the fastest first check after deployment.
 
-Stop:
+## Operational Notes
 
-```bash
-docker compose -f docker-compose.prod.yml stop arbiter-bot
-```
-
-Restart:
-
-```bash
-docker compose -f docker-compose.prod.yml restart arbiter-bot
-```
-
-Recreate only the bot:
-
-```bash
-docker compose -f docker-compose.prod.yml up -d --force-recreate arbiter-bot
-```
-
-## Runtime Verification
-
-Check effective container users:
-
-```bash
-docker compose -f docker-compose.prod.yml exec arbiter-bot id
-docker compose -f docker-compose.prod.yml exec arbiter-redis id
-```
-
-Tail service logs:
-
-```bash
-docker compose -f docker-compose.prod.yml logs -f arbiter-bot
-docker compose -f docker-compose.prod.yml logs -f arbiter-redis
-```
-
-Stop the whole stack:
-
-```bash
-docker compose -f docker-compose.prod.yml down
-```
-
-## Production Logging And Grafana
+### Logging
 
 Production uses the same file-first logging model as development:
 
-- `arbiter-bot` writes JSON logs to `/app/logs/arbiter.log`
-- that path is backed by `BOT_LOGS_DIR` on the VPS
-- Alloy tails the mounted log directory
+- the bot writes structured logs to the configured log path
+- the log directory is mounted from the host
+- Alloy tails that mounted directory
 - Loki stores the logs
-- Grafana is the main operator UI
 
-The provisioned Grafana instance includes the `Arbiter Logs` dashboard, so operators start with a working log view instead of building one manually after deploy.
+That means deployment issues often show up as either:
 
-That is why log retention and host disk usage matter. The bot does not rotate files in-app. Use host-level rotation or a deploy-level rotation policy.
+- the bot failed to start
+- the bot started but logs are not being shipped
 
-For the logging model itself, read [Logging And Observability](/architecture/logging-and-observability).
+### Redis
 
-## Production Compose Helpers
+Redis is part of the production stack because event tracking depends on it. If Redis is down, live event workflows will degrade even if the bot process itself is still alive.
 
-The repo also exposes package scripts for the production compose file:
+### Database
 
-- `pnpm prod:build`
-  Builds the production images from `docker-compose.prod.yml`. Use it before a deploy when images need refreshing.
-- `pnpm prod:up`
-  Starts the full production compose stack in detached mode. Use it when bringing the VPS stack online.
-- `pnpm prod:down`
-  Stops the full production compose stack. Use it for controlled shutdowns or maintenance windows.
-- `pnpm prod:logs`
-  Tails the production compose logs. Use it right after deploys or while investigating runtime issues.
+Because Postgres is external, database reachability is one of the first things to verify when the bot fails early in production.
 
-These are convenience wrappers over `docker compose -f docker-compose.prod.yml ...`.
+## Common Deployment Mistakes
 
-## Legacy Data Migration Utilities
+- assuming production Postgres is in the compose stack when it is actually external
+- skipping the migration container and hoping runtime startup will handle schema drift
+- forgetting to create or mount persistent host directories
+- changing container user IDs without fixing host ownership
+- checking only container health and not actual bot logs
 
-`prisma/migration/` is not the normal runtime migration path.
+## What To Read Next
 
-Those scripts are data-migration utilities for importing or repairing legacy data. They should be run intentionally, not on every deploy.
-
-Normal schema migration goes through:
-
-- `pnpm db:migrate`
-  Runs Prisma schema migrations. Use it locally or in controlled deploy workflows, not as a catch-all for legacy data migration.
-- `arbiter-migrate` in the production compose flow
-
-## Read This Next
-
-- For local boot and daily commands:
-  [Local Development](/onboarding/local-development)
-- For logging architecture:
-  [Logging And Observability](/architecture/logging-and-observability)
-- For release preparation:
+- how releases are prepared before deploy:
   [Release Workflow](/contributing/release-workflow)
+- how logging and observability are structured:
+  [Logging And Observability](/architecture/logging-and-observability)

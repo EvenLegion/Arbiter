@@ -3,7 +3,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
 	title: 'Arbiter Docs',
-	tagline: 'Architecture and onboarding guide for the Even Legion Discord bot',
+	tagline: 'Onboarding, architecture, and contribution guide for the Even Legion Discord bot',
 	url: 'https://evenlegion.github.io',
 	baseUrl: '/Arbiter/',
 	onBrokenLinks: 'throw',
@@ -69,7 +69,7 @@ const config: Config = {
 							to: '/onboarding/local-development'
 						},
 						{
-							label: 'Repository Map',
+							label: 'Codebase Tour',
 							to: '/onboarding/repository-map'
 						}
 					]
@@ -78,49 +78,33 @@ const config: Config = {
 					title: 'Architecture',
 					items: [
 						{
-							label: 'Runtime Overview',
+							label: 'System Overview',
 							to: '/architecture/runtime-overview'
 						},
 						{
-							label: 'Discord Execution Model',
+							label: 'Request Flow',
 							to: '/architecture/discord-execution-model'
 						},
 						{
-							label: 'Data and Storage',
+							label: 'State And Storage',
 							to: '/architecture/data-and-storage'
 						},
 						{
 							label: 'Logging and Observability',
 							to: '/architecture/logging-and-observability'
-						},
-						{
-							label: 'Prisma Integration',
-							to: '/architecture/prisma-integration'
-						},
-						{
-							label: 'Service Design',
-							to: '/architecture/service-dependency-design'
-						},
-						{
-							label: 'Codebase Terminology',
-							to: '/architecture/codebase-terminology'
 						}
 					]
 				},
 				{
-					title: 'Reference',
+					title: 'Workflows',
 					items: [
 						{
-							label: 'Codebase Terminology',
-							to: '/architecture/codebase-terminology'
+							label: 'Event And Merit',
+							to: '/features/event-system'
 						},
 						{
-							label: 'Command Catalog',
-							to: '/reference/command-and-interaction-catalog'
-						},
-						{
-							label: 'Aggregate Reference',
-							to: '/reference/aggregate-reference'
+							label: 'Membership And Identity',
+							to: '/features/division-and-membership'
 						}
 					]
 				},
@@ -128,7 +112,7 @@ const config: Config = {
 					title: 'Contributing',
 					items: [
 						{
-							label: 'Adding Features',
+							label: 'Making Changes Safely',
 							to: '/contributing/adding-features'
 						},
 						{
@@ -138,14 +122,6 @@ const config: Config = {
 						{
 							label: 'Production Deployment',
 							to: '/contributing/production-deployment'
-						},
-						{
-							label: 'Maintaining Docs',
-							to: '/contributing/maintaining-docs'
-						},
-						{
-							label: 'Testing and Refactors',
-							to: '/contributing/testing-and-refactors'
 						}
 					]
 				}
