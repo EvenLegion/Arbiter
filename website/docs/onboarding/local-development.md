@@ -172,4 +172,42 @@ Use automated tests for business logic, persistence, and deterministic result ma
 
 ## When You Need More Than Seed Data
 
-The normal onboarding path is migrations plus repo seeds. If you need a prod-like snapshot or a restored dump, treat that as a separate operational task, not part of the default setup. The exact restore workflow depends on the dump format and the migration history you are starting from.
+The normal onboarding path is migrations plus repo seeds. If you need a more realistic local dataset, the workflow changes: you rebuild Postgres, restore a dump, tell Prisma which baseline migration is already represented by that dump, then reapply repo-managed migrations and seeds.
+
+One working local rebuild flow is:
+
+```bash
+pnpm db:reset
+pnpm db:up
+cat dev.dump | docker exec -e PGPASSWORD=arbiter -i arbiter-v3-dev-db pg_restore \
+  -U arbiter \
+  -d arbiter \
+  --clean \
+  --if-exists \
+  --no-owner \
+  --no-privileges
+pnpm exec prisma migrate resolve --applied 20260311232110_init
+pnpm db:migrate
+pnpm db:generate
+pnpm db:seed
+pnpm redis:reset
+pnpm redis:up
+```
+
+What each command does:
+
+- `pnpm db:reset` removes the local Postgres container and its volume so you are not restoring on top of stale state.
+- `pnpm db:up` recreates the Postgres container and starts the database service.
+- `cat dev.dump | docker exec ... pg_restore ...` streams a local Postgres dump into the running database and replaces conflicting objects as part of the restore.
+- `pnpm exec prisma migrate resolve --applied 20260311232110_init` tells Prisma that the restored dump already includes the baseline schema represented by the `20260311232110_init` migration.
+- `pnpm db:migrate` applies any repo migrations created after that baseline.
+- `pnpm db:generate` regenerates the Prisma client against the schema now present in your local database.
+- `pnpm db:seed` layers repo-owned seed data on top of the restored dump so reference data and local assumptions stay aligned with the current codebase.
+- `pnpm redis:reset` clears Redis volume state so in-memory coordination data does not drift from the freshly restored Postgres snapshot.
+- `pnpm redis:up` recreates and starts Redis.
+
+Notes:
+
+- This restore command assumes your dump file is named `dev.dump`, is compatible with `pg_restore`, and your Postgres container is named `arbiter-v3-dev-db`.
+- If you only need to restart Redis and do not care about wiping its data, you can skip `pnpm redis:reset` and just run `pnpm redis:up`.
+- If the dump was taken from a newer migration state than `20260311232110_init`, adjust the `prisma migrate resolve --applied ...` step to match the baseline already present in the dump.

@@ -38,6 +38,16 @@ export async function reviewNameChangeAction({
 		};
 	};
 }) {
+	logger.info(
+		{
+			nameChangeRequestId: requestId,
+			reviewerDiscordUserId: interaction.user.id,
+			reviewerDbUserId: reviewer.dbUser?.id ?? null,
+			decision
+		},
+		'name_change.review.started'
+	);
+
 	await responder.deferUpdate();
 
 	let reviewResult: Awaited<ReturnType<typeof reviewNameChangeDecision>>;
@@ -79,6 +89,12 @@ export async function reviewNameChangeAction({
 	}
 
 	if (reviewResult.kind !== 'reviewed' && reviewResult.kind !== 'reviewed_sync_failed') {
+		const logBindings = {
+			nameChangeRequestId: requestId,
+			reviewerDiscordUserId: interaction.user.id,
+			decision,
+			resultKind: reviewResult.kind
+		};
 		if (
 			reviewResult.kind === 'reviewer_not_found' ||
 			reviewResult.kind === 'requester_member_not_found' ||
@@ -86,12 +102,13 @@ export async function reviewNameChangeAction({
 		) {
 			logger.error(
 				{
-					nameChangeRequestId: requestId,
-					reviewerDiscordUserId: interaction.user.id,
+					...logBindings,
 					reviewResult
 				},
 				'name_change.review.failed'
 			);
+		} else {
+			logger.info(logBindings, 'name_change.review.rejected');
 		}
 		const failure = getNameChangeReviewFailureMessage(reviewResult);
 		await responder.fail(failure.content, {

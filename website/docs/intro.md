@@ -52,20 +52,6 @@ Today the bot exposes a small number of ingress shapes:
 
 You do not need to memorize the source files for those surfaces. The important mental model is that Arbiter has a small set of ingress types, and each ingress is expected to hand off quickly to a better-named workflow layer.
 
-## How To Find Code When Paths Change
-
-Use search terms instead of a deep file inventory:
-
-- slash command registration: search the public command name or `registerApplicationCommands`
-- chat-input execution: search `chatInput`
-- button or modal protocol: search `createCustomIdCodec`, `parse`, or the visible button label
-- handler entrypoint: search `handle<Thing>`
-- dependency assembly: search `create*Deps` or `*Runtime`
-- presenter or payload builder: search `build*Payload`, `build*Embed`, `build*Row`, or `present*`
-- service rule ownership: search the domain noun plus verbs like `create`, `apply`, `load`, `record`, `sync`, `finalize`, or `reconcile`
-- storage boundary: search repository names such as `eventRepository`, `eventReviewRepository`, `meritRepository`, `nameChangeRepository`, `divisionRepository`, or `userRepository`
-- request-correlated logs: search for the `flow` value or the `requestId`
-
 ## Core Ideas To Keep In Mind
 
 - Arbiter is primarily a workflow bot. Most of the complexity exists to keep multi-step operational flows correct over time.

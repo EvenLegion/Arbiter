@@ -27,6 +27,17 @@ export async function runAddTrackedChannelAction({
 		fallbackVoiceChannel: targetVoiceChannel
 	});
 
+	logger.info(
+		{
+			eventSessionId: input.eventSessionId,
+			targetVoiceChannelId: input.targetVoiceChannelId,
+			targetVoiceChannelResolvedId: targetVoiceChannel?.id ?? null,
+			renameTo: input.renameTo,
+			actorDiscordUserId: input.actor.discordUserId
+		},
+		'event.session.add_vc.lifecycle.started'
+	);
+
 	const result = await addTrackedChannel(
 		{
 			findEventSession: (eventSessionId: number) =>
@@ -111,5 +122,67 @@ export async function runAddTrackedChannelAction({
 		input
 	);
 
-	return presentEventAddVcResult(result);
+	logger.info(buildAddTrackedChannelResultLogBindings(result), 'event.session.add_vc.lifecycle.completed');
+
+	if (result.kind === 'channel_added' && result.announcementComplete === false) {
+		logger.warn(
+			{
+				eventSessionId: input.eventSessionId,
+				targetVoiceChannelId: input.targetVoiceChannelId,
+				parentVoiceChannelId: result.parentVoiceChannelId
+			},
+			'event.session.add_vc.announcement_incomplete'
+		);
+	}
+
+	const presented = presentEventAddVcResult(result);
+	logger.info(
+		{
+			eventSessionId: input.eventSessionId,
+			targetVoiceChannelId: input.targetVoiceChannelId,
+			resultKind: result.kind,
+			delivery: presented.delivery
+		},
+		'event.session.add_vc.lifecycle.presented'
+	);
+
+	return presented;
+}
+
+function buildAddTrackedChannelResultLogBindings(result: Awaited<ReturnType<typeof addTrackedChannel>>) {
+	switch (result.kind) {
+		case 'actor_not_found':
+		case 'event_not_found':
+			return {
+				resultKind: result.kind
+			};
+		case 'invalid_state':
+			return {
+				resultKind: result.kind,
+				currentState: result.currentState
+			};
+		case 'parent_channel_already_tracked':
+		case 'already_tracked':
+			return {
+				resultKind: result.kind,
+				channelId: result.channelId,
+				eventName: result.eventName
+			};
+		case 'channel_reserved':
+			return {
+				resultKind: result.kind,
+				channelId: result.channelId,
+				eventName: result.eventName,
+				reservedByEventSessionId: result.eventSessionId,
+				reservedState: result.state
+			};
+		case 'channel_added':
+			return {
+				resultKind: result.kind,
+				channelId: result.channelId,
+				eventName: result.eventName,
+				parentVoiceChannelId: result.parentVoiceChannelId,
+				announcementComplete: result.announcementComplete
+			};
+	}
 }

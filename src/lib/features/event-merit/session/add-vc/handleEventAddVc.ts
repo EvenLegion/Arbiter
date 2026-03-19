@@ -24,6 +24,15 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 
 	await responder.deferEphemeralReply();
 
+	logger.info(
+		{
+			actorDiscordUserId: interaction.user.id,
+			requestedVoiceChannelId: interaction.options.getString('voice_channel')?.trim() || null,
+			rawEventSessionId: interaction.options.getString('event_selection') ?? null
+		},
+		'event.session.add_vc.started'
+	);
+
 	const guild = await resolveConfiguredGuild({
 		interaction,
 		responder,
@@ -58,6 +67,13 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 	if (requestedVoiceChannelId.length > 0) {
 		targetVoiceChannel = await resolveEventVoiceChannel(guild, requestedVoiceChannelId);
 		if (!targetVoiceChannel) {
+			logger.info(
+				{
+					actorDiscordUserId: interaction.user.id,
+					requestedVoiceChannelId
+				},
+				'event.session.add_vc.rejected_invalid_voice_channel'
+			);
 			await responder.safeEditReply({
 				content: 'Selected `voice_channel` was not found or is not voice-based.'
 			});
@@ -67,6 +83,12 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 		targetVoiceChannelId = targetVoiceChannel.id;
 	} else {
 		if (!actor.member.voice.channelId || !actor.member.voice.channel || !actor.member.voice.channel.isVoiceBased()) {
+			logger.info(
+				{
+					actorDiscordUserId: interaction.user.id
+				},
+				'event.session.add_vc.rejected_missing_voice_channel'
+			);
 			await responder.safeEditReply({
 				content: 'You must be in a voice channel or provide `voice_channel`.'
 			});
@@ -80,6 +102,13 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 	const rawEventSessionId = interaction.options.getString('event_selection', true);
 	const parsedEventSessionId = EVENT_SESSION_ID_SCHEMA.safeParse(rawEventSessionId);
 	if (!parsedEventSessionId.success) {
+		logger.warn(
+			{
+				actorDiscordUserId: interaction.user.id,
+				rawEventSessionId
+			},
+			'event.session.add_vc.invalid_event_selection'
+		);
 		await responder.safeEditReply({
 			content: 'Invalid event selection.'
 		});
@@ -87,6 +116,16 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 	}
 
 	const renameTo = interaction.options.getString('rename_channel_to')?.trim() ?? '';
+	logger.info(
+		{
+			actorDiscordUserId: interaction.user.id,
+			eventSessionId: parsedEventSessionId.data,
+			targetVoiceChannelId,
+			targetVoiceChannelSource: requestedVoiceChannelId.length > 0 ? 'option' : 'member_voice',
+			renameTo: renameTo.length > 0 ? renameTo : null
+		},
+		'event.session.add_vc.resolved_input'
+	);
 	const response = await runAddTrackedChannelAction({
 		guild,
 		targetVoiceChannel,
@@ -100,10 +139,25 @@ export async function handleEventAddVc({ interaction, context }: HandleEventAddV
 		}
 	});
 	if (response.delivery === 'deleteReply') {
+		logger.info(
+			{
+				eventSessionId: parsedEventSessionId.data,
+				targetVoiceChannelId
+			},
+			'event.session.add_vc.completed'
+		);
 		await interaction.deleteReply().catch(() => null);
 		return;
 	}
 
+	logger.info(
+		{
+			eventSessionId: parsedEventSessionId.data,
+			targetVoiceChannelId,
+			delivery: response.delivery
+		},
+		'event.session.add_vc.responded'
+	);
 	await responder.safeEditReply({
 		content: response.content
 	});

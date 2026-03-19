@@ -16,6 +16,14 @@ export async function runRefreshEventReviewPageAction({
 	guild: Guild;
 	logger: ExecutionContext['logger'];
 }) {
+	logger.info(
+		{
+			eventSessionId: parsedEventReviewButton.eventSessionId,
+			page: parsedEventReviewButton.page
+		},
+		'event.review.page.refresh.started'
+	);
+
 	const pageResult = await refreshEventReviewPage(
 		{
 			getReviewPage: async ({ eventSessionId, page }: { eventSessionId: number; page: number }) =>
@@ -36,6 +44,36 @@ export async function runRefreshEventReviewPageAction({
 			page: parsedEventReviewButton.page
 		}
 	);
+
+	if (pageResult.kind === 'page_refreshed') {
+		if (pageResult.synced) {
+			logger.info(
+				{
+					eventSessionId: parsedEventReviewButton.eventSessionId,
+					page: parsedEventReviewButton.page
+				},
+				'event.review.page.refresh.completed'
+			);
+		} else {
+			logger.warn(
+				{
+					eventSessionId: parsedEventReviewButton.eventSessionId,
+					page: parsedEventReviewButton.page
+				},
+				'event.review.page.refresh.sync_failed'
+			);
+		}
+	} else {
+		logger.info(
+			{
+				eventSessionId: parsedEventReviewButton.eventSessionId,
+				page: parsedEventReviewButton.page,
+				resultKind: pageResult.kind,
+				...('currentState' in pageResult ? { currentState: pageResult.currentState } : {})
+			},
+			'event.review.page.refresh.rejected'
+		);
+	}
 
 	return presentRefreshEventReviewPageResult(pageResult);
 }

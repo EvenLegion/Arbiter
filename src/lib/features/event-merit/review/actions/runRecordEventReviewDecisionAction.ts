@@ -28,6 +28,17 @@ export async function runRecordEventReviewDecisionAction({
 		};
 	};
 }) {
+	logger.info(
+		{
+			eventSessionId: parsedEventReviewButton.eventSessionId,
+			page: parsedEventReviewButton.page,
+			targetDbUserId: parsedEventReviewButton.targetDbUserId,
+			decision: parsedEventReviewButton.decision,
+			reviewerDiscordUserId: reviewer.actor.discordUserId
+		},
+		'event.review.decision.started'
+	);
+
 	const result = await recordEventReviewDecision(
 		{
 			findEventSession: async (eventSessionId: number) =>
@@ -53,6 +64,42 @@ export async function runRecordEventReviewDecisionAction({
 			page: parsedEventReviewButton.page
 		}
 	);
+
+	if (result.kind === 'decision_saved') {
+		if (result.synced) {
+			logger.info(
+				{
+					eventSessionId: parsedEventReviewButton.eventSessionId,
+					page: parsedEventReviewButton.page,
+					targetDbUserId: parsedEventReviewButton.targetDbUserId,
+					decision: parsedEventReviewButton.decision
+				},
+				'event.review.decision.completed'
+			);
+		} else {
+			logger.warn(
+				{
+					eventSessionId: parsedEventReviewButton.eventSessionId,
+					page: parsedEventReviewButton.page,
+					targetDbUserId: parsedEventReviewButton.targetDbUserId,
+					decision: parsedEventReviewButton.decision
+				},
+				'event.review.decision.sync_failed'
+			);
+		}
+	} else {
+		logger.info(
+			{
+				eventSessionId: parsedEventReviewButton.eventSessionId,
+				page: parsedEventReviewButton.page,
+				targetDbUserId: parsedEventReviewButton.targetDbUserId,
+				decision: parsedEventReviewButton.decision,
+				resultKind: result.kind,
+				...('currentState' in result ? { currentState: result.currentState } : {})
+			},
+			'event.review.decision.rejected'
+		);
+	}
 
 	return presentRecordEventReviewDecisionResult(result);
 }

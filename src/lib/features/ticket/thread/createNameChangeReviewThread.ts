@@ -13,10 +13,15 @@ import { getNameChangeReviewStaffRoleIds, resolveBotRequestsChannel } from './na
 
 export function createNameChangeReviewThread({
 	guild,
+	logger,
 	buildReviewEmbed,
 	buildReviewActionRow
 }: {
 	guild: Guild;
+	logger: {
+		info: (...values: readonly unknown[]) => void;
+		error: (...values: readonly unknown[]) => void;
+	};
 	buildReviewEmbed: (params: {
 		requestId: number;
 		requesterDiscordUserId: string;
@@ -34,30 +39,69 @@ export function createNameChangeReviewThread({
 		requestedName: string;
 		reason: string;
 	}) => {
+		logger.info(
+			{
+				nameChangeRequestId: payload.requestId,
+				requesterDiscordUserId: payload.requesterDiscordUserId,
+				requestedName: payload.requestedName
+			},
+			'name_change.review_thread.creating'
+		);
+
 		const botRequestsChannel = await resolveBotRequestsChannel(guild);
 		if (!botRequestsChannel) {
+			logger.error(
+				{
+					nameChangeRequestId: payload.requestId,
+					guildId: guild.id
+				},
+				'name_change.review_thread.bot_requests_channel_missing'
+			);
 			return null;
 		}
 
-		const thread = await createReviewThread({
-			channel: botRequestsChannel,
-			requestedName: payload.requestedName,
-			requestId: payload.requestId,
-			requesterTag: payload.requesterTag,
-			requesterDiscordUserId: payload.requesterDiscordUserId,
-			embed: buildReviewEmbed({
-				requestId: payload.requestId,
-				requesterDiscordUserId: payload.requesterDiscordUserId,
-				currentName: payload.currentName,
+		try {
+			const thread = await createReviewThread({
+				channel: botRequestsChannel,
 				requestedName: payload.requestedName,
-				reason: payload.reason
-			}),
-			components: [buildReviewActionRow({ requestId: payload.requestId })]
-		});
+				requestId: payload.requestId,
+				requesterTag: payload.requesterTag,
+				requesterDiscordUserId: payload.requesterDiscordUserId,
+				embed: buildReviewEmbed({
+					requestId: payload.requestId,
+					requesterDiscordUserId: payload.requesterDiscordUserId,
+					currentName: payload.currentName,
+					requestedName: payload.requestedName,
+					reason: payload.reason
+				}),
+				components: [buildReviewActionRow({ requestId: payload.requestId })]
+			});
 
-		return {
-			reviewThreadId: thread.id
-		};
+			logger.info(
+				{
+					nameChangeRequestId: payload.requestId,
+					requesterDiscordUserId: payload.requesterDiscordUserId,
+					reviewThreadId: thread.id,
+					botRequestsChannelId: botRequestsChannel.id
+				},
+				'name_change.review_thread.created'
+			);
+
+			return {
+				reviewThreadId: thread.id
+			};
+		} catch (error) {
+			logger.error(
+				{
+					err: error,
+					nameChangeRequestId: payload.requestId,
+					requesterDiscordUserId: payload.requesterDiscordUserId,
+					requestedName: payload.requestedName
+				},
+				'name_change.review_thread.failed'
+			);
+			throw error;
+		}
 	};
 }
 

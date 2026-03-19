@@ -62,6 +62,15 @@ const EVENT_REVIEW_BUTTON_ROUTES: EventReviewButtonRouteMap = {
 		}
 	},
 	submit: async ({ parsedEventReviewButton, guild, context, logger, responder, reviewer }) => {
+		logger.info(
+			{
+				eventSessionId: parsedEventReviewButton.eventSessionId,
+				mode: parsedEventReviewButton.mode,
+				reviewerDiscordUserId: reviewer.actor.discordUserId
+			},
+			'event.review.finalize.started'
+		);
+
 		const { result, message } = await runFinalizeEventReviewAction({
 			parsedEventReviewButton,
 			guild,
@@ -72,20 +81,32 @@ const EVENT_REVIEW_BUTTON_ROUTES: EventReviewButtonRouteMap = {
 		if (message) {
 			await responder.fail(message);
 			if (result.kind !== 'review_finalized') {
+				logger.info(
+					{
+						eventSessionId: parsedEventReviewButton.eventSessionId,
+						mode: parsedEventReviewButton.mode,
+						resultKind: result.kind,
+						...('currentState' in result ? { currentState: result.currentState } : {})
+					},
+					'event.review.finalize.rejected'
+				);
 				return;
 			}
 		}
 
 		if (result.kind === 'review_finalized') {
-			logger.info(
-				{
-					eventSessionId: parsedEventReviewButton.eventSessionId,
-					mode: parsedEventReviewButton.mode,
-					awardedCount: result.awardedCount,
-					toState: result.toState
-				},
-				'event.review.finalized'
-			);
+			const logBindings = {
+				eventSessionId: parsedEventReviewButton.eventSessionId,
+				mode: parsedEventReviewButton.mode,
+				awardedCount: result.awardedCount,
+				toState: result.toState,
+				reviewMessageSynced: result.reviewMessageSynced
+			};
+			if (result.reviewMessageSynced) {
+				logger.info(logBindings, 'event.review.finalized');
+			} else {
+				logger.warn(logBindings, 'event.review.finalized_with_sync_issue');
+			}
 		}
 	}
 };

@@ -41,6 +41,16 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 	}
 
 	try {
+		logger.info(
+			{
+				hostDiscordUserId: issuer.id,
+				requestedEventTierId: interaction.options.getString('tier_level'),
+				requestedEventName: interaction.options.getString('event_name'),
+				issuerVoiceChannelId: issuer.voice.channelId ?? null
+			},
+			'event.session.create_draft.started'
+		);
+
 		const resolvedCommand = await resolveEventStartCommand({
 			interaction,
 			guild,
@@ -48,6 +58,14 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 			logger
 		});
 		if (resolvedCommand.kind === 'fail') {
+			logger.info(
+				{
+					hostDiscordUserId: issuer.id,
+					delivery: resolvedCommand.delivery,
+					requestId: resolvedCommand.requestId ?? false
+				},
+				'event.session.create_draft.rejected'
+			);
 			if (resolvedCommand.delivery === 'fail') {
 				await responder.fail(resolvedCommand.content, {
 					requestId: resolvedCommand.requestId
@@ -60,6 +78,17 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 			});
 			return;
 		}
+
+		logger.info(
+			{
+				hostDiscordUserId: issuer.id,
+				eventTierId: resolvedCommand.createDraftInput.eventTierId,
+				eventName: resolvedCommand.createDraftInput.eventName,
+				primaryVoiceChannelId: resolvedCommand.createDraftInput.primaryVoiceChannelId,
+				trackingChannelId: resolvedCommand.trackingChannel.id
+			},
+			'event.session.create_draft.validated'
+		);
 
 		const result = await createEventDraft(
 			createEventDraftRuntime({
@@ -87,6 +116,15 @@ export async function handleEventStart({ interaction, context }: HandleEventStar
 			return;
 		}
 		if (response.delivery === 'editReply') {
+			logger.info(
+				{
+					hostDiscordUserId: issuer.id,
+					resultKind: result.kind,
+					eventTierId: resolvedCommand.createDraftInput.eventTierId,
+					eventName: resolvedCommand.createDraftInput.eventName
+				},
+				'event.session.create_draft.rejected'
+			);
 			await responder.safeEditReply({
 				content: response.content
 			});

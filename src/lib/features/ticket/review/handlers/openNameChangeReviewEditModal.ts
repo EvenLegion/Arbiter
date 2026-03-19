@@ -24,10 +24,19 @@ export async function openNameChangeReviewEditModal({
 		};
 	};
 	logger: {
+		info: (...values: readonly unknown[]) => void;
 		error: (...values: readonly unknown[]) => void;
 	};
 	responder: InteractionResponder;
 }) {
+	logger.info(
+		{
+			nameChangeRequestId: requestId,
+			reviewerDiscordUserId: reviewerActor.discordUserId
+		},
+		'name_change.edit_modal.started'
+	);
+
 	let editResult: Awaited<ReturnType<typeof getPendingNameChangeRequestForEdit>>;
 	try {
 		editResult = await getPendingNameChangeRequestForEdit(
@@ -53,6 +62,14 @@ export async function openNameChangeReviewEditModal({
 	}
 
 	if (editResult.kind !== 'editable') {
+		logger.info(
+			{
+				nameChangeRequestId: requestId,
+				reviewerDiscordUserId: reviewerActor.discordUserId,
+				resultKind: editResult.kind
+			},
+			'name_change.edit_modal.rejected'
+		);
 		const failure = getNameChangeEditFailureMessage(editResult);
 		await responder.fail(failure.content);
 		return;
@@ -75,5 +92,14 @@ export async function openNameChangeReviewEditModal({
 		await responder.fail('Failed to open edit modal. Please try again.', {
 			requestId: true
 		});
+		return;
 	}
+
+	logger.info(
+		{
+			nameChangeRequestId: editResult.requestId,
+			reviewerDiscordUserId: reviewerActor.discordUserId
+		},
+		'name_change.edit_modal.opened'
+	);
 }
