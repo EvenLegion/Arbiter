@@ -8,13 +8,13 @@ import {
 	finalizeEventReviewLifecycle,
 	initializeEventReviewState,
 	type EventLifecycleEventSession
-} from '../../../src/lib/services/event-lifecycle/eventLifecycleService';
+} from '../../../src/lib/services/event-lifecycle';
 import { createStandalonePrisma, pushPrismaSchema, resetDatabase, seedReferenceData, type StandalonePrisma } from '../setup/database';
 import { createEventSession, createUser } from '../setup/fixtures';
 import { flushRedisDatabase } from '../setup/redis';
 import { applyIntegrationTestEnv, startIntegrationContainers, stopIntegrationContainers, type IntegrationContainers } from '../setup/testcontainers';
 
-describe('eventLifecycleService integration', () => {
+describe('eventLifecycle integration', () => {
 	let containers: IntegrationContainers;
 	let standalone: StandalonePrisma;
 	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;

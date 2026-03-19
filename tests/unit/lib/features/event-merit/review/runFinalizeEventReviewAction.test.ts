@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
 	presentFinalizeEventReviewResult: vi.fn()
 }));
 
-vi.mock('../../../../../../src/lib/services/event-lifecycle/eventLifecycleService', () => ({
+vi.mock('../../../../../../src/lib/services/event-lifecycle', () => ({
 	finalizeEventReviewLifecycle: mocks.finalizeEventReviewLifecycle
 }));
 

@@ -3,11 +3,10 @@ import { EventSessionChannelKind } from '@prisma/client';
 
 import { eventRepository } from '../../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../../logging/executionContext';
-import { addTrackedChannel } from '../../../../services/event-lifecycle/eventLifecycleService';
+import { EVENT_LIFECYCLE_SESSION_INCLUDE, addTrackedChannel } from '../../../../services/event-lifecycle';
 import { postChildVcAddedTimelineMessage } from '../../gateways/postChildVcAddedTimelineMessage';
 import { postPublicAddVcTimelineMessages } from '../../gateways/postPublicAddVcTimelineMessages';
 import { syncEventTrackingSummaryPresentation } from '../../presentation/syncEventTrackingPresentation';
-import { EVENT_LIFECYCLE_SESSION_INCLUDE } from '../shared/eventLifecycleSessionInclude';
 import { createVoiceChannelGateway } from '../shared/voiceChannelGateway';
 import { presentEventAddVcResult } from './eventAddVcResultPresenter';
 

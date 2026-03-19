@@ -5,7 +5,7 @@ import { refreshDivisionCache } from '../../discord/guild/divisions';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
 import { reconcileGuildMemberDivisionMemberships } from '../division-membership/reconcileGuildMemberDivisionMemberships';
 import { createGuildMemberAccessGateway } from '../guild-member/guildMemberAccessGateway';
-import { createGuildNicknameWorkflowGateway } from '../nickname/createGuildNicknameServiceDeps';
+import { createGuildNicknameWorkflow } from '../nickname/guildNicknameWorkflow';
 import type { SyncNicknameForUserResult } from '../nickname/nicknameService';
 
 export function createGuildMemberSyncDeps({ guild, context }: { guild: Guild; context: ExecutionContext }) {
@@ -36,7 +36,7 @@ export function createGuildMemberSyncDeps({ guild, context }: { guild: Guild; co
 				})
 			}),
 		syncNickname: async ({ member, dbUserId }: { member: GuildMember; dbUserId: string }) => {
-			const nicknames = createGuildNicknameWorkflowGateway({
+			const nicknames = createGuildNicknameWorkflow({
 				guild,
 				context: createChildExecutionContext({
 					context,

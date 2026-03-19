@@ -345,7 +345,7 @@ Typical locations:
 
 Examples:
 
-- `guildNicknameWorkflowGateway.ts`
+- `guildNicknameWorkflow.ts`
 - `eventDiscordMessageGateway.ts`
 - `userDirectoryGateway.ts`
 
@@ -368,7 +368,7 @@ The repo uses gateways when a service or feature needs to say, "I need _this cap
 ### Pseudo Code
 
 ```ts
-function createGuildNicknameWorkflowGateway({ guild, context }) {
+function createGuildNicknameWorkflow({ guild, context }) {
 	const deps = createGuildNicknameServiceDeps({ guild, context });
 	return {
 		computeNickname: (params) => computeNicknameForUser(deps, params),

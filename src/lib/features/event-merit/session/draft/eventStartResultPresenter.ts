@@ -1,4 +1,4 @@
-import type { CreateEventDraftResult } from '../../../../services/event-lifecycle/eventLifecycleService';
+import type { CreateEventDraftResult } from '../../../../services/event-lifecycle';
 
 type EventStartResponse =
 	| {

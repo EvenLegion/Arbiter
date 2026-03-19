@@ -25,13 +25,13 @@ These are maintenance loops, not user-facing features.
 
 ## Operational Command Surface
 
-| Surface                                          | Feature handler                                             | Service                                 |
-| ------------------------------------------------ | ----------------------------------------------------------- | --------------------------------------- |
-| `staff post_division_message`                    | `src/lib/features/staff/postDivisionSelectionMessage.ts`    | self-service message/post flow          |
-| `staff sync_nickname`                            | `src/lib/features/staff/handleStaffSyncNickname.ts`         | `src/lib/services/bulk-nickname/`       |
-| `staff division_membership add/remove`           | `src/lib/features/staff/handleDivisionMembershipCommand.ts` | `src/lib/services/division-membership/` |
-| `dev sync_guild_members`                         | `src/lib/features/dev/handleSyncGuildMembers.ts`            | `src/lib/services/guild-member-sync/`   |
-| `dev nickname remove-prefix/remove-suffix/reset` | `src/lib/features/dev/handleDevNicknameTransform.ts`        | `src/lib/services/bulk-nickname/`       |
+| Surface                                          | Feature handler                                                                   | Service                                 |
+| ------------------------------------------------ | --------------------------------------------------------------------------------- | --------------------------------------- |
+| `staff post_division_message`                    | `src/lib/features/staff/division-selection/handlePostDivisionSelectionMessage.ts` | self-service message/post flow          |
+| `staff sync_nickname`                            | `src/lib/features/staff/nickname-sync/handleStaffSyncNickname.ts`                 | `src/lib/services/bulk-nickname/`       |
+| `staff division_membership add/remove`           | `src/lib/features/staff/division-membership/handleDivisionMembershipCommand.ts`   | `src/lib/services/division-membership/` |
+| `dev sync_guild_members`                         | `src/lib/features/dev/handlers/handleSyncGuildMembers.ts`                         | `src/lib/services/guild-member-sync/`   |
+| `dev nickname remove-prefix/remove-suffix/reset` | `src/lib/features/dev/handlers/handleDevNicknameTransform.ts`                     | `src/lib/services/bulk-nickname/`       |
 
 ## Why These Flows Are Separate
 

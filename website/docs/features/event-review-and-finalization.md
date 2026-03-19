@@ -28,8 +28,8 @@ Primary code:
 
 Review buttons are decoded through:
 
-- `parseEventReviewButton.ts`
-- `eventReviewButtonController.ts`
+- `eventReviewButtonProtocol.ts`
+- `dispatchEventReviewButton.ts`
 - action-specific modules such as:
     - `runRefreshEventReviewPageAction.ts`
     - `runRecordEventReviewDecisionAction.ts`
@@ -52,7 +52,7 @@ The service does not finalize event state. Finalization is a lifecycle concern b
 
 Main files:
 
-- `src/lib/features/event-merit/review/createFinalizeEventReviewLifecycleDeps.ts`
+- `src/lib/features/event-merit/review/actions/createFinalizeEventReviewLifecycleDeps.ts`
 - `src/lib/services/event-lifecycle/finalizeEventReviewLifecycle.ts`
 - `src/integrations/prisma/repositories/eventReviewRepository.ts`
 
@@ -61,7 +61,7 @@ sequenceDiagram
     participant Reviewer
     participant Button as "event review submit button"
     participant Handler as "handleEventReviewButton"
-    participant Controller as "eventReviewButtonController"
+    participant Controller as "dispatchEventReviewButton"
     participant ReviewSvc as "eventReviewService"
     participant Lifecycle as "finalizeEventReviewLifecycle"
     participant Repo as "eventReviewRepository + eventRepository"
@@ -114,8 +114,8 @@ That is why:
 Read these first:
 
 - `src/interaction-handlers/eventReviewButtons.ts`
-- `src/lib/features/event-merit/review/handleEventReviewButton.ts`
-- `src/lib/features/event-merit/review/eventReviewButtonController.ts`
+- `src/lib/features/event-merit/review/buttons/handleEventReviewButton.ts`
+- `src/lib/features/event-merit/review/buttons/dispatchEventReviewButton.ts`
 - `src/lib/services/event-review/eventReviewService.ts`
 - `src/lib/services/event-lifecycle/finalizeEventReviewLifecycle.ts`
 - `src/integrations/prisma/repositories/eventReviewRepository.ts`

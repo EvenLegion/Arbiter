@@ -1,5 +1,5 @@
 import type { RefreshEventReviewPageResult, RecordEventReviewDecisionResult } from '../../../../services/event-review/eventReviewService';
-import type { FinalizeEventReviewLifecycleResult } from '../../../../services/event-lifecycle/eventLifecycleService';
+import type { FinalizeEventReviewLifecycleResult } from '../../../../services/event-lifecycle';
 import { formatEventSessionStateLabel } from '../../presentation/shared/formatEventSessionStateLabel';
 import { EventSessionState } from '@prisma/client';
 

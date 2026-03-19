@@ -3,12 +3,11 @@ import type { Guild } from 'discord.js';
 
 import { eventRepository, eventReviewRepository } from '../../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../../logging/executionContext';
-import type { EventLifecycleEventSession } from '../../../../services/event-lifecycle/eventLifecycleService';
+import { EVENT_LIFECYCLE_SESSION_INCLUDE, type EventLifecycleEventSession } from '../../../../services/event-lifecycle';
 import { syncAwardedMemberNicknamesAndNotifyRankUp } from '../../gateways/nicknameRankSyncGateway';
 import { postReviewSubmissionTimelineMessages } from '../../gateways/postReviewSubmissionTimelineMessages';
 import { syncEventReviewPresentation } from '../../presentation/syncEventReviewPresentation';
 import { syncEventTrackingSummaryPresentation } from '../../presentation/syncEventTrackingPresentation';
-import { EVENT_LIFECYCLE_SESSION_INCLUDE } from '../../session/shared/eventLifecycleSessionInclude';
 
 export function createFinalizeEventReviewLifecycleDeps({
 	guild,

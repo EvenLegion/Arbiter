@@ -1,5 +1,16 @@
 import { EventSessionState, type Prisma } from '@prisma/client';
 
+export const EVENT_LIFECYCLE_SESSION_INCLUDE = {
+	hostUser: true,
+	eventTier: {
+		include: {
+			meritType: true
+		}
+	},
+	channels: true,
+	eventMessages: true
+} as const;
+
 export type EventTierLookup = {
 	id: number;
 	name: string;
@@ -10,16 +21,7 @@ export type EventTierLookup = {
 };
 
 export type EventLifecycleEventSession = Prisma.EventGetPayload<{
-	include: {
-		hostUser: true;
-		eventTier: {
-			include: {
-				meritType: true;
-			};
-		};
-		channels: true;
-		eventMessages: true;
-	};
+	include: typeof EVENT_LIFECYCLE_SESSION_INCLUDE;
 }>;
 
 export type EventReviewParticipantSnapshot = {

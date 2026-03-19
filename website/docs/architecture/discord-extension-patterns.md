@@ -122,7 +122,7 @@ Current example:
 - read service:
   `src/lib/services/merit-read/meritReadService.ts`
 - runtime support:
-  `src/lib/features/merit/read/createMeritReadServiceDeps.ts`
+  inline merit-read deps in `src/lib/features/merit/read/loadMeritListView.ts`
 - presenter:
   `src/lib/features/merit/read/presentMeritListView.ts`
 - payload builder:

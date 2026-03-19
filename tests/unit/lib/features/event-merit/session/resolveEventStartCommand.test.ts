@@ -11,7 +11,7 @@ vi.mock('../../../../../../src/lib/discord/guild/users', () => ({
 
 import { resolveEventStartCommand } from '../../../../../../src/lib/features/event-merit/session/draft/resolveEventStartCommand';
 
-describe('eventStartCommandAdapter', () => {
+describe('resolveEventStartCommand', () => {
 	beforeEach(() => {
 		mocks.getDbUserOrThrow.mockReset();
 	});

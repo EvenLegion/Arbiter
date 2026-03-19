@@ -1,5 +1,9 @@
+import type { Guild, GuildMember } from 'discord.js';
+
+import { meritRepository, userRepository } from '../../../../integrations/prisma/repositories';
+import { getGuildMemberByDiscordUserId } from '../../../discord/members/memberDirectory';
 import { loadInitialMeritList, loadMeritListPage } from '../../../services/merit-read/meritReadService';
-import { createMeritReadServiceDeps, mapGuildMemberToMeritReadMember } from './createMeritReadServiceDeps';
+import type { MeritReadMember } from '../../../services/merit-read/meritReadService';
 import { presentInitialMeritListView, presentMeritListPageView, type MeritListInitialView, type MeritListPageView } from './presentMeritListView';
 
 const MERIT_LIST_PAGE_SIZE = 5;
@@ -12,7 +16,7 @@ export async function loadInitialMeritListView({
 	requestedPrivate,
 	logger
 }: {
-	guild: Parameters<typeof createMeritReadServiceDeps>[0]['guild'];
+	guild: Guild;
 	actor: Parameters<typeof loadInitialMeritList>[1]['actor'];
 	requesterMember: Parameters<typeof mapGuildMemberToMeritReadMember>[0];
 	requestedTargetDiscordUserId: string | null;
@@ -52,7 +56,7 @@ export async function loadMeritListPageView({
 	page,
 	logger
 }: {
-	guild: Parameters<typeof createMeritReadServiceDeps>[0]['guild'];
+	guild: Guild;
 	targetDiscordUserId: string;
 	page: number;
 	logger: {
@@ -80,4 +84,27 @@ export async function loadMeritListPageView({
 			requestId: true
 		};
 	}
+}
+
+function createMeritReadServiceDeps({ guild }: { guild: Guild }) {
+	return {
+		getMember: async ({ discordUserId }: { discordUserId: string }) => {
+			const member = await getGuildMemberByDiscordUserId({
+				guild,
+				discordUserId
+			});
+
+			return member ? mapGuildMemberToMeritReadMember(member) : null;
+		},
+		getUser: userRepository.get,
+		getUserMeritSummary: meritRepository.getUserMeritSummary
+	};
+}
+
+function mapGuildMemberToMeritReadMember(member: GuildMember): MeritReadMember {
+	return {
+		discordUserId: member.id,
+		displayName: member.displayName,
+		isBot: member.user.bot
+	};
 }

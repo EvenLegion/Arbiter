@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
 	presentEventAddVcResult: vi.fn()
 }));
 
-vi.mock('../../../../../../src/lib/services/event-lifecycle/eventLifecycleService', () => ({
+vi.mock('../../../../../../src/lib/services/event-lifecycle', () => ({
 	addTrackedChannel: mocks.addTrackedChannel
 }));
 

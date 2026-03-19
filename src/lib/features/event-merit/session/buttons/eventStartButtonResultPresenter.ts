@@ -1,7 +1,7 @@
 import { EventSessionState } from '@prisma/client';
 import { MessageFlags } from 'discord.js';
 
-import type { TransitionEventSessionResult } from '../../../../services/event-lifecycle/eventLifecycleService';
+import type { TransitionEventSessionResult } from '../../../../services/event-lifecycle';
 import { formatEventSessionStateLabel } from '../../presentation/shared/formatEventSessionStateLabel';
 import type { ParsedEventStartButton } from './eventStartButtonCustomId';
 

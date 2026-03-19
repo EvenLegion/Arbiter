@@ -5,7 +5,7 @@ import { getDbUser, listDbUsers } from '../../../discord/guild/users';
 import { createChildExecutionContext, type ExecutionContext } from '../../../logging/executionContext';
 import { resolveBulkNicknameTargets } from '../../../services/bulk-nickname/bulkNicknameService';
 import { createGuildMemberAccessGateway } from '../../../services/guild-member/guildMemberAccessGateway';
-import { createGuildNicknameWorkflowGateway } from '../../../services/nickname/createGuildNicknameServiceDeps';
+import { createGuildNicknameWorkflow } from '../../../services/nickname/guildNicknameWorkflow';
 
 export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Guild; context: ExecutionContext }) {
 	const members = createGuildMemberAccessGateway({
@@ -38,7 +38,7 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 			member: GuildMember;
 			includeStaff: boolean;
 		}) =>
-			createGuildNicknameWorkflowGateway({
+			createGuildNicknameWorkflow({
 				guild,
 				context: createChildExecutionContext({
 					context,

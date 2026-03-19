@@ -89,7 +89,7 @@ Read these first:
 - `src/commands/event.ts`
 - `src/lib/features/event-merit/session/draft/handleEventStart.ts`
 - `src/lib/features/event-merit/review/buttons/handleEventReviewButton.ts`
-- `src/lib/services/event-lifecycle/eventLifecycleService.ts`
+- `src/lib/services/event-lifecycle/index.ts`
 - `src/lib/services/event-review/eventReviewService.ts`
 - `src/lib/services/event-tracking/eventTrackingService.ts`
 

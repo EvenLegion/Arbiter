@@ -1,4 +1,4 @@
-import type { AddTrackedChannelResult } from '../../../../services/event-lifecycle/eventLifecycleService';
+import type { AddTrackedChannelResult } from '../../../../services/event-lifecycle';
 import { formatEventSessionStateLabel } from '../../presentation/shared/formatEventSessionStateLabel';
 
 type EventAddVcResponse =

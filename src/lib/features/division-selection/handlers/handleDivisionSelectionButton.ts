@@ -1,13 +1,13 @@
 import { type ButtonInteraction } from 'discord.js';
 import { DivisionKind } from '@prisma/client';
 
+import { ENV_DISCORD } from '../../../../config/env/discord';
 import { memberHasDivisionKindRole } from '../../../discord/guild/divisions';
 import { listCachedDivisions } from '../../../discord/guild/divisions';
 import { createInteractionResponder } from '../../../discord/interactions/interactionResponder';
 import { resolveConfiguredGuild, resolveGuildMember } from '../../../discord/interactions/interactionPreflight';
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { applyDivisionSelection } from '../../../services/division-selection/divisionSelectionService';
-import { buildDivisionSelectionReply } from '../presentation/buildDivisionSelectionReply';
+import { applyDivisionSelection, type DivisionSelectionResult } from '../../../services/division-selection/divisionSelectionService';
 import type { ParsedDivisionSelection } from '../divisionSelectionCustomId';
 
 type HandleDivisionSelectionButtonParams = {
@@ -92,7 +92,7 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 		);
 
 		await responder.safeEditReply({
-			content: buildDivisionSelectionReply({
+			content: buildDivisionSelectionReplyMessage({
 				result,
 				requestId: context.requestId
 			})
@@ -112,5 +112,22 @@ export async function handleDivisionSelectionButton({ interaction, parsedDivisio
 		await responder.fail('There was an error processing your selection. Please contact a TECH member with the following:', {
 			requestId: true
 		});
+	}
+}
+
+function buildDivisionSelectionReplyMessage({ result, requestId }: { result: DivisionSelectionResult; requestId: string }) {
+	switch (result.kind) {
+		case 'forbidden':
+			return `Only <@&${ENV_DISCORD.LGN_ROLE_ID}> members can select a division. Please contact a TECH member with the following: requestId=${requestId}`;
+		case 'division_not_found':
+			return `There was an error processing your selection. Please contact a TECH member with the following: requestId=${requestId}`;
+		case 'already_member':
+			return `You are already a member of the ${result.divisionName} division.`;
+		case 'no_membership':
+			return 'You are not currently a member of any division.';
+		case 'joined':
+			return `You have joined the ${result.divisionName} division.`;
+		case 'left':
+			return 'Removed your division membership.';
 	}
 }

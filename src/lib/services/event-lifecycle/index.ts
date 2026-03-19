@@ -1,4 +1,5 @@
 export type { EventLifecycleEventSession } from './eventLifecycleTypes';
+export { EVENT_LIFECYCLE_SESSION_INCLUDE } from './eventLifecycleTypes';
 export { computeEventDurationSeconds } from './initializeEventReviewState';
 
 export { createEventDraft } from './createEventDraft';

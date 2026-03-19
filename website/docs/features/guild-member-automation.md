@@ -42,7 +42,7 @@ Primary services:
 
 `guildMemberAdd` currently routes to:
 
-- `src/lib/features/guild-member/onGuildMemberAdd.ts`
+- `src/lib/features/guild-member/handlers/handleGuildMemberAdd.ts`
 
 This flow:
 
@@ -56,7 +56,7 @@ It is still a relatively direct feature flow because it is mostly transport and 
 
 `guildMemberUpdate` routes to:
 
-- `src/lib/features/guild-member/onGuildMemberUpdate.ts`
+- `src/lib/features/guild-member/handlers/handleGuildMemberUpdate.ts`
 - `src/lib/services/guild-member-change/guildMemberChangeService.ts`
 
 That service owns:
@@ -65,13 +65,13 @@ That service owns:
 - membership reconciliation follow-up
 - nickname sync result shaping
 
-The feature adapter owns member resolution and dependency assembly.
+The feature runtime support owns member resolution and dependency assembly.
 
 ## Bulk Guild Sync
 
 `/dev sync_guild_members` routes through:
 
-- `src/lib/features/dev/handleSyncGuildMembers.ts`
+- `src/lib/features/dev/handlers/handleSyncGuildMembers.ts`
 - `src/lib/services/guild-member-sync/guildMemberSyncService.ts`
 
 This flow exists to converge the system after drift, cleanup, or data-shape changes.
@@ -80,8 +80,8 @@ This flow exists to converge the system after drift, cleanup, or data-shape chan
 
 Bulk nickname commands route through:
 
-- `src/lib/features/staff/handleStaffSyncNickname.ts`
-- `src/lib/features/dev/handleDevNicknameTransform.ts`
+- `src/lib/features/staff/nickname-sync/handleStaffSyncNickname.ts`
+- `src/lib/features/dev/handlers/handleDevNicknameTransform.ts`
 - `src/lib/services/bulk-nickname/bulkNicknameService.ts`
 
 These commands are summary-driven on purpose. They should report what happened across many users, not just perform silent side effects.
@@ -93,6 +93,13 @@ These commands are summary-driven on purpose. They should report what happened a
 - validating a requested nickname
 - computing a nickname from stored and Discord state
 - syncing a computed nickname back to Discord
+
+The main boundaries there are now:
+
+- `nicknameService.ts` for generic workflow rules
+- `createGuildNicknameServiceDeps.ts` for guild-facing dependency assembly
+- `guildNicknameWorkflow.ts` for workflow entrypoints used by features
+- `guildNicknameRuntime.ts` for the concrete Discord and persistence-backed implementation
 
 Other workflows should build on this service instead of inventing new nickname rules.
 
@@ -112,8 +119,8 @@ Read these first:
 
 - `src/listeners/guildMemberAdd.ts`
 - `src/listeners/guildMemberUpdate.ts`
-- `src/lib/features/guild-member/onGuildMemberAdd.ts`
-- `src/lib/features/guild-member/onGuildMemberUpdate.ts`
+- `src/lib/features/guild-member/handlers/handleGuildMemberAdd.ts`
+- `src/lib/features/guild-member/handlers/handleGuildMemberUpdate.ts`
 - `src/lib/services/guild-member-change/guildMemberChangeService.ts`
 - `src/lib/services/guild-member-sync/guildMemberSyncService.ts`
 - `src/lib/services/nickname/nicknameService.ts`

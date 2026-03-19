@@ -1,7 +1,7 @@
 import { prepareGuildInteraction } from '../../../../discord/interactions/prepareGuildInteraction';
 import { resolveGuildMember } from '../../../../discord/interactions/interactionPreflight';
 import type { ExecutionContext } from '../../../../logging/executionContext';
-import { createEventDraft } from '../../../../services/event-lifecycle/eventLifecycleService';
+import { createEventDraft } from '../../../../services/event-lifecycle';
 import { resolveEventStartCommand } from './resolveEventStartCommand';
 import { presentEventStartResult } from './eventStartResultPresenter';
 import { createEventDraftRuntime } from './eventDraftRuntime';

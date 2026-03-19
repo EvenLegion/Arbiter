@@ -10,9 +10,9 @@ import {
 	finalizeEventReviewLifecycle,
 	initializeEventReviewState,
 	type EventLifecycleEventSession
-} from '../../../../../src/lib/services/event-lifecycle/eventLifecycleService';
+} from '../../../../../src/lib/services/event-lifecycle';
 
-describe('eventLifecycleService', () => {
+describe('eventLifecycle', () => {
 	it('creates a draft event and persists the tracking message references', async () => {
 		const deps = {
 			findEventTier: vi.fn().mockResolvedValue({

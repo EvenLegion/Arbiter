@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { parseMeritListButtonCustomId } from '../../../../../src/lib/features/merit/read/meritListButtonCustomId';
 
-describe('parseMeritListButtonCustomId', () => {
+describe('meritListButtonCustomId', () => {
 	it('parses valid page buttons', () => {
 		expect(
 			parseMeritListButtonCustomId({

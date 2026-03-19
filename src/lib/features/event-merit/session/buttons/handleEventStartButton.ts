@@ -1,7 +1,7 @@
 import { createInteractionResponder } from '../../../../discord/interactions/interactionResponder';
 import { resolveConfiguredGuild, resolveInteractionActor } from '../../../../discord/interactions/interactionPreflight';
 import type { ExecutionContext } from '../../../../logging/executionContext';
-import { activateDraftEvent, cancelDraftEvent, endActiveEvent } from '../../../../services/event-lifecycle/eventLifecycleService';
+import { activateDraftEvent, cancelDraftEvent, endActiveEvent } from '../../../../services/event-lifecycle';
 import { createEventSessionTransitionRuntime } from '../lifecycle/eventSessionTransitionRuntime';
 import type { ParsedEventStartButton } from './eventStartButtonCustomId';
 import { presentEventStartButtonResult } from './eventStartButtonResultPresenter';

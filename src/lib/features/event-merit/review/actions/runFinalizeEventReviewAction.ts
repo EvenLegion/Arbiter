@@ -1,7 +1,7 @@
 import type { Guild } from 'discord.js';
 
 import type { ExecutionContext } from '../../../../logging/executionContext';
-import { finalizeEventReviewLifecycle } from '../../../../services/event-lifecycle/eventLifecycleService';
+import { finalizeEventReviewLifecycle } from '../../../../services/event-lifecycle';
 import { createFinalizeEventReviewLifecycleDeps } from './createFinalizeEventReviewLifecycleDeps';
 import { presentFinalizeEventReviewResult } from './eventReviewActionResultPresenter';
 import type { ParsedEventReviewSubmitAction } from '../buttons/eventReviewButtonProtocol';

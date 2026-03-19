@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeEventDurationSeconds } from '../../../../../../src/lib/services/event-lifecycle/eventLifecycleService';
+import { computeEventDurationSeconds } from '../../../../../../src/lib/services/event-lifecycle';
 
 describe('computeEventDurationSeconds', () => {
 	it('returns zero when startedAt is null', () => {

@@ -2,7 +2,7 @@ import type { Guild, GuildMember } from 'discord.js';
 
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { notifyMeritRankUp } from '../../../services/merit-rank/notifyMeritRankUp';
-import { createGuildNicknameWorkflowGateway } from '../../../services/nickname/createGuildNicknameServiceDeps';
+import { createGuildNicknameWorkflow } from '../../../services/nickname/guildNicknameWorkflow';
 
 export function createManualMeritNicknameEffects({
 	guild,
@@ -15,7 +15,7 @@ export function createManualMeritNicknameEffects({
 	logger: ExecutionContext['logger'];
 	resolveMember: (discordUserId: string) => Promise<GuildMember | null>;
 }) {
-	const nicknames = createGuildNicknameWorkflowGateway({
+	const nicknames = createGuildNicknameWorkflow({
 		guild,
 		context,
 		resolveMember

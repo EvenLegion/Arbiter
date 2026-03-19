@@ -3,7 +3,7 @@ import type { ForumChannel, Guild, TextChannel } from 'discord.js';
 
 import { eventRepository } from '../../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../../logging/executionContext';
-import { postEventDraftAnnouncement } from '../../gateways/postEventDraftAnnouncement';
+import { resolveEventGuildChannel } from '../../gateways/resolveEventChannels';
 import { postDraftEventTrackingSummaryPresentation } from '../../presentation/syncEventTrackingPresentation';
 import { createVoiceChannelGateway } from '../shared/voiceChannelGateway';
 import { createTrackingThreadGateway } from './createTrackingThreadGateway';
@@ -25,6 +25,11 @@ export function createEventDraftRuntime({
 		trackingChannel,
 		logger
 	});
+	const persistence = createEventDraftPersistence();
+	const presentation = createEventDraftPresentation({
+		guild,
+		logger
+	});
 
 	return {
 		findEventTier: async (eventTierId: number) =>
@@ -33,23 +38,23 @@ export function createEventDraftRuntime({
 					id: eventTierId
 				}
 			}),
-		renamePrimaryVoiceChannel: async ({ channelId, name, reason }: { channelId: string; name: string; reason: string }) => {
-			const primaryVoiceChannel = await voiceChannels.resolveVoiceChannel(channelId);
-			if (!primaryVoiceChannel) {
-				return;
-			}
-
-			await primaryVoiceChannel.setName(name, reason).catch((renameErr: unknown) => {
-				logger.error(
-					{
-						err: renameErr,
-						primaryVoiceChannelId: channelId
-					},
-					'Failed to rename primary voice channel for event draft'
-				);
-			});
-		},
+		renamePrimaryVoiceChannel: ({ channelId, name, reason }: { channelId: string; name: string; reason: string }) =>
+			renamePrimaryVoiceChannel({
+				voiceChannels,
+				logger,
+				channelId,
+				name,
+				reason
+			}),
 		createTrackingThread: trackingThreads.createTrackingThread,
+		...persistence,
+		...presentation,
+		cleanupTrackingThread: trackingThreads.cleanupTrackingThread
+	};
+}
+
+function createEventDraftPersistence() {
+	return {
 		createDraftEventSession: async (params: {
 			hostDbUserId: string;
 			eventTierId: number;
@@ -74,6 +79,43 @@ export function createEventDraftRuntime({
 				addedByDbUserId
 			});
 		},
+		saveTrackingMessageRef: async ({
+			eventSessionId,
+			channelId,
+			messageId
+		}: {
+			eventSessionId: number;
+			channelId: string;
+			messageId: string;
+		}) => {
+			await eventRepository.upsertSessionMessageRef({
+				eventSessionId,
+				kind: EventSessionMessageKind.TRACKING_SUMMARY,
+				channelId,
+				messageId
+			});
+		},
+		saveParentVoiceSummaryMessageRef: async ({
+			eventSessionId,
+			channelId,
+			messageId
+		}: {
+			eventSessionId: number;
+			channelId: string;
+			messageId: string;
+		}) => {
+			await eventRepository.upsertSessionMessageRef({
+				eventSessionId,
+				kind: EventSessionMessageKind.TRACKING_SUMMARY_PARENT_VC,
+				channelId,
+				messageId
+			});
+		}
+	};
+}
+
+function createEventDraftPresentation({ guild, logger }: { guild: Guild; logger: ExecutionContext['logger'] }) {
+	return {
 		postTrackingSummary: async ({
 			eventSessionId,
 			eventName,
@@ -111,44 +153,61 @@ export function createEventDraftRuntime({
 			actorDiscordUserId: string;
 			eventName: string;
 		}) =>
-			postEventDraftAnnouncement({
+			postDraftThreadAnnouncement({
 				guild,
 				threadId,
 				actorDiscordUserId,
 				eventName
-			}),
-		saveTrackingMessageRef: async ({
-			eventSessionId,
-			channelId,
-			messageId
-		}: {
-			eventSessionId: number;
-			channelId: string;
-			messageId: string;
-		}) => {
-			await eventRepository.upsertSessionMessageRef({
-				eventSessionId,
-				kind: EventSessionMessageKind.TRACKING_SUMMARY,
-				channelId,
-				messageId
-			});
-		},
-		saveParentVoiceSummaryMessageRef: async ({
-			eventSessionId,
-			channelId,
-			messageId
-		}: {
-			eventSessionId: number;
-			channelId: string;
-			messageId: string;
-		}) => {
-			await eventRepository.upsertSessionMessageRef({
-				eventSessionId,
-				kind: EventSessionMessageKind.TRACKING_SUMMARY_PARENT_VC,
-				channelId,
-				messageId
-			});
-		},
-		cleanupTrackingThread: trackingThreads.cleanupTrackingThread
+			})
 	};
+}
+
+async function renamePrimaryVoiceChannel({
+	voiceChannels,
+	logger,
+	channelId,
+	name,
+	reason
+}: {
+	voiceChannels: ReturnType<typeof createVoiceChannelGateway>;
+	logger: ExecutionContext['logger'];
+	channelId: string;
+	name: string;
+	reason: string;
+}) {
+	const primaryVoiceChannel = await voiceChannels.resolveVoiceChannel(channelId);
+	if (!primaryVoiceChannel) {
+		return;
+	}
+
+	await primaryVoiceChannel.setName(name, reason).catch((renameErr: unknown) => {
+		logger.error(
+			{
+				err: renameErr,
+				primaryVoiceChannelId: channelId
+			},
+			'Failed to rename primary voice channel for event draft'
+		);
+	});
+}
+
+async function postDraftThreadAnnouncement({
+	guild,
+	threadId,
+	actorDiscordUserId,
+	eventName
+}: {
+	guild: Guild;
+	threadId: string;
+	actorDiscordUserId: string;
+	eventName: string;
+}) {
+	const threadChannel = await resolveEventGuildChannel(guild, threadId);
+	if (!threadChannel || !threadChannel.isTextBased()) {
+		return;
+	}
+
+	await threadChannel.send({
+		content: `Event draft **${eventName}** created by <@${actorDiscordUserId}>.`
+	});
 }

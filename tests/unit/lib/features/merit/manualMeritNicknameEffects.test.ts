@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-	createGuildNicknameWorkflowGateway: vi.fn(),
+	createGuildNicknameWorkflow: vi.fn(),
 	notifyMeritRankUp: vi.fn()
 }));
 
-vi.mock('../../../../../src/lib/services/nickname/createGuildNicknameServiceDeps', () => ({
-	createGuildNicknameWorkflowGateway: mocks.createGuildNicknameWorkflowGateway
+vi.mock('../../../../../src/lib/services/nickname/guildNicknameWorkflow', () => ({
+	createGuildNicknameWorkflow: mocks.createGuildNicknameWorkflow
 }));
 
 vi.mock('../../../../../src/lib/services/merit-rank/notifyMeritRankUp', () => ({
@@ -17,12 +17,12 @@ import { createManualMeritNicknameEffects } from '../../../../../src/lib/feature
 
 describe('manualMeritNicknameEffects', () => {
 	beforeEach(() => {
-		mocks.createGuildNicknameWorkflowGateway.mockReset();
+		mocks.createGuildNicknameWorkflow.mockReset();
 		mocks.notifyMeritRankUp.mockReset();
 	});
 
 	it('maps nickname sync outcomes into workflow-friendly result kinds', async () => {
-		mocks.createGuildNicknameWorkflowGateway.mockReturnValue({
+		mocks.createGuildNicknameWorkflow.mockReturnValue({
 			syncNickname: vi.fn().mockResolvedValue({
 				kind: 'nickname-too-long'
 			}),
@@ -49,7 +49,7 @@ describe('manualMeritNicknameEffects', () => {
 
 	it('returns null and logs when awarder nickname computation cannot resolve a member', async () => {
 		const warn = vi.fn();
-		mocks.createGuildNicknameWorkflowGateway.mockReturnValue({
+		mocks.createGuildNicknameWorkflow.mockReturnValue({
 			syncNickname: vi.fn(),
 			computeNickname: vi.fn().mockResolvedValue({
 				kind: 'member-not-found'
@@ -76,7 +76,7 @@ describe('manualMeritNicknameEffects', () => {
 	});
 
 	it('loads the member before sending rank-up notifications', async () => {
-		mocks.createGuildNicknameWorkflowGateway.mockReturnValue({
+		mocks.createGuildNicknameWorkflow.mockReturnValue({
 			syncNickname: vi.fn(),
 			computeNickname: vi.fn()
 		});

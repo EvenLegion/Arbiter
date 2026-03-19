@@ -1,5 +1,5 @@
 import type { ExecutionContext } from '../../../../logging/executionContext';
-import { initializeEventReviewState } from '../../../../services/event-lifecycle/eventLifecycleService';
+import { initializeEventReviewState } from '../../../../services/event-lifecycle';
 import { createInitializeEventReviewDeps } from './createInitializeEventReviewDeps';
 
 type InitializeEventReviewParams = {
