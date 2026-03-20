@@ -1,7 +1,21 @@
-import { existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { defineConfig } from 'vitest/config';
 
-const hasContainerRuntime = Boolean(process.env.DOCKER_HOST) || existsSync('/var/run/docker.sock') || existsSync('/var/run/docker.sock.raw');
+const CONTAINER_RUNTIME_PROBES = [
+	{ command: 'docker', args: ['info'] },
+	{ command: 'podman', args: ['info'] }
+];
+
+const hasContainerRuntime =
+	process.env.ARBITER_HAS_CONTAINER_RUNTIME === '1' ||
+	CONTAINER_RUNTIME_PROBES.some(({ command, args }) => {
+		const result = spawnSync(command, args, {
+			stdio: 'ignore',
+			shell: process.platform === 'win32'
+		});
+
+		return result.status === 0;
+	});
 
 export default defineConfig({
 	test: {

@@ -1,7 +1,18 @@
-import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
-const hasContainerRuntime = Boolean(process.env.DOCKER_HOST) || existsSync('/var/run/docker.sock') || existsSync('/var/run/docker.sock.raw');
+const CONTAINER_RUNTIME_PROBES = [
+	{ command: 'docker', args: ['info'] },
+	{ command: 'podman', args: ['info'] }
+];
+
+const hasContainerRuntime = CONTAINER_RUNTIME_PROBES.some(({ command, args }) => {
+	const result = spawnSync(command, args, {
+		stdio: 'ignore',
+		shell: process.platform === 'win32'
+	});
+
+	return result.status === 0;
+});
 
 if (!hasContainerRuntime) {
 	console.log('Skipping integration tests because no container runtime was detected.');
@@ -10,6 +21,10 @@ if (!hasContainerRuntime) {
 
 const result = spawnSync('pnpm', ['exec', 'vitest', 'run', '--config', 'vitest.integration.config.ts', ...process.argv.slice(2)], {
 	stdio: 'inherit',
+	env: {
+		...process.env,
+		ARBITER_HAS_CONTAINER_RUNTIME: '1'
+	},
 	shell: process.platform === 'win32'
 });
 

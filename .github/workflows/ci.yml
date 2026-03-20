@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  build_validation:
     runs-on: ubuntu-latest
     env:
       POSTGRES_DOCKER_VERSION: postgres:17-alpine
@@ -41,10 +41,10 @@ jobs:
       - name: Lint
         run: pnpm eslint src
 
-      - name: Test Unit
+      - name: Unit Tests
         run: pnpm test:unit
 
-      - name: Test Integration
+      - name: Integration Tests
         run: pnpm test:integration
 
       - name: Docs Build

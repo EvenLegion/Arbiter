@@ -124,6 +124,8 @@ describe('merit summary query integration', () => {
 				{
 					id: secondAward.id,
 					amount: -1,
+					meritTypeName: 'Demerit',
+					awardedByName: 'awarder',
 					reason: 'Penalty',
 					createdAt: new Date('2026-03-14T09:00:00.000Z'),
 					eventSession: null
