@@ -1,29 +1,29 @@
 import { ApplyOptions } from '@sapphire/decorators';
-import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
+import { type InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
-import { handleDivisionSelectionButton } from '../lib/features/division-selection/handleDivisionSelectionButton';
-import { createExecutionContext } from '../lib/logging/executionContext';
-import { parseDivisionSelection } from '../lib/features/division-selection/parseDivisionSelection';
+
+import { RoutedButtonInteractionHandler, type RoutedButtonRouteParams } from '../lib/discord/interactions/routedInteractionHandler';
+import { parseDivisionSelectionCustomId, type ParsedDivisionSelection } from '../lib/features/division-selection/divisionSelectionCustomId';
+import { handleDivisionSelectionButton } from '../lib/features/division-selection/handlers/handleDivisionSelectionButton';
 
 @ApplyOptions<InteractionHandler.Options>({
 	interactionHandlerType: InteractionHandlerTypes.Button
 })
-export class DivisionSelectionButtonInteractionHandler extends InteractionHandler {
-	public override parse(interaction: ButtonInteraction) {
-		const parsed = parseDivisionSelection({ customId: interaction.customId });
-		return parsed ? this.some(parsed) : this.none();
+export class DivisionSelectionButtonInteractionHandler extends RoutedButtonInteractionHandler<ParsedDivisionSelection> {
+	protected override readonly flow = 'interaction.divisionSelectionButton';
+
+	protected override decode(interaction: ButtonInteraction) {
+		return parseDivisionSelectionCustomId(interaction.customId);
 	}
 
-	public override async run(interaction: ButtonInteraction, parsedDivisionSelection: NonNullable<ReturnType<typeof parseDivisionSelection>>) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'interaction.divisionSelectionButton',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id,
-				customButtonId: interaction.customId
-			}
-		});
+	protected override buildContextBindings(_interaction: ButtonInteraction, parsedDivisionSelection: ParsedDivisionSelection) {
+		return {
+			divisionSelectionAction: parsedDivisionSelection.action,
+			divisionCode: parsedDivisionSelection.code
+		};
+	}
 
-		await handleDivisionSelectionButton({ interaction, parsedDivisionSelection, context });
+	protected override async route({ interaction, parsed, context }: RoutedButtonRouteParams<ParsedDivisionSelection>) {
+		await handleDivisionSelectionButton({ interaction, parsedDivisionSelection: parsed, context });
 	}
 }

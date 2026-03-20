@@ -1,0 +1,45 @@
+{
+	"schemaVersion": 1,
+	"branch": "feat/v3",
+	"baseRef": "origin/dev",
+	"mergeBase": "c35b0d251ca41122f0a200a5b2b33cd297b9c2a8",
+	"headRef": "cb46846027bd44d5ba71af35e3af20c1ea9ba78a",
+	"generatedAt": "2026-03-20T00:17:15.662Z",
+	"bump": "major",
+	"targetVersion": "3.0.0",
+	"commits": [
+		{
+			"sha": "5ecb9bad9c0f88c835f69e174154a0b94a8ade52",
+			"subject": "refactor: Complete overhaul of the codebase, optimizing for future contributors",
+			"committedAt": "2026-03-19T14:14:28-10:00",
+			"committedAtMs": 1773965668000,
+			"type": "refactor",
+			"scope": null,
+			"description": "Complete overhaul of the codebase, optimizing for future contributors",
+			"breaking": false,
+			"section": "Refactors"
+		},
+		{
+			"sha": "6206988e9e62d3fed7f3ecfad44d31087632ae09",
+			"subject": "docs: Init contributor's doc site explaining how the codebase works, how to get started, and how to release new versions of Arbiter",
+			"committedAt": "2026-03-19T14:16:06-10:00",
+			"committedAtMs": 1773965766000,
+			"type": "docs",
+			"scope": null,
+			"description": "Init contributor's doc site explaining how the codebase works, how to get started, and how to release new versions of Arbiter",
+			"breaking": false,
+			"section": "Maintenance"
+		},
+		{
+			"sha": "cb46846027bd44d5ba71af35e3af20c1ea9ba78a",
+			"subject": "refactor: Replace paid-for logging service with opensource self hosted option, allowing for more detailed logging without usage limits",
+			"committedAt": "2026-03-19T14:17:05-10:00",
+			"committedAtMs": 1773965825000,
+			"type": "refactor",
+			"scope": null,
+			"description": "Replace paid-for logging service with opensource self hosted option, allowing for more detailed logging without usage limits",
+			"breaking": false,
+			"section": "Refactors"
+		}
+	]
+}

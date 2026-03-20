@@ -1,14 +1,11 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import { EventSessionState } from '@prisma/client';
-import { ChannelType } from 'discord.js';
 
 import { ENV_DISCORD } from '../config/env';
-import { findManyEventSessions, findManyEventTiers, findManyReservedEventVoiceChannelIds } from '../integrations/prisma';
-import { handleEventAddVc } from '../lib/features/event-merit/session/handleEventAddVc';
-import { handleEventStart } from '../lib/features/event-merit/session/handleEventStart';
-import { formatEventSessionStateLabel } from '../lib/features/event-merit/ui/formatEventSessionStateLabel';
-import { createExecutionContext } from '../lib/logging/executionContext';
+import { handleEventAutocomplete } from '../lib/features/event-merit/session/autocomplete/eventAutocompleteProvider';
+import { handleEventAddVc } from '../lib/features/event-merit/session/add-vc/handleEventAddVc';
+import { handleEventStart } from '../lib/features/event-merit/session/draft/handleEventStart';
+import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
 	description: 'Event commands',
@@ -81,155 +78,33 @@ export class EventCommand extends Subcommand {
 	}
 
 	public async chatInputStartEvent(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'event.start',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'event.start'
 		});
 
-		await handleEventStart({
+		return handleEventStart({
 			interaction,
 			context
 		});
 	}
 
 	public async chatInputAddVc(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'event.addVc',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'event.addVc'
 		});
 
-		await handleEventAddVc({
+		return handleEventAddVc({
 			interaction,
 			context
 		});
 	}
 
 	public override async autocompleteRun(interaction: Subcommand.AutocompleteInteraction) {
-		try {
-			const focused = interaction.options.getFocused(true);
-			const subcommandName = interaction.options.getSubcommand(false);
-			if (subcommandName === 'start' && focused.name === 'tier_level') {
-				const query = String(focused.value).trim().toLowerCase();
-				const tiers = await findManyEventTiers({
-					orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }]
-				});
-				const filtered = tiers.filter((tier) => {
-					if (query.length === 0) {
-						return true;
-					}
-
-					return (
-						tier.name.toLowerCase().includes(query) ||
-						tier.code.toLowerCase().includes(query) ||
-						tier.description.toLowerCase().includes(query)
-					);
-				});
-
-				await interaction.respond(
-					filtered.slice(0, 25).map((tier) => ({
-						name: `${tier.name} ${tier.description} (${tier.meritType.meritAmount} merits)`,
-						value: String(tier.id)
-					}))
-				);
-				return;
-			}
-
-			if (subcommandName === 'add_vc' && focused.name === 'event_selection') {
-				const query = String(focused.value).trim();
-				// TODO Add caching support so we don't have to query the DB for each autocomplete request
-				const sessions = await findManyEventSessions({
-					states: [EventSessionState.DRAFT, EventSessionState.ACTIVE],
-					query,
-					limit: 25,
-					include: {
-						eventTier: true
-					},
-					orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }]
-				});
-				await interaction.respond(
-					sessions.map((session) => ({
-						name: `${session.eventTier.name} | ${session.name} | ${formatEventSessionStateLabel(session.state)}`,
-						value: String(session.id)
-					}))
-				);
-				return;
-			}
-
-			if (subcommandName === 'add_vc' && focused.name === 'voice_channel') {
-				const guild = await this.container.utilities.guild.getOrThrow().catch((error: unknown) => {
-					this.container.logger.error(
-						{
-							err: error,
-							commandName: this.name,
-							subcommandName,
-							focusedOptionName: focused.name
-						},
-						'Failed to resolve configured guild during event command autocomplete'
-					);
-					return null;
-				});
-				if (!guild) {
-					await interaction.respond([]);
-					return;
-				}
-
-				const query = String(focused.value).trim().toLowerCase();
-				const now = Date.now();
-				// 1 hour cutoff for empty query string, 24 hour cutoff for non-empty query string
-				const cutoffMs = query.length === 0 ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
-				const cutoffTimestamp = now - cutoffMs;
-				const reservedChannelIds = new Set(await findManyReservedEventVoiceChannelIds());
-				const channels = guild.channels.cache
-					.filter((channel) => channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice)
-					.filter((channel) => !reservedChannelIds.has(channel.id))
-					.map((channel) => ({
-						id: channel.id,
-						name: channel.name,
-						createdTimestamp: channel.createdTimestamp ?? 0,
-						matchIndex: query.length === 0 ? 0 : channel.name.toLowerCase().indexOf(query)
-					}))
-					.filter((channel) => channel.createdTimestamp >= cutoffTimestamp)
-					.filter((channel) => channel.matchIndex >= 0)
-					.sort((a, b) => {
-						if (a.matchIndex !== b.matchIndex) {
-							return a.matchIndex - b.matchIndex;
-						}
-
-						return b.createdTimestamp - a.createdTimestamp;
-					});
-
-				await interaction.respond(
-					channels.slice(0, 25).map((channel) => ({
-						name: channel.name.slice(0, 100),
-						value: channel.id
-					}))
-				);
-				return;
-			}
-
-			if (!interaction.responded) {
-				await interaction.respond([]);
-			}
-		} catch (error) {
-			this.container.logger.error(
-				{
-					err: error,
-					commandName: this.name,
-					subcommandName: interaction.options.getSubcommand(false),
-					focusedOptionName: interaction.options.getFocused(true).name
-				},
-				'Encountered error in event command autocomplete'
-			);
-
-			if (!interaction.responded) {
-				await interaction.respond([]);
-			}
-		}
+		return handleEventAutocomplete({
+			interaction,
+			commandName: this.name
+		});
 	}
 }

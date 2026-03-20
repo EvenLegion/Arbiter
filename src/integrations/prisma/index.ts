@@ -1,20 +1,5 @@
 export { prisma, closeDb } from './prisma';
 
-export { upsertUser } from './upsertUser';
-export { updateUserNickname } from './updateUserNickname';
-export { findUniqueUser } from './findUniqueUser';
-export { findManyUsers } from './findManyUsers';
-export { createNameChangeRequest } from './createNameChangeRequest';
-export { findUniqueNameChangeRequest, isPendingNameChangeRequestStatus } from './findUniqueNameChangeRequest';
-export { reviewNameChangeRequest } from './reviewNameChangeRequest';
-export { saveNameChangeRequestReviewThread } from './saveNameChangeRequestReviewThread';
-export { updatePendingNameChangeRequestRequestedName } from './updatePendingNameChangeRequestRequestedName';
-export { getUserMeritSummary, type UserMeritSummary, type MeritSummaryEntry } from './getUserMeritSummary';
-export { getUserTotalMerits } from './getUserTotalMerits';
-export { getUsersTotalMerits } from './getUsersTotalMerits';
-export { awardManualMerit, MeritTypeNotManualAwardableError } from './awardManualMerit';
-export { findManyMeritTypes } from './findManyMeritTypes';
-
 export {
 	getCachedDivisions,
 	getCachedDivisionByDbId,
@@ -24,29 +9,4 @@ export {
 } from './divisionCache/getCachedDivisions';
 export { initializeDivisionCache } from './divisionCache/initDivisionCache';
 
-export { findManyDivisions } from './findManyDivisions';
-export { findManyDivisionMemberships } from './findManyDivisionMemberships';
-export { findManyUsersDivisions } from './findManyUsersDivisions';
-
-export { createManyDivisionMembership } from './createManyDivisionMembership';
-export { deleteManyDivisionMembership } from './deleteManyDivisionMembership';
-
-export {
-	createDraftEventSession,
-	deleteManyEventSessionChannels,
-	finalizeEventReview,
-	getEventReviewPage,
-	findManyEventSessions,
-	findReservedEventVoiceChannelReservation,
-	findManyReservedEventVoiceChannelIds,
-	findManyEventSessionMessages,
-	findManyEventTiers,
-	findFirstEventTier,
-	findUniqueEventSession,
-	updateEventSessionState,
-	upsertEventReviewDecision,
-	upsertEventSessionChannel,
-	upsertEventSessionMessageRef,
-	upsertManyEventParticipantStats,
-	upsertManyEventReviewDecisions
-} from './event';
+export { userRepository, divisionRepository, meritRepository, nameChangeRepository, eventRepository, eventReviewRepository } from './repositories';

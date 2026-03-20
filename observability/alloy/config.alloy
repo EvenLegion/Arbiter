@@ -1,0 +1,75 @@
+local.file_match "arbiter_logs" {
+  path_targets = [
+    {
+      "__path__" = sys.env("ARBITER_LOG_GLOB"),
+      "app"      = "arbiter",
+      "service"  = "bot",
+      "env"      = sys.env("ARBITER_ENV"),
+    },
+  ]
+}
+
+loki.source.file "arbiter_logs" {
+  targets    = local.file_match.arbiter_logs.targets
+  forward_to = [loki.process.arbiter_logs.receiver]
+}
+
+loki.process "arbiter_logs" {
+  stage.json {
+    expressions = {
+      level                  = "level",
+      flow                   = "flow",
+      transport              = "transport",
+      requestId              = "requestId",
+      discordUserId          = "discordUserId",
+      discordInteractionId   = "discordInteractionId",
+      guildId                = "guildId",
+      channelId              = "channelId",
+      commandName            = "commandName",
+      subcommandGroupName    = "subcommandGroupName",
+      subcommandName         = "subcommandName",
+      customButtonId         = "customButtonId",
+      customModalId          = "customModalId",
+      eventSessionId         = "eventSessionId",
+      nameChangeRequestId    = "nameChangeRequestId",
+    }
+  }
+
+  stage.template {
+    source = "level_name"
+    template = "{{ if eq .level \"10\" }}trace{{ else if eq .level \"20\" }}debug{{ else if eq .level \"30\" }}info{{ else if eq .level \"40\" }}warn{{ else if eq .level \"50\" }}error{{ else if eq .level \"60\" }}fatal{{ else }}unknown{{ end }}"
+  }
+
+  stage.labels {
+    values = {
+      level     = "level_name",
+      flow      = "flow",
+      transport = "transport",
+    }
+  }
+
+  stage.structured_metadata {
+    values = {
+      requestId            = "requestId",
+      discordUserId        = "discordUserId",
+      discordInteractionId = "discordInteractionId",
+      guildId              = "guildId",
+      channelId            = "channelId",
+      commandName          = "commandName",
+      subcommandGroupName  = "subcommandGroupName",
+      subcommandName       = "subcommandName",
+      customButtonId       = "customButtonId",
+      customModalId        = "customModalId",
+      eventSessionId       = "eventSessionId",
+      nameChangeRequestId  = "nameChangeRequestId",
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = sys.env("LOKI_WRITE_URL")
+  }
+}

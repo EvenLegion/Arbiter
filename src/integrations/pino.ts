@@ -15,37 +15,29 @@ const SAPPHIRE_TO_PINO_LEVEL: Record<LogLevel, PinoLevel> = {
 };
 
 type TransportTarget = NonNullable<TransportMultiOptions['targets']>[number];
-const BETTER_STACK_LOG_LEVEL: PinoLevel = ENV_CONFIG.LOG_LEVEL;
 const transportTargets: TransportTarget[] = [
 	{
-		target: 'pino-pretty',
-		level: ENV_CONFIG.LOG_LEVEL,
-		options: {
-			colorize: true
-		}
-	},
-	{
 		target: 'pino/file',
-		level: ENV_CONFIG.LOCAL_FILE_LOG_LEVEL,
+		level: ENV_CONFIG.FILE_LOG_LEVEL,
 		options: {
-			destination: ENV_CONFIG.LOCAL_LOG_FILE_PATH,
+			destination: ENV_CONFIG.LOG_FILE_PATH,
 			mkdir: true
 		}
 	}
 ];
-const enabledTargetLevels: PinoLevel[] = [ENV_CONFIG.LOG_LEVEL, ENV_CONFIG.LOCAL_FILE_LOG_LEVEL];
+const enabledTargetLevels: PinoLevel[] = [ENV_CONFIG.FILE_LOG_LEVEL];
 
-if (ENV_CONFIG.BETTER_STACK_SOURCE_TOKEN && ENV_CONFIG.BETTER_STACK_INGESTING_HOST) {
+if (ENV_CONFIG.CONSOLE_LOG_LEVEL !== 'silent') {
 	transportTargets.push({
-		target: '@logtail/pino',
-		level: BETTER_STACK_LOG_LEVEL,
+		target: 'pino-pretty',
+		level: ENV_CONFIG.CONSOLE_LOG_LEVEL,
 		options: {
-			sourceToken: ENV_CONFIG.BETTER_STACK_SOURCE_TOKEN,
-			options: { endpoint: ENV_CONFIG.BETTER_STACK_INGESTING_HOST }
+			colorize: ENV_CONFIG.ENABLE_CONSOLE_PRETTY_LOGS
 		}
 	});
-	enabledTargetLevels.push(BETTER_STACK_LOG_LEVEL);
+	enabledTargetLevels.push(ENV_CONFIG.CONSOLE_LOG_LEVEL);
 }
+
 const ROOT_LOG_LEVEL = resolveLowestPinoLevel(enabledTargetLevels);
 
 export const PINO_LOGGER = pino({

@@ -1,7 +1,7 @@
 import type { Division, DivisionKind } from '@prisma/client';
 
 import { container } from '@sapphire/framework';
-import { findManyDivisions } from '../findManyDivisions';
+import { findManyDivisions } from '../division/read';
 
 type DivisionCacheState = {
 	divisions: Division[];
@@ -52,7 +52,7 @@ export async function initializeDivisionCache() {
 
 export async function getDivisionCacheState() {
 	if (!divisionCache) {
-		container.logger.warn('Division cache not initialized, initializing now');
+		container.logger.info('Division cache not initialized, initializing now');
 		await initializeDivisionCache();
 	}
 

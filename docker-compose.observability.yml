@@ -1,0 +1,50 @@
+services:
+  arbiter-loki:
+    image: grafana/loki:${LOKI_DOCKER_VERSION:-3.5.6}
+    container_name: arbiter-v3-loki-dev
+    restart: unless-stopped
+    command: ['-config.file=/etc/loki/config.yml']
+    ports:
+      - '${LOKI_PORT:-3100}:3100'
+    volumes:
+      - ./observability/loki/config.yml:/etc/loki/config.yml:ro
+      - arbiter-loki-dev-data:/loki
+
+  arbiter-alloy:
+    image: grafana/alloy:${ALLOY_DOCKER_VERSION:-v1.14.0}
+    container_name: arbiter-v3-alloy-dev
+    restart: unless-stopped
+    command: ['run', '/etc/alloy/config.alloy']
+    environment:
+      ARBITER_ENV: development
+      ARBITER_LOG_GLOB: /var/log/arbiter/*.log
+      LOKI_WRITE_URL: http://arbiter-loki:3100/loki/api/v1/push
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ./logs:/var/log/arbiter:ro
+      - arbiter-alloy-dev-data:/var/lib/alloy
+    depends_on:
+      arbiter-loki:
+        condition: service_started
+
+  arbiter-grafana:
+    image: grafana/grafana:${GRAFANA_DOCKER_VERSION:-12.2.0}
+    container_name: arbiter-v3-grafana-dev
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+    ports:
+      - '${GRAFANA_PORT:-3001}:3000'
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - arbiter-grafana-dev-data:/var/lib/grafana
+    depends_on:
+      arbiter-loki:
+        condition: service_started
+
+volumes:
+  arbiter-loki-dev-data:
+  arbiter-alloy-dev-data:
+  arbiter-grafana-dev-data:
