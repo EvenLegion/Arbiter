@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { getMeritRankSymbol } from '../../../../../../src/lib/services/merit-rank/meritRank';
 import {
 	buildEventReviewPresentationModel,
-	computeEventReviewAttendancePercent
+	computeEventReviewAttendancePercent,
+	resolveEventReviewDecision
 } from '../../../../../../src/lib/features/event-merit/review/presentation/eventReviewPresentationModel';
 
 describe('eventReviewPresentationModel', () => {
@@ -76,6 +77,18 @@ describe('eventReviewPresentationModel', () => {
 				fullAttendanceGraceSeconds: 60
 			})
 		).toBe(100);
+	});
+
+	it('uses the same grace window when deriving the default decision', () => {
+		expect(
+			resolveEventReviewDecision({
+				decision: null,
+				attendedSeconds: 3600,
+				durationSeconds: 3620,
+				defaultMinAttendancePct: 100,
+				fullAttendanceGraceSeconds: 60
+			})
+		).toBe(EventReviewDecisionKind.MERIT);
 	});
 
 	it('uses the base nickname for attendee toggle labels by stripping prefixes and merit suffixes', () => {

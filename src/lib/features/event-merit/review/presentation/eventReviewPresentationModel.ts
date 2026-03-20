@@ -40,7 +40,8 @@ export function buildEventReviewPresentationModel({
 			decision: attendee.decision,
 			attendedSeconds: attendee.attendedSeconds,
 			durationSeconds,
-			defaultMinAttendancePct
+			defaultMinAttendancePct,
+			fullAttendanceGraceSeconds
 		});
 
 		return {
@@ -99,12 +100,14 @@ export function resolveEventReviewDecision({
 	decision,
 	attendedSeconds,
 	durationSeconds,
-	defaultMinAttendancePct
+	defaultMinAttendancePct,
+	fullAttendanceGraceSeconds = 0
 }: {
 	decision: EventReviewPageAttendee['decision'];
 	attendedSeconds: number;
 	durationSeconds: number;
 	defaultMinAttendancePct: number;
+	fullAttendanceGraceSeconds?: number;
 }) {
 	if (decision) {
 		return decision;
@@ -114,7 +117,13 @@ export function resolveEventReviewDecision({
 		return EventReviewDecisionKind.NO_MERIT;
 	}
 
-	return attendedSeconds / durationSeconds >= defaultMinAttendancePct / 100 ? EventReviewDecisionKind.MERIT : EventReviewDecisionKind.NO_MERIT;
+	return computeEventReviewAttendancePercent({
+		attendedSeconds,
+		durationSeconds,
+		fullAttendanceGraceSeconds
+	}) >= defaultMinAttendancePct
+		? EventReviewDecisionKind.MERIT
+		: EventReviewDecisionKind.NO_MERIT;
 }
 
 function buildDecisionLabelSuffix({ discordNickname, discordUsername }: { discordNickname: string; discordUsername: string }) {

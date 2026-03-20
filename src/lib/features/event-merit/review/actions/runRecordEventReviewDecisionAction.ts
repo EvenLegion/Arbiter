@@ -32,12 +32,10 @@ export async function runRecordEventReviewDecisionAction({
 		};
 	};
 }) {
-	const currentAttendee = await eventReviewRepository
-		.getReviewPage({
-			eventSessionId: parsedEventReviewButton.eventSessionId,
-			page: parsedEventReviewButton.page
-		})
-		.then((reviewPage) => reviewPage?.attendees.find((attendee) => attendee.dbUserId === parsedEventReviewButton.targetDbUserId) ?? null);
+	const currentAttendee = await eventReviewRepository.getReviewAttendee({
+		eventSessionId: parsedEventReviewButton.eventSessionId,
+		targetDbUserId: parsedEventReviewButton.targetDbUserId
+	});
 
 	if (!currentAttendee) {
 		logger.warn(
@@ -67,7 +65,8 @@ export async function runRecordEventReviewDecisionAction({
 			startedAt: eventSession.startedAt,
 			endedAt: eventSession.endedAt
 		}),
-		defaultMinAttendancePct: ENV_DISCORD.EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT
+		defaultMinAttendancePct: ENV_DISCORD.EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT,
+		fullAttendanceGraceSeconds: ENV_DISCORD.EVENT_TRACKING_INTERVAL_SECONDS
 	});
 	const nextDecision = currentDecision === EventReviewDecisionKind.MERIT ? EventReviewDecisionKind.NO_MERIT : EventReviewDecisionKind.MERIT;
 
