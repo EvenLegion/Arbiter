@@ -5,7 +5,7 @@ import { startTrackingSession, stopTrackingSession } from '../../../../../integr
 import { eventRepository } from '../../../../../integrations/prisma/repositories';
 import { createChildExecutionContext, type ExecutionContext } from '../../../../logging/executionContext';
 import { EVENT_LIFECYCLE_SESSION_INCLUDE, type EventLifecycleEventSession } from '../../../../services/event-lifecycle';
-import { postEndedEventFeedbackLinks } from '../../gateways/postEndedEventFeedbackLinks';
+import { postEndedEventFeedbackLinks as postEndedEventFeedbackLinksGateway } from '../../gateways/postEndedEventFeedbackLinks';
 import { syncEventLifecyclePresentation } from '../../presentation/syncEventLifecyclePresentation';
 import { initializeEventReview } from '../../review/initialization/initializeEventReview';
 import { createVoiceChannelGateway } from '../shared/voiceChannelGateway';
@@ -64,7 +64,7 @@ export function createEventSessionTransitionRuntime({
 				renameFailureLogMessage: 'Failed to rename parent VC after event end'
 			}),
 		postEndedEventFeedbackLinks: ({ eventSession }: { eventSession: EventLifecycleEventSession }) =>
-			postEndedEventFeedbackLinks({
+			postEndedEventFeedbackLinksGateway({
 				guild,
 				eventSession,
 				logger
