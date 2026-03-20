@@ -2,6 +2,7 @@ import { MeritTypeCode } from '@prisma/client';
 import { z } from 'zod';
 
 import type { ActorContext } from '../_shared/actor';
+import { resolveMeritRankProgress } from '../merit-rank/meritRank';
 
 const PLAYER_DISCORD_USER_ID_SCHEMA = z.string().trim().min(1);
 const MANUAL_MERIT_TYPE_CODE_SCHEMA = z.enum(MeritTypeCode);
@@ -140,6 +141,7 @@ export async function awardManualMeritWorkflow(
 		targetMember,
 		awarderMember,
 		targetDbUserId: targetDbUser.id,
+		meritTypeName: award.meritType.name,
 		meritAmount: award.meritType.meritAmount,
 		linkedEventName: linkedEvent?.name ?? null,
 		reason: input.reason
@@ -267,6 +269,7 @@ async function finalizeManualMeritNotifications({
 	targetMember,
 	awarderMember,
 	targetDbUserId,
+	meritTypeName,
 	meritAmount,
 	linkedEventName,
 	reason
@@ -278,6 +281,7 @@ async function finalizeManualMeritNotifications({
 	targetMember: ResolvedManualMeritMember;
 	awarderMember: ResolvedManualMeritMember;
 	targetDbUserId: string;
+	meritTypeName: string;
 	meritAmount: number;
 	linkedEventName: string | null;
 	reason: string | null;
@@ -305,7 +309,9 @@ async function finalizeManualMeritNotifications({
 	const dmSent = await deps.sendRecipientDm({
 		discordUserId: targetMember.discordUserId,
 		content: buildManualMeritDmContent({
+			meritTypeName,
 			meritAmount,
+			currentTotalMerits,
 			linkedEventName,
 			reason,
 			awarderNickname: awarderNicknameForDm
@@ -319,21 +325,38 @@ async function finalizeManualMeritNotifications({
 }
 
 function buildManualMeritDmContent({
+	meritTypeName,
 	meritAmount,
+	currentTotalMerits,
 	linkedEventName,
 	reason,
 	awarderNickname
 }: {
+	meritTypeName: string;
 	meritAmount: number;
+	currentTotalMerits: number;
 	linkedEventName: string | null;
 	reason: string | null;
 	awarderNickname: string;
 }) {
 	const meritChangeLabel = `${formatSignedMeritAmount(meritAmount)} ${Math.abs(meritAmount) === 1 ? 'merit' : 'merits'}`;
-	const dmEventLine = linkedEventName ? `\nEvent: ${linkedEventName}` : '';
-	const dmReasonLine = reason ? `\nReason: ${reason}` : '';
+	const dmReasonLine = reason ?? 'Not provided';
+	const dmEventLine = linkedEventName ?? 'None';
+	const rankProgress = resolveMeritRankProgress(currentTotalMerits);
+	const nextRankLine = rankProgress.nextLevel
+		? `Next rank level in **${rankProgress.meritsRemainingToNextLevel} merit${rankProgress.meritsRemainingToNextLevel === 1 ? '' : 's'}**`
+		: 'You are at the maximum merit rank level.';
 
-	return `Your merits were adjusted by **${meritChangeLabel}** by **${awarderNickname}**.${dmEventLine}${dmReasonLine}`;
+	return [
+		`**${awarderNickname}** gave you **${meritTypeName}**`,
+		`Your merits were adjusted by: **${meritChangeLabel}**`,
+		`Reason: ${dmReasonLine}`,
+		dmEventLine !== 'None' ? `Related event: ${dmEventLine}` : null,
+		`You have **${currentTotalMerits} merits total**`,
+		nextRankLine
+	]
+		.filter((line): line is string => line !== null)
+		.join('\n');
 }
 
 function formatSignedMeritAmount(amount: number) {

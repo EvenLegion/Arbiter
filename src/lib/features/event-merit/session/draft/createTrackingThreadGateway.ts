@@ -75,7 +75,7 @@ async function createTrackingThread({
 	if (channel.type === ChannelType.GuildForum) {
 		return channel.threads.create({
 			name: threadName,
-			autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+			autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
 			message: {
 				content: `Initializing event thread for **${tierName} | ${eventName}**...`
 			},
@@ -85,7 +85,7 @@ async function createTrackingThread({
 
 	return channel.threads.create({
 		name: threadName,
-		autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+		autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
 		reason
 	});
 }

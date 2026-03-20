@@ -9,6 +9,8 @@ export type GetUserMeritSummaryParams = {
 export type MeritSummaryEntry = {
 	id: number;
 	amount: number;
+	meritTypeName: string;
+	awardedByName: string;
 	reason: string | null;
 	createdAt: Date;
 	eventSession: {

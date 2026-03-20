@@ -132,7 +132,7 @@ async function createReviewThread({
 	if (channel.type === ChannelType.GuildForum) {
 		const thread = await channel.threads.create({
 			name: threadName,
-			autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+			autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
 			message: {
 				content: mentionContent,
 				embeds: [embed],
@@ -159,7 +159,7 @@ async function createReviewThread({
 
 	const thread = await channel.threads.create({
 		name: threadName,
-		autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+		autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
 		reason
 	});
 	await thread.send({

@@ -46,9 +46,16 @@ export async function getUserMeritSummary(params: GetUserMeritSummaryParams): Pr
 				id: true,
 				reason: true,
 				createdAt: true,
+				awardedByUser: {
+					select: {
+						discordNickname: true,
+						discordUsername: true
+					}
+				},
 				meritType: {
 					select: {
-						meritAmount: true
+						meritAmount: true,
+						name: true
 					}
 				},
 				eventSession: {
@@ -70,6 +77,8 @@ export async function getUserMeritSummary(params: GetUserMeritSummaryParams): Pr
 			entries: entries.map((entry) => ({
 				id: entry.id,
 				amount: entry.meritType.meritAmount,
+				meritTypeName: entry.meritType.name,
+				awardedByName: entry.awardedByUser.discordNickname || entry.awardedByUser.discordUsername,
 				reason: entry.reason,
 				createdAt: entry.createdAt,
 				eventSession: entry.eventSession

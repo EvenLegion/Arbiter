@@ -144,6 +144,39 @@ describe('memberDirectory', () => {
 			).resolves.toBe(fetchedMember);
 		});
 
+		it('falls back to a full member fetch when query fetch misses a differently-cased member', async () => {
+			const fetchedMember = buildMember({
+				id: '733456789012345678',
+				displayName: 'Ciere'
+			});
+			const fetch = vi.fn().mockImplementation(async (value?: string | { query: string; limit: number }) => {
+				if (typeof value === 'string') {
+					return null;
+				}
+				if (value) {
+					expect(value).toEqual({
+						query: 'ciere',
+						limit: 25
+					});
+					return new Map();
+				}
+
+				return new Map([[fetchedMember.id, fetchedMember]]);
+			});
+			const guild = createGuild({
+				cachedMembers: [],
+				fetch
+			});
+
+			await expect(
+				findGuildMemberByInput({
+					guild,
+					input: 'ciere'
+				})
+			).resolves.toBe(fetchedMember);
+			expect(fetch).toHaveBeenCalledTimes(2);
+		});
+
 		it('rejects bots during free-form lookup', async () => {
 			const botMember = buildMember({
 				id: '823456789012345678',
@@ -242,6 +275,44 @@ describe('memberDirectory', () => {
 					value: '133456789012345678'
 				}
 			]);
+		});
+
+		it('falls back to a full member fetch for autocomplete when query fetch misses case variants', async () => {
+			const fetchedMember = buildMember({
+				id: '143456789012345678',
+				displayName: 'Ciere'
+			});
+			const fetch = vi.fn().mockImplementation(async (value?: string | { query: string; limit: number }) => {
+				if (typeof value === 'string') {
+					return null;
+				}
+				if (value) {
+					expect(value).toEqual({
+						query: 'ci',
+						limit: 25
+					});
+					return new Map();
+				}
+
+				return new Map([[fetchedMember.id, fetchedMember]]);
+			});
+			const guild = createGuild({
+				cachedMembers: [],
+				fetch
+			});
+
+			await expect(
+				buildGuildMemberAutocompleteChoices({
+					guild,
+					query: 'ci'
+				})
+			).resolves.toEqual([
+				{
+					name: 'Ciere',
+					value: '143456789012345678'
+				}
+			]);
+			expect(fetch).toHaveBeenCalledTimes(2);
 		});
 	});
 });

@@ -29,23 +29,43 @@ export function buildMeritListPayload({
 		totalLinkedEvents,
 		entries
 	});
+	const prevPage = Math.max(1, page - 1);
+	const nextPage = Math.min(totalPages, page + 1);
+	const prevDisabled = page <= 1;
+	const nextDisabled = page >= totalPages;
 
 	const controls = new ActionRowBuilder<ButtonBuilder>().addComponents(
 		new ButtonBuilder()
-			.setCustomId(buildMeritListPageButtonId({ targetDiscordUserId, page: Math.max(1, page - 1) }))
+			.setCustomId(
+				prevDisabled
+					? buildDisabledMeritListPageButtonId({
+							targetDiscordUserId,
+							page,
+							direction: 'prev'
+						})
+					: buildMeritListPageButtonId({ targetDiscordUserId, page: prevPage })
+			)
 			.setLabel('Prev')
 			.setStyle(ButtonStyle.Secondary)
-			.setDisabled(page <= 1),
+			.setDisabled(prevDisabled),
 		new ButtonBuilder()
 			.setCustomId(buildMeritListPageIndicatorButtonId({ targetDiscordUserId, page }))
 			.setLabel(`Page ${page}/${totalPages}`)
 			.setStyle(ButtonStyle.Secondary)
 			.setDisabled(true),
 		new ButtonBuilder()
-			.setCustomId(buildMeritListPageButtonId({ targetDiscordUserId, page: Math.min(totalPages, page + 1) }))
+			.setCustomId(
+				nextDisabled
+					? buildDisabledMeritListPageButtonId({
+							targetDiscordUserId,
+							page,
+							direction: 'next'
+						})
+					: buildMeritListPageButtonId({ targetDiscordUserId, page: nextPage })
+			)
 			.setLabel('Next')
 			.setStyle(ButtonStyle.Secondary)
-			.setDisabled(page >= totalPages)
+			.setDisabled(nextDisabled)
 	);
 
 	return {
@@ -118,7 +138,9 @@ function buildEntriesDescription({ entries }: { entries: MeritSummaryEntry[] }) 
 		const reason = trimForDisplay(entry.reason ?? 'No reason provided', 180);
 		const event = entry.eventSession ? `${entry.eventSession.name}` : 'No linked event';
 		const amountLabel = entry.amount >= 0 ? `+${entry.amount}` : `${entry.amount}`;
-		const chunk = `**${amountLabel} merits** ${timestamp}\nReason: ${reason}\nEvent: ${trimForDisplay(event, 140)}`;
+		const meritTypeName = trimForDisplay(entry.meritTypeName, 100);
+		const awardedByName = trimForDisplay(entry.awardedByName, 100);
+		const chunk = `**${amountLabel} merits** (${meritTypeName}) ${timestamp}\nAwarded by: ${awardedByName}\nEvent: ${trimForDisplay(event, 140)}\nReason: ${reason}`;
 
 		const extraLength = chunks.length === 0 ? chunk.length : chunk.length + 2;
 		if (currentLength + extraLength > maxDescriptionLength) {
@@ -139,4 +161,16 @@ function trimForDisplay(value: string, maxLength: number) {
 	}
 
 	return `${trimmed.slice(0, Math.max(0, maxLength - 1))}...`;
+}
+
+function buildDisabledMeritListPageButtonId({
+	targetDiscordUserId,
+	page,
+	direction
+}: {
+	targetDiscordUserId: string;
+	page: number;
+	direction: 'prev' | 'next';
+}) {
+	return `merit:list:page-disabled:${direction}:${targetDiscordUserId}:${page}`;
 }

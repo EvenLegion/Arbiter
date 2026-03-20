@@ -87,8 +87,18 @@ export async function findGuildMemberByInput({ guild, input, includeBots = false
 		query: trimmedInput,
 		limit: DEFAULT_AUTOCOMPLETE_LIMIT
 	});
-	return findUniqueMemberMatch({
+	const fetchedMatch = findUniqueMemberMatch({
 		members: mergeMembers(guild.members.cache.values(), fetchedMembers.values()),
+		normalizedQuery,
+		includeBots
+	});
+	if (fetchedMatch) {
+		return fetchedMatch;
+	}
+
+	const allMembers = await guild.members.fetch();
+	return findUniqueMemberMatch({
+		members: mergeMembers(guild.members.cache.values(), allMembers.values()),
 		normalizedQuery,
 		includeBots
 	});
@@ -124,18 +134,12 @@ export async function buildGuildMemberAutocompleteChoices({
 	const members =
 		cachedMatches.length > 0 || normalizedQuery.length === 0
 			? cachedMatches
-			: getRankedMembers({
-					members: mergeMembers(
-						guild.members.cache.values(),
-						(
-							await guild.members.fetch({
-								query: query.trim(),
-								limit
-							})
-						).values()
-					),
+			: await getAutocompleteFallbackMembers({
+					guild,
+					query,
 					normalizedQuery,
-					includeBots
+					includeBots,
+					limit
 				});
 
 	return members.slice(0, limit).map(toAutocompleteChoice);
@@ -165,6 +169,40 @@ function mergeMembers(...collections: Iterable<GuildMember>[]) {
 	}
 
 	return membersById.values();
+}
+
+async function getAutocompleteFallbackMembers({
+	guild,
+	query,
+	normalizedQuery,
+	includeBots,
+	limit
+}: {
+	guild: Guild;
+	query: string;
+	normalizedQuery: string;
+	includeBots: boolean;
+	limit: number;
+}) {
+	const queriedMembers = await guild.members.fetch({
+		query: query.trim(),
+		limit
+	});
+	const queriedMatches = getRankedMembers({
+		members: mergeMembers(guild.members.cache.values(), queriedMembers.values()),
+		normalizedQuery,
+		includeBots
+	});
+	if (queriedMatches.length > 0) {
+		return queriedMatches;
+	}
+
+	const allMembers = await guild.members.fetch();
+	return getRankedMembers({
+		members: mergeMembers(guild.members.cache.values(), allMembers.values()),
+		normalizedQuery,
+		includeBots
+	});
 }
 
 function findUniqueMemberMatch({

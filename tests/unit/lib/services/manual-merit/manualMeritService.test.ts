@@ -28,6 +28,17 @@ describe('manualMeritService', () => {
 			dmSent: true,
 			recipientNicknameTooLong: false
 		});
+		expect(deps.sendRecipientDm).toHaveBeenCalledWith({
+			discordUserId: 'target-user',
+			content: [
+				'**Staff Display** gave you **Commander Merit**',
+				'Your merits were adjusted by: **+1 merit**',
+				'Reason: Hosted training',
+				'Related event: Training Op',
+				'You have **12 merits total**',
+				'Next rank level in **6 merits**'
+			].join('\n')
+		});
 	});
 
 	it('surfaces a nickname warning without failing the workflow', async () => {
@@ -86,6 +97,30 @@ describe('manualMeritService', () => {
 			discordUserId: 'target-user',
 			previousTotalMerits: 11,
 			currentTotalMerits: 12
+		});
+	});
+
+	it('fills missing reason and event lines in the recipient DM', async () => {
+		const deps = createDeps();
+
+		await awardManualMeritWorkflow(deps, {
+			actor: createActor(),
+			actorMember: buildMember('staff-user'),
+			playerInput: 'target-user',
+			rawMeritTypeCode: MeritTypeCode.COMMANDER_MERIT,
+			reason: null,
+			linkedEventSessionId: null
+		});
+
+		expect(deps.sendRecipientDm).toHaveBeenCalledWith({
+			discordUserId: 'target-user',
+			content: [
+				'**Staff Display** gave you **Commander Merit**',
+				'Your merits were adjusted by: **+1 merit**',
+				'Reason: Not provided',
+				'You have **12 merits total**',
+				'Next rank level in **6 merits**'
+			].join('\n')
 		});
 	});
 
