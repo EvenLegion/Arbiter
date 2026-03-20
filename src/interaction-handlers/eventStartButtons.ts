@@ -1,37 +1,32 @@
 import { ApplyOptions } from '@sapphire/decorators';
-import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
+import { type InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
-import { handleEventStartButton } from '../lib/features/event-merit/session/handleEventStartButton';
-import { parseEventStartButton } from '../lib/features/event-merit/session/parseEventStartButton';
-import { createExecutionContext } from '../lib/logging/executionContext';
+
+import { RoutedButtonInteractionHandler, type RoutedButtonRouteParams } from '../lib/discord/interactions/routedInteractionHandler';
+import { parseEventStartButtonCustomId, type ParsedEventStartButton } from '../lib/features/event-merit/session/buttons/eventStartButtonCustomId';
+import { handleEventStartButton } from '../lib/features/event-merit/session/buttons/handleEventStartButton';
 
 @ApplyOptions<InteractionHandler.Options>({
 	interactionHandlerType: InteractionHandlerTypes.Button
 })
-export class EventStartButtonsInteractionHandler extends InteractionHandler {
-	public override parse(interaction: ButtonInteraction) {
-		const parsed = parseEventStartButton({
-			customId: interaction.customId
-		});
+export class EventStartButtonsInteractionHandler extends RoutedButtonInteractionHandler<ParsedEventStartButton> {
+	protected override readonly flow = 'interaction.eventStartButtons';
 
-		return parsed ? this.some(parsed) : this.none();
+	protected override decode(interaction: ButtonInteraction) {
+		return parseEventStartButtonCustomId(interaction.customId);
 	}
 
-	public override async run(interaction: ButtonInteraction, parsedEventStartButton: NonNullable<ReturnType<typeof parseEventStartButton>>) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'interaction.eventStartButtons',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id,
-				customButtonId: interaction.customId,
-				eventSessionId: parsedEventStartButton.eventSessionId,
-				eventStartAction: parsedEventStartButton.action
-			}
-		});
+	protected override buildContextBindings(_interaction: ButtonInteraction, parsedEventStartButton: ParsedEventStartButton) {
+		return {
+			eventSessionId: parsedEventStartButton.eventSessionId,
+			eventStartAction: parsedEventStartButton.action
+		};
+	}
 
+	protected override async route({ interaction, parsed, context }: RoutedButtonRouteParams<ParsedEventStartButton>) {
 		await handleEventStartButton({
 			interaction,
-			parsedEventStartButton,
+			parsedEventStartButton: parsed,
 			context
 		});
 	}

@@ -1,37 +1,32 @@
 import { ApplyOptions } from '@sapphire/decorators';
-import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
+import { type InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
-import { handleEventReviewButton } from '../lib/features/event-merit/review/handleEventReviewButton';
-import { parseEventReviewButton } from '../lib/features/event-merit/review/parseEventReviewButton';
-import { createExecutionContext } from '../lib/logging/executionContext';
+
+import { RoutedButtonInteractionHandler, type RoutedButtonRouteParams } from '../lib/discord/interactions/routedInteractionHandler';
+import { parseEventReviewButtonCustomId, type ParsedEventReviewButton } from '../lib/features/event-merit/review/buttons/eventReviewButtonProtocol';
+import { handleEventReviewButton } from '../lib/features/event-merit/review/buttons/handleEventReviewButton';
 
 @ApplyOptions<InteractionHandler.Options>({
 	interactionHandlerType: InteractionHandlerTypes.Button
 })
-export class EventReviewButtonsInteractionHandler extends InteractionHandler {
-	public override parse(interaction: ButtonInteraction) {
-		const parsed = parseEventReviewButton({
-			customId: interaction.customId
-		});
+export class EventReviewButtonsInteractionHandler extends RoutedButtonInteractionHandler<ParsedEventReviewButton> {
+	protected override readonly flow = 'interaction.eventReviewButtons';
 
-		return parsed ? this.some(parsed) : this.none();
+	protected override decode(interaction: ButtonInteraction) {
+		return parseEventReviewButtonCustomId(interaction.customId);
 	}
 
-	public override async run(interaction: ButtonInteraction, parsedEventReviewButton: NonNullable<ReturnType<typeof parseEventReviewButton>>) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'interaction.eventReviewButtons',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id,
-				customButtonId: interaction.customId,
-				eventSessionId: parsedEventReviewButton.eventSessionId,
-				eventReviewAction: parsedEventReviewButton.action
-			}
-		});
+	protected override buildContextBindings(_interaction: ButtonInteraction, parsedEventReviewButton: ParsedEventReviewButton) {
+		return {
+			eventSessionId: parsedEventReviewButton.eventSessionId,
+			eventReviewAction: parsedEventReviewButton.action
+		};
+	}
 
+	protected override async route({ interaction, parsed, context }: RoutedButtonRouteParams<ParsedEventReviewButton>) {
 		await handleEventReviewButton({
 			interaction,
-			parsedEventReviewButton,
+			parsedEventReviewButton: parsed,
 			context
 		});
 	}

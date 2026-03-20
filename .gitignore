@@ -28,3 +28,9 @@ data/
 *.dump
 .tmp/
 .pnpm-store/
+website/.docusaurus/
+website/build/
+website/node_modules/
+audits/
+
+logs/

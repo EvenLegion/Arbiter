@@ -1,6 +1,9 @@
 import { ScheduledTask } from '@sapphire/plugin-scheduled-tasks';
 import { ENV_DISCORD } from '../config/env/discord';
-import { createExecutionContext } from '../lib/logging/executionContext';
+import { isRuntimeClientReady } from '../integrations/sapphire/runtimeGateway';
+import { createEventTrackingServiceDeps } from '../lib/features/event-merit/tracking/createEventTrackingServiceDeps';
+import { createScheduledTaskExecutionContext } from '../lib/logging/ingressExecutionContext';
+import { tickAllActiveEventTrackingSessions } from '../lib/services/event-tracking/eventTrackingService';
 
 export class EventTrackingTickTask extends ScheduledTask {
 	public constructor(context: ScheduledTask.LoaderContext, options: ScheduledTask.Options) {
@@ -11,26 +14,26 @@ export class EventTrackingTickTask extends ScheduledTask {
 	}
 
 	public override async run() {
-		if (!this.container.client.isReady()) {
+		if (!isRuntimeClientReady()) {
 			return;
 		}
 
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'task.eventTrackingTick'
-			}
+		const context = createScheduledTaskExecutionContext({
+			taskName: 'eventTrackingTick',
+			flow: 'task.eventTrackingTick'
 		});
 
 		try {
-			await this.container.utilities.eventTracking.tickAllActiveSessions({
+			await tickAllActiveEventTrackingSessions(createEventTrackingServiceDeps(), {
 				context
 			});
+			context.logger.debug('task.completed');
 		} catch (error) {
 			context.logger.error(
 				{
 					err: error
 				},
-				'eventTrackingTick task failed'
+				'task.failed'
 			);
 			throw error;
 		}

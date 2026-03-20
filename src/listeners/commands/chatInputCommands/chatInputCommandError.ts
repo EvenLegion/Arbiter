@@ -1,48 +1,35 @@
 import { Events, Listener, type ChatInputCommandErrorPayload } from '@sapphire/framework';
-import { createExecutionContext } from '../../../lib/logging/executionContext';
+import { createInteractionResponder } from '../../../lib/discord/interactions/interactionResponder';
+import { createCommandExecutionContext } from '../../../lib/logging/commandExecutionContext';
 
 export class UserEvent extends Listener<typeof Events.ChatInputCommandError> {
 	public override async run(error: unknown, { interaction, command }: ChatInputCommandErrorPayload) {
-		const context = createExecutionContext({
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'listener.chatInputCommandError',
+			logReceived: false,
 			bindings: {
-				flow: 'chatInputCommandError',
 				caller: 'chatInputCommandError',
-				commandName: command?.name,
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
+				commandName: command?.name ?? interaction.commandName
 			}
 		});
 		const logger = context.logger;
+		const responder = createInteractionResponder({
+			interaction,
+			context,
+			logger,
+			caller: 'chatInputCommandError'
+		});
 
 		logger.error(
 			{
 				err: error
 			},
-			'Unhandled chat input command error'
+			'discord.chat_input.failed'
 		);
 
-		const content = `An unexpected error occurred. requestId=\`${context.requestId}\``;
-		if (interaction.deferred || interaction.replied) {
-			await interaction.editReply({ content }).catch((editError: unknown) => {
-				logger.error(
-					{
-						err: editError
-					},
-					'Failed to edit interaction reply for chat input command error'
-				);
-				return undefined;
-			});
-			return;
-		}
-
-		await interaction.reply({ content, ephemeral: true }).catch((replyError: unknown) => {
-			logger.error(
-				{
-					err: replyError
-				},
-				'Failed to reply to interaction for chat input command error'
-			);
-			return undefined;
+		await responder.fail('An unexpected error occurred.', {
+			requestId: true
 		});
 	}
 }

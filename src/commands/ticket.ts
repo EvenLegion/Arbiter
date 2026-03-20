@@ -3,8 +3,8 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { ENV_DISCORD } from '../config/env';
 import { DISCORD_MAX_NICKNAME_LENGTH } from '../lib/constants';
-import { handleNameChangeTicket } from '../lib/features/ticket/handleNameChangeTicket';
-import { createExecutionContext } from '../lib/logging/executionContext';
+import { handleNameChangeTicket } from '../lib/features/ticket/request/handleNameChangeTicket';
+import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
 	description: 'Ticket commands',
@@ -46,12 +46,9 @@ export class TicketCommand extends Subcommand {
 	}
 
 	public async chatInputNameChange(interaction: Subcommand.ChatInputCommandInteraction) {
-		const context = createExecutionContext({
-			bindings: {
-				flow: 'ticket.nameChange',
-				discordInteractionId: interaction.id,
-				discordUserId: interaction.user.id
-			}
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'ticket.nameChange'
 		});
 
 		return handleNameChangeTicket({

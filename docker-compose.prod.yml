@@ -26,13 +26,17 @@ services:
       NODE_ENV: production
       REDIS_HOST: arbiter-redis
       REDIS_PORT: 6379
-      LOCAL_LOG_FILE_PATH: /app/logs/arbiter.log
+      LOG_FILE_PATH: /app/logs/arbiter.log
     user: ${BOT_UID:-1000}:${BOT_GID:-1000}
     volumes:
       - ${BOT_LOGS_DIR:-/opt/arbiter/bot-logs}:/app/logs
     depends_on:
       arbiter-redis:
         condition: service_healthy
+      arbiter-loki:
+        condition: service_started
+      arbiter-alloy:
+        condition: service_started
     mem_limit: ${BOT_MEM_LIMIT:-768m}
     cpus: ${BOT_CPUS:-1.0}
 
@@ -64,3 +68,54 @@ services:
       start_period: 10s
     mem_limit: ${REDIS_MEM_LIMIT:-256m}
     cpus: ${REDIS_CPUS:-0.5}
+
+  arbiter-loki:
+    image: grafana/loki:${LOKI_DOCKER_VERSION:-3.5.6}
+    container_name: arbiter-v3-loki
+    restart: unless-stopped
+    command: ['-config.file=/etc/loki/config.yml']
+    ports:
+      - '${LOKI_PORT:-3100}:3100'
+    volumes:
+      - ./observability/loki/config.yml:/etc/loki/config.yml:ro
+      - ${LOKI_DATA_DIR:-/opt/arbiter/loki-data}:/loki
+    mem_limit: ${LOKI_MEM_LIMIT:-512m}
+    cpus: ${LOKI_CPUS:-0.5}
+
+  arbiter-alloy:
+    image: grafana/alloy:${ALLOY_DOCKER_VERSION:-v1.14.0}
+    container_name: arbiter-v3-alloy
+    restart: unless-stopped
+    command: ['run', '/etc/alloy/config.alloy']
+    environment:
+      ARBITER_ENV: production
+      ARBITER_LOG_GLOB: /var/log/arbiter/*.log
+      LOKI_WRITE_URL: http://arbiter-loki:3100/loki/api/v1/push
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ${BOT_LOGS_DIR:-/opt/arbiter/bot-logs}:/var/log/arbiter:ro
+      - ${ALLOY_DATA_DIR:-/opt/arbiter/alloy-data}:/var/lib/alloy
+    depends_on:
+      arbiter-loki:
+        condition: service_started
+    mem_limit: ${ALLOY_MEM_LIMIT:-128m}
+    cpus: ${ALLOY_CPUS:-0.25}
+
+  arbiter-grafana:
+    image: grafana/grafana:${GRAFANA_DOCKER_VERSION:-12.2.0}
+    container_name: arbiter-v3-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+    ports:
+      - '${GRAFANA_PORT:-3001}:3000'
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ${GRAFANA_DATA_DIR:-/opt/arbiter/grafana-data}:/var/lib/grafana
+    depends_on:
+      arbiter-loki:
+        condition: service_started
+    mem_limit: ${GRAFANA_MEM_LIMIT:-256m}
+    cpus: ${GRAFANA_CPUS:-0.5}

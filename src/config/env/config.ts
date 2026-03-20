@@ -5,12 +5,19 @@ import { env } from './env';
 
 const ConfigSchema = z.object({
 	NODE_ENV: z.enum(['development', 'production']).default('development'),
-	LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
-	LOCAL_FILE_LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('debug'),
-	LOCAL_LOG_FILE_PATH: z.string().min(1).default('logs/arbiter.log'),
+	FILE_LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('debug'),
+	LOG_FILE_PATH: z.string().min(1).default('logs/arbiter.log'),
+	CONSOLE_LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'silent']).default('info'),
+	ENABLE_CONSOLE_PRETTY_LOGS: z
+		.string()
+		.optional()
+		.transform((value) => {
+			if (value === undefined) {
+				return true;
+			}
 
-	BETTER_STACK_SOURCE_TOKEN: z.string().optional(),
-	BETTER_STACK_INGESTING_HOST: z.string().optional(),
+			return value === 'true';
+		}),
 
 	REDIS_HOST: z.string().default('127.0.0.1'),
 	REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
