@@ -1,8 +1,12 @@
+import { EventReviewDecisionKind } from '@prisma/client';
 import type { Guild } from 'discord.js';
 
+import { ENV_DISCORD } from '../../../../../config/env/discord';
 import { eventRepository, eventReviewRepository } from '../../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../../logging/executionContext';
+import { computeEventDurationSeconds } from '../../../../services/event-lifecycle';
 import { recordEventReviewDecision } from '../../../../services/event-review/eventReviewService';
+import { resolveEventReviewDecision } from '../presentation/eventReviewPresentationModel';
 import { syncEventReviewPresentation } from '../../presentation/syncEventReviewPresentation';
 import { presentRecordEventReviewDecisionResult } from './eventReviewActionResultPresenter';
 import type { ParsedEventReviewDecisionAction } from '../buttons/eventReviewButtonProtocol';
@@ -28,12 +32,52 @@ export async function runRecordEventReviewDecisionAction({
 		};
 	};
 }) {
+	const currentAttendee = await eventReviewRepository
+		.getReviewPage({
+			eventSessionId: parsedEventReviewButton.eventSessionId,
+			page: parsedEventReviewButton.page
+		})
+		.then((reviewPage) => reviewPage?.attendees.find((attendee) => attendee.dbUserId === parsedEventReviewButton.targetDbUserId) ?? null);
+
+	if (!currentAttendee) {
+		logger.warn(
+			{
+				eventSessionId: parsedEventReviewButton.eventSessionId,
+				page: parsedEventReviewButton.page,
+				targetDbUserId: parsedEventReviewButton.targetDbUserId
+			},
+			'event.review.decision.target_missing'
+		);
+		return 'Could not resolve the current attendee review state. Please refresh the review page and try again.';
+	}
+
+	const eventSession = await eventRepository.getSession({
+		eventSessionId: parsedEventReviewButton.eventSessionId
+	});
+	if (!eventSession) {
+		return presentRecordEventReviewDecisionResult({
+			kind: 'event_not_found'
+		});
+	}
+
+	const currentDecision = resolveEventReviewDecision({
+		decision: currentAttendee.decision,
+		attendedSeconds: currentAttendee.attendedSeconds,
+		durationSeconds: computeEventDurationSeconds({
+			startedAt: eventSession.startedAt,
+			endedAt: eventSession.endedAt
+		}),
+		defaultMinAttendancePct: ENV_DISCORD.EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT
+	});
+	const nextDecision = currentDecision === EventReviewDecisionKind.MERIT ? EventReviewDecisionKind.NO_MERIT : EventReviewDecisionKind.MERIT;
+
 	logger.info(
 		{
 			eventSessionId: parsedEventReviewButton.eventSessionId,
 			page: parsedEventReviewButton.page,
 			targetDbUserId: parsedEventReviewButton.targetDbUserId,
-			decision: parsedEventReviewButton.decision,
+			currentDecision,
+			decision: nextDecision,
 			reviewerDiscordUserId: reviewer.actor.discordUserId
 		},
 		'event.review.decision.started'
@@ -60,7 +104,7 @@ export async function runRecordEventReviewDecisionAction({
 			actor: reviewer.actor,
 			eventSessionId: parsedEventReviewButton.eventSessionId,
 			targetDbUserId: parsedEventReviewButton.targetDbUserId,
-			decision: parsedEventReviewButton.decision,
+			decision: nextDecision,
 			page: parsedEventReviewButton.page
 		}
 	);
@@ -72,7 +116,7 @@ export async function runRecordEventReviewDecisionAction({
 					eventSessionId: parsedEventReviewButton.eventSessionId,
 					page: parsedEventReviewButton.page,
 					targetDbUserId: parsedEventReviewButton.targetDbUserId,
-					decision: parsedEventReviewButton.decision
+					decision: nextDecision
 				},
 				'event.review.decision.completed'
 			);
@@ -82,7 +126,7 @@ export async function runRecordEventReviewDecisionAction({
 					eventSessionId: parsedEventReviewButton.eventSessionId,
 					page: parsedEventReviewButton.page,
 					targetDbUserId: parsedEventReviewButton.targetDbUserId,
-					decision: parsedEventReviewButton.decision
+					decision: nextDecision
 				},
 				'event.review.decision.sync_failed'
 			);
@@ -93,7 +137,7 @@ export async function runRecordEventReviewDecisionAction({
 				eventSessionId: parsedEventReviewButton.eventSessionId,
 				page: parsedEventReviewButton.page,
 				targetDbUserId: parsedEventReviewButton.targetDbUserId,
-				decision: parsedEventReviewButton.decision,
+				decision: nextDecision,
 				resultKind: result.kind,
 				...('currentState' in result ? { currentState: result.currentState } : {})
 			},

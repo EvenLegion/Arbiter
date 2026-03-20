@@ -1,5 +1,7 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 import type { EventReviewPageAttendee } from '../../../../../integrations/prisma/repositories';
+import { stripLeadingPrefixSegments } from '../../../../services/bulk-nickname/nicknameTransform';
+import { stripTrailingMeritRankSuffix } from '../../../../services/nickname/buildUserNickname';
 
 export type EventReviewPresentationAttendee = {
 	dbUserId: string;
@@ -17,7 +19,8 @@ export function buildEventReviewPresentationModel({
 	page,
 	attendees,
 	pageSize,
-	defaultMinAttendancePct = 100
+	defaultMinAttendancePct = 100,
+	fullAttendanceGraceSeconds = 0
 }: {
 	state: EventSessionState;
 	durationSeconds: number;
@@ -25,11 +28,13 @@ export function buildEventReviewPresentationModel({
 	attendees: EventReviewPageAttendee[];
 	pageSize: number;
 	defaultMinAttendancePct?: number;
+	fullAttendanceGraceSeconds?: number;
 }) {
 	const presentationAttendees = attendees.map((attendee, index) => {
 		const attendancePercent = computeEventReviewAttendancePercent({
 			attendedSeconds: attendee.attendedSeconds,
-			durationSeconds
+			durationSeconds,
+			fullAttendanceGraceSeconds
 		});
 		const selectedDecision = resolveEventReviewDecision({
 			decision: attendee.decision,
@@ -61,19 +66,32 @@ export function buildEventReviewPresentationModel({
 				: presentationAttendees
 						.map(
 							(attendee) =>
-								`${attendee.absoluteIndex}. <@${attendee.discordUserId}> - ${formatMinutes(attendee.attendedSeconds)} (${attendee.attendancePercent.toFixed(1)}%) - **${attendee.decisionLabel}**`
+								`${attendee.absoluteIndex}. <@${attendee.discordUserId}> - ${formatMinutes(attendee.attendedSeconds)} (${Math.round(attendee.attendancePercent)}%) - **${attendee.decisionLabel}**`
 						)
 						.join('\n'),
 		attendees: presentationAttendees
 	};
 }
 
-export function computeEventReviewAttendancePercent({ attendedSeconds, durationSeconds }: { attendedSeconds: number; durationSeconds: number }) {
+export function computeEventReviewAttendancePercent({
+	attendedSeconds,
+	durationSeconds,
+	fullAttendanceGraceSeconds = 0
+}: {
+	attendedSeconds: number;
+	durationSeconds: number;
+	fullAttendanceGraceSeconds?: number;
+}) {
 	if (durationSeconds <= 0) {
 		return 0;
 	}
 
-	const ratio = Math.max(0, Math.min(1, attendedSeconds / durationSeconds));
+	const safeAttendedSeconds = Math.max(0, attendedSeconds);
+	if (durationSeconds - safeAttendedSeconds <= Math.max(0, fullAttendanceGraceSeconds)) {
+		return 100;
+	}
+
+	const ratio = Math.max(0, Math.min(1, safeAttendedSeconds / durationSeconds));
 	return ratio * 100;
 }
 
@@ -105,7 +123,11 @@ function buildDecisionLabelSuffix({ discordNickname, discordUsername }: { discor
 		return 'Unknown';
 	}
 
-	return raw.slice(0, 24);
+	const withoutPrefix = stripLeadingPrefixSegments(raw);
+	const withoutSuffix = stripTrailingMeritRankSuffix(withoutPrefix).trim();
+	const cleaned = withoutSuffix.length > 0 ? withoutSuffix : raw;
+
+	return cleaned.slice(0, 24);
 }
 
 function formatMinutes(attendedSeconds: number) {
