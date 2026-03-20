@@ -65,7 +65,7 @@
 		"docs:build": "cd website && node ../node_modules/@docusaurus/core/bin/docusaurus.mjs build",
 		"docs:dev": "cd website && node ../node_modules/@docusaurus/core/bin/docusaurus.mjs start --host 0.0.0.0",
 		"docs:serve": "cd website && node ../node_modules/@docusaurus/core/bin/docusaurus.mjs serve --host 0.0.0.0",
-		"lint": "eslint",
+		"lint": "eslint src tests",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:unit": "vitest run tests/unit",

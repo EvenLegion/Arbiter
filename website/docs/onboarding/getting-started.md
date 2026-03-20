@@ -102,7 +102,7 @@ For most code changes, this is the safe default:
 
 ```bash
 pnpm typecheck
-pnpm exec eslint src tests
+pnpm lint
 pnpm test
 pnpm docs:build
 ```

@@ -39,7 +39,7 @@ jobs:
         run: pnpm typecheck
 
       - name: Lint
-        run: pnpm eslint src
+        run: pnpm lint
 
       - name: Unit Tests
         run: pnpm test:unit
