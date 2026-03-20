@@ -18,7 +18,6 @@ describe('buildWelcomeMessage', () => {
 			discordUserId: 'user-1',
 			userAvatarUrl: 'https://example.com/avatar.png',
 			rulesChannelId: 'rules-1',
-			roleSelectChannelId: 'roles-1',
 			newPlayersChannelId: 'new-players-1'
 		});
 
@@ -29,7 +28,7 @@ describe('buildWelcomeMessage', () => {
 		expect(message.embeds?.[0].thumbnail).toEqual({
 			url: 'https://example.com/avatar.png'
 		});
-		expect(message.embeds?.[0].fields?.map((field) => field.name)).toEqual(['Server-Rules', 'Role-Select', 'New Players']);
+		expect(message.embeds?.[0].fields?.map((field) => field.name)).toEqual(['Server-Rules', 'New Players']);
 		expect(message.embeds?.[0].timestamp).toBe('2025-01-02T03:04:05.000Z');
 	});
 

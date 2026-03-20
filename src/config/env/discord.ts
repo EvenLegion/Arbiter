@@ -9,7 +9,6 @@ const DiscordSchema = z.object({
 	WELCOME_CHANNEL_ID: z.string().min(1, 'WELCOME_CHANNEL_ID is required'),
 	WELCOME_RULES_CHANNEL_ID: z.string().min(1, 'WELCOME_RULES_CHANNEL_ID is required'),
 	WELCOME_RECRUITMENT_CHANNEL_ID: z.string().min(1, 'WELCOME_RECRUITMENT_CHANNEL_ID is required'),
-	WELCOME_ROLE_SELECT_CHANNEL_ID: z.string().min(1, 'WELCOME_ROLE_SELECT_CHANNEL_ID is required'),
 	WELCOME_CHARTER_CHANNEL_ID: z.string().min(1, 'WELCOME_CHARTER_CHANNEL_ID is required'),
 	WELCOME_NEW_PLAYERS_CHANNEL_ID: z.string().min(1, 'WELCOME_NEW_PLAYERS_CHANNEL_ID is required'),
 
