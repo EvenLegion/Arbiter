@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "feat/event-feedback-form",
+	"baseRef": "origin/dev",
+	"mergeBase": "4f782a04928fb4c3b2a6920334f110e3b41eae04",
+	"headRef": "ffe7e677915fe0278c4e6171c73032dead92d97c",
+	"generatedAt": "2026-03-20T04:28:20.228Z",
+	"bump": "minor",
+	"targetVersion": "2.4.0",
+	"commits": [
+		{
+			"sha": "ffe7e677915fe0278c4e6171c73032dead92d97c",
+			"subject": "feat: Post event feedback form after event has ended to tracked event voice channels",
+			"committedAt": "2026-03-19T17:33:19-10:00",
+			"committedAtMs": 1773977599000,
+			"type": "feat",
+			"scope": null,
+			"description": "Post event feedback form after event has ended to tracked event voice channels",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
