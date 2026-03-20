@@ -38,6 +38,7 @@ const DiscordSchema = z.object({
 
 	// Legionnaire role
 	LGN_ROLE_ID: z.string().min(1, 'LGN_ROLE_ID is required'),
+	LGN_SALUTE_EMOJI_ID: z.string().min(1, 'LGN_SALUTE_EMOJI_ID is required'),
 
 	// Initiate and reserve roles
 	INT_ROLE_ID: z.string().min(1, 'INT_ROLE_ID is required'),

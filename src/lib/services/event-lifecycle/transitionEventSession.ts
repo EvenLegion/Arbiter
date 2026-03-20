@@ -16,6 +16,7 @@ export type TransitionEventSessionDeps = {
 	startTracking?: (params: { eventSessionId: number; startedAtMs: number }) => Promise<void>;
 	stopTracking?: (params: { eventSessionId: number }) => Promise<void>;
 	renameParentVoiceChannel?: (params: { channelId: string; name: string; reason: string }) => Promise<void>;
+	postEndedEventFeedbackLinks?: (params: { eventSession: EventLifecycleEventSession }) => Promise<void>;
 	initializeReview?: (params: { eventSessionId: number }) => Promise<{ initialized: boolean }>;
 	now: () => Date;
 };
@@ -239,7 +240,12 @@ async function persistEventTransition(
 async function runEventTransitionSideEffects(
 	deps: Pick<
 		TransitionEventSessionDeps,
-		'startTracking' | 'stopTracking' | 'renameParentVoiceChannel' | 'syncLifecyclePresentation' | 'initializeReview'
+		| 'startTracking'
+		| 'stopTracking'
+		| 'renameParentVoiceChannel'
+		| 'syncLifecyclePresentation'
+		| 'postEndedEventFeedbackLinks'
+		| 'initializeReview'
 	>,
 	input: TransitionEventSessionWorkflowInput,
 	eventSession: EventLifecycleEventSession,
@@ -276,6 +282,12 @@ async function runEventTransitionSideEffects(
 		eventSession,
 		actorDiscordUserId: input.actor.discordUserId
 	});
+
+	if (input.toState === EventSessionState.ENDED_PENDING_REVIEW && deps.postEndedEventFeedbackLinks) {
+		await deps.postEndedEventFeedbackLinks({
+			eventSession
+		});
+	}
 
 	const reviewResult = deps.initializeReview
 		? await deps.initializeReview({
