@@ -32,6 +32,7 @@ const DEFAULT_TEST_ENV = {
 	MRN_ROLE_ID: 'mrn-role-id',
 	SUP_ROLE_ID: 'sup-role-id',
 	LGN_ROLE_ID: 'lgn-role-id',
+	LGN_SALUTE_EMOJI_ID: 'lgn-salute-emoji-id',
 	INT_ROLE_ID: 'int-role-id',
 	RES_ROLE_ID: 'res-role-id',
 	EVENT_TRACKING_CHANNEL_ID: 'event-tracking-channel-id',
