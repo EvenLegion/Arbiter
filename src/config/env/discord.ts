@@ -9,7 +9,6 @@ const DiscordSchema = z.object({
 	WELCOME_CHANNEL_ID: z.string().min(1, 'WELCOME_CHANNEL_ID is required'),
 	WELCOME_RULES_CHANNEL_ID: z.string().min(1, 'WELCOME_RULES_CHANNEL_ID is required'),
 	WELCOME_RECRUITMENT_CHANNEL_ID: z.string().min(1, 'WELCOME_RECRUITMENT_CHANNEL_ID is required'),
-	WELCOME_ROLE_SELECT_CHANNEL_ID: z.string().min(1, 'WELCOME_ROLE_SELECT_CHANNEL_ID is required'),
 	WELCOME_CHARTER_CHANNEL_ID: z.string().min(1, 'WELCOME_CHARTER_CHANNEL_ID is required'),
 	WELCOME_NEW_PLAYERS_CHANNEL_ID: z.string().min(1, 'WELCOME_NEW_PLAYERS_CHANNEL_ID is required'),
 
@@ -38,6 +37,7 @@ const DiscordSchema = z.object({
 
 	// Legionnaire role
 	LGN_ROLE_ID: z.string().min(1, 'LGN_ROLE_ID is required'),
+	LGN_SALUTE_EMOJI_ID: z.string().min(1, 'LGN_SALUTE_EMOJI_ID is required'),
 
 	// Initiate and reserve roles
 	INT_ROLE_ID: z.string().min(1, 'INT_ROLE_ID is required'),

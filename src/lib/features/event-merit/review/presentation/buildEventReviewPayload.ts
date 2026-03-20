@@ -34,7 +34,8 @@ export function buildEventReviewPayload({
 		page,
 		attendees,
 		pageSize,
-		defaultMinAttendancePct: ENV_DISCORD.EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT
+		defaultMinAttendancePct: ENV_DISCORD.EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT,
+		fullAttendanceGraceSeconds: ENV_DISCORD.EVENT_TRACKING_INTERVAL_SECONDS
 	});
 
 	const embed = buildEventReviewHeaderEmbed({

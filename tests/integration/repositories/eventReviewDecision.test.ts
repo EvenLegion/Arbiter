@@ -278,4 +278,51 @@ describe('event review decision integration', () => {
 			]
 		});
 	});
+
+	it('returns a single attendee review record by event and user without depending on pagination', async () => {
+		const hostUser = await createUser(standalone.prisma, {
+			discordUserId: '4310',
+			discordUsername: 'single-host'
+		});
+		const attendee = await createUser(standalone.prisma, {
+			discordUserId: '4311',
+			discordUsername: 'single-attendee',
+			discordNickname: 'Single Attendee'
+		});
+		const eventSession = await createEventSession(standalone.prisma, {
+			hostUserId: hostUser.id,
+			threadId: 'thread-4310',
+			name: 'Single Review Lookup',
+			state: EventSessionState.ENDED_PENDING_REVIEW,
+			eventTierCode: MeritTypeCode.TIER_1
+		});
+		await standalone.prisma.eventParticipantStat.create({
+			data: {
+				eventSessionId: eventSession.id,
+				userId: attendee.id,
+				attendedSeconds: 1800
+			}
+		});
+		await standalone.prisma.eventReviewDecision.create({
+			data: {
+				eventSessionId: eventSession.id,
+				targetUserId: attendee.id,
+				decision: EventReviewDecisionKind.NO_MERIT
+			}
+		});
+
+		await expect(
+			eventReviewRepository.getReviewAttendee({
+				eventSessionId: eventSession.id,
+				targetDbUserId: attendee.id
+			})
+		).resolves.toEqual({
+			dbUserId: attendee.id,
+			discordUserId: attendee.discordUserId,
+			discordUsername: attendee.discordUsername,
+			discordNickname: attendee.discordNickname,
+			attendedSeconds: 1800,
+			decision: EventReviewDecisionKind.NO_MERIT
+		});
+	});
 });

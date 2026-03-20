@@ -11,7 +11,6 @@ type Params = {
 	userAvatarUrl?: string;
 	rulesChannelId?: string;
 	recruitmentChannelId?: string;
-	roleSelectChannelId?: string;
 	charterChannelId?: string;
 	newPlayersChannelId?: string;
 };
@@ -22,7 +21,6 @@ export function buildWelcomeMessage({
 	userAvatarUrl,
 	rulesChannelId,
 	recruitmentChannelId,
-	roleSelectChannelId,
 	charterChannelId,
 	newPlayersChannelId
 }: Params): WelcomeMessage {
@@ -36,11 +34,6 @@ export function buildWelcomeMessage({
 			name: 'Recruitment',
 			value: `If you are interested in joining the Even Legion, please check out the <#${recruitmentChannelId}> channel for more information.`,
 			inline: true
-		},
-		roleSelectChannelId && {
-			name: 'Role-Select',
-			value: `If you are interested in receiving notifications for when EvenLease goes live or when he posts new content, please check out the <#${roleSelectChannelId}> channel to select your roles.`,
-			inline: false
 		},
 		charterChannelId && {
 			name: 'Charter',

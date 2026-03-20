@@ -39,7 +39,7 @@ const ConfigSchema = z.object({
 			}
 		}),
 
-	EVENT_REVIEW_PAGE_SIZE: z.coerce.number().int().min(1).max(4).default(4),
+	EVENT_REVIEW_PAGE_SIZE: z.coerce.number().int().min(1).max(10).default(10),
 	EVENT_REVIEW_FINALIZED_PAGE_SIZE: z.coerce.number().int().min(1).max(25).default(10)
 });
 

@@ -213,6 +213,80 @@ describe('eventLifecycle', () => {
 		expect(deps.updateState).not.toHaveBeenCalled();
 	});
 
+	it('ends an active event, posts feedback links to tracked voice channels, and initializes review', async () => {
+		const refreshed = buildEventSession({
+			name: 'Worm Farm',
+			state: EventSessionState.ENDED_PENDING_REVIEW,
+			channels: [
+				{
+					id: 1,
+					eventSessionId: 10,
+					channelId: 'parent-1',
+					kind: EventSessionChannelKind.PARENT_VC,
+					addedByUserId: 'host-db-user',
+					createdAt: new Date(),
+					updatedAt: new Date()
+				},
+				{
+					id: 2,
+					eventSessionId: 10,
+					channelId: 'child-1',
+					kind: EventSessionChannelKind.CHILD_VC,
+					addedByUserId: 'host-db-user',
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			]
+		});
+		const deps = {
+			findEventSession: vi.fn().mockResolvedValue(
+				buildEventSession({
+					state: EventSessionState.ACTIVE
+				})
+			),
+			updateState: vi.fn().mockResolvedValue(true),
+			reloadEventSession: vi.fn().mockResolvedValue(refreshed),
+			stopTracking: vi.fn().mockResolvedValue(undefined),
+			renameParentVoiceChannel: vi.fn().mockResolvedValue(undefined),
+			syncLifecyclePresentation: vi.fn().mockResolvedValue(undefined),
+			postEndedEventFeedbackLinks: vi.fn().mockResolvedValue(undefined),
+			initializeReview: vi.fn().mockResolvedValue({
+				initialized: true
+			}),
+			now: vi.fn().mockReturnValue(new Date('2026-03-15T11:00:00Z'))
+		};
+
+		await expect(
+			endActiveEvent(deps, {
+				actor: buildActor(),
+				actorTag: 'Reviewer#1234',
+				eventSessionId: 10
+			})
+		).resolves.toEqual({
+			kind: 'ended',
+			eventSession: refreshed,
+			reviewInitializationFailed: false
+		});
+		expect(deps.stopTracking).toHaveBeenCalledWith({
+			eventSessionId: 10
+		});
+		expect(deps.renameParentVoiceChannel).toHaveBeenCalledWith({
+			channelId: 'parent-1',
+			name: 'Post Event Hangout',
+			reason: 'Event ended by Reviewer#1234'
+		});
+		expect(deps.syncLifecyclePresentation).toHaveBeenCalledWith({
+			eventSession: refreshed,
+			actorDiscordUserId: 'reviewer-1'
+		});
+		expect(deps.postEndedEventFeedbackLinks).toHaveBeenCalledWith({
+			eventSession: refreshed
+		});
+		expect(deps.initializeReview).toHaveBeenCalledWith({
+			eventSessionId: 10
+		});
+	});
+
 	it('initializes review participants and reports when the review message could not sync', async () => {
 		const deps = {
 			findEventSession: vi.fn().mockResolvedValue({

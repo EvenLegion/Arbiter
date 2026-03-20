@@ -47,7 +47,6 @@ export async function handleGuildMemberAdd({ member, context }: HandleGuildMembe
 		userAvatarUrl: member.user.displayAvatarURL(),
 		rulesChannelId: ENV_DISCORD.WELCOME_RULES_CHANNEL_ID,
 		recruitmentChannelId: ENV_DISCORD.WELCOME_RECRUITMENT_CHANNEL_ID,
-		roleSelectChannelId: ENV_DISCORD.WELCOME_ROLE_SELECT_CHANNEL_ID,
 		charterChannelId: ENV_DISCORD.WELCOME_CHARTER_CHANNEL_ID,
 		newPlayersChannelId: ENV_DISCORD.WELCOME_NEW_PLAYERS_CHANNEL_ID
 	});
