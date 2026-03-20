@@ -10,12 +10,12 @@
 	"commits": [
 		{
 			"sha": "0f0494a6ddaa1766ae6a891b1399945af7bed822",
-			"subject": "refactor: Event merit review menu no displays a single button per user, increasing the number of users displayed per page from 4 to 10",
+			"subject": "refactor: Event merit review menu now displays a single button per user, increasing the number of users displayed per page from 4 to 10",
 			"committedAt": "2026-03-19T19:03:18-10:00",
 			"committedAtMs": 1773982998000,
 			"type": "refactor",
 			"scope": null,
-			"description": "Event merit review menu no displays a single button per user, increasing the number of users displayed per page from 4 to 10",
+			"description": "Event merit review menu now displays a single button per user, increasing the number of users displayed per page from 4 to 10",
 			"breaking": false,
 			"section": "Refactors"
 		},

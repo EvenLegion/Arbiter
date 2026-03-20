@@ -14,7 +14,6 @@ const DEFAULT_TEST_ENV = {
 	WELCOME_CHANNEL_ID: 'welcome-channel-id',
 	WELCOME_RULES_CHANNEL_ID: 'welcome-rules-channel-id',
 	WELCOME_RECRUITMENT_CHANNEL_ID: 'welcome-recruitment-channel-id',
-	WELCOME_ROLE_SELECT_CHANNEL_ID: 'welcome-role-select-channel-id',
 	WELCOME_CHARTER_CHANNEL_ID: 'welcome-charter-channel-id',
 	WELCOME_NEW_PLAYERS_CHANNEL_ID: 'welcome-new-players-channel-id',
 	BOT_REQUESTS_CHANNEL_ID: 'bot-requests-channel-id',
