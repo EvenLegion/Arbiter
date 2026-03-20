@@ -1,4 +1,3 @@
-import { EventReviewDecisionKind } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
 import { parseEventReviewButtonCustomId } from '../../../../../../src/lib/features/event-merit/review/buttons/eventReviewButtonProtocol';
@@ -27,19 +26,10 @@ describe('eventReviewButtonProtocol', () => {
 	});
 
 	it('parses decision actions', () => {
-		expect(parseEventReviewButtonCustomId('event:review:decision:42:user-123:m:2')).toEqual({
+		expect(parseEventReviewButtonCustomId('event:review:decision:42:user-123:2')).toEqual({
 			action: 'decision',
 			eventSessionId: 42,
 			targetDbUserId: 'user-123',
-			decision: EventReviewDecisionKind.MERIT,
-			page: 2
-		});
-
-		expect(parseEventReviewButtonCustomId('event:review:decision:42:user-123:n:2')).toEqual({
-			action: 'decision',
-			eventSessionId: 42,
-			targetDbUserId: 'user-123',
-			decision: EventReviewDecisionKind.NO_MERIT,
 			page: 2
 		});
 	});
@@ -54,7 +44,7 @@ describe('eventReviewButtonProtocol', () => {
 		expect(parseEventReviewButtonCustomId('event:review:page:42:nope')).toBeNull();
 	});
 
-	it('rejects invalid decision codes', () => {
-		expect(parseEventReviewButtonCustomId('event:review:decision:42:user-123:x:2')).toBeNull();
+	it('rejects invalid decision pages', () => {
+		expect(parseEventReviewButtonCustomId('event:review:decision:42:user-123:nope')).toBeNull();
 	});
 });

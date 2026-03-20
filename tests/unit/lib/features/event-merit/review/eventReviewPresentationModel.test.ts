@@ -1,7 +1,12 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
-import { buildEventReviewPresentationModel } from '../../../../../../src/lib/features/event-merit/review/presentation/eventReviewPresentationModel';
+import { getMeritRankSymbol } from '../../../../../../src/lib/services/merit-rank/meritRank';
+import {
+	buildEventReviewPresentationModel,
+	computeEventReviewAttendancePercent,
+	resolveEventReviewDecision
+} from '../../../../../../src/lib/features/event-merit/review/presentation/eventReviewPresentationModel';
 
 describe('eventReviewPresentationModel', () => {
 	it('marks review as open only for ended-pending-review sessions', () => {
@@ -61,5 +66,73 @@ describe('eventReviewPresentationModel', () => {
 			selectedDecision: EventReviewDecisionKind.NO_MERIT
 		});
 		expect(model.attendeesFieldValue).toContain('<@123>');
+		expect(model.attendeesFieldValue).toContain('(100%)');
+	});
+
+	it('treats attendance within the configured grace window as full attendance for display', () => {
+		expect(
+			computeEventReviewAttendancePercent({
+				attendedSeconds: 3600,
+				durationSeconds: 3620,
+				fullAttendanceGraceSeconds: 60
+			})
+		).toBe(100);
+	});
+
+	it('uses the same grace window when deriving the default decision', () => {
+		expect(
+			resolveEventReviewDecision({
+				decision: null,
+				attendedSeconds: 3600,
+				durationSeconds: 3620,
+				defaultMinAttendancePct: 100,
+				fullAttendanceGraceSeconds: 60
+			})
+		).toBe(EventReviewDecisionKind.MERIT);
+	});
+
+	it('uses the base nickname for attendee toggle labels by stripping prefixes and merit suffixes', () => {
+		const meritRankSymbol = getMeritRankSymbol(1);
+		expect(meritRankSymbol).toBeTruthy();
+
+		const model = buildEventReviewPresentationModel({
+			state: EventSessionState.ENDED_PENDING_REVIEW,
+			durationSeconds: 100,
+			page: 1,
+			pageSize: 10,
+			attendees: [
+				{
+					dbUserId: 'db-user-1',
+					discordUserId: '123',
+					discordUsername: 'alpha',
+					discordNickname: `NVY | Alpha ${meritRankSymbol}`,
+					attendedSeconds: 100,
+					decision: EventReviewDecisionKind.MERIT
+				}
+			]
+		});
+
+		expect(model.attendees[0]?.labelSuffix).toBe('Alpha');
+	});
+
+	it('rounds displayed attendance percentages to whole numbers', () => {
+		const model = buildEventReviewPresentationModel({
+			state: EventSessionState.ENDED_PENDING_REVIEW,
+			durationSeconds: 3,
+			page: 1,
+			pageSize: 10,
+			attendees: [
+				{
+					dbUserId: 'db-user-1',
+					discordUserId: '123',
+					discordUsername: 'alpha',
+					discordNickname: 'Alpha',
+					attendedSeconds: 2,
+					decision: EventReviewDecisionKind.MERIT
+				}
+			]
+		});
+
+		expect(model.attendeesFieldValue).toContain('(67%)');
 	});
 });
