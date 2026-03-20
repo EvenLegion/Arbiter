@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "refactor/event-merit-review",
+	"baseRef": "origin/dev",
+	"mergeBase": "37d5b1188f9108b67e4acb34fbca928f47db794d",
+	"headRef": "f8f069661d3e155d431675731d166d3924c87cdf",
+	"generatedAt": "2026-03-20T05:03:54.384Z",
+	"bump": "minor",
+	"targetVersion": "3.1.0",
+	"commits": [
+		{
+			"sha": "0f0494a6ddaa1766ae6a891b1399945af7bed822",
+			"subject": "refactor: Event merit review menu no displays a single button per user, increasing the number of users displayed per page from 4 to 10",
+			"committedAt": "2026-03-19T19:03:18-10:00",
+			"committedAtMs": 1773982998000,
+			"type": "refactor",
+			"scope": null,
+			"description": "Event merit review menu no displays a single button per user, increasing the number of users displayed per page from 4 to 10",
+			"breaking": false,
+			"section": "Refactors"
+		}
+	]
+}
