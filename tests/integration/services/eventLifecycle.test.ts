@@ -414,7 +414,7 @@ describe('eventLifecycle integration', () => {
 		expect(result).toEqual({
 			kind: 'review_finalized',
 			toState: EventSessionState.FINALIZED_WITH_MERITS,
-			awardedCount: 1,
+			awardedCount: 2,
 			reviewMessageSynced: true
 		});
 		await expect(
@@ -431,12 +431,21 @@ describe('eventLifecycle integration', () => {
 			standalone.prisma.merit.findMany({
 				where: {
 					eventSessionId: eventSession.id
+				},
+				orderBy: {
+					id: 'asc'
 				}
 			})
 		).resolves.toEqual([
 			expect.objectContaining({
 				userId: attendee.id,
-				awardedByUserId: reviewer.id
+				awardedByUserId: reviewer.id,
+				reason: 'Awarded for attending'
+			}),
+			expect.objectContaining({
+				userId: reviewer.id,
+				awardedByUserId: reviewer.id,
+				reason: 'Awarded for hosting'
 			})
 		]);
 	});
