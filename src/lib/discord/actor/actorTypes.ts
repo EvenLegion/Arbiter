@@ -1,5 +1,6 @@
 import type { DivisionKind } from '@prisma/client';
 import type { Guild, GuildMember } from 'discord.js';
+import type { ActorCapabilities } from '../../services/_shared/actor';
 
 export type CapabilityRequirement = 'none' | 'staff' | 'staff-or-centurion';
 
@@ -10,11 +11,7 @@ export type ActorCapabilityDeps = {
 	hasDivision: (params: { member: GuildMember; divisionDiscordRoleId: string }) => Promise<boolean>;
 	getDbUser?: (params: { discordUserId: string }) => Promise<{ id: string }>;
 	centurionRoleId: string;
-};
-
-export type ResolvedActorCapabilities = {
-	isStaff: boolean;
-	isCenturion: boolean;
+	optioRoleId: string;
 };
 
 export type ResolveActorCoreResult =
@@ -22,7 +19,7 @@ export type ResolveActorCoreResult =
 			kind: 'ok';
 			guild: Guild;
 			member: GuildMember;
-			capabilities: ResolvedActorCapabilities;
+			capabilities: ActorCapabilities;
 			dbUser: { id: string } | null;
 	  }
 	| {
@@ -37,12 +34,12 @@ export type ResolveActorCoreResult =
 			kind: 'insufficient_capability';
 			guild: Guild;
 			member: GuildMember;
-			capabilities: ResolvedActorCapabilities;
+			capabilities: ActorCapabilities;
 	  }
 	| {
 			kind: 'db_user_not_found';
 			guild: Guild;
 			member: GuildMember;
-			capabilities: ResolvedActorCapabilities;
+			capabilities: ActorCapabilities;
 			error?: unknown;
 	  };

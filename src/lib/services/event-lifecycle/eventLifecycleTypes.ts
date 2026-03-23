@@ -38,9 +38,9 @@ export type EventReviewFinalizationResult = {
 	finalized: boolean;
 	toState: Extract<EventSessionState, 'FINALIZED_WITH_MERITS' | 'FINALIZED_NO_MERITS'>;
 	awardedCount: number;
-	awardedMeritAmount: number;
 	awardedUsers: Array<{
 		dbUserId: string;
 		discordUserId: string;
+		awardedMeritAmount: number;
 	}>;
 };

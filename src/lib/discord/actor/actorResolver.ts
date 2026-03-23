@@ -1,9 +1,11 @@
 import { DivisionKind } from '@prisma/client';
 import type { Guild, GuildMember } from 'discord.js';
 
-import type { ActorCapabilityDeps, CapabilityRequirement, ResolveActorCoreResult, ResolvedActorCapabilities } from './actorTypes';
+import { hasStaffOrCenturionEquivalentCapability } from '../../services/_shared/actor';
+import type { ActorCapabilities } from '../../services/_shared/actor';
+import type { ActorCapabilityDeps, CapabilityRequirement, ResolveActorCoreResult } from './actorTypes';
 
-export type { ActorCapabilityDeps, CapabilityRequirement, ResolveActorCoreResult, ResolvedActorCapabilities } from './actorTypes';
+export type { ActorCapabilityDeps, CapabilityRequirement, ResolveActorCoreResult } from './actorTypes';
 
 export async function resolveActorCoreWithDeps(
 	deps: ActorCapabilityDeps,
@@ -32,7 +34,7 @@ export async function resolveActorCoreWithDeps(
 	});
 	if (
 		(capabilityRequirement === 'staff' && !capabilities.isStaff) ||
-		(capabilityRequirement === 'staff-or-centurion' && !capabilities.isStaff && !capabilities.isCenturion)
+		(capabilityRequirement === 'staff-or-centurion' && !hasStaffOrCenturionEquivalentCapability(capabilities))
 	) {
 		return {
 			kind: 'insufficient_capability',
@@ -154,14 +156,14 @@ async function resolveActorDbUserWithDeps(
 }
 
 async function resolveMemberCapabilitiesWithDeps(
-	deps: Pick<ActorCapabilityDeps, 'hasDivisionKindRole' | 'hasDivision' | 'centurionRoleId'>,
+	deps: Pick<ActorCapabilityDeps, 'hasDivisionKindRole' | 'hasDivision' | 'centurionRoleId' | 'optioRoleId'>,
 	{
 		member
 	}: {
 		member: GuildMember;
 	}
-): Promise<ResolvedActorCapabilities> {
-	const [isStaff, isCenturion] = await Promise.all([
+): Promise<ActorCapabilities> {
+	const [isStaff, isCenturion, isOptio] = await Promise.all([
 		deps.hasDivisionKindRole({
 			member,
 			requiredRoleKinds: [DivisionKind.STAFF]
@@ -169,11 +171,16 @@ async function resolveMemberCapabilitiesWithDeps(
 		deps.hasDivision({
 			member,
 			divisionDiscordRoleId: deps.centurionRoleId
+		}),
+		deps.hasDivision({
+			member,
+			divisionDiscordRoleId: deps.optioRoleId
 		})
 	]);
 
 	return {
 		isStaff,
-		isCenturion
+		isCenturion,
+		isOptio
 	};
 }

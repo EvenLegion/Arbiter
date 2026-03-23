@@ -93,12 +93,17 @@ describe('finalizeEventReview integration', () => {
 		expect(result).toMatchObject({
 			finalized: true,
 			toState: EventSessionState.FINALIZED_WITH_MERITS,
-			awardedCount: 1,
-			awardedMeritAmount: 3,
+			awardedCount: 2,
 			awardedUsers: [
 				{
 					dbUserId: attendeeWithMerit.id,
-					discordUserId: attendeeWithMerit.discordUserId
+					discordUserId: attendeeWithMerit.discordUserId,
+					awardedMeritAmount: 3
+				},
+				{
+					dbUserId: reviewer.id,
+					discordUserId: reviewer.discordUserId,
+					awardedMeritAmount: 2
 				}
 			]
 		});
@@ -120,11 +125,16 @@ describe('finalizeEventReview integration', () => {
 				id: 'asc'
 			}
 		});
-		expect(merits).toHaveLength(1);
+		expect(merits).toHaveLength(2);
 		expect(merits[0]).toMatchObject({
 			userId: attendeeWithMerit.id,
 			awardedByUserId: reviewer.id,
 			reason: 'Awarded for attending'
+		});
+		expect(merits[1]).toMatchObject({
+			userId: reviewer.id,
+			awardedByUserId: reviewer.id,
+			reason: 'Awarded for hosting'
 		});
 	});
 

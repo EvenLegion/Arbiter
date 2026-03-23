@@ -1,6 +1,7 @@
 import type { ButtonInteraction, Guild } from 'discord.js';
 
 import type { ExecutionContext } from '../../../../logging/executionContext';
+import type { ActorContext } from '../../../../services/_shared/actor';
 import type {
 	ParsedEventReviewButton,
 	ParsedEventReviewDecisionAction,
@@ -21,15 +22,7 @@ type EventReviewButtonRouteParams<TParsed extends ParsedEventReviewButton> = {
 		fail: (content: string, options?: { requestId?: boolean; delivery?: 'auto' | 'reply' | 'editReply' | 'followUp' }) => Promise<void>;
 	};
 	reviewer: {
-		actor: {
-			discordUserId: string;
-			dbUserId: string | null;
-			capabilities: {
-				isStaff: boolean;
-				isCenturion: boolean;
-			};
-			discordTag?: string;
-		};
+		actor: ActorContext;
 	};
 };
 

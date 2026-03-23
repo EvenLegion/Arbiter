@@ -145,7 +145,8 @@ function createActor({ isStaff = true }: { isStaff?: boolean } = {}) {
 		dbUserId: 'requester-db-user',
 		capabilities: {
 			isStaff,
-			isCenturion: false
+			isCenturion: false,
+			isOptio: false
 		}
 	};
 }

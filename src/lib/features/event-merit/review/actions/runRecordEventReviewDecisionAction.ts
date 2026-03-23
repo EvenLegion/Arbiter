@@ -4,6 +4,7 @@ import type { Guild } from 'discord.js';
 import { ENV_DISCORD } from '../../../../../config/env/discord';
 import { eventRepository, eventReviewRepository } from '../../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../../logging/executionContext';
+import type { ActorContext } from '../../../../services/_shared/actor';
 import { computeEventDurationSeconds } from '../../../../services/event-lifecycle';
 import { recordEventReviewDecision } from '../../../../services/event-review/eventReviewService';
 import { resolveEventReviewDecision } from '../presentation/eventReviewPresentationModel';
@@ -21,15 +22,7 @@ export async function runRecordEventReviewDecisionAction({
 	guild: Guild;
 	logger: ExecutionContext['logger'];
 	reviewer: {
-		actor: {
-			discordUserId: string;
-			dbUserId: string | null;
-			capabilities: {
-				isStaff: boolean;
-				isCenturion: boolean;
-			};
-			discordTag?: string;
-		};
+		actor: ActorContext;
 	};
 }) {
 	const currentAttendee = await eventReviewRepository.getReviewAttendee({

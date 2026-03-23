@@ -87,7 +87,8 @@ describe('manualMeritService integration', () => {
 					dbUserId: 'staff-db-user',
 					capabilities: {
 						isStaff: true,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				actorMember: buildResolvedMember('5303'),
@@ -143,7 +144,8 @@ describe('manualMeritService integration', () => {
 					dbUserId: 'staff-db-user',
 					capabilities: {
 						isStaff: true,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				actorMember: buildResolvedMember('5305'),

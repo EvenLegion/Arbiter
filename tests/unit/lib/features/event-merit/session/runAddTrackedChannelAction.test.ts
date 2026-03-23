@@ -47,7 +47,8 @@ describe('runAddTrackedChannelAction', () => {
 					dbUserId: 'db-42',
 					capabilities: {
 						isStaff: true,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				eventSessionId: 55,

@@ -362,11 +362,11 @@ describe('eventLifecycle', () => {
 				finalized: true,
 				toState: EventSessionState.FINALIZED_WITH_MERITS,
 				awardedCount: 3,
-				awardedMeritAmount: 2,
 				awardedUsers: [
 					{
 						dbUserId: 'user-1',
-						discordUserId: 'discord-1'
+						discordUserId: 'discord-1',
+						awardedMeritAmount: 2
 					}
 				]
 			}),
@@ -397,10 +397,10 @@ describe('eventLifecycle', () => {
 			awardedUsers: [
 				{
 					dbUserId: 'user-1',
-					discordUserId: 'discord-1'
+					discordUserId: 'discord-1',
+					awardedMeritAmount: 2
 				}
-			],
-			awardedMeritAmount: 2
+			]
 		});
 	});
 
@@ -417,7 +417,6 @@ describe('eventLifecycle', () => {
 				finalized: true,
 				toState: EventSessionState.FINALIZED_NO_MERITS,
 				awardedCount: 0,
-				awardedMeritAmount: 0,
 				awardedUsers: []
 			}),
 			syncAwardedNicknames: vi.fn().mockResolvedValue(undefined),
@@ -452,7 +451,8 @@ function buildActor() {
 		dbUserId: null,
 		capabilities: {
 			isStaff: true,
-			isCenturion: false
+			isCenturion: false,
+			isOptio: false
 		}
 	};
 }

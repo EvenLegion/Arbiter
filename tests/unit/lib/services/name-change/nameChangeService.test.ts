@@ -240,7 +240,8 @@ function createActor({
 		dbUserId,
 		capabilities: {
 			isStaff,
-			isCenturion: false
+			isCenturion: false,
+			isOptio: false
 		}
 	};
 }
