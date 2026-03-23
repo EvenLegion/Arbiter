@@ -451,7 +451,8 @@ function buildActor() {
 		dbUserId: null,
 		capabilities: {
 			isStaff: true,
-			isCenturion: false
+			isCenturion: false,
+			isOptio: false
 		}
 	};
 }

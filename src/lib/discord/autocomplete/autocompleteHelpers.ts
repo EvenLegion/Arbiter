@@ -132,7 +132,8 @@ export async function resolveAutocompleteRequester({ guild, discordUserId }: { g
 			getMember: getGuildMemberOrThrow,
 			hasDivisionKindRole: memberHasDivisionKindRole,
 			hasDivision: async () => false,
-			centurionRoleId: ''
+			centurionRoleId: '',
+			optioRoleId: ''
 		},
 		{
 			guild,

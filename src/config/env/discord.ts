@@ -24,6 +24,7 @@ const DiscordSchema = z.object({
 	// Special roles
 	ANG_ROLE_ID: z.string().min(1, 'ANG_ROLE_ID is required'),
 	CENT_ROLE_ID: z.string().min(1, 'CENT_ROLE_ID is required'),
+	OPTIO_ROLE_ID: z.string().min(1, 'OPTIO_ROLE_ID is required'),
 
 	// Lancearius roles
 	NVY_L_ROLE_ID: z.string().min(1, 'NVY_L_ROLE_ID is required'),

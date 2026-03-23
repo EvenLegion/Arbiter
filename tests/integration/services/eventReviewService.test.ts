@@ -80,7 +80,8 @@ describe('eventReviewService integration', () => {
 					dbUserId: reviewer.id,
 					capabilities: {
 						isStaff: true,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				eventSessionId: eventSession.id,
@@ -210,7 +211,8 @@ describe('eventReviewService integration', () => {
 					dbUserId: reviewer.id,
 					capabilities: {
 						isStaff: true,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				eventSessionId: eventSession.id,

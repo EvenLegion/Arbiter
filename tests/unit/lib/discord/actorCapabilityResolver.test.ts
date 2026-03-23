@@ -12,7 +12,8 @@ describe('actorCapabilityResolver', () => {
 				getMember: vi.fn(),
 				hasDivisionKindRole: vi.fn(),
 				hasDivision: vi.fn(),
-				centurionRoleId: 'centurion-role'
+				centurionRoleId: 'centurion-role',
+				optioRoleId: 'optio-role'
 			},
 			{
 				discordUserId: '42'
@@ -29,16 +30,15 @@ describe('actorCapabilityResolver', () => {
 		const guild = {
 			id: 'guild-1'
 		} as never;
-		const member = {
-			id: 'member-1'
-		} as never;
+		const member = createMember();
 
 		const result = await resolveActorCoreWithDeps(
 			{
 				getMember: async () => member,
 				hasDivisionKindRole: async () => false,
 				hasDivision: async () => false,
-				centurionRoleId: 'centurion-role'
+				centurionRoleId: 'centurion-role',
+				optioRoleId: 'optio-role'
 			},
 			{
 				guild,
@@ -53,7 +53,8 @@ describe('actorCapabilityResolver', () => {
 			member,
 			capabilities: {
 				isStaff: false,
-				isCenturion: false
+				isCenturion: false,
+				isOptio: false
 			}
 		});
 	});
@@ -62,9 +63,7 @@ describe('actorCapabilityResolver', () => {
 		const guild = {
 			id: 'guild-1'
 		} as never;
-		const member = {
-			id: 'member-1'
-		} as never;
+		const member = createMember();
 
 		const result = await resolveActorCoreWithDeps(
 			{
@@ -74,7 +73,8 @@ describe('actorCapabilityResolver', () => {
 				getDbUser: async () => {
 					throw new Error('missing db user');
 				},
-				centurionRoleId: 'centurion-role'
+				centurionRoleId: 'centurion-role',
+				optioRoleId: 'optio-role'
 			},
 			{
 				guild,
@@ -90,7 +90,8 @@ describe('actorCapabilityResolver', () => {
 			member,
 			capabilities: {
 				isStaff: true,
-				isCenturion: false
+				isCenturion: false,
+				isOptio: false
 			},
 			error: expect.any(Error)
 		});
@@ -100,19 +101,18 @@ describe('actorCapabilityResolver', () => {
 		const guild = {
 			id: 'guild-1'
 		} as never;
-		const member = {
-			id: 'member-1'
-		} as never;
+		const member = createMember();
 
 		const result = await resolveActorCoreWithDeps(
 			{
 				getMember: async () => member,
 				hasDivisionKindRole: async () => true,
-				hasDivision: async () => true,
+				hasDivision: async ({ divisionDiscordRoleId }) => divisionDiscordRoleId === 'centurion-role',
 				getDbUser: async () => ({
 					id: 'db-user-1'
 				}),
-				centurionRoleId: 'centurion-role'
+				centurionRoleId: 'centurion-role',
+				optioRoleId: 'optio-role'
 			},
 			{
 				guild,
@@ -128,11 +128,57 @@ describe('actorCapabilityResolver', () => {
 			member,
 			capabilities: {
 				isStaff: true,
-				isCenturion: true
+				isCenturion: true,
+				isOptio: false
 			},
 			dbUser: {
 				id: 'db-user-1'
 			}
 		});
 	});
+
+	it('treats optio members as centurions for capability checks', async () => {
+		const guild = {
+			id: 'guild-1'
+		} as never;
+		const member = createMember();
+
+		const result = await resolveActorCoreWithDeps(
+			{
+				getMember: async () => member,
+				hasDivisionKindRole: async () => false,
+				hasDivision: async ({ divisionDiscordRoleId }) => divisionDiscordRoleId === 'optio-role',
+				centurionRoleId: 'centurion-role',
+				optioRoleId: 'optio-role'
+			},
+			{
+				guild,
+				discordUserId: '42',
+				capabilityRequirement: 'staff-or-centurion'
+			}
+		);
+
+		expect(result).toEqual({
+			kind: 'ok',
+			guild,
+			member,
+			capabilities: {
+				isStaff: false,
+				isCenturion: false,
+				isOptio: true
+			},
+			dbUser: null
+		});
+	});
 });
+
+function createMember({ roleIds = [] }: { roleIds?: string[] } = {}) {
+	return {
+		id: 'member-1',
+		roles: {
+			cache: {
+				has: (roleId: string) => roleIds.includes(roleId)
+			}
+		}
+	} as never;
+}

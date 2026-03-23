@@ -15,6 +15,7 @@ export type ResolvedPreconditionActor =
 			member: GuildMember;
 			isStaff: boolean;
 			isCenturion: boolean;
+			isOptio: boolean;
 	  }
 	| {
 			ok: false;
@@ -42,7 +43,8 @@ export async function resolvePreconditionActor({
 			getMember: getGuildMemberOrThrow,
 			hasDivisionKindRole: memberHasDivisionKindRole,
 			hasDivision: memberHasDivision,
-			centurionRoleId: ENV_DISCORD.CENT_ROLE_ID
+			centurionRoleId: ENV_DISCORD.CENT_ROLE_ID,
+			optioRoleId: ENV_DISCORD.OPTIO_ROLE_ID
 		},
 		{
 			discordUserId: interaction.user.id,
@@ -123,6 +125,7 @@ export async function resolvePreconditionActor({
 		ok: true,
 		member: resolved.member,
 		isStaff: resolved.capabilities.isStaff,
-		isCenturion: resolved.capabilities.isCenturion
+		isCenturion: resolved.capabilities.isCenturion,
+		isOptio: resolved.capabilities.isOptio
 	};
 }

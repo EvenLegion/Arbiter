@@ -21,6 +21,7 @@ export type InteractionPreflightDeps = {
 	hasDivision: (params: { member: GuildMember; divisionDiscordRoleId: string }) => Promise<boolean>;
 	getDbUser: (params: { discordUserId: string }) => Promise<{ id: string }>;
 	centurionRoleId: string;
+	optioRoleId: string;
 };
 
 export type ResolveConfiguredGuildParams = {
@@ -64,7 +65,8 @@ const DEFAULT_INTERACTION_PREFLIGHT_DEPS: InteractionPreflightDeps = {
 	hasDivisionKindRole: memberHasDivisionKindRole,
 	hasDivision: memberHasDivision,
 	getDbUser: ({ discordUserId }) => getDbUserOrThrow({ discordUserId }),
-	centurionRoleId: ENV_DISCORD.CENT_ROLE_ID
+	centurionRoleId: ENV_DISCORD.CENT_ROLE_ID,
+	optioRoleId: ENV_DISCORD.OPTIO_ROLE_ID
 };
 
 export async function resolveConfiguredGuild(params: ResolveConfiguredGuildParams) {

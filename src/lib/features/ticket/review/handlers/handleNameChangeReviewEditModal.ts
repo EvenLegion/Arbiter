@@ -77,7 +77,8 @@ export async function handleNameChangeReviewEditModal({ interaction, parsedNameC
 					dbUserId: null,
 					capabilities: {
 						isStaff: reviewer.actor.capabilities.isStaff,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				requestId: parsedNameChangeReviewModal.requestId,

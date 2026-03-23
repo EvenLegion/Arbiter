@@ -62,7 +62,12 @@ describe('interactionPreflight helpers', () => {
 	it('builds actor capabilities and optional db user from injected deps', async () => {
 		const responder = createResponder();
 		const member = {
-			id: '55'
+			id: '55',
+			roles: {
+				cache: {
+					has: () => false
+				}
+			}
 		} as never;
 
 		const result = await resolveInteractionActorWithDeps(
@@ -74,7 +79,8 @@ describe('interactionPreflight helpers', () => {
 				getDbUser: async () => ({
 					id: 'db-55'
 				}),
-				centurionRoleId: 'cent-role'
+				centurionRoleId: 'cent-role',
+				optioRoleId: 'optio-role'
 			},
 			{
 				guild: {} as never,
@@ -99,10 +105,53 @@ describe('interactionPreflight helpers', () => {
 				dbUserId: 'db-55',
 				capabilities: {
 					isStaff: true,
-					isCenturion: false
+					isCenturion: false,
+					isOptio: false
 				},
 				discordTag: 'user#0001'
 			}
+		});
+		expect(responder.fail).not.toHaveBeenCalled();
+	});
+
+	it('treats optio members as centurion-capable actors', async () => {
+		const responder = createResponder();
+		const member = {
+			id: '55',
+			roles: {
+				cache: {
+					has: (roleId: string) => roleId === 'optio-role'
+				}
+			}
+		} as never;
+
+		const result = await resolveInteractionActorWithDeps(
+			{
+				getConfiguredGuild: async () => ({}) as never,
+				getMember: async () => member,
+				hasDivisionKindRole: async () => false,
+				hasDivision: async ({ divisionDiscordRoleId }) => divisionDiscordRoleId === 'optio-role',
+				getDbUser: async () => ({
+					id: 'db-55'
+				}),
+				centurionRoleId: 'cent-role',
+				optioRoleId: 'optio-role'
+			},
+			{
+				guild: {} as never,
+				discordUserId: '55',
+				responder,
+				logger: createLogger(),
+				logMessage: 'actor failed',
+				failureMessage: 'Missing actor',
+				capabilityRequirement: 'staff-or-centurion'
+			}
+		);
+
+		expect(result?.actor.capabilities).toEqual({
+			isStaff: false,
+			isCenturion: false,
+			isOptio: true
 		});
 		expect(responder.fail).not.toHaveBeenCalled();
 	});

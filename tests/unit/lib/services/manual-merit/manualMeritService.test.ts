@@ -195,7 +195,8 @@ function createActor() {
 		dbUserId: 'staff-db-user',
 		capabilities: {
 			isStaff: true,
-			isCenturion: false
+			isCenturion: false,
+			isOptio: false
 		}
 	};
 }

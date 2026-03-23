@@ -3,6 +3,7 @@ import type { ButtonInteraction, Guild } from 'discord.js';
 import { nameChangeRepository, userRepository } from '../../../../../integrations/prisma/repositories';
 import type { InteractionResponder } from '../../../../discord/interactions/interactionResponder';
 import type { ExecutionContext } from '../../../../logging/executionContext';
+import type { ActorContext } from '../../../../services/_shared/actor';
 import { reviewNameChangeDecision } from '../../../../services/name-change/nameChangeService';
 import { syncReviewedNameChangeThread } from '../../thread/syncReviewedNameChangeThread';
 import { createApprovedNameChangeNicknameSync, createRequestedNicknameValidator } from '../../nameChangeWorkflowSupport';
@@ -27,15 +28,7 @@ export async function reviewNameChangeAction({
 	responder: InteractionResponder;
 	reviewer: {
 		dbUser: { id: string } | null;
-		actor: {
-			discordUserId: string;
-			dbUserId: string | null;
-			capabilities: {
-				isStaff: boolean;
-				isCenturion: boolean;
-			};
-			discordTag?: string;
-		};
+		actor: ActorContext;
 	};
 }) {
 	logger.info(

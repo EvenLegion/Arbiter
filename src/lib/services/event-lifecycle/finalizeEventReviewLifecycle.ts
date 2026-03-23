@@ -1,6 +1,7 @@
 import { EventSessionState } from '@prisma/client';
 
 import type { ActorContext } from '../_shared/actor';
+import { hasStaffOrCenturionEquivalentCapability } from '../_shared/actor';
 import type { EventLifecycleEventSession, EventReviewFinalizationResult } from './eventLifecycleTypes';
 
 type FinalizeEventReviewDeps = {
@@ -46,7 +47,7 @@ export async function finalizeEventReviewLifecycle(
 		mode: 'with' | 'without';
 	}
 ): Promise<FinalizeEventReviewLifecycleResult> {
-	if (!input.actor.capabilities.isStaff && !input.actor.capabilities.isCenturion) {
+	if (!hasStaffOrCenturionEquivalentCapability(input.actor.capabilities)) {
 		return {
 			kind: 'forbidden'
 		};

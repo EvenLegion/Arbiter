@@ -1,6 +1,7 @@
 import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
 
 import type { ActorContext } from '../_shared/actor';
+import { hasStaffOrCenturionEquivalentCapability } from '../_shared/actor';
 import type { EventLifecycleEventSession } from './eventLifecycleTypes';
 
 export type TransitionEventSessionDeps = {
@@ -165,7 +166,7 @@ async function loadAndValidateEventTransition(
 	deps: Pick<TransitionEventSessionDeps, 'findEventSession'>,
 	input: TransitionEventSessionWorkflowInput
 ): Promise<LoadedEventTransition | { result: TransitionEventSessionResult }> {
-	if (!input.actor.capabilities.isStaff && !input.actor.capabilities.isCenturion) {
+	if (!hasStaffOrCenturionEquivalentCapability(input.actor.capabilities)) {
 		return {
 			result: {
 				kind: 'forbidden'

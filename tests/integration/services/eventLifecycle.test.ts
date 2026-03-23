@@ -477,7 +477,8 @@ function buildActor(discordUserId: string, dbUserId: string) {
 		dbUserId,
 		capabilities: {
 			isStaff: true,
-			isCenturion: false
+			isCenturion: false,
+			isOptio: false
 		}
 	};
 }

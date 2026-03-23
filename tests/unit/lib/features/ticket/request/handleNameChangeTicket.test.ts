@@ -111,7 +111,8 @@ describe('handleNameChangeTicket', () => {
 					dbUserId: null,
 					capabilities: {
 						isStaff: false,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				rawRequestedName: 'WhyIt',
