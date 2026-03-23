@@ -27,6 +27,7 @@ export async function postReviewSubmissionTimelineMessages({
 		mode === 'with'
 			? `Event review for **${eventSession.name}** was submitted by <@${actorDiscordUserId}> with **merits awarded**.`
 			: `Event review for **${eventSession.name}** was submitted by <@${actorDiscordUserId}> with **no merits awarded**.`;
+	const hostMeritMessage = mode === 'with' ? `<@${eventSession.hostUser.discordUserId}> was awarded the **Centurion Host Merit**.` : null;
 
 	for (const channelId of timelineChannelIds) {
 		const channel = await resolveEventGuildChannel(guild, channelId);
@@ -49,6 +50,21 @@ export async function postReviewSubmissionTimelineMessages({
 					channelId
 				},
 				'Failed to post review-submitted update to tracked voice channel'
+			);
+		});
+
+		if (channelId !== eventSession.threadId || !hostMeritMessage) {
+			continue;
+		}
+
+		await channel.send({ content: hostMeritMessage }).catch((error: unknown) => {
+			logger.warn(
+				{
+					err: error,
+					eventSessionId: eventSession.id,
+					channelId
+				},
+				'Failed to post host merit update to event thread'
 			);
 		});
 	}

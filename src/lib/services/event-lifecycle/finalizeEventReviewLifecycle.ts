@@ -13,7 +13,7 @@ type FinalizeEventReviewDeps = {
 		reviewerDbUserId: string;
 		mode: 'with' | 'without';
 	}) => Promise<EventReviewFinalizationResult>;
-	syncAwardedNicknames: (params: { awardedUsers: EventReviewFinalizationResult['awardedUsers']; awardedMeritAmount: number }) => Promise<void>;
+	syncAwardedNicknames: (params: { awardedUsers: EventReviewFinalizationResult['awardedUsers'] }) => Promise<void>;
 	reloadEventSession: (eventSessionId: number) => Promise<EventLifecycleEventSession | null>;
 	syncTrackingSummary: (eventSession: EventLifecycleEventSession) => Promise<void>;
 	postReviewSubmissionMessages: (params: {
@@ -82,8 +82,7 @@ export async function finalizeEventReviewLifecycle(
 	}
 
 	await deps.syncAwardedNicknames({
-		awardedUsers: finalizeResult.awardedUsers,
-		awardedMeritAmount: finalizeResult.awardedMeritAmount
+		awardedUsers: finalizeResult.awardedUsers
 	});
 
 	const finalizedSession = await deps.reloadEventSession(input.eventSessionId);
