@@ -1,6 +1,7 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 
 import type { ActorContext } from '../_shared/actor';
+import { hasStaffOrCenturionEquivalentCapability } from '../_shared/actor';
 import type { EventReviewPage } from '../../../integrations/prisma/repositories';
 
 const VIEWABLE_REVIEW_STATES = new Set<EventSessionState>([
@@ -55,7 +56,7 @@ export async function recordEventReviewDecision(
 		page: number;
 	}
 ): Promise<RecordEventReviewDecisionResult> {
-	if (!input.actor.capabilities.isStaff && !input.actor.capabilities.isCenturion) {
+	if (!hasStaffOrCenturionEquivalentCapability(input.actor.capabilities)) {
 		return {
 			kind: 'forbidden'
 		};

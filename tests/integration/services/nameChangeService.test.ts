@@ -87,7 +87,8 @@ describe('nameChangeService integration', () => {
 					dbUserId: null,
 					capabilities: {
 						isStaff: false,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				rawRequestedName: 'ARC | NewName',
@@ -149,7 +150,8 @@ describe('nameChangeService integration', () => {
 					dbUserId: 'reviewer-db-edit',
 					capabilities: {
 						isStaff: true,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				requestId: request.id,
@@ -211,7 +213,8 @@ describe('nameChangeService integration', () => {
 					dbUserId: reviewer.id,
 					capabilities: {
 						isStaff: true,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				requestId: request.id,

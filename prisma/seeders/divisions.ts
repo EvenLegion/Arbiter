@@ -66,6 +66,15 @@ const divisions: DivisionSeed[] = [
 		discordRoleId: requiredEnv('CENT_ROLE_ID')
 	},
 	{
+		code: 'OPT',
+		name: 'Optio',
+		kind: DivisionKind.SPECIAL,
+		showRank: true,
+		emojiName: optionalEnv('OPTIO_EMOJI_NAME'),
+		emojiId: optionalEnv('OPTIO_EMOJI_ID'),
+		discordRoleId: requiredEnv('OPTIO_ROLE_ID')
+	},
+	{
 		code: 'AMB',
 		name: 'Ambassador',
 		kind: DivisionKind.SPECIAL,

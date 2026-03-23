@@ -12,7 +12,6 @@ const AWARDED_MEMBER_SYNC_CONCURRENCY = 3;
 export async function syncAwardedMemberNicknamesAndNotifyRankUp({
 	guild,
 	awardedUsers,
-	awardedMeritAmount,
 	context,
 	logger
 }: {
@@ -20,8 +19,8 @@ export async function syncAwardedMemberNicknamesAndNotifyRankUp({
 	awardedUsers: Array<{
 		dbUserId: string;
 		discordUserId: string;
+		awardedMeritAmount: number;
 	}>;
-	awardedMeritAmount: number;
 	context: ExecutionContext;
 	logger: ExecutionContext['logger'];
 }) {
@@ -29,27 +28,45 @@ export async function syncAwardedMemberNicknamesAndNotifyRankUp({
 		return;
 	}
 
-	const awardedUsersByDbUserId = new Map(awardedUsers.map((awardedUser) => [awardedUser.dbUserId, awardedUser]));
+	const awardedUsersByDbUserId = new Map<
+		string,
+		{
+			dbUserId: string;
+			discordUserId: string;
+			awardedMeritAmount: number;
+		}
+	>();
+	for (const awardedUser of awardedUsers) {
+		const existing = awardedUsersByDbUserId.get(awardedUser.dbUserId);
+		if (existing) {
+			existing.awardedMeritAmount += awardedUser.awardedMeritAmount;
+			continue;
+		}
+
+		awardedUsersByDbUserId.set(awardedUser.dbUserId, {
+			...awardedUser
+		});
+	}
+
 	const uniqueAwardedUsers = [...awardedUsersByDbUserId.values()];
 	const members = createGuildMemberAccessGateway({
 		guild
 	});
-	const totalsByDbUserId =
-		awardedMeritAmount > 0
-			? await meritRepository
-					.getUsersTotalMerits({
-						userDbUserIds: uniqueAwardedUsers.map((awardedUser) => awardedUser.dbUserId)
-					})
-					.catch((error: unknown) => {
-						logger.error(
-							{
-								err: error
-							},
-							'Failed to fetch total merits for awarded users'
-						);
-						return new Map<string, number>();
-					})
-			: new Map<string, number>();
+	const totalsByDbUserId = uniqueAwardedUsers.some((awardedUser) => awardedUser.awardedMeritAmount > 0)
+		? await meritRepository
+				.getUsersTotalMerits({
+					userDbUserIds: uniqueAwardedUsers.map((awardedUser) => awardedUser.dbUserId)
+				})
+				.catch((error: unknown) => {
+					logger.error(
+						{
+							err: error
+						},
+						'Failed to fetch total merits for awarded users'
+					);
+					return new Map<string, number>();
+				})
+		: new Map<string, number>();
 
 	await runWithConcurrencyLimit(uniqueAwardedUsers, AWARDED_MEMBER_SYNC_CONCURRENCY, async (awardedUser) => {
 		const discordUserId = awardedUser.discordUserId;
@@ -104,7 +121,7 @@ export async function syncAwardedMemberNicknamesAndNotifyRankUp({
 			);
 		}
 
-		if (awardedMeritAmount > 0) {
+		if (awardedUser.awardedMeritAmount > 0) {
 			const currentTotalMerits = totalsByDbUserId.get(awardedUser.dbUserId);
 			if (typeof currentTotalMerits !== 'number') {
 				logger.error(
@@ -116,7 +133,7 @@ export async function syncAwardedMemberNicknamesAndNotifyRankUp({
 				);
 				return;
 			}
-			const previousTotalMerits = Math.max(0, currentTotalMerits - awardedMeritAmount);
+			const previousTotalMerits = Math.max(0, currentTotalMerits - awardedUser.awardedMeritAmount);
 			await notifyMeritRankUp({
 				member,
 				previousTotalMerits,

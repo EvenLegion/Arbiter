@@ -47,7 +47,8 @@ describe('handleNameChangeReviewButton', () => {
 				dbUserId: null,
 				capabilities: {
 					isStaff: true,
-					isCenturion: false
+					isCenturion: false,
+					isOptio: false
 				}
 			}
 		};
@@ -97,7 +98,8 @@ describe('handleNameChangeReviewButton', () => {
 				dbUserId: 'db-staff-1',
 				capabilities: {
 					isStaff: true,
-					isCenturion: false
+					isCenturion: false,
+					isOptio: false
 				},
 				discordTag: 'staff#0001'
 			}

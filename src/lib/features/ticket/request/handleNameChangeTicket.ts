@@ -105,7 +105,8 @@ export async function handleNameChangeTicket({ interaction, context }: HandleNam
 					dbUserId: null,
 					capabilities: {
 						isStaff: false,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				},
 				rawRequestedName,

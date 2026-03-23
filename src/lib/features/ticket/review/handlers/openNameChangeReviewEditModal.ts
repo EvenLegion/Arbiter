@@ -2,6 +2,7 @@ import type { ButtonInteraction } from 'discord.js';
 
 import { nameChangeRepository } from '../../../../../integrations/prisma/repositories';
 import type { InteractionResponder } from '../../../../discord/interactions/interactionResponder';
+import type { ActorContext } from '../../../../services/_shared/actor';
 import { getPendingNameChangeRequestForEdit } from '../../../../services/name-change/nameChangeService';
 import { buildNameChangeReviewEditModal } from '../presentation/nameChangeReviewPresentation';
 import { getNameChangeEditFailureMessage } from '../presentation/nameChangeReviewResultPresenter';
@@ -15,14 +16,7 @@ export async function openNameChangeReviewEditModal({
 }: {
 	interaction: ButtonInteraction;
 	requestId: number;
-	reviewerActor: {
-		discordUserId: string;
-		dbUserId: string | null;
-		capabilities: {
-			isStaff: boolean;
-			isCenturion: boolean;
-		};
-	};
+	reviewerActor: ActorContext;
 	logger: {
 		info: (...values: readonly unknown[]) => void;
 		error: (...values: readonly unknown[]) => void;

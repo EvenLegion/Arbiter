@@ -1,6 +1,7 @@
 import { EventSessionState } from '@prisma/client';
 
 import type { ActorContext } from '../_shared/actor';
+import { hasStaffOrCenturionEquivalentCapability } from '../_shared/actor';
 import type { EventLifecycleEventSession, EventReviewFinalizationResult } from './eventLifecycleTypes';
 
 type FinalizeEventReviewDeps = {
@@ -13,7 +14,7 @@ type FinalizeEventReviewDeps = {
 		reviewerDbUserId: string;
 		mode: 'with' | 'without';
 	}) => Promise<EventReviewFinalizationResult>;
-	syncAwardedNicknames: (params: { awardedUsers: EventReviewFinalizationResult['awardedUsers']; awardedMeritAmount: number }) => Promise<void>;
+	syncAwardedNicknames: (params: { awardedUsers: EventReviewFinalizationResult['awardedUsers'] }) => Promise<void>;
 	reloadEventSession: (eventSessionId: number) => Promise<EventLifecycleEventSession | null>;
 	syncTrackingSummary: (eventSession: EventLifecycleEventSession) => Promise<void>;
 	postReviewSubmissionMessages: (params: {
@@ -46,7 +47,7 @@ export async function finalizeEventReviewLifecycle(
 		mode: 'with' | 'without';
 	}
 ): Promise<FinalizeEventReviewLifecycleResult> {
-	if (!input.actor.capabilities.isStaff && !input.actor.capabilities.isCenturion) {
+	if (!hasStaffOrCenturionEquivalentCapability(input.actor.capabilities)) {
 		return {
 			kind: 'forbidden'
 		};
@@ -82,8 +83,7 @@ export async function finalizeEventReviewLifecycle(
 	}
 
 	await deps.syncAwardedNicknames({
-		awardedUsers: finalizeResult.awardedUsers,
-		awardedMeritAmount: finalizeResult.awardedMeritAmount
+		awardedUsers: finalizeResult.awardedUsers
 	});
 
 	const finalizedSession = await deps.reloadEventSession(input.eventSessionId);

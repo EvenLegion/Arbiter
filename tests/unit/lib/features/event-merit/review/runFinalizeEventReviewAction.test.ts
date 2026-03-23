@@ -60,7 +60,8 @@ describe('runFinalizeEventReviewAction', () => {
 					dbUserId: 'db-42',
 					capabilities: {
 						isStaff: true,
-						isCenturion: false
+						isCenturion: false,
+						isOptio: false
 					}
 				}
 			}
@@ -73,7 +74,8 @@ describe('runFinalizeEventReviewAction', () => {
 				dbUserId: 'db-42',
 				capabilities: {
 					isStaff: true,
-					isCenturion: false
+					isCenturion: false,
+					isOptio: false
 				}
 			},
 			eventSessionId: 99,

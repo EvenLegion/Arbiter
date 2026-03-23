@@ -6,6 +6,7 @@ import {
 	createFinalizedEventReviewMerits,
 	findMeritDecisionRows,
 	finalizeEventReviewState,
+	loadCenturionHostMeritType,
 	loadFinalizableEventReviewSession
 } from './finalizeEventReviewTransactionHelpers';
 import { prisma } from '../../prisma';
@@ -52,26 +53,47 @@ export async function finalizeEventReviewTransaction({
 		const meritDecisionRows = await findMeritDecisionRows(tx, eventSessionId);
 
 		if (meritDecisionRows.length === 0) {
-			return buildFinalizedWithoutMeritsResult(toState);
+			const centurionHostMeritType = await loadCenturionHostMeritType(tx);
+			const hostMeritCreation = await createFinalizedEventReviewMerits({
+				tx,
+				meritDecisionRows,
+				reviewerDbUserId,
+				eventSessionId,
+				attendanceMeritTypeId: eventSession.eventTier.meritTypeId,
+				attendanceMeritAmount: eventSession.eventTier.meritType.meritAmount,
+				hostUserId: eventSession.hostUserId,
+				hostDiscordUserId: eventSession.hostUser.discordUserId,
+				hostMeritTypeId: centurionHostMeritType.id,
+				hostMeritAmount: centurionHostMeritType.meritAmount
+			});
+
+			return {
+				finalized: true,
+				toState,
+				awardedCount: hostMeritCreation.createManyResult.count,
+				awardedUsers: hostMeritCreation.awardedUsers
+			};
 		}
 
-		const createManyResult = await createFinalizedEventReviewMerits({
+		const centurionHostMeritType = await loadCenturionHostMeritType(tx);
+		const meritCreation = await createFinalizedEventReviewMerits({
 			tx,
 			meritDecisionRows,
 			reviewerDbUserId,
 			eventSessionId,
-			meritTypeId: eventSession.eventTier.meritTypeId
+			attendanceMeritTypeId: eventSession.eventTier.meritTypeId,
+			attendanceMeritAmount: eventSession.eventTier.meritType.meritAmount,
+			hostUserId: eventSession.hostUserId,
+			hostDiscordUserId: eventSession.hostUser.discordUserId,
+			hostMeritTypeId: centurionHostMeritType.id,
+			hostMeritAmount: centurionHostMeritType.meritAmount
 		});
 
 		return {
 			finalized: true,
 			toState,
-			awardedCount: createManyResult.count,
-			awardedMeritAmount: eventSession.eventTier.meritType.meritAmount,
-			awardedUsers: meritDecisionRows.map((row) => ({
-				dbUserId: row.targetUserId,
-				discordUserId: row.targetUser.discordUserId
-			}))
+			awardedCount: meritCreation.createManyResult.count,
+			awardedUsers: meritCreation.awardedUsers
 		};
 	});
 }

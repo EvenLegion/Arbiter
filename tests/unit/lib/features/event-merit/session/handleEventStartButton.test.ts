@@ -184,7 +184,8 @@ function createActor() {
 		dbUserId: 'db-reviewer-1',
 		capabilities: {
 			isStaff: true,
-			isCenturion: true
+			isCenturion: true,
+			isOptio: false
 		}
 	};
 }

@@ -64,15 +64,15 @@ describe('preconditionActor', () => {
 	});
 
 	it('returns capability flags for an event operator', async () => {
-		const member = {
-			id: 'member-1'
-		};
+		const member = createMember({
+			roleIds: ['cent-role-id']
+		});
 		mocks.getConfiguredGuild.mockResolvedValue({
 			id: 'guild-1'
 		});
 		mocks.getGuildMemberOrThrow.mockResolvedValue(member);
 		mocks.memberHasDivisionKindRole.mockResolvedValue(false);
-		mocks.memberHasDivision.mockResolvedValue(true);
+		mocks.memberHasDivision.mockImplementation(async ({ divisionDiscordRoleId }) => divisionDiscordRoleId === 'cent-role-id');
 
 		const result = await resolvePreconditionActor({
 			interaction: createInteraction(),
@@ -84,7 +84,34 @@ describe('preconditionActor', () => {
 			ok: true,
 			member,
 			isStaff: false,
-			isCenturion: true
+			isCenturion: true,
+			isOptio: false
+		});
+	});
+
+	it('treats optio members as event operators', async () => {
+		const member = createMember({
+			roleIds: ['optio-role-id']
+		});
+		mocks.getConfiguredGuild.mockResolvedValue({
+			id: 'guild-1'
+		});
+		mocks.getGuildMemberOrThrow.mockResolvedValue(member);
+		mocks.memberHasDivisionKindRole.mockResolvedValue(false);
+		mocks.memberHasDivision.mockImplementation(async ({ divisionDiscordRoleId }) => divisionDiscordRoleId === 'optio-role-id');
+
+		const result = await resolvePreconditionActor({
+			interaction: createInteraction(),
+			preconditionName: 'EventOperatorOnly',
+			capabilityRequirement: 'staff-or-centurion'
+		});
+
+		expect(result).toEqual({
+			ok: true,
+			member,
+			isStaff: false,
+			isCenturion: false,
+			isOptio: true
 		});
 	});
 });
@@ -95,4 +122,15 @@ function createInteraction() {
 			id: 'user-1'
 		}
 	} as never;
+}
+
+function createMember({ roleIds = [] }: { roleIds?: string[] } = {}) {
+	return {
+		id: 'member-1',
+		roles: {
+			cache: {
+				has: (roleId: string) => roleIds.includes(roleId)
+			}
+		}
+	};
 }

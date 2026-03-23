@@ -26,19 +26,17 @@ export function createFinalizeEventReviewLifecycleDeps({
 		finalizeReview: async (params: { eventSessionId: number; reviewerDbUserId: string; mode: 'with' | 'without' }) =>
 			eventReviewRepository.finalizeReview(params),
 		syncAwardedNicknames: async ({
-			awardedUsers,
-			awardedMeritAmount
+			awardedUsers
 		}: {
 			awardedUsers: Array<{
 				dbUserId: string;
 				discordUserId: string;
+				awardedMeritAmount: number;
 			}>;
-			awardedMeritAmount: number;
 		}) => {
 			await syncAwardedMemberNicknamesAndNotifyRankUp({
 				guild,
 				awardedUsers,
-				awardedMeritAmount,
 				context,
 				logger
 			});

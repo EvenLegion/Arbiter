@@ -1,6 +1,7 @@
 import type { Guild } from 'discord.js';
 
 import type { ExecutionContext } from '../../../../logging/executionContext';
+import type { ActorContext } from '../../../../services/_shared/actor';
 import { finalizeEventReviewLifecycle } from '../../../../services/event-lifecycle';
 import { createFinalizeEventReviewLifecycleDeps } from './createFinalizeEventReviewLifecycleDeps';
 import { presentFinalizeEventReviewResult } from './eventReviewActionResultPresenter';
@@ -18,15 +19,7 @@ export async function runFinalizeEventReviewAction({
 	context: ExecutionContext;
 	logger: ExecutionContext['logger'];
 	reviewer: {
-		actor: {
-			discordUserId: string;
-			dbUserId: string | null;
-			capabilities: {
-				isStaff: boolean;
-				isCenturion: boolean;
-			};
-			discordTag?: string;
-		};
+		actor: ActorContext;
 	};
 }) {
 	const result = await finalizeEventReviewLifecycle(

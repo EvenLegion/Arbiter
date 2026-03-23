@@ -19,6 +19,7 @@ const DISCORD_TEST_ENV = {
 	TIR_ROLE_ID: 'tir-role-id',
 	ANG_ROLE_ID: 'ang-role-id',
 	CENT_ROLE_ID: 'cent-role-id',
+	OPTIO_ROLE_ID: 'optio-role-id',
 	NVY_L_ROLE_ID: 'nvy-l-role-id',
 	MRN_L_ROLE_ID: 'mrn-l-role-id',
 	SUP_L_ROLE_ID: 'sup-l-role-id',
