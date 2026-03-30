@@ -6,7 +6,7 @@ The Docusaurus docs site is the source of truth for contributor onboarding, arch
 
 ## Start Here
 
-(Published docs)[https://evenlegion.github.io/Arbiter/](https://evenlegion.github.io/Arbiter/]
+[Published docs](https://evenlegion.github.io/Arbiter/](https://evenlegion.github.io/Arbiter/)
 
 ## Minimal Local Boot
 
