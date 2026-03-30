@@ -6,34 +6,7 @@ The Docusaurus docs site is the source of truth for contributor onboarding, arch
 
 ## Start Here
 
-- Docs site source:
-  [website/docs](./website/docs)
-- Published docs:
-  [https://evenlegion.github.io/Arbiter/](https://evenlegion.github.io/Arbiter/)
-- Fastest onboarding path:
-  [website/docs/intro.md](./website/docs/intro.md)
-- Task-based entrypoint:
-  [website/docs/onboarding/choose-your-task.md](./website/docs/onboarding/choose-your-task.md)
-- Local setup:
-  [website/docs/onboarding/local-development.md](./website/docs/onboarding/local-development.md)
-- Codebase tour:
-  [website/docs/onboarding/repository-map.md](./website/docs/onboarding/repository-map.md)
-- Runtime architecture:
-  [website/docs/architecture/runtime-overview.md](./website/docs/architecture/runtime-overview.md)
-- State and integrations:
-  [website/docs/architecture/data-and-storage.md](./website/docs/architecture/data-and-storage.md)
-- Event and merit workflows:
-  [website/docs/features/event-system.md](./website/docs/features/event-system.md)
-- Membership and identity workflows:
-  [website/docs/features/division-and-membership.md](./website/docs/features/division-and-membership.md)
-- Contribution rules:
-  [website/docs/contributing/adding-features.md](./website/docs/contributing/adding-features.md)
-- Logging and observability:
-  [website/docs/architecture/logging-and-observability.md](./website/docs/architecture/logging-and-observability.md)
-- Release workflow:
-  [website/docs/contributing/release-workflow.md](./website/docs/contributing/release-workflow.md)
-- Production deployment:
-  [website/docs/contributing/production-deployment.md](./website/docs/contributing/production-deployment.md)
+(Published docs)[https://evenlegion.github.io/Arbiter/](https://evenlegion.github.io/Arbiter/]
 
 ## Minimal Local Boot
 
@@ -57,5 +30,5 @@ pnpm docs:serve
 
 ## Notes
 
-- `.env.example` is the source of truth for runtime configuration.
+- `.env` is the source of truth for runtime configuration.
 - `prisma/migration/` contains legacy-data migration and repair utilities, not the normal deploy-time schema migration path.
