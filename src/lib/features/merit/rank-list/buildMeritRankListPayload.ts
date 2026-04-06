@@ -92,9 +92,7 @@ export function buildMeritRankListPayload({
 	return {
 		embeds: [
 			buildRankEmbed({
-				entries: pagedEntries,
-				page: resolvedPage,
-				totalPages
+				entries: pagedEntries
 			})
 		],
 		components: [controls]
