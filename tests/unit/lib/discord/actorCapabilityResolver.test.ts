@@ -170,6 +170,45 @@ describe('actorCapabilityResolver', () => {
 			dbUser: null
 		});
 	});
+
+	it('treats optio capability lookup failures as non-optio instead of crashing actor resolution', async () => {
+		const guild = {
+			id: 'guild-1'
+		} as never;
+		const member = createMember();
+
+		const result = await resolveActorCoreWithDeps(
+			{
+				getMember: async () => member,
+				hasDivisionKindRole: async () => true,
+				hasDivision: async ({ divisionDiscordRoleId }) => {
+					if (divisionDiscordRoleId === 'optio-role') {
+						throw new Error('Division not found');
+					}
+					return false;
+				},
+				centurionRoleId: 'centurion-role',
+				optioRoleId: 'optio-role'
+			},
+			{
+				guild,
+				discordUserId: '42',
+				capabilityRequirement: 'staff'
+			}
+		);
+
+		expect(result).toEqual({
+			kind: 'ok',
+			guild,
+			member,
+			capabilities: {
+				isStaff: true,
+				isCenturion: false,
+				isOptio: false
+			},
+			dbUser: null
+		});
+	});
 });
 
 function createMember({ roleIds = [] }: { roleIds?: string[] } = {}) {
