@@ -8,6 +8,12 @@ import {
 } from '../../../discord/autocomplete/autocompleteHelpers';
 import { buildGuildMemberAutocompleteChoices } from '../../../discord/members/memberDirectory';
 import { buildDivisionAutocompleteChoices } from '../../../services/division-membership/divisionDirectory';
+import {
+	buildEventAttendeeAutocompleteChoices,
+	buildMedalEventAutocompleteChoices,
+	buildMedalRoleAutocompleteChoices,
+	buildStandaloneMedalEligibleUserChoices
+} from '../medal/staffMedalAutocompleteChoices';
 
 type HandleStaffAutocompleteParams = {
 	interaction: Subcommand.AutocompleteInteraction;
@@ -30,6 +36,64 @@ const STAFF_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 	createGuildMemberRoute({
 		subcommandGroupName: 'division_membership',
 		focusedOptionName: 'nickname'
+	}),
+	createGuildScopedAutocompleteRoute({
+		match: {
+			subcommandName: 'medal-give',
+			focusedOptionName: 'medal_name'
+		},
+		guildLogMessage: 'Failed to resolve configured guild during staff medal role autocomplete',
+		choiceLogMessage: 'Failed to respond to staff medal role autocomplete',
+		resolveQuery: (value) =>
+			getAutocompleteQuery(value, {
+				lowercase: true
+			}),
+		loadChoices: ({ guild, query }) =>
+			buildMedalRoleAutocompleteChoices({
+				guild,
+				query
+			})
+	}),
+	createQueryAutocompleteRoute({
+		match: {
+			subcommandName: 'medal-give',
+			focusedOptionName: 'event_name'
+		},
+		choiceLogMessage: 'Failed to respond to staff medal event autocomplete',
+		resolveQuery: (value) =>
+			getAutocompleteQuery(value, {
+				lowercase: true
+			}),
+		loadChoices: ({ query }) =>
+			buildMedalEventAutocompleteChoices({
+				query
+			})
+	}),
+	createQueryAutocompleteRoute({
+		match: {
+			subcommandName: 'medal-give',
+			focusedOptionName: 'user_name'
+		},
+		choiceLogMessage: 'Failed to respond to staff medal user autocomplete',
+		resolveQuery: (value) =>
+			getAutocompleteQuery(value, {
+				lowercase: true
+			}),
+		loadChoices: async ({ query, route }) => {
+			const rawEventSelection = route.interaction.options.getString('event_name', false);
+			const parsedEventSessionId = rawEventSelection ? Number(rawEventSelection) : null;
+
+			if (rawEventSelection && Number.isInteger(parsedEventSessionId) && parsedEventSessionId! > 0) {
+				return buildEventAttendeeAutocompleteChoices({
+					eventSessionId: parsedEventSessionId!,
+					query
+				});
+			}
+
+			return buildStandaloneMedalEligibleUserChoices({
+				query
+			});
+		}
 	}),
 	createQueryAutocompleteRoute({
 		match: {

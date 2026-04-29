@@ -5,6 +5,7 @@ import { ENV_DISCORD } from '../config/env';
 import { handleStaffAutocomplete } from '../lib/features/staff/autocomplete/staffAutocompleteProvider';
 import { handlePostDivisionSelectionMessage } from '../lib/features/staff/division-selection/handlePostDivisionSelectionMessage';
 import { handleDivisionMembershipCommand } from '../lib/features/staff/division-membership/handleDivisionMembershipCommand';
+import { handleStaffMedalGive } from '../lib/features/staff/medal/handleStaffMedalGive';
 import { handleStaffSyncNickname } from '../lib/features/staff/nickname-sync/handleStaffSyncNickname';
 import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
@@ -19,6 +20,10 @@ import { createCommandExecutionContext } from '../lib/logging/commandExecutionCo
 		{
 			name: 'sync_nickname',
 			chatInputRun: 'chatInputSyncNickname'
+		},
+		{
+			name: 'medal-give',
+			chatInputRun: 'chatInputMedalGive'
 		},
 		{
 			type: 'group',
@@ -55,6 +60,28 @@ export class StaffCommand extends Subcommand {
 							)
 							.addBooleanOption((option) =>
 								option.setName('include_staff').setDescription('Include staff users in nickname sync.').setRequired(false)
+							)
+					)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('medal-give')
+							.setDescription('Grant a medal role for a recent event or a specific eligible user.')
+							.addStringOption((option) =>
+								option.setName('medal_name').setDescription('Medal role to grant.').setRequired(true).setAutocomplete(true)
+							)
+							.addStringOption((option) =>
+								option
+									.setName('event_name')
+									.setDescription('Optional event created in the last 7 days.')
+									.setRequired(false)
+									.setAutocomplete(true)
+							)
+							.addStringOption((option) =>
+								option
+									.setName('user_name')
+									.setDescription('Optional target user. Without an event, only INT/LGN/RES users are listed.')
+									.setRequired(false)
+									.setAutocomplete(true)
 							)
 					)
 					.addSubcommandGroup((group) =>
@@ -118,6 +145,18 @@ export class StaffCommand extends Subcommand {
 		});
 
 		return handleStaffSyncNickname({ interaction, context });
+	}
+
+	public async chatInputMedalGive(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.medalGive'
+		});
+
+		return handleStaffMedalGive({
+			interaction,
+			context
+		});
 	}
 
 	public async chatInputDivisionMembershipAdd(interaction: Subcommand.ChatInputCommandInteraction) {
