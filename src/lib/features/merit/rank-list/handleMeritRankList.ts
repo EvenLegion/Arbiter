@@ -85,8 +85,7 @@ export async function handleMeritRankList({ interaction, context }: HandleMeritR
 			'Failed to load merit rank list'
 		);
 		await responder.fail('Failed to load merit rank list. Please contact TECH with:', {
-			requestId: true,
-			...(shouldReplyPublicly ? { delivery: 'followUp' as const } : {})
+			requestId: true
 		});
 	}
 }
