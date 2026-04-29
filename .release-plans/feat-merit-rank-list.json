@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "feat/merit-rank-list",
+	"baseRef": "origin/dev",
+	"mergeBase": "e6b02710455fd892c1407ec0f1edf8050e523c2d",
+	"headRef": "9df1e17ecccaff513f1a72190cb40e774cb25a38",
+	"generatedAt": "2026-04-29T21:20:58.840Z",
+	"bump": "minor",
+	"targetVersion": "3.3.0",
+	"commits": [
+		{
+			"sha": "0d74c05d83da9f319e77982f13f3ab6d5b167813",
+			"subject": "feat: Added new staff command for listing number of org members per merit rank level, broken down by discord roles",
+			"committedAt": "2026-04-05T17:30:17-10:00",
+			"committedAtMs": 1775446217000,
+			"type": "feat",
+			"scope": null,
+			"description": "Added new staff command for listing number of org members per merit rank level, broken down by discord roles",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
