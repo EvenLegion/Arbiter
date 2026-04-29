@@ -12,6 +12,7 @@ import type { ExecutionContext } from '../../../logging/executionContext';
 import { MissingTrackedChannelWarningStore } from '../../../services/event-tracking/missingTrackedChannelWarningStore';
 import { resolveTrackedAttendeeDiscordUserIds } from '../../../services/event-tracking/resolveTrackedAttendees';
 import { createGuildMemberDirectMessageGateway } from '../../../services/guild-member/guildMemberDirectMessageGateway';
+import { MEDAL_ROLE_PREFIX, SEVEN_DAYS_IN_MS } from './staffMedalConstants';
 
 type HandleStaffMedalGiveParams = {
 	interaction: Subcommand.ChatInputCommandInteraction;
@@ -25,9 +26,6 @@ type MedalGrantTarget = {
 };
 
 const EVENT_SESSION_ID_SCHEMA = z.coerce.number().int().positive();
-const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
-const MEDAL_ROLE_PREFIX = 'Medal:';
-
 export async function handleStaffMedalGive({ interaction, context }: HandleStaffMedalGiveParams) {
 	const prepared = await prepareGuildInteraction({
 		interaction,
@@ -126,7 +124,8 @@ export async function handleStaffMedalGive({ interaction, context }: HandleStaff
 						medalRoleName: medalRole.name,
 						eventName: recentEvent.name
 					}),
-					reason: `Awarded ${medalRole.name} via /staff medal-give for event ${recentEvent.name}`
+					reason: `Awarded ${medalRole.name} via /staff medal_give for event ${recentEvent.name}`,
+					logger
 				});
 
 				logger.info(
@@ -175,18 +174,21 @@ export async function handleStaffMedalGive({ interaction, context }: HandleStaff
 					medalRoleName: medalRole.name,
 					eventName: recentEvent.name
 				}),
-				reason: `Awarded ${medalRole.name} via /staff medal-give for event ${recentEvent.name}`
+				reason: `Awarded ${medalRole.name} via /staff medal_give for event ${recentEvent.name}`,
+				logger
 			});
 
-			logger.info(
-				{
-					medalRoleId: medalRole.id,
-					medalRoleName: medalRole.name,
-					eventSessionId: recentEvent.id,
-					...summary
-				},
-				'staff.medal_give.bulk.completed'
-			);
+			const bulkLogBindings = {
+				medalRoleId: medalRole.id,
+				medalRoleName: medalRole.name,
+				eventSessionId: recentEvent.id,
+				...summary
+			};
+			if (summary.failed > 0) {
+				logger.warn(bulkLogBindings, 'staff.medal_give.bulk.completed_with_failures');
+			} else {
+				logger.info(bulkLogBindings, 'staff.medal_give.bulk.completed');
+			}
 
 			await responder.safeEditReply({
 				content: buildBulkGrantReply({
@@ -219,7 +221,8 @@ export async function handleStaffMedalGive({ interaction, context }: HandleStaff
 			dmContent: buildMedalDirectMessage({
 				medalRoleName: medalRole.name
 			}),
-			reason: `Awarded ${medalRole.name} via /staff medal-give`
+			reason: `Awarded ${medalRole.name} via /staff medal_give`,
+			logger
 		});
 
 		logger.info(
@@ -313,13 +316,15 @@ async function resolveSingleTargetForEvent({
 async function resolveMedalRole({ guild, selection }: { guild: Guild; selection: string }) {
 	const roles = await guild.roles.fetch();
 	const normalizedSelection = selection.trim().toLowerCase();
+	const directMatch = roles.get(selection);
+	if (directMatch) {
+		return directMatch.name.startsWith(MEDAL_ROLE_PREFIX) ? directMatch : null;
+	}
 
 	return (
-		roles.get(selection) ??
 		[...roles.values()].find(
 			(role): role is Role => Boolean(role) && role.name.startsWith(MEDAL_ROLE_PREFIX) && role.name.toLowerCase() === normalizedSelection
-		) ??
-		null
+		) ?? null
 	);
 }
 
@@ -329,7 +334,8 @@ async function grantMedalToMany({
 	targets,
 	sendDirectMessage,
 	dmContent,
-	reason
+	reason,
+	logger
 }: {
 	guild: Guild;
 	role: Role;
@@ -337,6 +343,7 @@ async function grantMedalToMany({
 	sendDirectMessage: ReturnType<typeof createGuildMemberDirectMessageGateway>;
 	dmContent: string;
 	reason: string;
+	logger: ExecutionContext['logger'];
 }) {
 	const uniqueTargets = [...new Map(targets.map((target) => [target.discordUserId, target])).values()];
 	const summary = {
@@ -344,6 +351,7 @@ async function grantMedalToMany({
 		granted: 0,
 		alreadyHadRole: 0,
 		notInGuild: 0,
+		failed: 0,
 		dmSent: 0
 	};
 
@@ -354,7 +362,8 @@ async function grantMedalToMany({
 			target,
 			sendDirectMessage,
 			dmContent,
-			reason
+			reason,
+			logger
 		});
 
 		if (result.kind === 'granted') {
@@ -366,6 +375,10 @@ async function grantMedalToMany({
 		}
 		if (result.kind === 'already_has_role') {
 			summary.alreadyHadRole += 1;
+			continue;
+		}
+		if (result.kind === 'failed') {
+			summary.failed += 1;
 			continue;
 		}
 
@@ -381,7 +394,8 @@ async function grantMedalToOne({
 	target,
 	sendDirectMessage,
 	dmContent,
-	reason
+	reason,
+	logger
 }: {
 	guild: Guild;
 	role: Role;
@@ -389,7 +403,8 @@ async function grantMedalToOne({
 	sendDirectMessage: ReturnType<typeof createGuildMemberDirectMessageGateway>;
 	dmContent: string;
 	reason: string;
-}): Promise<{ kind: 'granted'; dmSent: boolean } | { kind: 'already_has_role' } | { kind: 'not_in_guild' }> {
+	logger: ExecutionContext['logger'];
+}): Promise<{ kind: 'granted'; dmSent: boolean } | { kind: 'already_has_role' } | { kind: 'not_in_guild' } | { kind: 'failed' }> {
 	const member = await guild.members.fetch(target.discordUserId).catch(() => null);
 	if (!member) {
 		return {
@@ -403,7 +418,22 @@ async function grantMedalToOne({
 		};
 	}
 
-	await member.roles.add(role.id, reason);
+	try {
+		await member.roles.add(role.id, reason);
+	} catch (error: unknown) {
+		logger.warn(
+			{
+				err: error,
+				targetDiscordUserId: target.discordUserId,
+				roleId: role.id,
+				roleName: role.name
+			},
+			'Failed to grant medal role to target user'
+		);
+		return {
+			kind: 'failed'
+		};
+	}
 
 	const dmSent = await sendDirectMessage({
 		discordUserId: target.discordUserId,
@@ -443,6 +473,9 @@ function buildSingleGrantReply({
 	if (result.kind === 'already_has_role') {
 		return `<@${targetDiscordUserId}> already has **${medalRoleName}**${eventLine}. requestId=\`${requestId}\``;
 	}
+	if (result.kind === 'failed') {
+		return `Failed to grant **${medalRoleName}** to <@${targetDiscordUserId}>${eventLine}. Please check bot permissions and try again. requestId=\`${requestId}\``;
+	}
 
 	const dmLine = result.dmSent ? 'Recipient notified via DM.' : 'Could not DM recipient (DMs may be disabled).';
 	return `Granted **${medalRoleName}** to <@${targetDiscordUserId}>${eventLine}.\n${dmLine} requestId=\`${requestId}\``;
@@ -465,6 +498,7 @@ function buildBulkGrantReply({
 		`Granted: ${summary.granted}`,
 		`Already had role: ${summary.alreadyHadRole}`,
 		`Not in guild: ${summary.notInGuild}`,
+		`Failed: ${summary.failed}`,
 		`Recipient DMs sent: ${summary.dmSent}/${summary.granted}`,
 		`requestId=\`${requestId}\``
 	].join('\n');

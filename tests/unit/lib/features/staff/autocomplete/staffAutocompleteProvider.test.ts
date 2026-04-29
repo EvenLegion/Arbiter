@@ -135,7 +135,7 @@ describe('staffAutocompleteProvider', () => {
 		]);
 		const interaction = createInteraction({
 			subcommandGroupName: null,
-			subcommandName: 'medal-give',
+			subcommandName: 'medal_give',
 			focusedName: 'medal_name',
 			focusedValue: 'val'
 		});
@@ -165,7 +165,7 @@ describe('staffAutocompleteProvider', () => {
 		]);
 		const interaction = createInteraction({
 			subcommandGroupName: null,
-			subcommandName: 'medal-give',
+			subcommandName: 'medal_give',
 			focusedName: 'user_name',
 			focusedValue: 'alp',
 			optionValues: {
@@ -193,7 +193,7 @@ describe('staffAutocompleteProvider', () => {
 		]);
 		const interaction = createInteraction({
 			subcommandGroupName: null,
-			subcommandName: 'medal-give',
+			subcommandName: 'medal_give',
 			focusedName: 'user_name',
 			focusedValue: 'bra'
 		});

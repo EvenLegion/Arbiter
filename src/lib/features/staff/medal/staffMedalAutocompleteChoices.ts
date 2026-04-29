@@ -2,10 +2,9 @@ import type { Guild, Role } from 'discord.js';
 
 import { meritRepository, staffMedalRepository } from '../../../../integrations/prisma/repositories';
 import { buildUserNickname } from '../../../services/nickname/buildUserNickname';
+import { MEDAL_ROLE_PREFIX, SEVEN_DAYS_IN_MS } from './staffMedalConstants';
 
-const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_AUTOCOMPLETE_LIMIT = 25;
-const MEDAL_ROLE_PREFIX = 'Medal:';
 
 export async function buildMedalRoleAutocompleteChoices({ guild, query }: { guild: Guild; query: string }) {
 	const normalizedQuery = query.trim().toLowerCase();

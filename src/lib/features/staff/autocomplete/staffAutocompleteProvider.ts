@@ -39,7 +39,7 @@ const STAFF_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 	}),
 	createGuildScopedAutocompleteRoute({
 		match: {
-			subcommandName: 'medal-give',
+			subcommandName: 'medal_give',
 			focusedOptionName: 'medal_name'
 		},
 		guildLogMessage: 'Failed to resolve configured guild during staff medal role autocomplete',
@@ -56,7 +56,7 @@ const STAFF_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 	}),
 	createQueryAutocompleteRoute({
 		match: {
-			subcommandName: 'medal-give',
+			subcommandName: 'medal_give',
 			focusedOptionName: 'event_name'
 		},
 		choiceLogMessage: 'Failed to respond to staff medal event autocomplete',
@@ -71,7 +71,7 @@ const STAFF_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 	}),
 	createQueryAutocompleteRoute({
 		match: {
-			subcommandName: 'medal-give',
+			subcommandName: 'medal_give',
 			focusedOptionName: 'user_name'
 		},
 		choiceLogMessage: 'Failed to respond to staff medal user autocomplete',

@@ -139,13 +139,16 @@ describe('handleStaffMedalGive', () => {
 			} as never
 		});
 
-		expect(memberOne.roles.add).toHaveBeenCalledWith('role-1', 'Awarded Medal: Valor via /staff medal-give for event SC Jeopardy');
+		expect(memberOne.roles.add).toHaveBeenCalledWith('role-1', 'Awarded Medal: Valor via /staff medal_give for event SC Jeopardy');
 		expect(memberTwo.roles.add).not.toHaveBeenCalled();
 		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
 			content: expect.stringContaining('Granted: 1')
 		});
 		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
 			content: expect.stringContaining('Already had role: 1')
+		});
+		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
+			content: expect.stringContaining('Failed: 0')
 		});
 	});
 
@@ -198,7 +201,7 @@ describe('handleStaffMedalGive', () => {
 		});
 
 		expect(mocks.staffMedalRepository.listEventMeritRecipients).not.toHaveBeenCalled();
-		expect(member.roles.add).toHaveBeenCalledWith('role-1', 'Awarded Medal: Valor via /staff medal-give for event Armor Drill');
+		expect(member.roles.add).toHaveBeenCalledWith('role-1', 'Awarded Medal: Valor via /staff medal_give for event Armor Drill');
 		expect(sendDirectMessage).toHaveBeenCalled();
 		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
 			content: expect.stringContaining('Could not DM recipient')
@@ -301,7 +304,116 @@ describe('handleStaffMedalGive', () => {
 		});
 
 		expect(mocks.resolveTrackedAttendeeDiscordUserIds).toHaveBeenCalled();
-		expect(member.roles.add).toHaveBeenCalledWith('role-1', 'Awarded Medal: Valor via /staff medal-give for event Current Op');
+		expect(member.roles.add).toHaveBeenCalledWith('role-1', 'Awarded Medal: Valor via /staff medal_give for event Current Op');
+	});
+
+	it('rejects pasted role ids that do not resolve to Medal: roles', async () => {
+		const prepared = createPrepared();
+		prepared.guild.roles.fetch.mockResolvedValue(
+			new Map([
+				[
+					'role-1',
+					{
+						id: 'role-1',
+						name: 'Centurion'
+					}
+				]
+			])
+		);
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
+		mocks.parseDiscordUserIdInput.mockReturnValue('user-6');
+
+		await handleStaffMedalGive({
+			interaction: createInteraction({
+				medal_name: 'role-1',
+				event_name: null,
+				user_name: 'user-6'
+			}),
+			context: {
+				requestId: 'req-6'
+			} as never
+		});
+
+		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
+			content: 'Invalid `medal_name` value. Select a medal role from autocomplete. requestId=`req-6`'
+		});
+	});
+
+	it('continues bulk grants when a recipient role add fails and reports the failure count', async () => {
+		const prepared = createPrepared();
+		const memberOne = createGuildMember({ hasRole: false, addRejects: true });
+		const memberTwo = createGuildMember({ hasRole: false });
+		prepared.guild.roles.fetch.mockResolvedValue(
+			new Map([
+				[
+					'role-1',
+					{
+						id: 'role-1',
+						name: 'Medal: Valor'
+					}
+				]
+			])
+		);
+		prepared.guild.members.fetch.mockImplementation(async (discordUserId: string) => {
+			if (discordUserId === 'user-7') {
+				return memberOne;
+			}
+			if (discordUserId === 'user-8') {
+				return memberTwo;
+			}
+			throw new Error('missing');
+		});
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
+		mocks.createGuildMemberDirectMessageGateway.mockReturnValue(vi.fn().mockResolvedValue(true));
+		mocks.staffMedalRepository.getRecentEventById.mockResolvedValue({
+			id: 124,
+			name: 'CQB Drill',
+			createdAt: new Date(),
+			state: 'FINALIZED_WITH_MERITS',
+			channels: [],
+			eventTier: {
+				name: 'Tier 1'
+			}
+		});
+		mocks.staffMedalRepository.listEventMeritRecipients.mockResolvedValue([
+			{
+				user: {
+					discordUserId: 'user-7',
+					discordNickname: 'Delta',
+					discordUsername: 'delta'
+				}
+			},
+			{
+				user: {
+					discordUserId: 'user-8',
+					discordNickname: 'Foxtrot',
+					discordUsername: 'foxtrot'
+				}
+			}
+		]);
+
+		await handleStaffMedalGive({
+			interaction: createInteraction({
+				medal_name: 'role-1',
+				event_name: '124',
+				user_name: null
+			}),
+			context: {
+				requestId: 'req-7'
+			} as never
+		});
+
+		expect(memberTwo.roles.add).toHaveBeenCalled();
+		expect(prepared.logger.warn).toHaveBeenCalledWith(
+			expect.objectContaining({
+				targetDiscordUserId: 'user-7',
+				roleId: 'role-1'
+			}),
+			'Failed to grant medal role to target user'
+		);
+		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
+			content: expect.stringContaining('Failed: 1')
+		});
 	});
 });
 
@@ -335,13 +447,13 @@ function createInteraction(values: Record<string, string | null>) {
 	} as never;
 }
 
-function createGuildMember({ hasRole }: { hasRole: boolean }) {
+function createGuildMember({ hasRole, addRejects = false }: { hasRole: boolean; addRejects?: boolean }) {
 	return {
 		roles: {
 			cache: {
 				has: vi.fn(() => hasRole)
 			},
-			add: vi.fn().mockResolvedValue(undefined)
+			add: addRejects ? vi.fn().mockRejectedValue(new Error('missing permissions')) : vi.fn().mockResolvedValue(undefined)
 		}
 	};
 }

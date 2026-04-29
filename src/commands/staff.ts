@@ -22,7 +22,7 @@ import { createCommandExecutionContext } from '../lib/logging/commandExecutionCo
 			chatInputRun: 'chatInputSyncNickname'
 		},
 		{
-			name: 'medal-give',
+			name: 'medal_give',
 			chatInputRun: 'chatInputMedalGive'
 		},
 		{
@@ -64,7 +64,7 @@ export class StaffCommand extends Subcommand {
 					)
 					.addSubcommand((subcommand) =>
 						subcommand
-							.setName('medal-give')
+							.setName('medal_give')
 							.setDescription('Grant a medal role for a recent event or a specific eligible user.')
 							.addStringOption((option) =>
 								option.setName('medal_name').setDescription('Medal role to grant.').setRequired(true).setAutocomplete(true)
