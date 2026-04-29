@@ -164,18 +164,24 @@ async function resolveMemberCapabilitiesWithDeps(
 	}
 ): Promise<ActorCapabilities> {
 	const [isStaff, isCenturion, isOptio] = await Promise.all([
-		deps.hasDivisionKindRole({
-			member,
-			requiredRoleKinds: [DivisionKind.STAFF]
-		}),
-		deps.hasDivision({
-			member,
-			divisionDiscordRoleId: deps.centurionRoleId
-		}),
-		deps.hasDivision({
-			member,
-			divisionDiscordRoleId: deps.optioRoleId
-		})
+		resolveCapabilityCheck(async () =>
+			deps.hasDivisionKindRole({
+				member,
+				requiredRoleKinds: [DivisionKind.STAFF]
+			})
+		),
+		resolveCapabilityCheck(async () =>
+			deps.hasDivision({
+				member,
+				divisionDiscordRoleId: deps.centurionRoleId
+			})
+		),
+		resolveCapabilityCheck(async () =>
+			deps.hasDivision({
+				member,
+				divisionDiscordRoleId: deps.optioRoleId
+			})
+		)
 	]);
 
 	return {
@@ -183,4 +189,12 @@ async function resolveMemberCapabilitiesWithDeps(
 		isCenturion,
 		isOptio
 	};
+}
+
+async function resolveCapabilityCheck(check: () => Promise<boolean>) {
+	try {
+		return await check();
+	} catch {
+		return false;
+	}
 }
