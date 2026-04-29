@@ -1,7 +1,7 @@
 import type { Guild, Role } from 'discord.js';
 
 import { meritRepository, staffMedalRepository } from '../../../../integrations/prisma/repositories';
-import { buildUserNickname } from '../../../services/nickname/buildUserNickname';
+import { buildUserNickname, isNicknameTooLongError } from '../../../services/nickname/buildUserNickname';
 import { MEDAL_ROLE_PREFIX, SEVEN_DAYS_IN_MS } from './staffMedalConstants';
 
 const DEFAULT_AUTOCOMPLETE_LIMIT = 25;
@@ -36,6 +36,14 @@ export async function buildMedalEventAutocompleteChoices({ query }: { query: str
 }
 
 export async function buildEventAttendeeAutocompleteChoices({ eventSessionId, query }: { eventSessionId: number; query: string }) {
+	const recentEvent = await staffMedalRepository.getRecentEventById({
+		eventSessionId,
+		since: new Date(Date.now() - SEVEN_DAYS_IN_MS)
+	});
+	if (!recentEvent) {
+		return [];
+	}
+
 	const attendees = await staffMedalRepository.listEventAttendees({
 		eventSessionId,
 		query,
@@ -89,8 +97,12 @@ function buildUserChoiceLabel(
 				totalMerits
 			}).newUserNickname ?? baseNickname
 		);
-	} catch {
-		return baseNickname;
+	} catch (error) {
+		if (isNicknameTooLongError(error)) {
+			return baseNickname;
+		}
+
+		throw error;
 	}
 }
 
