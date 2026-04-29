@@ -1,28 +1,13 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../prisma';
-import { USER_MERIT_RANK_DIVISION_ROW_SCHEMA, type MeritRankBreakdownEntry } from './meritReadTypes';
+import { USER_MERIT_RANK_DIVISION_ROW_SCHEMA, type MeritRankBreakdownEntry, type UserMeritRankDivisionRowInput } from './meritReadTypes';
 import { MAX_MERIT_RANK_LEVEL, resolveMeritRankLevel } from '../../../lib/services/merit-rank/meritRank';
 
 const TRACKED_DIVISION_CODES = ['LGN', 'RES', 'CENT', 'OPT', 'NVY', 'NVY-L', 'MRN', 'MRN-L', 'SUP', 'SUP-L'] as const;
 
-type MeritRankDivisionRow = {
-	userId: string;
-	total: number | bigint | string;
-	hasLgn: number | bigint | string | boolean;
-	hasRes: number | bigint | string | boolean;
-	hasCent: number | bigint | string | boolean;
-	hasOpt: number | bigint | string | boolean;
-	hasNvy: number | bigint | string | boolean;
-	hasNvyL: number | bigint | string | boolean;
-	hasMrn: number | bigint | string | boolean;
-	hasMrnL: number | bigint | string | boolean;
-	hasSup: number | bigint | string | boolean;
-	hasSupL: number | bigint | string | boolean;
-};
-
 export async function getMeritRankBreakdown(): Promise<MeritRankBreakdownEntry[]> {
-	const rawRows = await prisma.$queryRaw<MeritRankDivisionRow[]>`
+	const rawRows = await prisma.$queryRaw<UserMeritRankDivisionRowInput[]>`
 		WITH "merit_totals" AS (
 			SELECT "m"."userId", COALESCE(SUM("mt"."meritAmount"), 0) AS "total"
 			FROM "Merit" AS "m"

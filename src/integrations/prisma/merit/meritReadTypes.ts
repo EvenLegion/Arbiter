@@ -143,3 +143,6 @@ export const USER_MERIT_RANK_DIVISION_ROW_SCHEMA = z.object({
 	hasSup: ZERO_ONE_BOOLEAN_SCHEMA,
 	hasSupL: ZERO_ONE_BOOLEAN_SCHEMA
 });
+
+export type UserMeritRankDivisionRowInput = z.input<typeof USER_MERIT_RANK_DIVISION_ROW_SCHEMA>;
+export type UserMeritRankDivisionRow = z.output<typeof USER_MERIT_RANK_DIVISION_ROW_SCHEMA>;

@@ -14,7 +14,7 @@ const COLUMN_GROUPS: ReadonlyArray<{
 	}>;
 }> = [
 	{
-		name: 'Legionnaire & Reserve',
+		name: 'Legion / Reserve',
 		columns: [
 			{ key: 'lgnOrResCount', label: 'LGN/RES' },
 			{ key: 'lgnCount', label: 'LGN' },
@@ -22,7 +22,7 @@ const COLUMN_GROUPS: ReadonlyArray<{
 		]
 	},
 	{
-		name: 'Centurion & Optio',
+		name: 'Command',
 		columns: [
 			{ key: 'centCount', label: 'CENT' },
 			{ key: 'optCount', label: 'OPT' }
@@ -92,21 +92,24 @@ export function buildMeritRankListPayload({
 	return {
 		embeds: [
 			buildRankEmbed({
-				entries: pagedEntries
+				entries: pagedEntries,
+				page: resolvedPage,
+				totalPages
 			})
 		],
 		components: [controls]
 	};
 }
 
-function buildRankEmbed({ entries }: { entries: MeritRankBreakdownEntry[] }) {
+function buildRankEmbed({ entries, page, totalPages }: { entries: MeritRankBreakdownEntry[]; page: number; totalPages: number }) {
 	const startLevel = entries[0]?.level ?? 1;
 	const endLevel = entries[entries.length - 1]?.level ?? startLevel;
 
 	return new EmbedBuilder()
 		.setTitle(`Merit Rank List (${startLevel}-${endLevel})`)
 		.setColor(0x2563eb)
-		.setFooter({ text: 'Counts are based on current merit totals and DB division memberships.' })
+		.setDescription('Counts are based on current merit totals and DB division memberships.')
+		.setFooter({ text: `Page ${page}/${totalPages}` })
 		.addFields(
 			COLUMN_GROUPS.map((group) => ({
 				name: group.name,
