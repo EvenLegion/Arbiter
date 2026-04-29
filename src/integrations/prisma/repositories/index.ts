@@ -6,3 +6,4 @@ export { nameChangeRepository, isPendingNameChangeRequestStatus } from './nameCh
 export { eventRepository } from './eventRepository';
 export { eventReviewRepository } from './eventReviewRepository';
 export type { EventReviewPage, EventReviewPageAttendee } from './eventReviewRepository';
+export { staffMedalRepository } from './staffMedalRepository';

@@ -123,6 +123,10 @@ function createNicknameTooLongError({ computedNickname, computedLength }: { comp
 	return error;
 }
 
+export function isNicknameTooLongError(error: unknown) {
+	return error instanceof Error && error.name === NICKNAME_TOO_LONG_ERROR_NAME;
+}
+
 export function stripTrailingMeritRankSuffix(value: string) {
 	const trimmed = value.trimEnd();
 

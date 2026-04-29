@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	getConfiguredGuild: vi.fn(),
 	buildGuildMemberAutocompleteChoices: vi.fn(),
-	buildDivisionAutocompleteChoices: vi.fn()
+	buildDivisionAutocompleteChoices: vi.fn(),
+	buildMedalRoleAutocompleteChoices: vi.fn(),
+	buildMedalEventAutocompleteChoices: vi.fn(),
+	buildEventAttendeeAutocompleteChoices: vi.fn(),
+	buildStandaloneMedalEligibleUserChoices: vi.fn()
 }));
 
 vi.mock('../../../../../../src/lib/discord/guild/configuredGuild', () => ({
@@ -18,6 +22,13 @@ vi.mock('../../../../../../src/lib/services/division-membership/divisionDirector
 	buildDivisionAutocompleteChoices: mocks.buildDivisionAutocompleteChoices
 }));
 
+vi.mock('../../../../../../src/lib/features/staff/medal/staffMedalAutocompleteChoices', () => ({
+	buildMedalRoleAutocompleteChoices: mocks.buildMedalRoleAutocompleteChoices,
+	buildMedalEventAutocompleteChoices: mocks.buildMedalEventAutocompleteChoices,
+	buildEventAttendeeAutocompleteChoices: mocks.buildEventAttendeeAutocompleteChoices,
+	buildStandaloneMedalEligibleUserChoices: mocks.buildStandaloneMedalEligibleUserChoices
+}));
+
 import { handleStaffAutocomplete } from '../../../../../../src/lib/features/staff/autocomplete/staffAutocompleteProvider';
 
 describe('staffAutocompleteProvider', () => {
@@ -25,6 +36,10 @@ describe('staffAutocompleteProvider', () => {
 		mocks.getConfiguredGuild.mockReset();
 		mocks.buildGuildMemberAutocompleteChoices.mockReset();
 		mocks.buildDivisionAutocompleteChoices.mockReset();
+		mocks.buildMedalRoleAutocompleteChoices.mockReset();
+		mocks.buildMedalEventAutocompleteChoices.mockReset();
+		mocks.buildEventAttendeeAutocompleteChoices.mockReset();
+		mocks.buildStandaloneMedalEligibleUserChoices.mockReset();
 	});
 
 	it('routes sync nickname user lookup through the guild member directory', async () => {
@@ -106,24 +121,118 @@ describe('staffAutocompleteProvider', () => {
 
 		expect(interaction.respond).toHaveBeenCalledWith([]);
 	});
+
+	it('routes medal role lookup through the live medal role choices builder', async () => {
+		const guild = {
+			id: 'guild-1'
+		};
+		mocks.getConfiguredGuild.mockResolvedValue(guild);
+		mocks.buildMedalRoleAutocompleteChoices.mockResolvedValue([
+			{
+				name: 'Medal: Valor',
+				value: 'role-1'
+			}
+		]);
+		const interaction = createInteraction({
+			subcommandGroupName: null,
+			subcommandName: 'medal_give',
+			focusedName: 'medal_name',
+			focusedValue: 'val'
+		});
+
+		await handleStaffAutocomplete({
+			interaction
+		});
+
+		expect(mocks.buildMedalRoleAutocompleteChoices).toHaveBeenCalledWith({
+			guild,
+			query: 'val'
+		});
+		expect(interaction.respond).toHaveBeenCalledWith([
+			{
+				name: 'Medal: Valor',
+				value: 'role-1'
+			}
+		]);
+	});
+
+	it('routes medal event attendee lookup through the attendee query when an event is selected', async () => {
+		mocks.buildEventAttendeeAutocompleteChoices.mockResolvedValue([
+			{
+				name: 'Alpha',
+				value: '1'
+			}
+		]);
+		const interaction = createInteraction({
+			subcommandGroupName: null,
+			subcommandName: 'medal_give',
+			focusedName: 'user_name',
+			focusedValue: 'alp',
+			optionValues: {
+				event_name: '123'
+			}
+		});
+
+		await handleStaffAutocomplete({
+			interaction
+		});
+
+		expect(mocks.buildEventAttendeeAutocompleteChoices).toHaveBeenCalledWith({
+			eventSessionId: 123,
+			query: 'alp'
+		});
+		expect(mocks.buildStandaloneMedalEligibleUserChoices).not.toHaveBeenCalled();
+	});
+
+	it('routes medal user lookup through standalone eligible users when no event is selected', async () => {
+		mocks.buildStandaloneMedalEligibleUserChoices.mockResolvedValue([
+			{
+				name: 'Bravo',
+				value: '2'
+			}
+		]);
+		const interaction = createInteraction({
+			subcommandGroupName: null,
+			subcommandName: 'medal_give',
+			focusedName: 'user_name',
+			focusedValue: 'bra'
+		});
+
+		await handleStaffAutocomplete({
+			interaction
+		});
+
+		expect(mocks.buildStandaloneMedalEligibleUserChoices).toHaveBeenCalledWith({
+			query: 'bra'
+		});
+		expect(interaction.respond).toHaveBeenCalledWith([
+			{
+				name: 'Bravo',
+				value: '2'
+			}
+		]);
+	});
 });
 
 function createInteraction({
 	subcommandGroupName,
 	subcommandName,
 	focusedName,
-	focusedValue
+	focusedValue,
+	optionValues = {}
 }: {
 	subcommandGroupName: string | null;
 	subcommandName: string | null;
 	focusedName: string;
 	focusedValue: string;
+	optionValues?: Record<string, string>;
 }) {
 	return {
 		respond: vi.fn().mockResolvedValue(undefined),
 		options: {
 			getSubcommandGroup: vi.fn(() => subcommandGroupName),
 			getSubcommand: vi.fn(() => subcommandName),
+			getString: vi.fn((name: string) => optionValues[name] ?? null),
 			getFocused: vi.fn((withMetadata?: boolean) =>
 				withMetadata
 					? {

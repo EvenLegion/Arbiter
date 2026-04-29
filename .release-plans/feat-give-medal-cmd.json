@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "feat/give-medal-cmd",
+	"baseRef": "origin/dev",
+	"mergeBase": "51271f3a776bc9e905875479eeddaeaf0a6224ce",
+	"headRef": "f284cfd8ba2547c5ff674f5624e28beb10c96591",
+	"generatedAt": "2026-04-29T23:15:47.037Z",
+	"bump": "minor",
+	"targetVersion": "3.3.0",
+	"commits": [
+		{
+			"sha": "f284cfd8ba2547c5ff674f5624e28beb10c96591",
+			"subject": "feat: Add /staff medal_give to award Medal: roles for recent events, letting staff give a medal to all merit-approved attendees after an event is submitted with merits or to a specific attendee/user, with automatic recipient DMs and safeguards against awarding all attendees when merits were not granted",
+			"committedAt": "2026-04-29T13:15:41-10:00",
+			"committedAtMs": 1777504541000,
+			"type": "feat",
+			"scope": null,
+			"description": "Add /staff medal_give to award Medal: roles for recent events, letting staff give a medal to all merit-approved attendees after an event is submitted with merits or to a specific attendee/user, with automatic recipient DMs and safeguards against awarding all attendees when merits were not granted",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
