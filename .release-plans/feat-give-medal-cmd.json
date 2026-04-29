@@ -9,17 +9,6 @@
 	"targetVersion": "3.3.0",
 	"commits": [
 		{
-			"sha": "3e006647646915c2674038d2878971845fe9e9f9",
-			"subject": "fix: /event start tier selection so typed numbers map to the intended tier",
-			"committedAt": "2026-04-29T11:54:22-10:00",
-			"committedAtMs": 1777499662000,
-			"type": "fix",
-			"scope": null,
-			"description": "/event start tier selection so typed numbers map to the intended tier",
-			"breaking": false,
-			"section": "Fixes"
-		},
-		{
 			"sha": "f284cfd8ba2547c5ff674f5624e28beb10c96591",
 			"subject": "feat: Add /staff medal-give to award Medal: roles for recent events, letting staff give a medal to all merit-approved attendees after an event is submitted with merits or to a specific attendee/user, with automatic recipient DMs and safeguards against awarding all attendees when merits were not granted",
 			"committedAt": "2026-04-29T13:15:41-10:00",
