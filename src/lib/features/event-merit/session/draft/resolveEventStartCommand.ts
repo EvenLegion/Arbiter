@@ -1,11 +1,9 @@
 import { ChannelType, type ForumChannel, type Guild, type GuildMember, type TextChannel } from 'discord.js';
-import { z } from 'zod';
 
 import { ENV_DISCORD } from '../../../../../config/env/discord';
+import { eventRepository } from '../../../../../integrations/prisma/repositories';
 import { getGuildChannel } from '../../../../discord/guild/configuredGuild';
 import { getDbUserOrThrow } from '../../../../discord/guild/users';
-
-const EVENT_TIER_ID_SCHEMA = z.coerce.number().int().positive();
 
 type EventStartInteraction = {
 	options: {
@@ -59,9 +57,17 @@ export async function resolveEventStartCommand({
 		};
 	}
 
-	const rawEventTierId = interaction.options.getString('tier_level', true);
-	const parsedEventTierId = EVENT_TIER_ID_SCHEMA.safeParse(rawEventTierId);
-	if (!parsedEventTierId.success) {
+	const rawEventTierSelection = interaction.options.getString('tier_level', true);
+	if (!rawEventTierSelection) {
+		return {
+			kind: 'fail',
+			delivery: 'editReply',
+			content: 'Invalid event tier selection.'
+		};
+	}
+
+	const eventTier = await resolveSelectedEventTier(rawEventTierSelection);
+	if (!eventTier) {
 		return {
 			kind: 'fail',
 			delivery: 'editReply',
@@ -104,11 +110,56 @@ export async function resolveEventStartCommand({
 			hostDbUserId: dbUser.id,
 			hostDiscordUserId: issuer.id,
 			issuerTag: interaction.user.tag,
-			eventTierId: parsedEventTierId.data,
+			eventTierId: eventTier.id,
 			eventName,
 			primaryVoiceChannelId
 		}
 	};
+}
+
+async function resolveSelectedEventTier(rawSelection: string) {
+	const normalizedSelection = rawSelection.trim().toLowerCase();
+	if (normalizedSelection.length === 0) {
+		return null;
+	}
+
+	const tiers = await eventRepository.listEventTiers({
+		orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }]
+	});
+
+	const exactCodeMatch = tiers.find((tier) => tier.code.toLowerCase() === normalizedSelection);
+	if (exactCodeMatch) {
+		return exactCodeMatch;
+	}
+
+	const exactNameMatch = tiers.find((tier) => tier.name.trim().toLowerCase() === normalizedSelection);
+	if (exactNameMatch) {
+		return exactNameMatch;
+	}
+
+	const tierLevelMatch = normalizedSelection.match(/^tier\s*(\d+)$/);
+	if (tierLevelMatch) {
+		const requestedDisplayOrder = Number.parseInt(tierLevelMatch[1] ?? '', 10);
+		const displayOrderMatch = tiers.find((tier) => tier.displayOrder === requestedDisplayOrder);
+		if (displayOrderMatch) {
+			return displayOrderMatch;
+		}
+	}
+
+	if (/^\d+$/.test(normalizedSelection)) {
+		const requestedDisplayOrder = Number.parseInt(normalizedSelection, 10);
+		const displayOrderMatch = tiers.find((tier) => tier.displayOrder === requestedDisplayOrder);
+		if (displayOrderMatch) {
+			return displayOrderMatch;
+		}
+
+		const legacyIdMatch = tiers.find((tier) => tier.id === requestedDisplayOrder);
+		if (legacyIdMatch) {
+			return legacyIdMatch;
+		}
+	}
+
+	return tiers.find((tier) => tier.description.trim().toLowerCase() === normalizedSelection) ?? null;
 }
 
 async function resolveTrackingChannel(guild: Guild): Promise<TextChannel | ForumChannel | null> {

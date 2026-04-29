@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "fix/event-tier-selection",
+	"baseRef": "origin/dev",
+	"mergeBase": "51271f3a776bc9e905875479eeddaeaf0a6224ce",
+	"headRef": "3e006647646915c2674038d2878971845fe9e9f9",
+	"generatedAt": "2026-04-29T21:54:49.091Z",
+	"bump": "minor",
+	"targetVersion": "3.3.0",
+	"commits": [
+		{
+			"sha": "3e006647646915c2674038d2878971845fe9e9f9",
+			"subject": "fix: /event start tier selection so typed numbers map to the intended tier",
+			"committedAt": "2026-04-29T11:54:22-10:00",
+			"committedAtMs": 1777499662000,
+			"type": "fix",
+			"scope": null,
+			"description": "/event start tier selection so typed numbers map to the intended tier",
+			"breaking": false,
+			"section": "Fixes"
+		}
+	]
+}
