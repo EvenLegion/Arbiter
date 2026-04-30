@@ -8,6 +8,7 @@ import { handleDivisionMembershipCommand } from '../lib/features/staff/division-
 import { handleStaffMedalGive } from '../lib/features/staff/medal/handleStaffMedalGive';
 import { handleStaffSyncNickname } from '../lib/features/staff/nickname-sync/handleStaffSyncNickname';
 import { handleStaffOrgAccept } from '../lib/features/staff/org-accept/handleStaffOrgAccept';
+import { handleStaffUpdateNickname } from '../lib/features/staff/update-nickname/handleStaffUpdateNickname';
 import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
@@ -29,6 +30,10 @@ import { createCommandExecutionContext } from '../lib/logging/commandExecutionCo
 		{
 			name: 'org_accept',
 			chatInputRun: 'chatInputOrgAccept'
+		},
+		{
+			name: 'update_nickname',
+			chatInputRun: 'chatInputUpdateNickname'
 		},
 		{
 			type: 'group',
@@ -105,6 +110,15 @@ export class StaffCommand extends Subcommand {
 							.addStringOption((option) =>
 								option.setName('user_name').setDescription('Optional target user.').setRequired(false).setAutocomplete(true)
 							)
+					)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('update_nickname')
+							.setDescription('Update a stored nickname and sync the computed Discord nickname.')
+							.addStringOption((option) =>
+								option.setName('existing_user').setDescription('Target user.').setRequired(true).setAutocomplete(true)
+							)
+							.addStringOption((option) => option.setName('new_nickname').setDescription('New stored base nickname.').setRequired(true))
 					)
 					.addSubcommandGroup((group) =>
 						group
@@ -188,6 +202,18 @@ export class StaffCommand extends Subcommand {
 		});
 
 		return handleStaffOrgAccept({
+			interaction,
+			context
+		});
+	}
+
+	public async chatInputUpdateNickname(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.updateNickname'
+		});
+
+		return handleStaffUpdateNickname({
 			interaction,
 			context
 		});
