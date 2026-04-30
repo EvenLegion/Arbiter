@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "feat/user-migration-script",
+	"baseRef": "origin/dev",
+	"mergeBase": "4db5442d0369364798b8565786444a02bd73c101",
+	"headRef": "509d4dddd0381bf2e4aa59c8f4a62bea0310e13a",
+	"generatedAt": "2026-04-30T01:53:50.385Z",
+	"bump": "minor",
+	"targetVersion": "3.3.0",
+	"commits": [
+		{
+			"sha": "509d4dddd0381bf2e4aa59c8f4a62bea0310e13a",
+			"subject": "feat: Add /staff user_migrate and /staff user_purge to move a member’s Arbiter history to a replacement Discord account, copy their roles, merge overlapping records safely, resync the new nickname, and delete the old account record once all references have been cleared",
+			"committedAt": "2026-04-29T15:48:11-10:00",
+			"committedAtMs": 1777513691000,
+			"type": "feat",
+			"scope": null,
+			"description": "Add /staff user_migrate and /staff user_purge to move a member’s Arbiter history to a replacement Discord account, copy their roles, merge overlapping records safely, resync the new nickname, and delete the old account record once all references have been cleared",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
