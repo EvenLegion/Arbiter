@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DISCORD_MAX_NICKNAME_LENGTH } from '../../../../../../src/lib/constants';
 
 const mocks = vi.hoisted(() => ({
 	prepareGuildInteraction: vi.fn(),
@@ -59,6 +60,44 @@ describe('handleStaffUpdateNickname', () => {
 		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
 			content: 'Invalid `existing_user` value. Select a user from autocomplete. requestId=`req-1`'
 		});
+	});
+
+	it('rejects an empty new nickname before touching the db', async () => {
+		const prepared = createPrepared();
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
+		mocks.parseDiscordUserIdInput.mockReturnValue('123456789012345678');
+
+		await handleStaffUpdateNickname({
+			interaction: createInteraction({
+				existing_user: '123456789012345678',
+				new_nickname: '   '
+			}),
+			context: createContext('req-empty') as never
+		});
+
+		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
+			content: '`new_nickname` must not be empty. requestId=`req-empty`'
+		});
+		expect(mocks.userRepository.get).not.toHaveBeenCalled();
+	});
+
+	it('rejects an overlong new nickname before touching the db', async () => {
+		const prepared = createPrepared();
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
+		mocks.parseDiscordUserIdInput.mockReturnValue('123456789012345678');
+
+		await handleStaffUpdateNickname({
+			interaction: createInteraction({
+				existing_user: '123456789012345678',
+				new_nickname: 'x'.repeat(DISCORD_MAX_NICKNAME_LENGTH + 1)
+			}),
+			context: createContext('req-long') as never
+		});
+
+		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
+			content: `\`new_nickname\` must be ${DISCORD_MAX_NICKNAME_LENGTH} characters or fewer. requestId=\`req-long\``
+		});
+		expect(mocks.userRepository.get).not.toHaveBeenCalled();
 	});
 
 	it('updates the stored nickname and syncs the Discord nickname', async () => {

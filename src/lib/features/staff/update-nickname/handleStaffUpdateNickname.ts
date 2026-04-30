@@ -1,6 +1,7 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { userRepository } from '../../../../integrations/prisma/repositories';
+import { DISCORD_MAX_NICKNAME_LENGTH } from '../../../constants';
 import { getGuildMember } from '../../../discord/guild/guildMembers';
 import { prepareGuildInteraction } from '../../../discord/interactions/prepareGuildInteraction';
 import { parseDiscordUserIdInput } from '../../../discord/members/memberDirectory';
@@ -35,6 +36,20 @@ export async function handleStaffUpdateNickname({ interaction, context }: Handle
 	if (!targetDiscordUserId) {
 		await responder.safeEditReply({
 			content: `Invalid \`existing_user\` value. Select a user from autocomplete. requestId=\`${context.requestId}\``
+		});
+		return;
+	}
+
+	if (newNickname.length === 0) {
+		await responder.safeEditReply({
+			content: `\`new_nickname\` must not be empty. requestId=\`${context.requestId}\``
+		});
+		return;
+	}
+
+	if (newNickname.length > DISCORD_MAX_NICKNAME_LENGTH) {
+		await responder.safeEditReply({
+			content: `\`new_nickname\` must be ${DISCORD_MAX_NICKNAME_LENGTH} characters or fewer. ` + `requestId=\`${context.requestId}\``
 		});
 		return;
 	}

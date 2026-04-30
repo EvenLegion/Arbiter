@@ -1,7 +1,7 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { divisionRepository, userRepository } from '../../../../integrations/prisma/repositories';
-import { ENV_DISCORD } from '../../../../config/env';
+import { DISCORD_MAX_NICKNAME_LENGTH } from '../../../constants';
 import { getGuildMember } from '../../../discord/guild/guildMembers';
 import { prepareGuildInteraction } from '../../../discord/interactions/prepareGuildInteraction';
 import { parseDiscordUserIdInput } from '../../../discord/members/memberDirectory';
@@ -52,6 +52,20 @@ export async function handleStaffOrgAccept({ interaction, context }: HandleStaff
 	if (!userIdFromSelection && !userIdFromAutocomplete) {
 		await responder.safeEditReply({
 			content: `You must provide either \`user_id\` or \`user_name\`. requestId=\`${context.requestId}\``
+		});
+		return;
+	}
+
+	if (starCitizenUsername.length === 0) {
+		await responder.safeEditReply({
+			content: `\`star_citizen_username\` must not be empty. requestId=\`${context.requestId}\``
+		});
+		return;
+	}
+
+	if (starCitizenUsername.length > DISCORD_MAX_NICKNAME_LENGTH) {
+		await responder.safeEditReply({
+			content: `\`star_citizen_username\` must be ${DISCORD_MAX_NICKNAME_LENGTH} characters or fewer. ` + `requestId=\`${context.requestId}\``
 		});
 		return;
 	}

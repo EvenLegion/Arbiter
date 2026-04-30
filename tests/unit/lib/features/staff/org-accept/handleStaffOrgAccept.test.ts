@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DISCORD_MAX_NICKNAME_LENGTH } from '../../../../../../src/lib/constants';
 
 const mocks = vi.hoisted(() => ({
 	prepareGuildInteraction: vi.fn(),
@@ -78,6 +79,46 @@ describe('handleStaffOrgAccept', () => {
 		expect(mocks.userRepository.get).not.toHaveBeenCalled();
 	});
 
+	it('rejects an empty star citizen username before touching the db', async () => {
+		const prepared = createPrepared();
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
+		mocks.parseDiscordUserIdInput.mockReturnValue('123456789012345678');
+
+		await handleStaffOrgAccept({
+			interaction: createInteraction({
+				user_id: '123456789012345678',
+				user_name: null,
+				star_citizen_username: '   '
+			}),
+			context: createContext('req-empty') as never
+		});
+
+		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
+			content: '`star_citizen_username` must not be empty. requestId=`req-empty`'
+		});
+		expect(mocks.userRepository.get).not.toHaveBeenCalled();
+	});
+
+	it('rejects an overlong star citizen username before touching the db', async () => {
+		const prepared = createPrepared();
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
+		mocks.parseDiscordUserIdInput.mockReturnValue('123456789012345678');
+
+		await handleStaffOrgAccept({
+			interaction: createInteraction({
+				user_id: '123456789012345678',
+				user_name: null,
+				star_citizen_username: 'x'.repeat(DISCORD_MAX_NICKNAME_LENGTH + 1)
+			}),
+			context: createContext('req-long') as never
+		});
+
+		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
+			content: `\`star_citizen_username\` must be ${DISCORD_MAX_NICKNAME_LENGTH} characters or fewer. requestId=\`req-long\``
+		});
+		expect(mocks.userRepository.get).not.toHaveBeenCalled();
+	});
+
 	it('adds INT, updates the stored nickname, and syncs the Discord nickname', async () => {
 		const prepared = createPrepared();
 		const member = createGuildMember({ hasIntRole: false });
@@ -98,7 +139,8 @@ describe('handleStaffOrgAccept', () => {
 			{
 				id: 10,
 				code: 'INT',
-				name: 'Initiate'
+				name: 'Initiate',
+				discordRoleId: 'int-role-id'
 			}
 		]);
 		mocks.getGuildMember.mockResolvedValue(member);
@@ -151,7 +193,8 @@ describe('handleStaffOrgAccept', () => {
 			{
 				id: 10,
 				code: 'INT',
-				name: 'Initiate'
+				name: 'Initiate',
+				discordRoleId: 'int-role-id'
 			}
 		]);
 		mocks.getGuildMember.mockResolvedValue(member);
@@ -177,7 +220,7 @@ describe('handleStaffOrgAccept', () => {
 		expect(member.roles.add).not.toHaveBeenCalled();
 		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
 			content:
-				'Applied INT and updated the stored nickname for <@123456789012345678>, but nickname sync did not complete (`member-not-found`). requestId=`req-3`'
+				'Ensured INT membership and updated the stored nickname for <@123456789012345678>, but nickname sync did not complete (`member-not-found`). requestId=`req-3`'
 		});
 	});
 });
