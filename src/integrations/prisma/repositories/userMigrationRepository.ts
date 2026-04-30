@@ -305,13 +305,14 @@ export async function migrateUsersByDiscordUserId({ oldDiscordUserId, newDiscord
 			counts.reviewDecisionsMerged += 1;
 		}
 
-		if (counts.baseNicknameCopied) {
+		const oldBaseNickname = oldUser.discordNickname;
+		if (counts.baseNicknameCopied && typeof oldBaseNickname === 'string' && oldBaseNickname.trim() !== '') {
 			await tx.user.update({
 				where: {
 					id: newUser.id
 				},
 				data: {
-					discordNickname: oldUser.discordNickname
+					discordNickname: oldBaseNickname
 				}
 			});
 		}
