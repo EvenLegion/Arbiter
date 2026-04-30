@@ -21,7 +21,7 @@ export async function buildEventTierAutocompleteChoices({ query }: { query: stri
 		.slice(0, 25)
 		.map((tier) => ({
 			name: `${tier.name} ${tier.description} (${tier.meritType.meritAmount} merits)`,
-			value: String(tier.id)
+			value: tier.code
 		}));
 }
 

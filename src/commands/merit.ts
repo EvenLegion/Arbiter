@@ -5,6 +5,7 @@ import { ENV_DISCORD } from '../config/env';
 import { handleMeritAutocomplete } from '../lib/features/merit/autocomplete/meritAutocompleteProvider';
 import { handleGiveMerit } from '../lib/features/merit/manual-award/handleGiveMerit';
 import { handleMeritList } from '../lib/features/merit/read/handleMeritList';
+import { handleMeritRankList } from '../lib/features/merit/rank-list/handleMeritRankList';
 import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
@@ -18,6 +19,10 @@ import { createCommandExecutionContext } from '../lib/logging/commandExecutionCo
 		{
 			name: 'list',
 			chatInputRun: 'chatInputList'
+		},
+		{
+			name: 'rank_list',
+			chatInputRun: 'chatInputRankList'
 		}
 	]
 })
@@ -71,6 +76,17 @@ export class MeritCommand extends Subcommand {
 									.setDescription('Whether the response is private (staff only). Defaults to true.')
 									.setRequired(false)
 							)
+					)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('rank_list')
+							.setDescription('List how many members are at each merit rank level by division (staff only).')
+							.addBooleanOption((option) =>
+								option
+									.setName('public')
+									.setDescription('Whether to post the response publicly. Defaults to false.')
+									.setRequired(false)
+							)
 					),
 			{
 				guildIds: [ENV_DISCORD.DISCORD_GUILD_ID]
@@ -97,6 +113,18 @@ export class MeritCommand extends Subcommand {
 		});
 
 		return handleGiveMerit({ interaction, context });
+	}
+
+	public async chatInputRankList(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'merit.rankList'
+		});
+
+		return handleMeritRankList({
+			interaction,
+			context
+		});
 	}
 
 	public override async autocompleteRun(interaction: Subcommand.AutocompleteInteraction) {

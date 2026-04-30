@@ -2,10 +2,16 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { ENV_DISCORD } from '../config/env';
+import { DISCORD_MAX_NICKNAME_LENGTH } from '../lib/constants';
 import { handleStaffAutocomplete } from '../lib/features/staff/autocomplete/staffAutocompleteProvider';
 import { handlePostDivisionSelectionMessage } from '../lib/features/staff/division-selection/handlePostDivisionSelectionMessage';
 import { handleDivisionMembershipCommand } from '../lib/features/staff/division-membership/handleDivisionMembershipCommand';
+import { handleStaffMedalGive } from '../lib/features/staff/medal/handleStaffMedalGive';
 import { handleStaffSyncNickname } from '../lib/features/staff/nickname-sync/handleStaffSyncNickname';
+import { handleStaffOrgAccept } from '../lib/features/staff/org-accept/handleStaffOrgAccept';
+import { handleStaffUpdateNickname } from '../lib/features/staff/update-nickname/handleStaffUpdateNickname';
+import { handleStaffUserMigrate } from '../lib/features/staff/user-migration/handleStaffUserMigrate';
+import { handleStaffUserPurge } from '../lib/features/staff/user-migration/handleStaffUserPurge';
 import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
@@ -19,6 +25,26 @@ import { createCommandExecutionContext } from '../lib/logging/commandExecutionCo
 		{
 			name: 'sync_nickname',
 			chatInputRun: 'chatInputSyncNickname'
+		},
+		{
+			name: 'medal_give',
+			chatInputRun: 'chatInputMedalGive'
+		},
+		{
+			name: 'org_accept',
+			chatInputRun: 'chatInputOrgAccept'
+		},
+		{
+			name: 'update_nickname',
+			chatInputRun: 'chatInputUpdateNickname'
+		},
+		{
+			name: 'user_migrate',
+			chatInputRun: 'chatInputUserMigrate'
+		},
+		{
+			name: 'user_purge',
+			chatInputRun: 'chatInputUserPurge'
 		},
 		{
 			type: 'group',
@@ -55,6 +81,82 @@ export class StaffCommand extends Subcommand {
 							)
 							.addBooleanOption((option) =>
 								option.setName('include_staff').setDescription('Include staff users in nickname sync.').setRequired(false)
+							)
+					)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('medal_give')
+							.setDescription('Grant a medal role for a recent event or a specific eligible user.')
+							.addStringOption((option) =>
+								option.setName('medal_name').setDescription('Medal role to grant.').setRequired(true).setAutocomplete(true)
+							)
+							.addStringOption((option) =>
+								option
+									.setName('event_name')
+									.setDescription('Optional event created in the last 7 days.')
+									.setRequired(false)
+									.setAutocomplete(true)
+							)
+							.addStringOption((option) =>
+								option
+									.setName('user_name')
+									.setDescription('Optional target user. Without an event, only INT/LGN/RES users are listed.')
+									.setRequired(false)
+									.setAutocomplete(true)
+							)
+					)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('org_accept')
+							.setDescription('Accept a user into the org, apply INT, and sync their nickname.')
+							.addStringOption((option) =>
+								option
+									.setName('star_citizen_username')
+									.setDescription('Stored Star Citizen username to use as the user base nickname.')
+									.setMinLength(1)
+									.setMaxLength(DISCORD_MAX_NICKNAME_LENGTH)
+									.setRequired(true)
+							)
+							.addStringOption((option) =>
+								option.setName('user_id').setDescription('Optional target Discord user ID or mention.').setRequired(false)
+							)
+							.addStringOption((option) =>
+								option.setName('user_name').setDescription('Optional target user.').setRequired(false).setAutocomplete(true)
+							)
+					)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('update_nickname')
+							.setDescription('Update a stored nickname and sync the computed Discord nickname.')
+							.addStringOption((option) =>
+								option.setName('existing_user').setDescription('Target user.').setRequired(true).setAutocomplete(true)
+							)
+							.addStringOption((option) =>
+								option
+									.setName('new_nickname')
+									.setDescription('New stored base nickname.')
+									.setMinLength(1)
+									.setMaxLength(DISCORD_MAX_NICKNAME_LENGTH)
+									.setRequired(true)
+							)
+					)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('user_migrate')
+							.setDescription('Merge all tracked records from an old Discord account into a new one.')
+							.addStringOption((option) =>
+								option.setName('old_user_id').setDescription('Old Discord user ID or mention.').setRequired(true)
+							)
+							.addStringOption((option) =>
+								option.setName('new_user_id').setDescription('New Discord user ID or mention.').setRequired(true)
+							)
+					)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('user_purge')
+							.setDescription('Delete an old user row after confirming no migrated references remain.')
+							.addStringOption((option) =>
+								option.setName('user_id').setDescription('Old Discord user ID or mention.').setRequired(true)
 							)
 					)
 					.addSubcommandGroup((group) =>
@@ -118,6 +220,66 @@ export class StaffCommand extends Subcommand {
 		});
 
 		return handleStaffSyncNickname({ interaction, context });
+	}
+
+	public async chatInputMedalGive(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.medalGive'
+		});
+
+		return handleStaffMedalGive({
+			interaction,
+			context
+		});
+	}
+
+	public async chatInputOrgAccept(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.orgAccept'
+		});
+
+		return handleStaffOrgAccept({
+			interaction,
+			context
+		});
+	}
+
+	public async chatInputUpdateNickname(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.updateNickname'
+		});
+
+		return handleStaffUpdateNickname({
+			interaction,
+			context
+		});
+	}
+
+	public async chatInputUserMigrate(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.userMigrate'
+		});
+
+		return handleStaffUserMigrate({
+			interaction,
+			context
+		});
+	}
+
+	public async chatInputUserPurge(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.userPurge'
+		});
+
+		return handleStaffUserPurge({
+			interaction,
+			context
+		});
 	}
 
 	public async chatInputDivisionMembershipAdd(interaction: Subcommand.ChatInputCommandInteraction) {
