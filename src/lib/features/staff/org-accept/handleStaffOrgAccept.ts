@@ -112,9 +112,24 @@ export async function handleStaffOrgAccept({ interaction, context }: HandleStaff
 			return;
 		}
 
-		const alreadyHasIntRole = member.roles.cache.has(ENV_DISCORD.INT_ROLE_ID);
+		if (!intDivision.discordRoleId) {
+			logger.error(
+				{
+					targetDiscordUserId,
+					intDivisionId: intDivision.id,
+					requestId: context.requestId
+				},
+				'INT division is missing discordRoleId while handling staff org_accept command'
+			);
+			await responder.fail('INT division is missing a configured Discord role in the database.', {
+				requestId: true
+			});
+			return;
+		}
+
+		const alreadyHasIntRole = member.roles.cache.has(intDivision.discordRoleId);
 		if (!alreadyHasIntRole) {
-			await member.roles.add(ENV_DISCORD.INT_ROLE_ID, 'Accepted into the org via /staff org_accept');
+			await member.roles.add(intDivision.discordRoleId, 'Accepted into the org via /staff org_accept');
 		}
 
 		await Promise.all([
@@ -157,7 +172,7 @@ export async function handleStaffOrgAccept({ interaction, context }: HandleStaff
 			);
 			await responder.safeEditReply({
 				content:
-					`Applied INT and updated the stored nickname for <@${targetDiscordUserId}>, ` +
+					`Ensured INT membership and updated the stored nickname for <@${targetDiscordUserId}>, ` +
 					`but nickname sync did not complete (\`${nicknameSyncResult.kind}\`). requestId=\`${context.requestId}\``
 			});
 			return;
