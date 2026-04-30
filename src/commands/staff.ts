@@ -10,6 +10,8 @@ import { handleStaffMedalGive } from '../lib/features/staff/medal/handleStaffMed
 import { handleStaffSyncNickname } from '../lib/features/staff/nickname-sync/handleStaffSyncNickname';
 import { handleStaffOrgAccept } from '../lib/features/staff/org-accept/handleStaffOrgAccept';
 import { handleStaffUpdateNickname } from '../lib/features/staff/update-nickname/handleStaffUpdateNickname';
+import { handleStaffUserMigrate } from '../lib/features/staff/user-migration/handleStaffUserMigrate';
+import { handleStaffUserPurge } from '../lib/features/staff/user-migration/handleStaffUserPurge';
 import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
 
 @ApplyOptions<Subcommand.Options>({
@@ -35,6 +37,14 @@ import { createCommandExecutionContext } from '../lib/logging/commandExecutionCo
 		{
 			name: 'update_nickname',
 			chatInputRun: 'chatInputUpdateNickname'
+		},
+		{
+			name: 'user_migrate',
+			chatInputRun: 'chatInputUserMigrate'
+		},
+		{
+			name: 'user_purge',
+			chatInputRun: 'chatInputUserPurge'
 		},
 		{
 			type: 'group',
@@ -128,6 +138,25 @@ export class StaffCommand extends Subcommand {
 									.setMinLength(1)
 									.setMaxLength(DISCORD_MAX_NICKNAME_LENGTH)
 									.setRequired(true)
+							)
+					)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('user_migrate')
+							.setDescription('Merge all tracked records from an old Discord account into a new one.')
+							.addStringOption((option) =>
+								option.setName('old_user_id').setDescription('Old Discord user ID or mention.').setRequired(true)
+							)
+							.addStringOption((option) =>
+								option.setName('new_user_id').setDescription('New Discord user ID or mention.').setRequired(true)
+							)
+					)
+					.addSubcommand((subcommand) =>
+						subcommand
+							.setName('user_purge')
+							.setDescription('Delete an old user row after confirming no migrated references remain.')
+							.addStringOption((option) =>
+								option.setName('user_id').setDescription('Old Discord user ID or mention.').setRequired(true)
 							)
 					)
 					.addSubcommandGroup((group) =>
@@ -224,6 +253,30 @@ export class StaffCommand extends Subcommand {
 		});
 
 		return handleStaffUpdateNickname({
+			interaction,
+			context
+		});
+	}
+
+	public async chatInputUserMigrate(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.userMigrate'
+		});
+
+		return handleStaffUserMigrate({
+			interaction,
+			context
+		});
+	}
+
+	public async chatInputUserPurge(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.userPurge'
+		});
+
+		return handleStaffUserPurge({
 			interaction,
 			context
 		});
