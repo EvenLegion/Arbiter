@@ -1,6 +1,7 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { divisionRepository, userRepository } from '../../../../integrations/prisma/repositories';
+import { prisma } from '../../../../integrations/prisma/prisma';
 import { DISCORD_MAX_NICKNAME_LENGTH } from '../../../constants';
 import { getGuildMember } from '../../../discord/guild/guildMembers';
 import { prepareGuildInteraction } from '../../../discord/interactions/prepareGuildInteraction';
@@ -141,21 +142,49 @@ export async function handleStaffOrgAccept({ interaction, context }: HandleStaff
 			return;
 		}
 
-		const alreadyHasIntRole = member.roles.cache.has(intDivision.discordRoleId);
-		if (!alreadyHasIntRole) {
-			await member.roles.add(intDivision.discordRoleId, 'Accepted into the org via /staff org_accept');
-		}
+		const existingMemberships = await divisionRepository.listMemberships({
+			userId: targetUser.id
+		});
+		const hadIntMembership = existingMemberships.some((membership) => membership.divisionId === intDivision.id);
+		const previousStoredNickname = targetUser.discordNickname;
 
-		await Promise.all([
-			userRepository.updateNickname({
-				discordUserId: targetDiscordUserId,
-				discordNickname: starCitizenUsername
-			}),
-			divisionRepository.addMemberships({
-				userId: targetUser.id,
-				divisionIds: [intDivision.id]
-			})
-		]);
+		await prisma.$transaction(async (tx) => {
+			await tx.user.update({
+				where: {
+					discordUserId: targetDiscordUserId
+				},
+				data: {
+					discordNickname: starCitizenUsername
+				}
+			});
+
+			await tx.divisionMembership.createMany({
+				data: [
+					{
+						userId: targetUser.id,
+						divisionId: intDivision.id
+					}
+				],
+				skipDuplicates: true
+			});
+		});
+
+		const alreadyHasIntRole = member.roles.cache.has(intDivision.discordRoleId);
+		try {
+			if (!alreadyHasIntRole) {
+				await member.roles.add(intDivision.discordRoleId, 'Accepted into the org via /staff org_accept');
+			}
+		} catch (error: unknown) {
+			await rollbackOrgAcceptPersistence({
+				targetDiscordUserId,
+				targetDbUserId: targetUser.id,
+				previousStoredNickname,
+				hadIntMembership,
+				intDivisionId: intDivision.id,
+				logger
+			});
+			throw error;
+		}
 
 		const nicknames = createGuildNicknameWorkflow({
 			guild,
@@ -219,5 +248,48 @@ export async function handleStaffOrgAccept({ interaction, context }: HandleStaff
 		await responder.fail('Failed to complete org accept due to an unexpected error.', {
 			requestId: true
 		});
+	}
+}
+
+async function rollbackOrgAcceptPersistence({
+	targetDiscordUserId,
+	targetDbUserId,
+	previousStoredNickname,
+	hadIntMembership,
+	intDivisionId,
+	logger
+}: {
+	targetDiscordUserId: string;
+	targetDbUserId: string;
+	previousStoredNickname: string | null;
+	hadIntMembership: boolean;
+	intDivisionId: number;
+	logger: ExecutionContext['logger'];
+}) {
+	try {
+		await Promise.all([
+			typeof previousStoredNickname === 'string' && previousStoredNickname.trim().length > 0
+				? userRepository.updateNickname({
+						discordUserId: targetDiscordUserId,
+						discordNickname: previousStoredNickname
+					})
+				: Promise.resolve(),
+			hadIntMembership
+				? Promise.resolve()
+				: divisionRepository.removeMemberships({
+						userId: targetDbUserId,
+						divisionIds: [intDivisionId]
+					})
+		]);
+	} catch (rollbackError: unknown) {
+		logger.error(
+			{
+				err: rollbackError,
+				targetDiscordUserId,
+				targetDbUserId,
+				intDivisionId
+			},
+			'Failed to rollback persisted org_accept mutations after Discord role grant failure'
+		);
 	}
 }

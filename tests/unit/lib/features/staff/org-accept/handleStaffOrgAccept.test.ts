@@ -6,13 +6,18 @@ const mocks = vi.hoisted(() => ({
 	parseDiscordUserIdInput: vi.fn(),
 	getGuildMember: vi.fn(),
 	createGuildNicknameWorkflow: vi.fn(),
+	prisma: {
+		$transaction: vi.fn()
+	},
 	userRepository: {
 		get: vi.fn(),
 		updateNickname: vi.fn()
 	},
 	divisionRepository: {
 		listDivisions: vi.fn(),
-		addMemberships: vi.fn()
+		listMemberships: vi.fn(),
+		addMemberships: vi.fn(),
+		removeMemberships: vi.fn()
 	}
 }));
 
@@ -32,6 +37,10 @@ vi.mock('../../../../../../src/lib/services/nickname/guildNicknameWorkflow', () 
 	createGuildNicknameWorkflow: mocks.createGuildNicknameWorkflow
 }));
 
+vi.mock('../../../../../../src/integrations/prisma/prisma', () => ({
+	prisma: mocks.prisma
+}));
+
 vi.mock('../../../../../../src/integrations/prisma/repositories', () => ({
 	userRepository: mocks.userRepository,
 	divisionRepository: mocks.divisionRepository
@@ -39,16 +48,28 @@ vi.mock('../../../../../../src/integrations/prisma/repositories', () => ({
 
 import { handleStaffOrgAccept } from '../../../../../../src/lib/features/staff/org-accept/handleStaffOrgAccept';
 
+type OrgAcceptTransactionStub = {
+	user: {
+		update: ReturnType<typeof vi.fn>;
+	};
+	divisionMembership: {
+		createMany: ReturnType<typeof vi.fn>;
+	};
+};
+
 describe('handleStaffOrgAccept', () => {
 	beforeEach(() => {
 		mocks.prepareGuildInteraction.mockReset();
 		mocks.parseDiscordUserIdInput.mockReset();
 		mocks.getGuildMember.mockReset();
 		mocks.createGuildNicknameWorkflow.mockReset();
+		mocks.prisma.$transaction.mockReset();
 		mocks.userRepository.get.mockReset();
 		mocks.userRepository.updateNickname.mockReset();
 		mocks.divisionRepository.listDivisions.mockReset();
+		mocks.divisionRepository.listMemberships.mockReset();
 		mocks.divisionRepository.addMemberships.mockReset();
+		mocks.divisionRepository.removeMemberships.mockReset();
 	});
 
 	it('rejects mismatched user_id and user_name values', async () => {
@@ -144,10 +165,19 @@ describe('handleStaffOrgAccept', () => {
 			}
 		]);
 		mocks.getGuildMember.mockResolvedValue(member);
-		mocks.userRepository.updateNickname.mockResolvedValue(undefined);
-		mocks.divisionRepository.addMemberships.mockResolvedValue({
-			count: 1
-		});
+		mocks.divisionRepository.listMemberships.mockResolvedValue([]);
+		mocks.prisma.$transaction.mockImplementation(async (callback: (tx: OrgAcceptTransactionStub) => Promise<unknown>) =>
+			callback({
+				user: {
+					update: vi.fn().mockResolvedValue(undefined)
+				},
+				divisionMembership: {
+					createMany: vi.fn().mockResolvedValue({
+						count: 1
+					})
+				}
+			})
+		);
 		mocks.createGuildNicknameWorkflow.mockReturnValue({
 			syncNickname
 		});
@@ -162,14 +192,7 @@ describe('handleStaffOrgAccept', () => {
 		});
 
 		expect(member.roles.add).toHaveBeenCalledWith('int-role-id', 'Accepted into the org via /staff org_accept');
-		expect(mocks.userRepository.updateNickname).toHaveBeenCalledWith({
-			discordUserId: '123456789012345678',
-			discordNickname: 'CitizenOne'
-		});
-		expect(mocks.divisionRepository.addMemberships).toHaveBeenCalledWith({
-			userId: 'db-user-1',
-			divisionIds: [10]
-		});
+		expect(mocks.prisma.$transaction).toHaveBeenCalledTimes(1);
 		expect(syncNickname).toHaveBeenCalledWith({
 			discordUserId: '123456789012345678',
 			setReason: 'Staff org accept nickname sync'
@@ -198,10 +221,23 @@ describe('handleStaffOrgAccept', () => {
 			}
 		]);
 		mocks.getGuildMember.mockResolvedValue(member);
-		mocks.userRepository.updateNickname.mockResolvedValue(undefined);
-		mocks.divisionRepository.addMemberships.mockResolvedValue({
-			count: 0
-		});
+		mocks.divisionRepository.listMemberships.mockResolvedValue([
+			{
+				divisionId: 10
+			}
+		]);
+		mocks.prisma.$transaction.mockImplementation(async (callback: (tx: OrgAcceptTransactionStub) => Promise<unknown>) =>
+			callback({
+				user: {
+					update: vi.fn().mockResolvedValue(undefined)
+				},
+				divisionMembership: {
+					createMany: vi.fn().mockResolvedValue({
+						count: 0
+					})
+				}
+			})
+		);
 		mocks.createGuildNicknameWorkflow.mockReturnValue({
 			syncNickname: vi.fn().mockResolvedValue({
 				kind: 'member-not-found'
@@ -221,6 +257,67 @@ describe('handleStaffOrgAccept', () => {
 		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
 			content:
 				'Ensured INT membership and updated the stored nickname for <@123456789012345678>, but nickname sync did not complete (`member-not-found`). requestId=`req-3`'
+		});
+	});
+
+	it('rolls back persisted changes when granting the INT role fails', async () => {
+		const prepared = createPrepared();
+		const member = createGuildMember({ hasIntRole: false });
+		member.roles.add.mockRejectedValue(new Error('Missing Permissions'));
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
+		mocks.parseDiscordUserIdInput.mockReturnValue('123456789012345678');
+		mocks.userRepository.get.mockResolvedValue({
+			id: 'db-user-1',
+			discordUserId: '123456789012345678',
+			discordNickname: 'OldNick'
+		});
+		mocks.divisionRepository.listDivisions.mockResolvedValue([
+			{
+				id: 10,
+				code: 'INT',
+				name: 'Initiate',
+				discordRoleId: 'int-role-id'
+			}
+		]);
+		mocks.getGuildMember.mockResolvedValue(member);
+		mocks.divisionRepository.listMemberships.mockResolvedValue([]);
+		mocks.prisma.$transaction.mockImplementation(async (callback: (tx: OrgAcceptTransactionStub) => Promise<unknown>) =>
+			callback({
+				user: {
+					update: vi.fn().mockResolvedValue(undefined)
+				},
+				divisionMembership: {
+					createMany: vi.fn().mockResolvedValue({
+						count: 1
+					})
+				}
+			})
+		);
+		mocks.userRepository.updateNickname.mockResolvedValue(undefined);
+		mocks.divisionRepository.removeMemberships.mockResolvedValue({
+			count: 1
+		});
+
+		await handleStaffOrgAccept({
+			interaction: createInteraction({
+				user_id: '123456789012345678',
+				user_name: null,
+				star_citizen_username: 'CitizenOne'
+			}),
+			context: createContext('req-rollback') as never
+		});
+
+		expect(mocks.prisma.$transaction).toHaveBeenCalledTimes(1);
+		expect(mocks.userRepository.updateNickname).toHaveBeenCalledWith({
+			discordUserId: '123456789012345678',
+			discordNickname: 'OldNick'
+		});
+		expect(mocks.divisionRepository.removeMemberships).toHaveBeenCalledWith({
+			userId: 'db-user-1',
+			divisionIds: [10]
+		});
+		expect(prepared.responder.fail).toHaveBeenCalledWith('Failed to complete org accept due to an unexpected error.', {
+			requestId: true
 		});
 	});
 });
