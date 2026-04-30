@@ -2,6 +2,7 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { ENV_DISCORD } from '../config/env';
+import { DISCORD_MAX_NICKNAME_LENGTH } from '../lib/constants';
 import { handleStaffAutocomplete } from '../lib/features/staff/autocomplete/staffAutocompleteProvider';
 import { handlePostDivisionSelectionMessage } from '../lib/features/staff/division-selection/handlePostDivisionSelectionMessage';
 import { handleDivisionMembershipCommand } from '../lib/features/staff/division-membership/handleDivisionMembershipCommand';
@@ -102,6 +103,8 @@ export class StaffCommand extends Subcommand {
 								option
 									.setName('star_citizen_username')
 									.setDescription('Stored Star Citizen username to use as the user base nickname.')
+									.setMinLength(1)
+									.setMaxLength(DISCORD_MAX_NICKNAME_LENGTH)
 									.setRequired(true)
 							)
 							.addStringOption((option) =>
@@ -118,7 +121,14 @@ export class StaffCommand extends Subcommand {
 							.addStringOption((option) =>
 								option.setName('existing_user').setDescription('Target user.').setRequired(true).setAutocomplete(true)
 							)
-							.addStringOption((option) => option.setName('new_nickname').setDescription('New stored base nickname.').setRequired(true))
+							.addStringOption((option) =>
+								option
+									.setName('new_nickname')
+									.setDescription('New stored base nickname.')
+									.setMinLength(1)
+									.setMaxLength(DISCORD_MAX_NICKNAME_LENGTH)
+									.setRequired(true)
+							)
 					)
 					.addSubcommandGroup((group) =>
 						group
