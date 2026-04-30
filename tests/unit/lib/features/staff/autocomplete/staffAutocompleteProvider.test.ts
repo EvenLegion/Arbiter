@@ -77,6 +77,40 @@ describe('staffAutocompleteProvider', () => {
 		]);
 	});
 
+	it('routes org accept user lookup through the guild member directory', async () => {
+		const guild = {
+			id: 'guild-1'
+		};
+		mocks.getConfiguredGuild.mockResolvedValue(guild);
+		mocks.buildGuildMemberAutocompleteChoices.mockResolvedValue([
+			{
+				name: 'Member Two',
+				value: 'member-2'
+			}
+		]);
+		const interaction = createInteraction({
+			subcommandGroupName: null,
+			subcommandName: 'org_accept',
+			focusedName: 'user_name',
+			focusedValue: 'two'
+		});
+
+		await handleStaffAutocomplete({
+			interaction
+		});
+
+		expect(mocks.buildGuildMemberAutocompleteChoices).toHaveBeenCalledWith({
+			guild,
+			query: 'two'
+		});
+		expect(interaction.respond).toHaveBeenCalledWith([
+			{
+				name: 'Member Two',
+				value: 'member-2'
+			}
+		]);
+	});
+
 	it('routes division membership division lookup through the division directory', async () => {
 		mocks.buildDivisionAutocompleteChoices.mockResolvedValue([
 			{
