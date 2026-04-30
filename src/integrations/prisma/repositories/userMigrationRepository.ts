@@ -79,7 +79,10 @@ export async function migrateUsersByDiscordUserId({ oldDiscordUserId, newDiscord
 			participantStatsMerged: 0,
 			reviewDecisionsReassigned: 0,
 			reviewDecisionsMerged: 0,
-			baseNicknameCopied: oldUser.discordNickname !== newUser.discordNickname
+			baseNicknameCopied:
+				typeof oldUser.discordNickname === 'string' &&
+				oldUser.discordNickname !== '' &&
+				oldUser.discordNickname !== newUser.discordNickname
 		};
 
 		const [requestedNameChanges, reviewedNameChanges, meritsReceived, meritsAwarded, hostedEvents, finalizedEvents, eventChannels] =
