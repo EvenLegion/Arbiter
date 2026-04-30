@@ -77,6 +77,74 @@ describe('staffAutocompleteProvider', () => {
 		]);
 	});
 
+	it('routes org accept user lookup through the guild member directory', async () => {
+		const guild = {
+			id: 'guild-1'
+		};
+		mocks.getConfiguredGuild.mockResolvedValue(guild);
+		mocks.buildGuildMemberAutocompleteChoices.mockResolvedValue([
+			{
+				name: 'Member Two',
+				value: 'member-2'
+			}
+		]);
+		const interaction = createInteraction({
+			subcommandGroupName: null,
+			subcommandName: 'org_accept',
+			focusedName: 'user_name',
+			focusedValue: 'two'
+		});
+
+		await handleStaffAutocomplete({
+			interaction
+		});
+
+		expect(mocks.buildGuildMemberAutocompleteChoices).toHaveBeenCalledWith({
+			guild,
+			query: 'two'
+		});
+		expect(interaction.respond).toHaveBeenCalledWith([
+			{
+				name: 'Member Two',
+				value: 'member-2'
+			}
+		]);
+	});
+
+	it('routes update nickname user lookup through the guild member directory', async () => {
+		const guild = {
+			id: 'guild-1'
+		};
+		mocks.getConfiguredGuild.mockResolvedValue(guild);
+		mocks.buildGuildMemberAutocompleteChoices.mockResolvedValue([
+			{
+				name: 'Member Three',
+				value: 'member-3'
+			}
+		]);
+		const interaction = createInteraction({
+			subcommandGroupName: null,
+			subcommandName: 'update_nickname',
+			focusedName: 'existing_user',
+			focusedValue: 'three'
+		});
+
+		await handleStaffAutocomplete({
+			interaction
+		});
+
+		expect(mocks.buildGuildMemberAutocompleteChoices).toHaveBeenCalledWith({
+			guild,
+			query: 'three'
+		});
+		expect(interaction.respond).toHaveBeenCalledWith([
+			{
+				name: 'Member Three',
+				value: 'member-3'
+			}
+		]);
+	});
+
 	it('routes division membership division lookup through the division directory', async () => {
 		mocks.buildDivisionAutocompleteChoices.mockResolvedValue([
 			{

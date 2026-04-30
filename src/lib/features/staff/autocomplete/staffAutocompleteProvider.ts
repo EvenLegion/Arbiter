@@ -34,6 +34,14 @@ const STAFF_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 		focusedOptionName: 'user'
 	}),
 	createGuildMemberRoute({
+		subcommandName: 'org_accept',
+		focusedOptionName: 'user_name'
+	}),
+	createGuildMemberRoute({
+		subcommandName: 'update_nickname',
+		focusedOptionName: 'existing_user'
+	}),
+	createGuildMemberRoute({
 		subcommandGroupName: 'division_membership',
 		focusedOptionName: 'nickname'
 	}),
