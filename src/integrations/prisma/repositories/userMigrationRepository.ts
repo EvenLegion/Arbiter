@@ -1,4 +1,4 @@
-import { EventReviewDecisionKind } from '@prisma/client';
+import { EventReviewDecisionKind, type Prisma } from '@prisma/client';
 
 import { prisma } from '../prisma';
 
@@ -373,7 +373,7 @@ export async function purgeUserByDiscordUserId({ discordUserId }: { discordUserI
 	});
 }
 
-async function getUserReferenceCounts(tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0], userId: string): Promise<UserReferenceCounts> {
+async function getUserReferenceCounts(tx: Prisma.TransactionClient, userId: string): Promise<UserReferenceCounts> {
 	const [
 		divisionMemberships,
 		nameChangeRequestsRequested,
