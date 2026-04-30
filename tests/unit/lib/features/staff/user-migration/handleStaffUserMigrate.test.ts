@@ -26,7 +26,7 @@ vi.mock('../../../../../../src/lib/services/nickname/guildNicknameWorkflow', () 
 	createGuildNicknameWorkflow: mocks.createGuildNicknameWorkflow
 }));
 
-vi.mock('../../../../../../src/integrations/prisma/repositories/userMigrationRepository', () => ({
+vi.mock('../../../../../../src/integrations/prisma/repositories', () => ({
 	userMigrationRepository: mocks.userMigrationRepository
 }));
 

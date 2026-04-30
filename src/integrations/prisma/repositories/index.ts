@@ -8,3 +8,4 @@ export { eventReviewRepository } from './eventReviewRepository';
 export type { EventReviewPage, EventReviewPageAttendee } from './eventReviewRepository';
 export { staffMedalRepository } from './staffMedalRepository';
 export { userMigrationRepository } from './userMigrationRepository';
+export type { MigrationCounts, UserReferenceCounts } from './userMigrationRepository';

@@ -1,6 +1,6 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 
-import { userMigrationRepository, type UserReferenceCounts } from '../../../../integrations/prisma/repositories/userMigrationRepository';
+import { userMigrationRepository, type UserReferenceCounts } from '../../../../integrations/prisma/repositories';
 import { prepareGuildInteraction } from '../../../discord/interactions/prepareGuildInteraction';
 import { parseDiscordUserIdInput } from '../../../discord/members/memberDirectory';
 import type { ExecutionContext } from '../../../logging/executionContext';
