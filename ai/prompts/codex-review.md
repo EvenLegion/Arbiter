@@ -21,15 +21,13 @@ Defaults:
 - "review" means `REVIEW_ONLY`.
 - "address comments", "fix review comments", "fix review feedback", and
   "apply PR feedback" mean `ADDRESS_REVIEW_COMMENTS`.
-- Review work uses `STANDARD_REVIEW`; repeat-until-settled cycling requires an
-  explicit `EXHAUSTIVE_REVIEW` request.
 
 Inspect the exact revision, ticket and accepted decisions, changed files,
 direct callers/imports, analogous implementations, relevant tests/contracts,
 installed versions, existing review feedback, and required documentation or
 Architecture Record disposition.
 
-Apply the evidence threshold and repository review rules in `AGENTS.md`.
+Apply the evidence threshold and five repository review rules in `AGENTS.md`.
 Historically high-value traces include:
 - Discord ingress/custom ID -> handler actor/guild preflight -> service rule ->
   repository/gateway side effect -> presenter/reply/logging;
@@ -43,9 +41,7 @@ Historically high-value traces include:
   leakage, and secret-safe structured logs.
 
 Independently prove external feedback. Reject false or redundant suggestions
-with evidence. Decline technically possible feedback when its likelihood and
-consequence do not justify the added complexity, regression risk, or validation
-cost. Do not widen scope to make a suggestion true.
+with evidence; do not widen scope to make a suggestion true.
 
 ## REVIEW_ONLY
 
@@ -60,8 +56,7 @@ mutate Linear.
 
 Use authoritative GraphQL thread state and complementary REST surfaces from the
 review lifecycle. Produce a decision ledger for every unresolved actionable
-thread: `Accepted`, `Rejected`, `Declined`, or `Deferred/blocked`, with concise
-evidence and the proportionality decision defined by the lifecycle.
+thread: `Accepted`, `Rejected`, or `Deferred/blocked`, with concise evidence.
 
 Patch accepted safe in-scope feedback, run proportionate checks, commit, push,
 check for and reuse the branch's valid existing release plan, reply/resolve
@@ -70,6 +65,6 @@ for routine review-fix commits. Stop for any required approval or material
 scope/product/architecture decision.
 
 Report the decision ledger, new head, validation, current checks, expected
-reviewer state, review-budget disposition, and any remaining actionable or
-gated item. Follow the canonical bounded reviewer cycle after a review-fix push.
+reviewer state, and any remaining actionable or gated item. Follow the canonical
+reviewer-observation cycle after a review-fix push.
 ```

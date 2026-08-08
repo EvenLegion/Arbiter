@@ -183,9 +183,7 @@ cycle. Fable must:
 A separate Opus 5 `ADDRESS_REVIEW_COMMENTS` task then executes
 `ai/prompts/codex-review.md` and `ai/rules/github-review-lifecycle.md`. That task
 owns authoritative thread inspection, independent feedback decisions, accepted
-fixes, replies, resolution, later pushes, and the bounded reviewer cycle. Its
-decision ledger, commits, replies, resolved threads, validation, and
-review-budget disposition provide the observable completion record.
+fixes, replies, resolution, later pushes, and current-head re-review.
 
 This delegation changes ownership, not definition of done. It does not relax
 scope, validation, release-plan, documentation, Architecture Record, approval,
@@ -203,8 +201,8 @@ Before reporting an implementation complete:
 - confirm documentation-impact and Architecture Record dispositions;
 - for external handoff, confirm Conventional Commit history, release plan,
   ready PR into `dev`, current checks, and Linear `In Review` when applicable;
-- complete the applicable reviewer cycle within its proportional review budget
-  or record the delegated Fable-to-Opus handoff; and
+- complete the applicable reviewer cycle or record the delegated Fable-to-Opus
+  handoff; and
 - report remaining risk, blocked items, and independently reviewable follow-up.
 
 ## Completion report
