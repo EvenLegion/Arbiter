@@ -113,7 +113,7 @@ Postgres is not part of the production compose stack. Production expects an exte
 
 ### Runtime Dependency Verification
 
-Arbiter's production image targets Node.js 22 and installs with the repository's pinned pnpm 10 release. Dependency security checks must verify both the lockfile and the pruned runtime image:
+Arbiter's production image targets Node.js 22.12 or newer within the Node 22 release line and installs with the repository's pinned pnpm 10 release. Dependency security checks must verify both the lockfile and the pruned runtime image:
 
 1. run `pnpm audit --prod` against the workspace lockfile
 2. build the production Docker image from the committed manifest and lockfile

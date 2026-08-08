@@ -51,6 +51,18 @@ export async function getUserMeritSummary(params: GetUserMeritSummaryParams): Pr
 				eventSessionId: true
 			}
 		});
+		if (meritRows.length === 0) {
+			return {
+				totalMerits,
+				totalAwards,
+				totalLinkedEvents: linkedEventsCount,
+				page: resolvedPage,
+				pageSize: parsed.pageSize,
+				totalPages,
+				entries: []
+			};
+		}
+
 		const awarderIds = [...new Set(meritRows.map((entry) => entry.awardedByUserId))];
 		const meritTypeIds = [...new Set(meritRows.map((entry) => entry.meritTypeId))];
 		const eventSessionIds = [
