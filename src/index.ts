@@ -4,6 +4,7 @@ import { SapphireClient } from '@sapphire/framework';
 
 import { GatewayIntentBits, Partials } from 'discord.js';
 import { ENV_CONFIG, ENV_DISCORD } from './config/env';
+import { createScheduledTaskBullOptions } from './config/scheduledTaskQueue';
 import { SAPPHIRE_LOGGER } from './integrations/pino';
 
 const client = new SapphireClient({
@@ -16,14 +17,12 @@ const client = new SapphireClient({
 	defaultPrefix: null,
 	loadMessageCommandListeners: false,
 	tasks: {
-		bull: {
-			connection: {
-				host: ENV_CONFIG.REDIS_HOST,
-				port: ENV_CONFIG.REDIS_PORT,
-				password: ENV_CONFIG.REDIS_PASSWORD,
-				db: ENV_CONFIG.REDIS_DB
-			}
-		}
+		bull: createScheduledTaskBullOptions({
+			host: ENV_CONFIG.REDIS_HOST,
+			port: ENV_CONFIG.REDIS_PORT,
+			password: ENV_CONFIG.REDIS_PASSWORD,
+			db: ENV_CONFIG.REDIS_DB
+		})
 	}
 });
 
