@@ -1,10 +1,12 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { BUMP_ORDER, REPO_ROOT, bumpVersion, readPackageJson, sanitizeBranchName } from './lib.mjs';
+import { BUMP_ORDER, REPO_ROOT, SECTION_ORDER, bumpVersion, readPackageJson, sanitizeBranchName } from './lib.mjs';
 
 export const RELEASE_PLAN_SCHEMA_VERSION = 1;
 export const RELEASE_PLAN_BASE_REF = 'origin/dev';
+
+const FULL_COMMIT_SHA = /^[0-9a-f]{40}$/i;
 
 export class ReleasePlanContractError extends Error {
 	constructor(message, code) {
@@ -181,6 +183,8 @@ export function collectReleasePlanIssues({ entry, branch, baseRef, headRef, pack
 	const recordedHeadRef = typeof plan?.headRef === 'string' ? plan.headRef : '';
 	if (!recordedHeadRef) {
 		issues.push('headRef must be a commit SHA recorded when the plan was created');
+	} else if (!FULL_COMMIT_SHA.test(recordedHeadRef)) {
+		issues.push(`headRef must be a full 40-character commit SHA; received ${recordedHeadRef}`);
 	} else if (!gitCommitExists(recordedHeadRef, { repoRoot })) {
 		issues.push(`headRef ${recordedHeadRef} is not a reachable commit; fetch history or regenerate after confirming the branch base`);
 	} else {
@@ -202,9 +206,16 @@ export function collectReleasePlanIssues({ entry, branch, baseRef, headRef, pack
 	} else {
 		const seenShas = new Set();
 		for (const [index, commit] of plan.commits.entries()) {
+			validateReleasePlanEntry(commit, index, issues);
+
 			const sha = typeof commit?.sha === 'string' ? commit.sha : '';
 			if (!sha) {
 				issues.push(`commits[${index}].sha must be a commit SHA`);
+				continue;
+			}
+
+			if (!FULL_COMMIT_SHA.test(sha)) {
+				issues.push(`commits[${index}].sha must be a full 40-character commit SHA; received ${sha}`);
 				continue;
 			}
 
@@ -256,12 +267,55 @@ function gitIsAncestor(ancestor, descendant, { repoRoot }) {
 
 function gitOutput(args, { repoRoot, failureMessage }) {
 	const result = runGit(args, { repoRoot });
+	if (result.error) {
+		throw new ReleasePlanContractError(`${failureMessage} Git could not be executed: ${result.error.message}`, 'GIT_CONTEXT_ERROR');
+	}
+
 	if (result.status !== 0) {
-		const detail = result.stderr.trim();
+		const detail = (result.stderr ?? '').trim();
 		throw new ReleasePlanContractError(`${failureMessage}${detail ? ` Git reported: ${detail}` : ''}`, 'GIT_CONTEXT_ERROR');
 	}
 
-	return result.stdout.trim();
+	return (result.stdout ?? '').trim();
+}
+
+function validateReleasePlanEntry(entry, index, issues) {
+	const prefix = `commits[${index}]`;
+	if (typeof entry?.subject !== 'string' || !entry.subject.trim()) {
+		issues.push(`${prefix}.subject must be a non-empty string`);
+	}
+
+	if (typeof entry?.committedAt !== 'string' || !entry.committedAt.trim() || Number.isNaN(Date.parse(entry.committedAt))) {
+		issues.push(`${prefix}.committedAt must be a valid timestamp`);
+	}
+
+	if (typeof entry?.committedAtMs !== 'number' || !Number.isFinite(entry.committedAtMs)) {
+		issues.push(`${prefix}.committedAtMs must be a finite number`);
+	}
+
+	if (typeof entry?.type !== 'string' || !entry.type.trim()) {
+		issues.push(`${prefix}.type must be a non-empty string`);
+	}
+
+	if (entry?.scope !== null && typeof entry?.scope !== 'string') {
+		issues.push(`${prefix}.scope must be a string or null`);
+	}
+
+	if (typeof entry?.description !== 'string' || !entry.description.trim()) {
+		issues.push(`${prefix}.description must be a non-empty string`);
+	}
+
+	if (typeof entry?.breaking !== 'boolean') {
+		issues.push(`${prefix}.breaking must be a boolean`);
+	}
+
+	if (!SECTION_ORDER.includes(entry?.section)) {
+		issues.push(`${prefix}.section must be one of ${SECTION_ORDER.join(', ')}; received ${String(entry?.section)}`);
+	}
+
+	if (entry?.releaseNoteLabel !== undefined && (typeof entry.releaseNoteLabel !== 'string' || !entry.releaseNoteLabel.trim())) {
+		issues.push(`${prefix}.releaseNoteLabel must be a non-empty string when provided`);
+	}
 }
 
 function runGit(args, { repoRoot }) {

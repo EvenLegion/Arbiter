@@ -100,6 +100,44 @@ describe('branch-owned release-plan contract', () => {
 		);
 	});
 
+	it('requires immutable full commit IDs and complete publishable entries', () => {
+		const repository = createRepository();
+		const entry = writeValidPlan(repository);
+		const plan = readPlan(entry.filePath);
+		plan.headRef = 'HEAD';
+		plan.commits[0].sha = 'HEAD';
+		plan.commits[0].description = '';
+		plan.commits[0].section = 'Unknown';
+		writeFileSync(entry.filePath, `${JSON.stringify(plan, null, '\t')}\n`);
+
+		const inspection = inspectBranchReleasePlan({ branch, repoRoot: repository });
+		expect(inspection.status).toBe('invalid');
+		if (inspection.status !== 'invalid') throw new Error('Expected invalid inspection.');
+		expect(inspection.issues).toContain('headRef must be a full 40-character commit SHA; received HEAD');
+		expect(inspection.issues).toContain('commits[0].sha must be a full 40-character commit SHA; received HEAD');
+		expect(inspection.issues).toContain('commits[0].description must be a non-empty string');
+		expect(inspection.issues).toContain(
+			'commits[0].section must be one of Features, Fixes, Performance, Refactors, Maintenance, Other; received Unknown'
+		);
+	});
+
+	it('preserves the contract error when Git cannot be started', () => {
+		const repository = createRepository();
+		writeValidPlan(repository);
+		const originalPath = process.env.PATH;
+		process.env.PATH = '';
+		expect.assertions(2);
+
+		try {
+			inspectBranchReleasePlan({ branch, repoRoot: repository });
+		} catch (error) {
+			expect(error).toBeInstanceOf(ReleasePlanContractError);
+			expect((error as ReleasePlanContractError).code).toBe('GIT_CONTEXT_ERROR');
+		} finally {
+			process.env.PATH = originalPath;
+		}
+	});
+
 	it('rejects a recorded head after the branch history is rewritten', () => {
 		const repository = createRepository();
 		const recordedHead = git(repository, 'rev-parse', 'HEAD');
@@ -235,7 +273,19 @@ function writeValidPlan(repository: string, fileName = 'branch-plan.json') {
 		generatedAt: new Date().toISOString(),
 		bump: 'patch',
 		targetVersion: '3.3.1',
-		commits: [{ sha: headRef }]
+		commits: [
+			{
+				sha: headRef,
+				subject: 'feat: add release-plan enforcement',
+				committedAt: new Date().toISOString(),
+				committedAtMs: Date.now(),
+				type: 'feat',
+				scope: null,
+				description: 'add release-plan enforcement',
+				breaking: false,
+				section: 'Features'
+			}
+		]
 	};
 	const filePath = path.join(repository, '.release-plans', fileName);
 	writeFileSync(filePath, `${JSON.stringify(plan, null, '\t')}\n`);

@@ -129,10 +129,11 @@ When the requested scope and required local validation are complete:
    the ticket or user locks another bump. Inspect the generated plan and its
    automatic commit. Running the same command again reuses a valid plan without
    writing or committing anything.
-7. Regenerate a matching plan only when it is unreadable, records another
-   branch or base, its merge base no longer matches current `origin/dev`, its
-   bump is wrong, or later work materially changes release-note content. Explain
-   the reason with
+7. Repair an unreadable plan manually before rerunning the workflow because its
+   branch ownership cannot be determined safely. Regenerate a matching parsed
+   plan only when it records another branch or base, its merge base no longer
+   matches current `origin/dev`, its bump is wrong, or later work materially
+   changes release-note content. Explain the reason with
    `pnpm release:plan -- --regenerate --bump patch --reason "why replacement is required"`.
    Do not create a second plan for the same branch/worktree merely because a
    push is imminent. Do not create or update a plan for local-only work.
