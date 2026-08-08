@@ -1,0 +1,34 @@
+{
+	"schemaVersion": 1,
+	"branch": "codex/STE-263-enforce-release-plan-validation",
+	"baseRef": "origin/dev",
+	"mergeBase": "c4ea325b6db53761cd9a54970ed5d89a8b3291be",
+	"headRef": "8005770f7a0b3f1fe9b2c6232eaa4b620bc98228",
+	"generatedAt": "2026-08-08T20:01:48.352Z",
+	"bump": "patch",
+	"targetVersion": "3.3.1",
+	"commits": [
+		{
+			"sha": "a3f0c1fd350224b4f5b371d7d8bb3fa7ed724896",
+			"subject": "build: enforce branch-owned release plans",
+			"committedAt": "2026-08-08T10:00:39-10:00",
+			"committedAtMs": 1786219239000,
+			"type": "build",
+			"scope": null,
+			"description": "enforce branch-owned release plans",
+			"breaking": false,
+			"section": "Maintenance"
+		},
+		{
+			"sha": "8005770f7a0b3f1fe9b2c6232eaa4b620bc98228",
+			"subject": "fix: accept pnpm release-plan arguments",
+			"committedAt": "2026-08-08T10:01:35-10:00",
+			"committedAtMs": 1786219295000,
+			"type": "fix",
+			"scope": null,
+			"description": "accept pnpm release-plan arguments",
+			"breaking": false,
+			"section": "Fixes"
+		}
+	]
+}
