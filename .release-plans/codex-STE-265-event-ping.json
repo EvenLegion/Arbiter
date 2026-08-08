@@ -15,7 +15,7 @@
 			"committedAtMs": 1786229571000,
 			"type": "feat",
 			"scope": null,
-			"description": "add synchronized one-use event pings",
+			"description": "Active events now show a one-use Event Ping control beside End Event in both event summaries. Authorized staff, Centurions, and Optios can manually notify the configured role only when an event is ready, so private or not-yet-ready events remain quiet. Successful pings stay disabled after restarts, failed sends can be retried, and Arbiter keeps both summary copies synchronized. Server operators must configure the destination channel and audience role and apply the included additive database update before rollout.",
 			"breaking": false,
 			"section": "Features"
 		}
