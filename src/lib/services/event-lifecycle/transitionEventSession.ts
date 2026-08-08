@@ -40,6 +40,7 @@ export type TransitionEventSessionWorkflowInput = {
 	fromState: EventSessionState;
 	toState: Extract<EventSessionState, 'ACTIVE' | 'CANCELLED' | 'ENDED_PENDING_REVIEW'>;
 	actorTag?: string;
+	ensureOperationOwned?: () => Promise<boolean>;
 };
 
 type EndActiveEventDeps = TransitionEventSessionDeps & {
@@ -62,9 +63,14 @@ export type LoadedEventTransition = {
 	eventSession: EventLifecycleEventSession;
 };
 
-export type EventTransitionSideEffectResult = {
-	reviewInitializationFailed: boolean;
-};
+export type EventTransitionSideEffectResult =
+	| {
+			kind: 'completed';
+			reviewInitializationFailed: boolean;
+	  }
+	| {
+			kind: 'coordination_unavailable';
+	  };
 
 const ALLOWED_EVENT_TRANSITIONS: Record<EventSessionState, readonly EventSessionState[]> = {
 	[EventSessionState.DRAFT]: [EventSessionState.ACTIVE, EventSessionState.CANCELLED],
@@ -140,7 +146,8 @@ export async function endActiveEvent(
 			actorTag: input.actorTag,
 			eventSessionId: input.eventSessionId,
 			fromState: EventSessionState.ACTIVE,
-			toState: EventSessionState.ENDED_PENDING_REVIEW
+			toState: EventSessionState.ENDED_PENDING_REVIEW,
+			ensureOperationOwned: () => lease.ensureOwned().catch(() => false)
 		});
 	} finally {
 		await lease.stop().catch(() => undefined);
@@ -155,6 +162,11 @@ async function transitionEventSession(
 	const validation = await loadAndValidateEventTransition(deps, input);
 	if ('result' in validation) {
 		return validation.result;
+	}
+	if (!(await ensureTransitionMayContinue(input))) {
+		return {
+			kind: 'coordination_unavailable'
+		};
 	}
 
 	const now = deps.now();
@@ -171,18 +183,12 @@ async function transitionEventSession(
 		return persisted.result;
 	}
 
-	const sideEffects = await runEventTransitionSideEffects(
-		deps,
-		{
-			actor: input.actor,
-			eventSessionId: input.eventSessionId,
-			fromState: input.fromState,
-			toState: input.toState,
-			actorTag: input.actorTag
-		},
-		persisted.eventSession,
-		now
-	);
+	const sideEffects = await runEventTransitionSideEffects(deps, input, persisted.eventSession, now);
+	if (sideEffects.kind === 'coordination_unavailable') {
+		return {
+			kind: 'coordination_unavailable'
+		};
+	}
 
 	if (input.toState === EventSessionState.ACTIVE) {
 		return {
@@ -295,12 +301,18 @@ async function runEventTransitionSideEffects(
 	now: Date
 ): Promise<EventTransitionSideEffectResult> {
 	if (input.toState === EventSessionState.ACTIVE && deps.startTracking) {
+		if (!(await ensureTransitionMayContinue(input))) {
+			return { kind: 'coordination_unavailable' };
+		}
 		await deps.startTracking({
 			eventSessionId: input.eventSessionId,
 			startedAtMs: now.getTime()
 		});
 	}
 	if (input.toState === EventSessionState.ENDED_PENDING_REVIEW && deps.stopTracking) {
+		if (!(await ensureTransitionMayContinue(input))) {
+			return { kind: 'coordination_unavailable' };
+		}
 		await deps.stopTracking({
 			eventSessionId: input.eventSessionId
 		});
@@ -309,6 +321,9 @@ async function runEventTransitionSideEffects(
 	if (input.toState === EventSessionState.ENDED_PENDING_REVIEW && deps.renameParentVoiceChannel) {
 		const parentVoiceChannelId = eventSession.channels.find((channel) => channel.kind === EventSessionChannelKind.PARENT_VC)?.channelId;
 		if (parentVoiceChannelId) {
+			if (!(await ensureTransitionMayContinue(input))) {
+				return { kind: 'coordination_unavailable' };
+			}
 			const rename = buildEndedParentVoiceChannelRename({
 				actor: input.actor,
 				actorTag: input.actorTag
@@ -321,17 +336,26 @@ async function runEventTransitionSideEffects(
 		}
 	}
 
+	if (!(await ensureTransitionMayContinue(input))) {
+		return { kind: 'coordination_unavailable' };
+	}
 	await deps.syncLifecyclePresentation({
 		eventSession,
 		actorDiscordUserId: input.actor.discordUserId
 	});
 
 	if (input.toState === EventSessionState.ENDED_PENDING_REVIEW && deps.postEndedEventFeedbackLinks) {
+		if (!(await ensureTransitionMayContinue(input))) {
+			return { kind: 'coordination_unavailable' };
+		}
 		await deps.postEndedEventFeedbackLinks({
 			eventSession
 		});
 	}
 
+	if (deps.initializeReview && !(await ensureTransitionMayContinue(input))) {
+		return { kind: 'coordination_unavailable' };
+	}
 	const reviewResult = deps.initializeReview
 		? await deps.initializeReview({
 				eventSessionId: eventSession.id
@@ -341,8 +365,13 @@ async function runEventTransitionSideEffects(
 			};
 
 	return {
+		kind: 'completed',
 		reviewInitializationFailed: input.toState === EventSessionState.ENDED_PENDING_REVIEW ? !reviewResult.initialized : false
 	};
+}
+
+async function ensureTransitionMayContinue(input: TransitionEventSessionWorkflowInput) {
+	return input.ensureOperationOwned ? input.ensureOperationOwned() : true;
 }
 
 function isTransitionAllowed(fromState: EventSessionState, toState: EventSessionState) {

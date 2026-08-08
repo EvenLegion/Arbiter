@@ -124,6 +124,11 @@ describe('handleEventPingButton', () => {
 			}),
 			'event.ping.infrastructure_failed'
 		);
+		expect(mocks.presentEventPingResult).toHaveBeenCalledWith(expect.objectContaining({ kind: 'announcement_failed' }), 'req-42');
+		expect(responder.safeEditReply).toHaveBeenCalledWith({
+			content: 'Event Ping was not sent.'
+		});
+		expect(logger.info).not.toHaveBeenCalled();
 	});
 });
 
