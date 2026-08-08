@@ -162,8 +162,10 @@ another cycle.
 Stop when:
 
 - the PR closes or merges;
-- every current thread has a recorded decision, and either the active review
-  budget is exhausted or the latest cycle has no accepted high-value finding;
+- every expected reviewer in the current permitted cycle has completed,
+  terminally responded, or timed out, every current thread has a recorded
+  decision, and either the active review budget is exhausted or the latest
+  cycle has no accepted high-value finding;
 - a high-risk approval or user decision is required; or
 - the user asks to stop.
 
