@@ -121,6 +121,19 @@ describe('branch-owned release-plan contract', () => {
 		);
 	});
 
+	it('rejects duplicate commit IDs written with different casing', () => {
+		const repository = createRepository();
+		const entry = writeValidPlan(repository);
+		const plan = readPlan(entry.filePath);
+		plan.commits.push({ ...plan.commits[0], sha: plan.commits[0].sha.toUpperCase() });
+		writeFileSync(entry.filePath, `${JSON.stringify(plan, null, '\t')}\n`);
+
+		const inspection = inspectBranchReleasePlan({ branch, repoRoot: repository });
+		expect(inspection.status).toBe('invalid');
+		if (inspection.status !== 'invalid') throw new Error('Expected invalid inspection.');
+		expect(inspection.issues).toContain(`commits contains duplicate SHA ${plan.commits[0].sha.toUpperCase()}`);
+	});
+
 	it('preserves the contract error when Git cannot be started', () => {
 		const repository = createRepository();
 		writeValidPlan(repository);

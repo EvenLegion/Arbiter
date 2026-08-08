@@ -219,11 +219,12 @@ export function collectReleasePlanIssues({ entry, branch, baseRef, headRef, pack
 				continue;
 			}
 
-			if (seenShas.has(sha)) {
+			const canonicalSha = sha.toLowerCase();
+			if (seenShas.has(canonicalSha)) {
 				issues.push(`commits contains duplicate SHA ${sha}`);
 				continue;
 			}
-			seenShas.add(sha);
+			seenShas.add(canonicalSha);
 
 			if (!gitCommitExists(sha, { repoRoot })) {
 				issues.push(`commits[${index}].sha ${sha} is not a reachable commit`);
