@@ -15,7 +15,7 @@
 			"committedAtMs": 1786216820000,
 			"type": "docs",
 			"scope": null,
-			"description": "Updated the behind-the-scenes instructions used by automated coding assistants so pull request reviews focus on meaningful risks and stop after a limited number of review rounds. This does not change Discord commands or member behavior.",
+			"description": "Updated the automated coding assistant instructions so code reviews focus on meaningful risks and stop after a limited number of review rounds.",
 			"breaking": false,
 			"section": "Maintenance"
 		}
