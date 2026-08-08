@@ -139,6 +139,8 @@ When the requested scope and required local validation are complete:
    terms. State clearly when the change is behind the scenes and does not alter
    Discord commands or member behavior. If generated copy is too technical,
    improve the existing plan entry without creating a second branch plan.
+   After editing a plan, rerun the applicable plan validation and commit the
+   updated plan file before continuing to step 9.
 9. Push the branch and open a ready-for-review PR against `dev`. Use a draft only
    when an unresolved decision prevents completion. Never open an ordinary
    feature PR directly against `main`.
