@@ -1,5 +1,7 @@
 import { git } from './lib.mjs';
 import { RELEASE_PLAN_BASE_REF, assertValidBranchReleasePlan } from './plan-contract.mjs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 export function parseCheckArguments(args) {
 	const options = {
@@ -16,6 +18,10 @@ export function parseCheckArguments(args) {
 
 	for (let index = 0; index < args.length; index += 1) {
 		const argument = args[index];
+		if (argument === '--' && index === 0) {
+			continue;
+		}
+
 		const key = optionNames.get(argument);
 		if (!key) {
 			throw new Error(`Unknown release-plan check argument: ${argument}`);
@@ -52,9 +58,11 @@ function main() {
 	console.log('Later commits are allowed when the recorded head and plan commits remain in the current branch history.');
 }
 
-try {
-	main();
-} catch (error) {
-	console.error(error instanceof Error ? error.message : error);
-	process.exit(1);
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	try {
+		main();
+	} catch (error) {
+		console.error(error instanceof Error ? error.message : error);
+		process.exit(1);
+	}
 }

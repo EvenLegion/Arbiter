@@ -1,5 +1,7 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { BUMP_ORDER, bumpVersion } from './lib.mjs';
 import { runReleasePlan } from './plan-operation.mjs';
 
@@ -12,6 +14,10 @@ export function parsePlanArguments(args) {
 
 	for (let index = 0; index < args.length; index += 1) {
 		const argument = args[index];
+		if (argument === '--' && index === 0) {
+			continue;
+		}
+
 		if (argument === '--regenerate') {
 			if (options.regenerate) {
 				throw new Error('--regenerate may only be provided once.');
@@ -76,7 +82,9 @@ async function main() {
 	});
 }
 
-main().catch((error) => {
-	console.error(error instanceof Error ? error.message : error);
-	process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	main().catch((error) => {
+		console.error(error instanceof Error ? error.message : error);
+		process.exit(1);
+	});
+}

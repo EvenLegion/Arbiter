@@ -10,6 +10,8 @@ import {
 	inspectBranchReleasePlan
 } from '../../../scripts/release/plan-contract.mjs';
 import { runReleasePlan } from '../../../scripts/release/plan-operation.mjs';
+import { parsePlanArguments } from '../../../scripts/release/plan.mjs';
+import { parseCheckArguments } from '../../../scripts/release/check-plan.mjs';
 
 const repositories: string[] = [];
 const branch = 'codex/STE-263-release-plan-contract';
@@ -114,6 +116,19 @@ describe('branch-owned release-plan contract', () => {
 });
 
 describe('release-plan operation', () => {
+	it('accepts the pnpm argument separator for documented noninteractive commands', () => {
+		expect(parsePlanArguments(['--', '--bump', 'patch'])).toEqual({
+			bump: 'patch',
+			regenerate: false,
+			reason: null
+		});
+		expect(parseCheckArguments(['--', '--branch', branch, '--base', 'origin/dev'])).toMatchObject({
+			branch,
+			baseRef: 'origin/dev',
+			headRef: 'HEAD'
+		});
+	});
+
 	it('creates once with an explicit bump and then reuses without mutation', async () => {
 		const repository = createRepository();
 		const created = await runReleasePlan({ repoRoot: repository, bump: 'patch', log: () => undefined });
