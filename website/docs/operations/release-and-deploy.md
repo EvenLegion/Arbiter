@@ -113,12 +113,13 @@ Postgres is not part of the production compose stack. Production expects an exte
 
 ### Runtime Dependency Verification
 
-Arbiter's production image targets Node.js 22.12 or newer within the Node 22 release line and installs with the repository's pinned pnpm 10 release. Dependency security checks must verify both the lockfile and the pruned runtime image:
+Arbiter's production images require Node.js 22.12.0 or newer and earlier than Node.js 23, and install with the repository's pinned pnpm 10 release. Dependency security checks must verify both the lockfile and the pruned images:
 
 1. run `pnpm audit --prod` against the workspace lockfile
-2. build the production Docker image from the committed manifest and lockfile
-3. inspect the installed package graph inside the final runtime stage
-4. confirm that patched versions are present on Discord, Postgres, Prisma, Redis, and scheduled-task paths
+2. build both the final bot runtime and migration targets from the committed manifest and lockfile
+3. record the immutable image digest for each target and verify that each reports a Node.js version in the supported range
+4. inspect the installed package graph inside both final targets
+5. confirm that patched versions are present on Discord, Postgres, Prisma, Redis, and scheduled-task paths
 
 Do not treat every package stored under pnpm's virtual store as application-reachable. Check whether the final image exposes the package through Node resolution and whether compiled runtime code imports it. Prisma peer tooling can leave helper packages in the image even when the Prisma CLI and their optional server dependencies are not resolvable at runtime.
 
