@@ -132,15 +132,22 @@ When the requested scope and required local validation are complete:
    the reason before creating another release-plan commit. Do not create a
    second plan for the same branch/worktree merely because a push is imminent.
    Do not create or update a plan for local-only work.
-8. Push the branch and open a ready-for-review PR against `dev`. Use a draft only
+8. Review every release-plan description as public-facing copy for the general
+   Even Legion Discord audience. Use detailed, plain language to explain what
+   changed, why it matters, and the practical member or operator impact. Avoid
+   repository jargon, file paths, ticket shorthand, and unexplained technical
+   terms. State clearly when the change is behind the scenes and does not alter
+   Discord commands or member behavior. If generated copy is too technical,
+   improve the existing plan entry without creating a second branch plan.
+9. Push the branch and open a ready-for-review PR against `dev`. Use a draft only
    when an unresolved decision prevents completion. Never open an ordinary
    feature PR directly against `main`.
-9. When a Linear ticket exists, add the PR link if the integration does not do
-   so automatically and move the issue to `In Review`. Never create or mutate a
-   Linear issue merely to satisfy a standalone workflow.
-10. Report whether GitHub checks have started or give their current status and
+10. When a Linear ticket exists, add the PR link if the integration does not do
+    so automatically and move the issue to `In Review`. Never create or mutate a
+    Linear issue merely to satisfy a standalone workflow.
+11. Report whether GitHub checks have started or give their current status and
     URLs. Do not poll long-running CI to completion unless the user asks.
-11. If automated reviewers are expected, use
+12. If automated reviewers are expected, use
     `ai/rules/github-review-lifecycle.md`; reviewer observation is distinct from
     CI polling.
 

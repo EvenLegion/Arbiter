@@ -198,6 +198,11 @@ The planner asks for the intended bump, writes the branch-owned plan under
 `.release-plans/`, and commits it. The full validity and release model is
 documented in [Operations](/operations/release-and-deploy).
 
+The plan descriptions become public release notes and may be posted to the Even
+Legion Discord. Write them for members who do not know the codebase: explain the
+change, why it matters, and whether it changes commands or member behavior. Do
+not use file names, ticket shorthand, or technical jargon without explanation.
+
 ## A Good Final Smell Test
 
 Before you open a PR, ask:

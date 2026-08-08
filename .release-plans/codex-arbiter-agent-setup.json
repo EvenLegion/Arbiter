@@ -15,7 +15,7 @@
 			"committedAtMs": 1786208615000,
 			"type": "docs",
 			"scope": null,
-			"description": "add Arbiter agent workflow setup",
+			"description": "Improved the behind-the-scenes guidance used to maintain Arbiter, so future updates follow consistent safety, review, documentation, and release steps. This does not change Discord commands or how the bot behaves for members.",
 			"breaking": false,
 			"section": "Maintenance"
 		}

@@ -174,5 +174,12 @@ release workflow. The release-plan script derives notes from Conventional
 Commit subjects and commits one branch-owned `.release-plans` file. Before every
 push, inspect existing plans and reuse the valid plan whose `branch` matches the
 current branch. Do not create a second release-plan commit for routine later
-commits. Detailed validity, regeneration, sequencing, and handoff rules live
-only in `ai/rules/implementation-lifecycle.md`.
+commits.
+
+Every release-plan description is public copy that can appear in the changelog,
+GitHub release, and Even Legion Discord announcement. It must give a general
+Discord member enough plain-language context to understand the change and its
+practical impact without knowing the repository, ticket, or implementation. Say
+explicitly when a behind-the-scenes change does not alter commands or member
+behavior. Detailed validity, regeneration, sequencing, copy review, and handoff
+rules live only in `ai/rules/implementation-lifecycle.md`.

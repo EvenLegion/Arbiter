@@ -69,6 +69,12 @@ do not run `pnpm release:plan` merely because another commit was added. Create a
 plan only when none exists, and regenerate it only when the existing plan is
 invalid or materially stale under `ai/rules/implementation-lifecycle.md`.
 
+Release-plan descriptions are public-facing release notes and may be posted to
+the general Even Legion Discord audience. Write them in detailed, plain language
+that explains what changed, why it matters, and whether member-facing behavior
+changes. Avoid repository jargon, file names, ticket shorthand, and unexplained
+technical terms.
+
 ## Code Review Rules
 
 - Report a defect only after proving a reachable path, violated invariant, or

@@ -51,6 +51,13 @@ Commit subjects, then run `pnpm release:plan` once. The script:
 
 If the script cannot find meaningful Conventional Commit history, it fails instead of guessing.
 
+Release-plan descriptions are user-facing. They feed the changelog, GitHub
+release notes, and optional Discord release announcement. Each description
+should explain in plain language what changed, why it matters, and what members
+or operators will notice. For maintenance-only work, say clearly that the
+change is behind the scenes and does not alter Discord commands or member
+behavior. Avoid file paths, ticket IDs, and unexplained technical terms.
+
 Regenerate an existing matching plan only when it is unreadable, names the
 wrong branch or base, records an obsolete merge base, has the wrong bump, or no
 longer represents the release-note scope. Replace that branch's plan instead of
