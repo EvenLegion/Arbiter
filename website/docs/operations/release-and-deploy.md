@@ -24,9 +24,20 @@ At a high level:
 
 ### Contributor Expectations
 
-Each working branch owns at most one release plan. Before every push from a
-working branch, inspect `.release-plans/` for a JSON plan whose recorded
-`branch` exactly matches the current branch.
+Each working branch owns exactly one release plan by the time it is pushed for
+review. Before every push from a working branch, run:
+
+```bash
+pnpm release:plan:check
+```
+
+The checker reads every JSON file under `.release-plans/` and treats the parsed
+`branch` field as authoritative. It fails when no plan or multiple plans own the
+current branch. It also checks the schema, `origin/dev` base, current merge base,
+semantic bump and target version, and recorded commit ancestry. The check is
+read-only and leaves the worktree unchanged. It deliberately does not judge the
+quality of release-note prose; contributors and reviewers remain responsible
+for the public copy.
 
 Reuse the matching plan when it:
 
@@ -41,13 +52,24 @@ valid plan stale. Do not run the planner again merely because the branch moved
 forward.
 
 If no matching plan exists, first commit the scoped work with Conventional
-Commit subjects, then run `pnpm release:plan` once. The script:
+Commit subjects, then choose the smallest intended semantic bump explicitly:
+
+```bash
+pnpm release:plan -- --bump patch
+```
+
+Use `minor` or `major` instead when the compatibility or member-facing impact
+requires it. The script:
 
 - compares your branch against `dev`
 - collects Conventional Commit subjects from the branch
-- asks which bump is intended: `patch`, `minor`, or `major`
+- uses the explicit `patch`, `minor`, or `major` bump (or prompts in an
+  interactive terminal when `--bump` is omitted)
 - writes a release-plan file under `.release-plans/`
 - commits that plan file when needed
+
+Running the same command again with an already-valid plan prints that it is
+reusing the plan and performs no writes, staging, or commits.
 
 If the script cannot find meaningful Conventional Commit history, it fails instead of guessing.
 
@@ -58,10 +80,18 @@ or operators will notice. For maintenance-only work, say clearly that the
 change is behind the scenes and does not alter Discord commands or member
 behavior. Avoid file paths, ticket IDs, and unexplained technical terms.
 
-Regenerate an existing matching plan only when it is unreadable, names the
-wrong branch or base, records an obsolete merge base, has the wrong bump, or no
-longer represents the release-note scope. Replace that branch's plan instead of
-creating a second plan for the same branch or worktree.
+Regenerate an existing matching plan only when it names the wrong base, records
+an obsolete merge base after a rebase, has the wrong bump, or no longer
+represents the release-note scope. State the reason explicitly:
+
+```bash
+pnpm release:plan -- --regenerate --bump patch --reason "the branch was rebased onto the current dev history"
+```
+
+Regeneration replaces only the plan whose parsed `branch` field owns the
+current branch. An unreadable plan or duplicate branch-owned plans cannot be
+chosen safely: repair or remove the specific bad file manually, then rerun the
+checker. The tool never creates a second plan for the branch.
 
 Good commit subjects look like:
 
@@ -219,7 +249,12 @@ The bot log stream is usually the fastest first check after deployment.
 Release workflow failures:
 
 - the planner ignored commits because the commit subjects were not Conventional Commit subjects
-- the wrong bump was selected and `pnpm release:plan` needs to be rerun
+- `pnpm release:plan:check` found no branch-owned plan; commit the scoped work,
+  then run `pnpm release:plan -- --bump patch` with the intended bump
+- the checker found duplicate branch owners or unreadable JSON; repair or remove
+  the named file and rerun the read-only check
+- the wrong bump or a rewritten merge base invalidated a plan; confirm the cause,
+  then use explicit `--regenerate`, `--bump`, and `--reason` arguments
 - the `dev` to `main` PR does not contain prepared release artifacts because the release-prep PR into `dev` was not merged
 - generated release files were edited manually instead of coming from the workflow
 

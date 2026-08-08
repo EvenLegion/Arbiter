@@ -67,10 +67,13 @@ Before high-risk implementation, apply the approval gate in
 completion rules in `ai/rules/implementation-lifecycle.md`.
 
 Before every push from a working branch, inspect `.release-plans` for a plan
-whose recorded `branch` matches the current branch. Reuse a valid existing plan;
-do not run `pnpm release:plan` merely because another commit was added. Create a
-plan only when none exists, and regenerate it only when the existing plan is
-invalid or materially stale under `ai/rules/implementation-lifecycle.md`.
+whose recorded `branch` matches the current branch, then run
+`pnpm release:plan:check`. Reuse a valid existing plan; do not run
+`pnpm release:plan` merely because another commit was added. Create a plan only
+when none exists with `pnpm release:plan -- --bump patch` (or the intended
+semantic bump), and regenerate it only when the existing plan is invalid or
+materially stale under `ai/rules/implementation-lifecycle.md`. Regeneration must
+be explicit and explain why with `--regenerate --reason`.
 
 Release-plan descriptions are public-facing release notes and may be posted to
 the general Even Legion Discord audience. Write them in detailed, plain language

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,25 +38,25 @@ export function ensureDirectory(directoryPath) {
 	}
 }
 
-export function git(args) {
+export function git(args, { repoRoot = REPO_ROOT } = {}) {
 	return execFileSync('git', args, {
-		cwd: REPO_ROOT,
+		cwd: repoRoot,
 		encoding: 'utf8'
 	}).trim();
 }
 
-export function gitRefExists(ref) {
+export function gitRefExists(ref, { repoRoot = REPO_ROOT } = {}) {
 	try {
-		git(['rev-parse', '--verify', '--quiet', ref]);
+		git(['rev-parse', '--verify', '--quiet', ref], { repoRoot });
 		return true;
 	} catch {
 		return false;
 	}
 }
 
-export function resolveBaseRef() {
+export function resolveBaseRef({ repoRoot = REPO_ROOT } = {}) {
 	for (const candidate of ['origin/dev', 'dev']) {
-		if (gitRefExists(candidate)) {
+		if (gitRefExists(candidate, { repoRoot })) {
 			return candidate;
 		}
 	}
@@ -68,8 +68,8 @@ export function sanitizeBranchName(branchName) {
 	return branchName.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-export function readPackageJson() {
-	return JSON.parse(readFileSync(PACKAGE_JSON_PATH, 'utf8'));
+export function readPackageJson({ repoRoot = REPO_ROOT } = {}) {
+	return JSON.parse(readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
 }
 
 export function writePackageJson(packageJson) {
@@ -129,9 +129,11 @@ export function parseConventionalCommit(subject, body = '') {
 	};
 }
 
-export function getBranchCommits({ baseRef }) {
-	const mergeBase = git(['merge-base', baseRef, 'HEAD']);
-	const raw = git(['log', '--reverse', '--format=%H%x1f%s%x1f%b%x1f%cI%x1e', `${mergeBase}..HEAD`]);
+export function getBranchCommits({ baseRef, headRef = 'HEAD', repoRoot = REPO_ROOT }) {
+	const mergeBase = git(['merge-base', baseRef, headRef], { repoRoot });
+	const raw = git(['log', '--reverse', '--format=%H%x1f%s%x1f%b%x1f%cI%x1e', `${mergeBase}..${headRef}`], {
+		repoRoot
+	});
 	const records = raw
 		.split('\x1e')
 		.map((entry) => entry.trim())
@@ -280,9 +282,12 @@ export function getTrackedPlanFileNames() {
 		.sort();
 }
 
-export function writeReleasePlanFile({ fileName, plan }) {
-	ensureDirectory(RELEASE_PLANS_DIR);
-	writeFileSync(path.join(RELEASE_PLANS_DIR, fileName), `${JSON.stringify(plan, null, '\t')}\n`);
+export function writeReleasePlanFile({ fileName, plan, releasePlansDir = RELEASE_PLANS_DIR }) {
+	ensureDirectory(releasePlansDir);
+	const filePath = path.join(releasePlansDir, fileName);
+	const temporaryPath = `${filePath}.tmp-${process.pid}`;
+	writeFileSync(temporaryPath, `${JSON.stringify(plan, null, '\t')}\n`);
+	renameSync(temporaryPath, filePath);
 }
 
 export function removeReleasePlanFiles(planFiles) {
