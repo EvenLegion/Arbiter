@@ -24,9 +24,9 @@ At a high level:
 
 ### Contributor Expectations
 
-Each working branch owns at most one release plan. Before every push that opens
-or updates a PR into `dev`, inspect `.release-plans/` for a JSON plan whose
-recorded `branch` exactly matches the current branch.
+Each working branch owns at most one release plan. Before every push from a
+working branch, inspect `.release-plans/` for a JSON plan whose recorded
+`branch` exactly matches the current branch.
 
 Reuse the matching plan when it:
 

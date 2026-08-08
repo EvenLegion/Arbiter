@@ -180,10 +180,10 @@ Avoid documenting:
 - deep path inventories that duplicate repository search
 - claims that only stay true if no one ever refactors
 
-## Before A PR Or Release
+## Before Every Working-Branch Push
 
-Before opening or updating a PR into `dev`, inspect `.release-plans/` for a
-plan whose recorded `branch` matches your current branch.
+Before every push from a working branch, inspect `.release-plans/` for a plan
+whose recorded `branch` matches your current branch.
 
 - Reuse that plan when it still targets `origin/dev`, records the current merge
   base, and has the intended version bump and release-note scope.
