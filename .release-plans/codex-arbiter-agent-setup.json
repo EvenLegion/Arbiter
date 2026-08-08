@@ -15,7 +15,7 @@
 			"committedAtMs": 1786208615000,
 			"type": "docs",
 			"scope": null,
-			"description": "Improved the agent guidance used to maintain Arbiter, so future updates follow consistent safety, review, documentation, and release steps.",
+			"description": "Improved the behind-the-scenes instructions used by development assistants who help maintain Arbiter. Future updates will follow the same safety checks, review process, documentation steps, and release preparation. This maintenance change does not alter Discord commands or how the bot behaves for members.",
 			"breaking": false,
 			"section": "Maintenance"
 		}
