@@ -171,5 +171,8 @@ Redis-backed event tracking, or log shipping is healthy.
 
 Feature branches merge into `dev`; `dev` is promoted to `main` through the
 release workflow. The release-plan script derives notes from Conventional
-Commit subjects and commits a `.release-plans` file. Its sequencing and handoff
-rules live only in `ai/rules/implementation-lifecycle.md`.
+Commit subjects and commits one branch-owned `.release-plans` file. Before every
+push, inspect existing plans and reuse the valid plan whose `branch` matches the
+current branch. Do not create a second release-plan commit for routine later
+commits. Detailed validity, regeneration, sequencing, and handoff rules live
+only in `ai/rules/implementation-lifecycle.md`.

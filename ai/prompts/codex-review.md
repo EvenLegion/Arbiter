@@ -59,8 +59,10 @@ review lifecycle. Produce a decision ledger for every unresolved actionable
 thread: `Accepted`, `Rejected`, or `Deferred/blocked`, with concise evidence.
 
 Patch accepted safe in-scope feedback, run proportionate checks, commit, push,
-reply/resolve decided threads, and re-fetch authoritative state. Stop for any
-required approval or material scope/product/architecture decision.
+check for and reuse the branch's valid existing release plan, reply/resolve
+decided threads, and re-fetch authoritative state. Do not regenerate the plan
+for routine review-fix commits. Stop for any required approval or material
+scope/product/architecture decision.
 
 Report the decision ledger, new head, validation, current checks, expected
 reviewer state, and any remaining actionable or gated item. Follow the canonical

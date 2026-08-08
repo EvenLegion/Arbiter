@@ -108,28 +108,42 @@ When the requested scope and required local validation are complete:
 2. For ticket-backed end-to-end work, or when the user explicitly requests
    external handoff, commit only scoped changes with Conventional Commit
    subjects. Use multiple focused commits when that improves reviewability.
-3. From the working branch, run `pnpm release:plan`. Select the smallest semantic
-   version bump compatible with the user-visible and compatibility impact unless
-   the ticket or user locks a different bump. The script compares against `dev`,
-   writes `.release-plans/<branch>.json`, and commits that file. Inspect the plan
-   before pushing. Do not run it for local-only work.
-4. Push the branch and open a ready-for-review PR against `dev`. Use a draft only
+3. Before every push, resolve the current branch and inspect
+   `.release-plans/*.json` for a plan whose `branch` exactly matches it. The
+   expected filename is the branch name with non-alphanumeric separators
+   normalized to hyphens, but the recorded `branch` field is authoritative.
+4. Reuse the existing plan without running `pnpm release:plan` when it is valid:
+   it parses, names the current branch, uses `origin/dev` as `baseRef`, records
+   the current branch's merge base with `origin/dev`, and still has the intended
+   semantic bump and release-note scope. A later routine implementation or
+   review-fix commit does not by itself make the plan stale.
+5. If no matching plan exists, run `pnpm release:plan` exactly once after the
+   scoped Conventional Commit history exists. Select the smallest semantic bump
+   compatible with user-visible and compatibility impact unless the ticket or
+   user locks another bump. Inspect the generated plan and its automatic commit.
+6. Regenerate a matching plan only when it is unreadable, records another
+   branch or base, its merge base no longer matches current `origin/dev`, its
+   bump is wrong, or later work materially changes release-note content. Explain
+   the reason before creating another release-plan commit. Do not create a
+   second plan for the same branch/worktree merely because a push is imminent.
+   Do not create or update a plan for local-only work.
+7. Push the branch and open a ready-for-review PR against `dev`. Use a draft only
    when an unresolved decision prevents completion. Never open an ordinary
    feature PR directly against `main`.
-5. When a Linear ticket exists, add the PR link if the integration does not do
+8. When a Linear ticket exists, add the PR link if the integration does not do
    so automatically and move the issue to `In Review`. Never create or mutate a
    Linear issue merely to satisfy a standalone workflow.
-6. Report whether GitHub checks have started or give their current status and
+9. Report whether GitHub checks have started or give their current status and
    URLs. Do not poll long-running CI to completion unless the user asks.
-7. If automated reviewers are expected, use
-   `ai/rules/github-review-lifecycle.md`; reviewer observation is distinct from
-   CI polling.
+10. If automated reviewers are expected, use
+    `ai/rules/github-review-lifecycle.md`; reviewer observation is distinct from
+    CI polling.
 
 For review-feedback work on an existing PR, preserve the branch's current
-release plan. Re-run `pnpm release:plan` only when an accepted fix changes the
-semantic-version classification, materially changes release-note content, or
-the plan is missing or stale; otherwise commit and push the scoped fix without
-creating release-plan churn.
+release plan. The same validity test applies: rerun `pnpm release:plan` only
+when an accepted fix changes semantic-version classification, materially
+changes release-note content, or proves the plan invalid or stale. Otherwise
+commit and push the scoped fix without release-plan churn.
 
 The `dev` to `main` release-prep and publish workflow is outside ordinary
 feature implementation. Do not open, merge, or operate that promotion path
@@ -138,8 +152,8 @@ unless the user explicitly requests release work.
 ## Delegated Fable-to-Opus review handoff
 
 When Fable is the implementation contractor, it owns the bounded ticket through
-the initial external handoff in steps 1-6 above, not the interactive review
-cycle in step 7. Fable must:
+the initial external handoff above, not the interactive reviewer-observation
+cycle. Fable must:
 
 - complete implementation, local validation, documentation and Architecture
   Record dispositions, scoped Conventional Commit(s), release plan, push,

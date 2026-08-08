@@ -63,6 +63,12 @@ Before high-risk implementation, apply the approval gate in
 `ai/rules/documentation-impact.md`, `ai/rules/architecture-records.md`, and the
 completion rules in `ai/rules/implementation-lifecycle.md`.
 
+Before every push from a working branch, inspect `.release-plans` for a plan
+whose recorded `branch` matches the current branch. Reuse a valid existing plan;
+do not run `pnpm release:plan` merely because another commit was added. Create a
+plan only when none exists, and regenerate it only when the existing plan is
+invalid or materially stale under `ai/rules/implementation-lifecycle.md`.
+
 ## Code Review Rules
 
 - Report a defect only after proving a reachable path, violated invariant, or
