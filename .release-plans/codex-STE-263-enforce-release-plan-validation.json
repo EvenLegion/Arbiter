@@ -15,7 +15,7 @@
 			"committedAtMs": 1786219239000,
 			"type": "build",
 			"scope": null,
-			"description": "enforce branch-owned release plans",
+			"description": "Added automatic checks that ensure every proposed change has one valid release plan tied to its branch. This prevents missing, duplicated, or outdated release details from reaching review and does not change Discord commands or member behavior.",
 			"breaking": false,
 			"section": "Maintenance"
 		},
@@ -26,7 +26,7 @@
 			"committedAtMs": 1786219295000,
 			"type": "fix",
 			"scope": null,
-			"description": "accept pnpm release-plan arguments",
+			"description": "Made noninteractive release planning accept the command format used by contributors and automated checks, so documented commands run reliably. This is a behind-the-scenes maintenance fix with no member-facing behavior change.",
 			"breaking": false,
 			"section": "Fixes"
 		}
