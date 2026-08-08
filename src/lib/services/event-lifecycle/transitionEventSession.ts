@@ -63,14 +63,9 @@ export type LoadedEventTransition = {
 	eventSession: EventLifecycleEventSession;
 };
 
-export type EventTransitionSideEffectResult =
-	| {
-			kind: 'completed';
-			reviewInitializationFailed: boolean;
-	  }
-	| {
-			kind: 'coordination_unavailable';
-	  };
+export type EventTransitionSideEffectResult = {
+	reviewInitializationFailed: boolean;
+};
 
 const ALLOWED_EVENT_TRANSITIONS: Record<EventSessionState, readonly EventSessionState[]> = {
 	[EventSessionState.DRAFT]: [EventSessionState.ACTIVE, EventSessionState.CANCELLED],
@@ -151,7 +146,7 @@ export async function endActiveEvent(
 		});
 	} finally {
 		await lease.stop().catch(() => undefined);
-		await deps.releaseEventSessionOperation(input.eventSessionId, lock.token);
+		await deps.releaseEventSessionOperation(input.eventSessionId, lock.token).catch(() => false);
 	}
 }
 
@@ -184,11 +179,6 @@ async function transitionEventSession(
 	}
 
 	const sideEffects = await runEventTransitionSideEffects(deps, input, persisted.eventSession, now);
-	if (sideEffects.kind === 'coordination_unavailable') {
-		return {
-			kind: 'coordination_unavailable'
-		};
-	}
 
 	if (input.toState === EventSessionState.ACTIVE) {
 		return {
@@ -301,18 +291,12 @@ async function runEventTransitionSideEffects(
 	now: Date
 ): Promise<EventTransitionSideEffectResult> {
 	if (input.toState === EventSessionState.ACTIVE && deps.startTracking) {
-		if (!(await ensureTransitionMayContinue(input))) {
-			return { kind: 'coordination_unavailable' };
-		}
 		await deps.startTracking({
 			eventSessionId: input.eventSessionId,
 			startedAtMs: now.getTime()
 		});
 	}
 	if (input.toState === EventSessionState.ENDED_PENDING_REVIEW && deps.stopTracking) {
-		if (!(await ensureTransitionMayContinue(input))) {
-			return { kind: 'coordination_unavailable' };
-		}
 		await deps.stopTracking({
 			eventSessionId: input.eventSessionId
 		});
@@ -321,9 +305,6 @@ async function runEventTransitionSideEffects(
 	if (input.toState === EventSessionState.ENDED_PENDING_REVIEW && deps.renameParentVoiceChannel) {
 		const parentVoiceChannelId = eventSession.channels.find((channel) => channel.kind === EventSessionChannelKind.PARENT_VC)?.channelId;
 		if (parentVoiceChannelId) {
-			if (!(await ensureTransitionMayContinue(input))) {
-				return { kind: 'coordination_unavailable' };
-			}
 			const rename = buildEndedParentVoiceChannelRename({
 				actor: input.actor,
 				actorTag: input.actorTag
@@ -336,26 +317,17 @@ async function runEventTransitionSideEffects(
 		}
 	}
 
-	if (!(await ensureTransitionMayContinue(input))) {
-		return { kind: 'coordination_unavailable' };
-	}
 	await deps.syncLifecyclePresentation({
 		eventSession,
 		actorDiscordUserId: input.actor.discordUserId
 	});
 
 	if (input.toState === EventSessionState.ENDED_PENDING_REVIEW && deps.postEndedEventFeedbackLinks) {
-		if (!(await ensureTransitionMayContinue(input))) {
-			return { kind: 'coordination_unavailable' };
-		}
 		await deps.postEndedEventFeedbackLinks({
 			eventSession
 		});
 	}
 
-	if (deps.initializeReview && !(await ensureTransitionMayContinue(input))) {
-		return { kind: 'coordination_unavailable' };
-	}
 	const reviewResult = deps.initializeReview
 		? await deps.initializeReview({
 				eventSessionId: eventSession.id
@@ -365,7 +337,6 @@ async function runEventTransitionSideEffects(
 			};
 
 	return {
-		kind: 'completed',
 		reviewInitializationFailed: input.toState === EventSessionState.ENDED_PENDING_REVIEW ? !reviewResult.initialized : false
 	};
 }

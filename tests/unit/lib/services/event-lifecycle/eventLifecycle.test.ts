@@ -217,7 +217,7 @@ describe('eventLifecycle', () => {
 		expect(deps.releaseEventSessionOperation).toHaveBeenCalledWith(10, 'end-token');
 	});
 
-	it('ends an active event, posts feedback links to tracked voice channels, and initializes review', async () => {
+	it('ends an active event, posts feedback links, initializes review, and preserves success when lock release rejects', async () => {
 		const lease = createOperationLease();
 		const refreshed = buildEventSession({
 			name: 'Worm Farm',
@@ -246,7 +246,7 @@ describe('eventLifecycle', () => {
 		const deps = {
 			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
 			startEventSessionOperationLease: vi.fn().mockReturnValue(lease),
-			releaseEventSessionOperation: vi.fn().mockResolvedValue(true),
+			releaseEventSessionOperation: vi.fn().mockRejectedValue(new Error('redis unavailable during release')),
 			findEventSession: vi.fn().mockResolvedValue(
 				buildEventSession({
 					state: EventSessionState.ACTIVE
@@ -293,7 +293,7 @@ describe('eventLifecycle', () => {
 		expect(deps.initializeReview).toHaveBeenCalledWith({
 			eventSessionId: 10
 		});
-		expect(lease.ensureOwned).toHaveBeenCalledTimes(7);
+		expect(lease.ensureOwned).toHaveBeenCalledTimes(2);
 		expect(deps.releaseEventSessionOperation).toHaveBeenCalledWith(10, 'end-token');
 	});
 
@@ -352,12 +352,9 @@ describe('eventLifecycle', () => {
 		expect(deps.releaseEventSessionOperation).toHaveBeenCalledWith(10, 'end-token');
 	});
 
-	it('stops End Event side effects when lease ownership is lost after the durable transition', async () => {
-		const refreshed = buildEventSession({
-			state: EventSessionState.ENDED_PENDING_REVIEW
-		});
+	it('stops End Event before the durable transition when ownership is lost after validation', async () => {
 		const lease = createOperationLease();
-		lease.ensureOwned.mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+		lease.ensureOwned.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 		const deps = {
 			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
 			startEventSessionOperationLease: vi.fn().mockReturnValue(lease),
@@ -367,8 +364,8 @@ describe('eventLifecycle', () => {
 					state: EventSessionState.ACTIVE
 				})
 			),
-			updateState: vi.fn().mockResolvedValue(true),
-			reloadEventSession: vi.fn().mockResolvedValue(refreshed),
+			updateState: vi.fn(),
+			reloadEventSession: vi.fn(),
 			stopTracking: vi.fn(),
 			renameParentVoiceChannel: vi.fn(),
 			syncLifecyclePresentation: vi.fn(),
@@ -386,7 +383,8 @@ describe('eventLifecycle', () => {
 		).resolves.toEqual({
 			kind: 'coordination_unavailable'
 		});
-		expect(deps.updateState).toHaveBeenCalledOnce();
+		expect(deps.findEventSession).toHaveBeenCalledWith(10);
+		expect(deps.updateState).not.toHaveBeenCalled();
 		expect(deps.stopTracking).not.toHaveBeenCalled();
 		expect(deps.renameParentVoiceChannel).not.toHaveBeenCalled();
 		expect(deps.syncLifecyclePresentation).not.toHaveBeenCalled();
