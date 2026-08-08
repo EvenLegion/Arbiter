@@ -180,15 +180,28 @@ Avoid documenting:
 - deep path inventories that duplicate repository search
 - claims that only stay true if no one ever refactors
 
-## Before A PR Or Release
+## Before Every Working-Branch Push
 
-Before opening or updating a PR into `dev`, run:
+Before every push from a working branch, inspect `.release-plans/` for a plan
+whose recorded `branch` matches your current branch.
 
-```bash
-pnpm release:plan
-```
+- Reuse that plan when it still targets `origin/dev`, records the current merge
+  base, and has the intended version bump and release-note scope.
+- Do not create another plan merely because you added a later implementation or
+  review-fix commit.
+- If no matching plan exists, commit the scoped work with Conventional Commit
+  subjects, then run `pnpm release:plan` once.
+- Regenerate a matching plan only when its branch, base, merge base, version
+  bump, or release-note scope is no longer valid.
 
-That script compares your branch against `dev`, reads Conventional Commit subjects, asks for the intended bump, and writes a plan file under `.release-plans/`. The full release and deployment model is documented in [Operations](/operations/release-and-deploy).
+The planner asks for the intended bump, writes the branch-owned plan under
+`.release-plans/`, and commits it. The full validity and release model is
+documented in [Operations](/operations/release-and-deploy).
+
+The plan descriptions become public release notes and may be posted to the Even
+Legion Discord. Write them for members who do not know the codebase: explain the
+change, why it matters, and whether it changes commands or member behavior. Do
+not use file names, ticket shorthand, or technical jargon without explanation.
 
 ## A Good Final Smell Test
 

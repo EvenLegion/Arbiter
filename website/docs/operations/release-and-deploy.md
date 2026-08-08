@@ -24,13 +24,24 @@ At a high level:
 
 ### Contributor Expectations
 
-Before opening or updating a PR into `dev`, run:
+Each working branch owns at most one release plan. Before every push from a
+working branch, inspect `.release-plans/` for a JSON plan whose recorded
+`branch` exactly matches the current branch.
 
-```bash
-pnpm release:plan
-```
+Reuse the matching plan when it:
 
-That script:
+- parses successfully
+- records the current branch
+- uses `origin/dev` as its base
+- records the current merge base with `origin/dev`
+- still has the intended semantic bump and release-note scope
+
+A routine later implementation or review-fix commit does not by itself make a
+valid plan stale. Do not run the planner again merely because the branch moved
+forward.
+
+If no matching plan exists, first commit the scoped work with Conventional
+Commit subjects, then run `pnpm release:plan` once. The script:
 
 - compares your branch against `dev`
 - collects Conventional Commit subjects from the branch
@@ -39,6 +50,18 @@ That script:
 - commits that plan file when needed
 
 If the script cannot find meaningful Conventional Commit history, it fails instead of guessing.
+
+Release-plan descriptions are user-facing. They feed the changelog, GitHub
+release notes, and optional Discord release announcement. Each description
+should explain in plain language what changed, why it matters, and what members
+or operators will notice. For maintenance-only work, say clearly that the
+change is behind the scenes and does not alter Discord commands or member
+behavior. Avoid file paths, ticket IDs, and unexplained technical terms.
+
+Regenerate an existing matching plan only when it is unreadable, names the
+wrong branch or base, records an obsolete merge base, has the wrong bump, or no
+longer represents the release-note scope. Replace that branch's plan instead of
+creating a second plan for the same branch or worktree.
 
 Good commit subjects look like:
 
