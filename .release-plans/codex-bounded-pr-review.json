@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "codex/bounded-pr-review",
+	"baseRef": "origin/dev",
+	"mergeBase": "599328503ea1b281a9333e5b422e471763f96efe",
+	"headRef": "64faae37f584f4687abe2d5bca963c33be08def2",
+	"generatedAt": "2026-08-08T19:20:30.675Z",
+	"bump": "patch",
+	"targetVersion": "3.3.1",
+	"commits": [
+		{
+			"sha": "64faae37f584f4687abe2d5bca963c33be08def2",
+			"subject": "docs: bound automated PR review cycles",
+			"committedAt": "2026-08-08T09:20:20-10:00",
+			"committedAtMs": 1786216820000,
+			"type": "docs",
+			"scope": null,
+			"description": "bound automated PR review cycles",
+			"breaking": false,
+			"section": "Maintenance"
+		}
+	]
+}
