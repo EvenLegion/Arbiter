@@ -181,21 +181,26 @@ Avoid documenting:
 
 ## Before Every Working-Branch Push
 
-Before every push from a working branch, inspect `.release-plans/` for a plan
-whose recorded `branch` matches your current branch.
+Before every push from a working branch, run `pnpm release:plan:check`. The
+read-only checker finds the plan by its parsed `branch` field and validates its
+schema, `origin/dev` merge base, version intent, and recorded commit ancestry.
 
 - Reuse that plan when it still targets `origin/dev`, records the current merge
   base, and has the intended version bump and release-note scope.
 - Do not create another plan merely because you added a later implementation or
   review-fix commit.
 - If no matching plan exists, commit the scoped work with Conventional Commit
-  subjects, then run `pnpm release:plan` once.
+  subjects, then run `pnpm release:plan -- --bump patch` once, substituting the
+  intended `minor` or `major` bump when appropriate.
 - Regenerate a matching plan only when its branch, base, merge base, version
-  bump, or release-note scope is no longer valid.
+  bump, or release-note scope is no longer valid. Use
+  `pnpm release:plan -- --regenerate --bump patch --reason "why replacement is required"`.
 
-The planner asks for the intended bump, writes the branch-owned plan under
-`.release-plans/`, and commits it. The full validity and release model is
-documented in [Operations](/operations/release-and-deploy).
+The planner reuses a valid plan without changing the worktree. For a missing
+plan, it writes the branch-owned file under `.release-plans/` and commits it.
+Unreadable or duplicate plans require manual repair before the tool can safely
+identify ownership. The full validity and recovery model is documented in
+[Operations](/operations/release-and-deploy).
 
 The plan descriptions become public release notes and may be posted to the Even
 Legion Discord. Write them for members who do not know the codebase: explain the

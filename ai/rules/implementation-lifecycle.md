@@ -113,25 +113,30 @@ When the requested scope and required local validation are complete:
 3. For authorized external handoff, commit only scoped changes with
    Conventional Commit subjects. Use multiple focused commits when that improves
    reviewability.
-4. Before every push, resolve the current branch and inspect
-   `.release-plans/*.json` for a plan whose `branch` exactly matches it. The
-   expected filename is the branch name with non-alphanumeric separators
-   normalized to hyphens, but the recorded `branch` field is authoritative.
-5. Reuse the existing plan without running `pnpm release:plan` when it is valid:
-   it parses, names the current branch, uses `origin/dev` as `baseRef`, records
-   the current branch's merge base with `origin/dev`, and still has the intended
-   semantic bump and release-note scope. A later routine implementation or
+4. Before every push, resolve the current branch and run
+   `pnpm release:plan:check`. The checker reads `.release-plans/*.json`, treats
+   the parsed `branch` field as authoritative, and fails when zero or multiple
+   plans own the branch. It also verifies the schema, `origin/dev` base, current
+   merge base, semantic bump and target version, and recorded commit ancestry.
+5. Reuse the existing plan without running `pnpm release:plan` when the checker
+   accepts it and its release-note scope remains intended. A recorded `headRef`
+   may be older than the current branch head; a later routine implementation or
    review-fix commit does not by itself make the plan stale.
-6. If no matching plan exists, run `pnpm release:plan` exactly once after the
-   scoped Conventional Commit history exists. Select the smallest semantic bump
-   compatible with user-visible and compatibility impact unless the ticket or
-   user locks another bump. Inspect the generated plan and its automatic commit.
-7. Regenerate a matching plan only when it is unreadable, records another
-   branch or base, its merge base no longer matches current `origin/dev`, its
-   bump is wrong, or later work materially changes release-note content. Explain
-   the reason before creating another release-plan commit. Do not create a
-   second plan for the same branch/worktree merely because a push is imminent.
-   Do not create or update a plan for local-only work.
+6. If no matching plan exists, run
+   `pnpm release:plan -- --bump patch` exactly once after the scoped Conventional
+   Commit history exists, substituting `minor` or `major` when that is the
+   smallest bump compatible with user-visible and compatibility impact or when
+   the ticket or user locks another bump. Inspect the generated plan and its
+   automatic commit. Running the same command again reuses a valid plan without
+   writing or committing anything.
+7. Repair an unreadable plan manually before rerunning the workflow because its
+   branch ownership cannot be determined safely. Regenerate a matching parsed
+   plan only when it records another branch or base, its merge base no longer
+   matches current `origin/dev`, its bump is wrong, or later work materially
+   changes release-note content. Explain the reason with
+   `pnpm release:plan -- --regenerate --bump patch --reason "why replacement is required"`.
+   Do not create a second plan for the same branch/worktree merely because a
+   push is imminent. Do not create or update a plan for local-only work.
 8. Review every release-plan description as public-facing copy for the general
    Even Legion Discord audience. Use detailed, plain language to explain what
    changed, why it matters, and the practical member or operator impact. Avoid
@@ -139,8 +144,8 @@ When the requested scope and required local validation are complete:
    terms. State clearly when the change is behind the scenes and does not alter
    Discord commands or member behavior. If generated copy is too technical,
    improve the existing plan entry without creating a second branch plan.
-   After editing a plan, rerun the applicable plan validation and commit the
-   updated plan file before continuing to step 9.
+   After editing a plan, rerun `pnpm release:plan:check` and commit the updated
+   plan file before continuing to step 9.
 9. Push the branch and open a ready-for-review PR against `dev`. Use a draft only
    when an unresolved decision prevents completion. Never open an ordinary
    feature PR directly against `main`.
