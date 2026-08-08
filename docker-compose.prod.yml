@@ -26,6 +26,7 @@ services:
       NODE_ENV: production
       REDIS_HOST: arbiter-redis
       REDIS_PORT: 6379
+      REDIS_DB: ${REDIS_DB:-0}
       LOG_FILE_PATH: /app/logs/arbiter.log
     user: ${BOT_UID:-1000}:${BOT_GID:-1000}
     volumes:

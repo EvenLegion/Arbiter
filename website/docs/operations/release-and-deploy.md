@@ -187,15 +187,18 @@ keep enough host memory available for the bot and observability containers.
 
 Scheduled-task job history is also bounded at the queue level:
 
-- completed jobs are retained for at most 24 hours and 5,000 records
-- failed jobs are retained for at most seven days and 1,000 records
+- completed jobs become eligible for removal after 24 hours, with at most 5,000
+  records retained
+- failed jobs become eligible for removal after seven days, with at most 1,000
+  records retained
 
 Both the age and count limit apply, so whichever boundary is reached first
-removes older finalized history as later jobs finish. The longer failed-job
-window preserves useful diagnostics. These limits do not target active,
-delayed, repeatable, or pending-retry jobs. Postgres remains the durable source
-of event and review truth; Redis remains transient scheduling and tracking
-state.
+selects older finalized history for removal. BullMQ performs that cleanup
+lazily: a later successful job prunes eligible completed history, and a later
+failed job prunes eligible failed history. The longer failed-job window
+preserves useful diagnostics. These limits do not target active, delayed,
+repeatable, or pending-retry jobs. Postgres remains the durable source of event
+and review truth; Redis remains transient scheduling and tracking state.
 
 ## Persistent Host Data
 
@@ -276,7 +279,7 @@ docker stats --no-stream arbiter-v3-redis
 docker compose -f docker-compose.prod.yml exec -T arbiter-redis sh -lc '
 redis_cli() {
   if [ -n "$REDIS_PASSWORD" ]; then
-    redis-cli --no-auth-warning -a "$REDIS_PASSWORD" -n "${REDIS_DB:-0}" "$@"
+    REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli -n "${REDIS_DB:-0}" "$@"
   else
     redis-cli -n "${REDIS_DB:-0}" "$@"
   fi
@@ -294,7 +297,7 @@ are sorted sets:
 docker compose -f docker-compose.prod.yml exec -T arbiter-redis sh -lc '
 redis_cli() {
   if [ -n "$REDIS_PASSWORD" ]; then
-    redis-cli --no-auth-warning -a "$REDIS_PASSWORD" -n "${REDIS_DB:-0}" "$@"
+    REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli -n "${REDIS_DB:-0}" "$@"
   else
     redis-cli -n "${REDIS_DB:-0}" "$@"
   fi
