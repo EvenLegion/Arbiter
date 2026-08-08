@@ -24,13 +24,24 @@ At a high level:
 
 ### Contributor Expectations
 
-Before opening or updating a PR into `dev`, run:
+Each working branch owns at most one release plan. Before every push that opens
+or updates a PR into `dev`, inspect `.release-plans/` for a JSON plan whose
+recorded `branch` exactly matches the current branch.
 
-```bash
-pnpm release:plan
-```
+Reuse the matching plan when it:
 
-That script:
+- parses successfully
+- records the current branch
+- uses `origin/dev` as its base
+- records the current merge base with `origin/dev`
+- still has the intended semantic bump and release-note scope
+
+A routine later implementation or review-fix commit does not by itself make a
+valid plan stale. Do not run the planner again merely because the branch moved
+forward.
+
+If no matching plan exists, first commit the scoped work with Conventional
+Commit subjects, then run `pnpm release:plan` once. The script:
 
 - compares your branch against `dev`
 - collects Conventional Commit subjects from the branch
@@ -39,6 +50,11 @@ That script:
 - commits that plan file when needed
 
 If the script cannot find meaningful Conventional Commit history, it fails instead of guessing.
+
+Regenerate an existing matching plan only when it is unreadable, names the
+wrong branch or base, records an obsolete merge base, has the wrong bump, or no
+longer represents the release-note scope. Replace that branch's plan instead of
+creating a second plan for the same branch or worktree.
 
 Good commit subjects look like:
 
