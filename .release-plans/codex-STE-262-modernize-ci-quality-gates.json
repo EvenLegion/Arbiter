@@ -15,7 +15,7 @@
 			"committedAtMs": 1786217312000,
 			"type": "ci",
 			"scope": null,
-			"description": "modernize runtime and quality gates",
+			"description": "Improved the automated checks used before Arbiter changes are merged, so outdated runs stop sooner and workflow mistakes are caught consistently. This behind-the-scenes maintenance does not change Discord commands or member behavior.",
 			"breaking": false,
 			"section": "Maintenance"
 		}
