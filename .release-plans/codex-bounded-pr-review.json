@@ -15,7 +15,7 @@
 			"committedAtMs": 1786216820000,
 			"type": "docs",
 			"scope": null,
-			"description": "Updated the automated coding assistant instructions so code reviews focus on meaningful risks and stop after a limited number of review rounds.",
+			"description": "Updated the automated coding assistant instructions so code reviews focus on meaningful risks and stop after a limited number of review rounds. This behind-the-scenes change does not alter Discord commands or member behavior.",
 			"breaking": false,
 			"section": "Maintenance"
 		}

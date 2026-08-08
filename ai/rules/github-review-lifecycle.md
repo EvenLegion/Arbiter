@@ -109,8 +109,9 @@ The goal is material risk reduction, not zero automated-review comments.
 1. Observe one automated review of the completed implementation.
 2. Decide its threads and address accepted feedback in one consolidated batch.
 3. Observe one current-head follow-up review.
-4. Decide and address any remaining high-value findings, but do not request,
-   trigger, or wait for another automated review after that push.
+4. Decide and address any remaining high-value findings. Unless the high-risk
+   third-cycle exception below applies, do not request, trigger, or wait for
+   another automated review after that push.
 
 A third automated cycle is allowed only when the preceding accepted fixes
 materially changed authorization, Postgres/Redis persistence or coordination,
