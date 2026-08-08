@@ -10,24 +10,27 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build_validation:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       POSTGRES_DOCKER_VERSION: postgres:17-alpine
       REDIS_DOCKER_VERSION: redis:7-alpine
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.11.0
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -35,17 +38,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Unit Tests
-        run: pnpm test:unit
-
-      - name: Integration Tests
-        run: pnpm test:integration
-
-      - name: Docs Build
-        run: pnpm docs:build
+      - name: Run repository checks
+        run: pnpm check
