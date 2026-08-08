@@ -26,8 +26,9 @@ named below; the user should not need to cite repository files.
   authorizes the standard scoped branch, commit, push, PR into `dev`, Arbiter
   Linear update, and review handoff in the implementation lifecycle.
   `ADDRESS_REVIEW_COMMENTS` and its routed aliases explicitly authorize scoped
-  commit, push, GitHub reply/thread resolution, and reviewer observation. Other
-  change requests authorize external handoff only when the user requests it.
+  commit, push, GitHub reply/thread resolution, and bounded reviewer
+  observation. Other change requests authorize external handoff only when the
+  user requests it.
 
 ## Source and scope
 
@@ -52,7 +53,9 @@ instructions.
   `REVIEW_ONLY`; report findings only.
 - `ADDRESS_REVIEW_COMMENTS`, `address comments`, `fix review comments`,
   `fix review feedback`, or `apply PR feedback`: use
-  `ai/prompts/codex-review.md` in `ADDRESS_REVIEW_COMMENTS`.
+  `ai/prompts/codex-review.md` in `ADDRESS_REVIEW_COMMENTS` with the standard
+  proportional review budget. Repeat-until-settled cycling requires an explicit
+  `EXHAUSTIVE_REVIEW` request.
 - `plan this feature`: use `ai/prompts/codex-architecture-interview.md` when
   unresolved decisions require an interview.
 - `create Linear tickets`: use `ai/templates/linear-ticket.md` and place the
@@ -80,6 +83,11 @@ technical terms.
 - Report a defect only after proving a reachable path, violated invariant, or
   unmet ticket requirement in the reviewed revision; suppress superficial or
   deterministic-tool findings unless they cause a concrete failure.
+- Prefer proportional risk reduction over a reviewer-clean head. Decline
+  technically possible feedback when low likelihood and consequence do not
+  justify added complexity, regression risk, or validation cost; never use this
+  tradeoff to waive guild or actor authorization, Postgres/Redis integrity,
+  idempotency, data-loss, or live-Discord safety invariants.
 - Resolve the configured guild and authorized actor before privileged Discord
   behavior. Do not trust custom IDs, caller-supplied user or guild identifiers,
   or transport-level preconditions as a substitute for workflow authorization.
