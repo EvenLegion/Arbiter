@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "codex/STE-265-event-ping",
+	"baseRef": "origin/dev",
+	"mergeBase": "02d1c53505d26b2ab93be2083be708175843e344",
+	"headRef": "9943b06addb3014bbb4db5427cb2d79b42900f7c",
+	"generatedAt": "2026-08-08T22:53:09.099Z",
+	"bump": "minor",
+	"targetVersion": "3.4.0",
+	"commits": [
+		{
+			"sha": "9943b06addb3014bbb4db5427cb2d79b42900f7c",
+			"subject": "feat: add synchronized one-use event pings",
+			"committedAt": "2026-08-08T12:52:51-10:00",
+			"committedAtMs": 1786229571000,
+			"type": "feat",
+			"scope": null,
+			"description": "add synchronized one-use event pings",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
