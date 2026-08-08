@@ -171,6 +171,12 @@ At minimum, production needs:
 - `DISCORD_GUILD_ID`
 - the Discord role and channel IDs the bot depends on
 
+Event Ping specifically requires both `EVENT_PING_CHANNEL_ID` and
+`EVENT_PING_ROLE_ID`. The bot must be able to view and send messages in the
+configured destination, access active event tracking threads and stored summary
+messages, and mention the configured role. Startup fails configuration
+validation when either Event Ping value is missing.
+
 Operationally important values also include:
 
 - log file configuration
@@ -234,6 +240,12 @@ docker compose -f docker-compose.prod.yml logs -f arbiter-bot
 ```
 
 Before running migrations against production, take a database backup or otherwise ensure you have a rollback plan for durable data.
+
+The Event Ping rollout adds a nullable receipt timestamp and requires no
+backfill. Apply the additive migration and set both Event Ping environment
+values before starting the new bot image. A rollback may restore the prior bot
+image and environment while leaving the nullable column in place. Removing the
+column is destructive and is not part of the normal rollback.
 
 ## Normal Update Deploy
 

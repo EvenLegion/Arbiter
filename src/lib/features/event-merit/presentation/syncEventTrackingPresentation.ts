@@ -26,10 +26,12 @@ export type EventTrackingPresentationSession = Prisma.EventGetPayload<{
 export async function syncEventTrackingSummaryPresentation({
 	guild,
 	eventSession,
+	eventPingInProgress = false,
 	logger
 }: {
 	guild: Guild;
 	eventSession: EventTrackingPresentationSession;
+	eventPingInProgress?: boolean;
 	logger: {
 		warn: (...values: readonly unknown[]) => void;
 	};
@@ -46,7 +48,9 @@ export async function syncEventTrackingSummaryPresentation({
 		hostDiscordUserId: eventSession.hostUser.discordUserId,
 		trackedChannelIds: trackedVoiceChannelIds,
 		trackingThreadId: eventSession.threadId,
-		state: eventSession.state
+		state: eventSession.state,
+		eventPingSentAt: eventSession.eventPingSentAt,
+		eventPingInProgress
 	});
 
 	const summaryMessageRefs = await eventRepository.listSessionMessages({
@@ -54,8 +58,9 @@ export async function syncEventTrackingSummaryPresentation({
 		kinds: [EventSessionMessageKind.TRACKING_SUMMARY, EventSessionMessageKind.TRACKING_SUMMARY_PARENT_VC]
 	});
 
+	let updatedCount = 0;
 	for (const summaryRef of summaryMessageRefs) {
-		await editReferencedMessage({
+		const updated = await editReferencedMessage({
 			guild,
 			channelId: summaryRef.channelId,
 			messageId: summaryRef.messageId,
@@ -66,7 +71,16 @@ export async function syncEventTrackingSummaryPresentation({
 				eventSessionId: eventSession.id
 			}
 		});
+		if (updated) {
+			updatedCount += 1;
+		}
 	}
+
+	return {
+		attemptedCount: summaryMessageRefs.length,
+		updatedCount,
+		failedCount: summaryMessageRefs.length - updatedCount
+	};
 }
 
 export async function postDraftEventTrackingSummaryPresentation({

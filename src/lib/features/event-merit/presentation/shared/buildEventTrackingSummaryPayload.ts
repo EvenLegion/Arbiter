@@ -1,6 +1,7 @@
 import { EventSessionState } from '@prisma/client';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { buildEventStartButtonId } from '../../session/buttons/eventStartButtonCustomId';
+import { buildEventPingButtonCustomId } from '../../session/event-ping/eventPingButtonCustomId';
 import { buildEventTrackingSummaryEmbed } from './buildEventTrackingSummaryEmbed';
 
 type BuildEventTrackingSummaryPayloadParams = {
@@ -12,6 +13,8 @@ type BuildEventTrackingSummaryPayloadParams = {
 	trackedChannelIds: string[];
 	trackingThreadId: string | null;
 	state: EventSessionState;
+	eventPingSentAt?: Date | null;
+	eventPingInProgress?: boolean;
 };
 
 export function buildEventTrackingSummaryPayload({
@@ -22,7 +25,9 @@ export function buildEventTrackingSummaryPayload({
 	hostDiscordUserId,
 	trackedChannelIds,
 	trackingThreadId,
-	state
+	state,
+	eventPingSentAt = null,
+	eventPingInProgress = false
 }: BuildEventTrackingSummaryPayloadParams) {
 	const embed = buildEventTrackingSummaryEmbed({
 		eventSessionId,
@@ -57,7 +62,12 @@ export function buildEventTrackingSummaryPayload({
 			new ButtonBuilder()
 				.setCustomId(buildEventStartButtonId({ action: 'end', eventSessionId }))
 				.setLabel('End Event')
-				.setStyle(ButtonStyle.Danger)
+				.setStyle(ButtonStyle.Danger),
+			new ButtonBuilder()
+				.setCustomId(buildEventPingButtonCustomId(eventSessionId))
+				.setLabel('Event Ping')
+				.setStyle(ButtonStyle.Primary)
+				.setDisabled(eventPingInProgress || eventPingSentAt !== null)
 		);
 		return {
 			embeds: [embed],

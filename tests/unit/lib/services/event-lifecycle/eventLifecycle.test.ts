@@ -193,6 +193,8 @@ describe('eventLifecycle', () => {
 
 	it('rejects ending an event that is not currently active', async () => {
 		const deps = {
+			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
+			releaseEventSessionOperation: vi.fn().mockResolvedValue(true),
 			findEventSession: vi.fn().mockResolvedValue(buildEventSession()),
 			updateState: vi.fn(),
 			reloadEventSession: vi.fn(),
@@ -211,6 +213,7 @@ describe('eventLifecycle', () => {
 			currentState: EventSessionState.DRAFT
 		});
 		expect(deps.updateState).not.toHaveBeenCalled();
+		expect(deps.releaseEventSessionOperation).toHaveBeenCalledWith(10, 'end-token');
 	});
 
 	it('ends an active event, posts feedback links to tracked voice channels, and initializes review', async () => {
@@ -239,6 +242,8 @@ describe('eventLifecycle', () => {
 			]
 		});
 		const deps = {
+			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
+			releaseEventSessionOperation: vi.fn().mockResolvedValue(true),
 			findEventSession: vi.fn().mockResolvedValue(
 				buildEventSession({
 					state: EventSessionState.ACTIVE
@@ -285,6 +290,61 @@ describe('eventLifecycle', () => {
 		expect(deps.initializeReview).toHaveBeenCalledWith({
 			eventSessionId: 10
 		});
+		expect(deps.releaseEventSessionOperation).toHaveBeenCalledWith(10, 'end-token');
+	});
+
+	it('prevents End Event from crossing an in-flight Event Ping operation', async () => {
+		const deps = {
+			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'busy' }),
+			releaseEventSessionOperation: vi.fn(),
+			findEventSession: vi.fn(),
+			updateState: vi.fn(),
+			reloadEventSession: vi.fn(),
+			syncLifecyclePresentation: vi.fn(),
+			now: vi.fn()
+		};
+
+		await expect(
+			endActiveEvent(deps, {
+				actor: buildActor(),
+				actorTag: 'Reviewer#1234',
+				eventSessionId: 10
+			})
+		).resolves.toEqual({
+			kind: 'concurrency_conflict'
+		});
+		expect(deps.findEventSession).not.toHaveBeenCalled();
+		expect(deps.releaseEventSessionOperation).not.toHaveBeenCalled();
+	});
+
+	it('rejects an unauthorized End Event caller before acquiring coordination state', async () => {
+		const deps = {
+			acquireEventSessionOperation: vi.fn(),
+			releaseEventSessionOperation: vi.fn(),
+			findEventSession: vi.fn(),
+			updateState: vi.fn(),
+			reloadEventSession: vi.fn(),
+			syncLifecyclePresentation: vi.fn(),
+			now: vi.fn()
+		};
+
+		await expect(
+			endActiveEvent(deps, {
+				actor: {
+					...buildActor(),
+					capabilities: {
+						isStaff: false,
+						isCenturion: false,
+						isOptio: false
+					}
+				},
+				actorTag: 'Unauthorized#1234',
+				eventSessionId: 10
+			})
+		).resolves.toEqual({
+			kind: 'forbidden'
+		});
+		expect(deps.acquireEventSessionOperation).not.toHaveBeenCalled();
 	});
 
 	it('initializes review participants and reports when the review message could not sync', async () => {
@@ -466,6 +526,7 @@ function buildEventSession(overrides: Partial<EventLifecycleEventSession> = {}):
 		hostUserId: 'host-db-user',
 		eventTierId: 1,
 		startedAt: null,
+		eventPingSentAt: null,
 		endedAt: null,
 		reviewFinalizedAt: null,
 		reviewFinalizedByUserId: null,

@@ -25,6 +25,8 @@ export type TransitionEventSessionDeps = {
 export type TransitionEventSessionResult =
 	| { kind: 'forbidden' }
 	| { kind: 'event_not_found' }
+	| { kind: 'concurrency_conflict' }
+	| { kind: 'coordination_unavailable' }
 	| { kind: 'invalid_state'; currentState: EventSessionState }
 	| { kind: 'state_conflict' }
 	| { kind: 'event_missing_after_transition' }
@@ -38,6 +40,13 @@ export type TransitionEventSessionWorkflowInput = {
 	fromState: EventSessionState;
 	toState: Extract<EventSessionState, 'ACTIVE' | 'CANCELLED' | 'ENDED_PENDING_REVIEW'>;
 	actorTag?: string;
+};
+
+type EndActiveEventDeps = TransitionEventSessionDeps & {
+	acquireEventSessionOperation: (
+		eventSessionId: number
+	) => Promise<{ kind: 'acquired'; token: string } | { kind: 'busy' } | { kind: 'unavailable' }>;
+	releaseEventSessionOperation: (eventSessionId: number, token: string) => Promise<boolean>;
 };
 
 export type PersistTransitionInput = Pick<TransitionEventSessionWorkflowInput, 'eventSessionId' | 'fromState' | 'toState'>;
@@ -90,20 +99,37 @@ export async function cancelDraftEvent(
 }
 
 export async function endActiveEvent(
-	deps: TransitionEventSessionDeps,
+	deps: EndActiveEventDeps,
 	input: {
 		actor: ActorContext;
 		actorTag: string;
 		eventSessionId: number;
 	}
 ): Promise<TransitionEventSessionResult> {
-	return transitionEventSession(deps, {
-		actor: input.actor,
-		actorTag: input.actorTag,
-		eventSessionId: input.eventSessionId,
-		fromState: EventSessionState.ACTIVE,
-		toState: EventSessionState.ENDED_PENDING_REVIEW
-	});
+	if (!hasStaffOrCenturionEquivalentCapability(input.actor.capabilities)) {
+		return {
+			kind: 'forbidden'
+		};
+	}
+
+	const lock = await deps.acquireEventSessionOperation(input.eventSessionId);
+	if (lock.kind !== 'acquired') {
+		return {
+			kind: lock.kind === 'busy' ? 'concurrency_conflict' : 'coordination_unavailable'
+		};
+	}
+
+	try {
+		return await transitionEventSession(deps, {
+			actor: input.actor,
+			actorTag: input.actorTag,
+			eventSessionId: input.eventSessionId,
+			fromState: EventSessionState.ACTIVE,
+			toState: EventSessionState.ENDED_PENDING_REVIEW
+		});
+	} finally {
+		await deps.releaseEventSessionOperation(input.eventSessionId, lock.token);
+	}
 }
 
 async function transitionEventSession(
