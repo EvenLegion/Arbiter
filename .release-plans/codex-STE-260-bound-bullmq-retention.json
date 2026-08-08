@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "codex/STE-260-bound-bullmq-retention",
+	"baseRef": "origin/dev",
+	"mergeBase": "4f97773360e2e7d03c33d5d6af11597b18513894",
+	"headRef": "936e55b841f6174e0371dc189478a93fe1c50a7b",
+	"generatedAt": "2026-08-08T20:54:52.152Z",
+	"bump": "patch",
+	"targetVersion": "3.3.1",
+	"commits": [
+		{
+			"sha": "936e55b841f6174e0371dc189478a93fe1c50a7b",
+			"subject": "fix: bound scheduled-task queue retention",
+			"committedAt": "2026-08-08T10:54:39-10:00",
+			"committedAtMs": 1786222479000,
+			"type": "fix",
+			"scope": null,
+			"description": "Limited finished background-task history to 5,000 successful runs with a 24-hour cleanup window and 1,000 failed runs with a seven-day cleanup window, and increased Redis's default memory allowance to 1 GiB. This prevents old scheduler records from exhausting memory and interrupting event attendance tracking. Operators also gain safer health and rollback checks. Discord commands and normal member interactions are unchanged.",
+			"breaking": false,
+			"section": "Fixes"
+		}
+	]
+}
