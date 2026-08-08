@@ -276,9 +276,9 @@ docker stats --no-stream arbiter-v3-redis
 docker compose -f docker-compose.prod.yml exec -T arbiter-redis sh -lc '
 redis_cli() {
   if [ -n "$REDIS_PASSWORD" ]; then
-    redis-cli --no-auth-warning -a "$REDIS_PASSWORD" "$@"
+    redis-cli --no-auth-warning -a "$REDIS_PASSWORD" -n "${REDIS_DB:-0}" "$@"
   else
-    redis-cli "$@"
+    redis-cli -n "${REDIS_DB:-0}" "$@"
   fi
 }
 redis_cli INFO memory | grep -E "^(used_memory_human|maxmemory_human|mem_fragmentation_ratio):"
@@ -294,9 +294,9 @@ are sorted sets:
 docker compose -f docker-compose.prod.yml exec -T arbiter-redis sh -lc '
 redis_cli() {
   if [ -n "$REDIS_PASSWORD" ]; then
-    redis-cli --no-auth-warning -a "$REDIS_PASSWORD" "$@"
+    redis-cli --no-auth-warning -a "$REDIS_PASSWORD" -n "${REDIS_DB:-0}" "$@"
   else
-    redis-cli "$@"
+    redis-cli -n "${REDIS_DB:-0}" "$@"
   fi
 }
 printf "completed="; redis_cli ZCARD bull:scheduled-tasks:completed
@@ -324,9 +324,12 @@ After an approved deployment:
 
 If bot readiness, repeat scheduling, event-tracking ticks, or Redis health
 regresses, redeploy the retained prior bot image and restore the prior approved
-environment configuration. Recreate only the affected bot and Redis services;
-do not delete the Redis data directory. This stops future pruning under the new
-policy, but finalized history already removed by retention cannot be restored.
+application configuration, but keep `REDIS_MEM_LIMIT` at 1 GiB or the current
+higher value. Lower that limit only when fresh memory measurements explicitly
+prove the smaller ceiling safe. Recreate the bot by default; recreate Redis only
+for a separately approved Redis-specific correction. Do not delete the Redis
+data directory. Rolling back the bot stops future pruning under the new policy,
+but finalized history already removed by retention cannot be restored.
 
 ## Common Failure Modes
 
