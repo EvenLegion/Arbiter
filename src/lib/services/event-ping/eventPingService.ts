@@ -35,9 +35,15 @@ export type EventPingResult = {
 
 type AcquireEventPingLockResult = { kind: 'acquired'; token: string } | { kind: 'busy' } | { kind: 'unavailable' };
 
+type EventSessionOperationLease = {
+	ensureOwned: () => Promise<boolean>;
+	stop: () => Promise<void>;
+};
+
 export type EventPingServiceDeps = {
 	findEventSession: (eventSessionId: number) => Promise<EventPingSession | null>;
 	acquireEventSessionOperation: (eventSessionId: number) => Promise<AcquireEventPingLockResult>;
+	startEventSessionOperationLease: (eventSessionId: number, token: string) => EventSessionOperationLease;
 	releaseEventSessionOperation: (eventSessionId: number, token: string) => Promise<boolean>;
 	syncSummary: (eventSession: EventPingSession, eventPingInProgress: boolean) => Promise<{ failedCount: number }>;
 	sendAnnouncement: (params: { eventSession: EventPingSession; parentVoiceChannelId: string }) => Promise<boolean>;
@@ -67,6 +73,7 @@ export async function sendEventPing(deps: EventPingServiceDeps, input: { actor: 
 		return result;
 	}
 
+	const lease = deps.startEventSessionOperationLease(input.eventSessionId, lock.token);
 	const result = createResult('coordination_unavailable');
 	try {
 		const eventSession = await deps.findEventSession(input.eventSessionId);
@@ -96,6 +103,13 @@ export async function sendEventPing(deps: EventPingServiceDeps, input: { actor: 
 		}
 
 		await appendSummarySyncResult(deps, eventSession, true, 'disable_summary_sync', result);
+		const stillOwnsOperation = await lease.ensureOwned().catch(() => false);
+		if (!stillOwnsOperation) {
+			result.kind = 'coordination_unavailable';
+			await appendSummarySyncResult(deps, eventSession, false, 'restore_summary_sync', result);
+			await appendAuditResult(deps, eventSession, input.actor.discordUserId, result);
+			return result;
+		}
 
 		const announcementSent = await deps
 			.sendAnnouncement({
@@ -125,10 +139,11 @@ export async function sendEventPing(deps: EventPingServiceDeps, input: { actor: 
 					eventPingSentAt: sentAt
 				}
 			: eventSession;
-		await appendSummarySyncResult(deps, presentationSession, false, 'restore_summary_sync', result);
+		await appendSummarySyncResult(deps, presentationSession, !receiptPersisted, 'restore_summary_sync', result);
 		await appendAuditResult(deps, presentationSession, input.actor.discordUserId, result);
 		return result;
 	} finally {
+		await lease.stop().catch(() => undefined);
 		const released = await deps.releaseEventSessionOperation(input.eventSessionId, lock.token).catch(() => false);
 		if (!released) {
 			result.secondaryFailures.push('lock_release');

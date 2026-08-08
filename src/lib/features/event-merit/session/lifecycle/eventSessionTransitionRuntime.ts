@@ -3,7 +3,11 @@ import type { ButtonInteraction, Guild } from 'discord.js';
 import { randomUUID } from 'node:crypto';
 
 import { startTrackingSession, stopTrackingSession } from '../../../../../integrations/redis/eventTracking';
-import { acquireEventSessionOperationLock, releaseEventSessionOperationLock } from '../../../../../integrations/redis/eventSessionOperationLock';
+import {
+	acquireEventSessionOperationLock,
+	releaseEventSessionOperationLock,
+	startEventSessionOperationLockLease
+} from '../../../../../integrations/redis/eventSessionOperationLock';
 import { eventRepository } from '../../../../../integrations/prisma/repositories';
 import { createChildExecutionContext, type ExecutionContext } from '../../../../logging/executionContext';
 import { toErrorLogFields } from '../../../../logging/errorDetails';
@@ -56,6 +60,20 @@ export function createEventSessionTransitionRuntime({
 					} as const;
 				});
 		},
+		startEventSessionOperationLease: (eventSessionId: number, token: string) =>
+			startEventSessionOperationLockLease({
+				eventSessionId,
+				token,
+				onRenewalError: (error) => {
+					logger.warn(
+						{
+							...toErrorLogFields(error),
+							eventSessionId
+						},
+						'Failed to renew event-session operation lock for End Event'
+					);
+				}
+			}),
 		releaseEventSessionOperation: (eventSessionId: number, token: string) =>
 			releaseEventSessionOperationLock({
 				eventSessionId,

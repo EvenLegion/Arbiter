@@ -46,6 +46,13 @@ type EndActiveEventDeps = TransitionEventSessionDeps & {
 	acquireEventSessionOperation: (
 		eventSessionId: number
 	) => Promise<{ kind: 'acquired'; token: string } | { kind: 'busy' } | { kind: 'unavailable' }>;
+	startEventSessionOperationLease: (
+		eventSessionId: number,
+		token: string
+	) => {
+		ensureOwned: () => Promise<boolean>;
+		stop: () => Promise<void>;
+	};
 	releaseEventSessionOperation: (eventSessionId: number, token: string) => Promise<boolean>;
 };
 
@@ -119,7 +126,15 @@ export async function endActiveEvent(
 		};
 	}
 
+	const lease = deps.startEventSessionOperationLease(input.eventSessionId, lock.token);
 	try {
+		const stillOwnsOperation = await lease.ensureOwned().catch(() => false);
+		if (!stillOwnsOperation) {
+			return {
+				kind: 'coordination_unavailable'
+			};
+		}
+
 		return await transitionEventSession(deps, {
 			actor: input.actor,
 			actorTag: input.actorTag,
@@ -128,6 +143,7 @@ export async function endActiveEvent(
 			toState: EventSessionState.ENDED_PENDING_REVIEW
 		});
 	} finally {
+		await lease.stop().catch(() => undefined);
 		await deps.releaseEventSessionOperation(input.eventSessionId, lock.token);
 	}
 }

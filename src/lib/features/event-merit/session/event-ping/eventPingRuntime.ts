@@ -4,7 +4,11 @@ import type { Guild } from 'discord.js';
 
 import { ENV_DISCORD } from '../../../../../config/env';
 import { eventRepository } from '../../../../../integrations/prisma/repositories';
-import { acquireEventSessionOperationLock, releaseEventSessionOperationLock } from '../../../../../integrations/redis/eventSessionOperationLock';
+import {
+	acquireEventSessionOperationLock,
+	releaseEventSessionOperationLock,
+	startEventSessionOperationLockLease
+} from '../../../../../integrations/redis/eventSessionOperationLock';
 import type { EventPingServiceDeps } from '../../../../services/event-ping';
 import { EVENT_LIFECYCLE_SESSION_INCLUDE } from '../../../../services/event-lifecycle';
 import { toErrorLogFields } from '../../../../logging/errorDetails';
@@ -46,6 +50,20 @@ export function createEventPingRuntime({
 					} as const;
 				});
 		},
+		startEventSessionOperationLease: (eventSessionId, token) =>
+			startEventSessionOperationLockLease({
+				eventSessionId,
+				token,
+				onRenewalError: (error) => {
+					logger.warn(
+						{
+							...toErrorLogFields(error),
+							eventSessionId
+						},
+						'Failed to renew event-session operation lock'
+					);
+				}
+			}),
 		releaseEventSessionOperation: (eventSessionId, token) =>
 			releaseEventSessionOperationLock({
 				eventSessionId,

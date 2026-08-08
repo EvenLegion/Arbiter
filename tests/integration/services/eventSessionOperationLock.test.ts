@@ -7,7 +7,9 @@ describe('event-session operation lock integration', () => {
 	let redisUrl: string;
 	let redisContainer: Awaited<ReturnType<typeof startRedisTestContainer>>['redis'];
 	let acquireEventSessionOperationLock: typeof import('../../../src/integrations/redis/eventSessionOperationLock').acquireEventSessionOperationLock;
+	let renewEventSessionOperationLock: typeof import('../../../src/integrations/redis/eventSessionOperationLock').renewEventSessionOperationLock;
 	let releaseEventSessionOperationLock: typeof import('../../../src/integrations/redis/eventSessionOperationLock').releaseEventSessionOperationLock;
+	let startEventSessionOperationLockLease: typeof import('../../../src/integrations/redis/eventSessionOperationLock').startEventSessionOperationLockLease;
 	let closeRedisClient: typeof import('../../../src/integrations/redis/client').closeRedisClient;
 
 	beforeAll(async () => {
@@ -16,7 +18,7 @@ describe('event-session operation lock integration', () => {
 		redisUrl = started.redisUrl;
 		applyRedisTestEnv(redisUrl);
 		vi.resetModules();
-		({ acquireEventSessionOperationLock, releaseEventSessionOperationLock } =
+		({ acquireEventSessionOperationLock, renewEventSessionOperationLock, releaseEventSessionOperationLock, startEventSessionOperationLockLease } =
 			await import('../../../src/integrations/redis/eventSessionOperationLock'));
 		({ closeRedisClient } = await import('../../../src/integrations/redis/client'));
 	});
@@ -72,6 +74,59 @@ describe('event-session operation lock integration', () => {
 				ttlMs: 1_000
 			})
 		).resolves.toBe(true);
+	});
+
+	it('allows only the token owner to renew the lock', async () => {
+		await expect(
+			acquireEventSessionOperationLock({
+				eventSessionId: 45,
+				token: 'owner-token',
+				ttlMs: 1_000
+			})
+		).resolves.toBe(true);
+
+		await expect(
+			renewEventSessionOperationLock({
+				eventSessionId: 45,
+				token: 'other-token',
+				ttlMs: 1_000
+			})
+		).resolves.toBe(false);
+		await expect(
+			renewEventSessionOperationLock({
+				eventSessionId: 45,
+				token: 'owner-token',
+				ttlMs: 1_000
+			})
+		).resolves.toBe(true);
+	});
+
+	it('keeps a token-owned lease exclusive beyond its original TTL', async () => {
+		await expect(
+			acquireEventSessionOperationLock({
+				eventSessionId: 46,
+				token: 'lease-token',
+				ttlMs: 100
+			})
+		).resolves.toBe(true);
+		const lease = startEventSessionOperationLockLease({
+			eventSessionId: 46,
+			token: 'lease-token',
+			ttlMs: 100,
+			renewIntervalMs: 20
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 180));
+
+		await expect(
+			acquireEventSessionOperationLock({
+				eventSessionId: 46,
+				token: 'competing-token',
+				ttlMs: 1_000
+			})
+		).resolves.toBe(false);
+		await lease.stop();
+		await expect(releaseEventSessionOperationLock({ eventSessionId: 46, token: 'lease-token' })).resolves.toBe(true);
 	});
 
 	it('recovers after an expired lock holder', async () => {

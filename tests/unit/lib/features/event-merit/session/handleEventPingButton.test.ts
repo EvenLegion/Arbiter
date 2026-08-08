@@ -74,7 +74,7 @@ describe('handleEventPingButton', () => {
 				capabilityRequirement: 'staff-or-centurion'
 			})
 		);
-		expect(mocks.resolveInteractionActor.mock.calls[0][0]).not.toHaveProperty('resolveDbUser', true);
+		expect(mocks.resolveInteractionActor.mock.calls[0][0]).not.toHaveProperty('resolveDbUser');
 		expect(responder.deferEphemeralReply).toHaveBeenCalledBefore(mocks.sendEventPing);
 		expect(mocks.sendEventPing).toHaveBeenCalledWith(
 			{ runtime: true },
@@ -84,6 +84,46 @@ describe('handleEventPingButton', () => {
 			}
 		);
 		expect(responder.safeEditReply).toHaveBeenCalledWith({ content: 'Event Ping sent successfully.' });
+	});
+
+	it('warns distinctly when announcement infrastructure rejects delivery', async () => {
+		const responder = {
+			deferEphemeralReply: vi.fn().mockResolvedValue(undefined),
+			safeEditReply: vi.fn().mockResolvedValue(undefined),
+			fail: vi.fn()
+		};
+		const logger = createLogger();
+		mocks.createInteractionResponder.mockReturnValue(responder);
+		mocks.resolveConfiguredGuild.mockResolvedValue({ id: 'guild-42' });
+		mocks.resolveInteractionActor.mockResolvedValue({
+			actor: {
+				discordUserId: 'actor-42',
+				dbUserId: null,
+				capabilities: { isStaff: true, isCenturion: false, isOptio: false }
+			}
+		});
+		mocks.createEventPingRuntime.mockReturnValue({ runtime: true });
+		mocks.sendEventPing.mockResolvedValue({ kind: 'announcement_failed', secondaryFailures: [] });
+		mocks.presentEventPingResult.mockReturnValue({ content: 'Event Ping was not sent.' });
+
+		await handleEventPingButton({
+			interaction: {
+				user: { id: 'actor-42', tag: 'actor#0042' }
+			} as never,
+			parsedEventPingButton: { action: 'send', eventSessionId: 42 },
+			context: {
+				requestId: 'req-42',
+				logger: { child: vi.fn(() => logger) }
+			} as never
+		});
+
+		expect(logger.warn).toHaveBeenCalledWith(
+			expect.objectContaining({
+				eventSessionId: 42,
+				resultKind: 'announcement_failed'
+			}),
+			'event.ping.infrastructure_failed'
+		);
 	});
 });
 

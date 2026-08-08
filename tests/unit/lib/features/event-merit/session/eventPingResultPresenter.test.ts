@@ -40,4 +40,18 @@ describe('presentEventPingResult', () => {
 		expect(content).toContain('controls did not fully synchronize');
 		expect(content).toContain('req-3');
 	});
+
+	it('reports incomplete tracking updates after a successful send', () => {
+		const content = presentEventPingResult(
+			{
+				kind: 'sent',
+				secondaryFailures: ['audit']
+			},
+			'req-4'
+		).content;
+
+		expect(content).toContain('Event Ping sent successfully.');
+		expect(content).toContain('did not complete');
+		expect(content).toContain('req-4');
+	});
 });

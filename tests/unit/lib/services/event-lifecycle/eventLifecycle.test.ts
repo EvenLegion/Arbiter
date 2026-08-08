@@ -194,6 +194,7 @@ describe('eventLifecycle', () => {
 	it('rejects ending an event that is not currently active', async () => {
 		const deps = {
 			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
+			startEventSessionOperationLease: vi.fn().mockReturnValue(createOperationLease()),
 			releaseEventSessionOperation: vi.fn().mockResolvedValue(true),
 			findEventSession: vi.fn().mockResolvedValue(buildEventSession()),
 			updateState: vi.fn(),
@@ -243,6 +244,7 @@ describe('eventLifecycle', () => {
 		});
 		const deps = {
 			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
+			startEventSessionOperationLease: vi.fn().mockReturnValue(createOperationLease()),
 			releaseEventSessionOperation: vi.fn().mockResolvedValue(true),
 			findEventSession: vi.fn().mockResolvedValue(
 				buildEventSession({
@@ -296,6 +298,7 @@ describe('eventLifecycle', () => {
 	it('prevents End Event from crossing an in-flight Event Ping operation', async () => {
 		const deps = {
 			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'busy' }),
+			startEventSessionOperationLease: vi.fn(),
 			releaseEventSessionOperation: vi.fn(),
 			findEventSession: vi.fn(),
 			updateState: vi.fn(),
@@ -317,9 +320,40 @@ describe('eventLifecycle', () => {
 		expect(deps.releaseEventSessionOperation).not.toHaveBeenCalled();
 	});
 
+	it('stops End Event before durable transition when lease ownership is lost', async () => {
+		const lease = createOperationLease();
+		lease.ensureOwned.mockResolvedValue(false);
+		const deps = {
+			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
+			startEventSessionOperationLease: vi.fn().mockReturnValue(lease),
+			releaseEventSessionOperation: vi.fn().mockResolvedValue(true),
+			findEventSession: vi.fn(),
+			updateState: vi.fn(),
+			reloadEventSession: vi.fn(),
+			syncLifecyclePresentation: vi.fn(),
+			now: vi.fn()
+		};
+
+		await expect(
+			endActiveEvent(deps, {
+				actor: buildActor(),
+				actorTag: 'Reviewer#1234',
+				eventSessionId: 10
+			})
+		).resolves.toEqual({
+			kind: 'coordination_unavailable'
+		});
+		expect(deps.startEventSessionOperationLease).toHaveBeenCalledWith(10, 'end-token');
+		expect(deps.findEventSession).not.toHaveBeenCalled();
+		expect(deps.updateState).not.toHaveBeenCalled();
+		expect(lease.stop).toHaveBeenCalledOnce();
+		expect(deps.releaseEventSessionOperation).toHaveBeenCalledWith(10, 'end-token');
+	});
+
 	it('rejects an unauthorized End Event caller before acquiring coordination state', async () => {
 		const deps = {
 			acquireEventSessionOperation: vi.fn(),
+			startEventSessionOperationLease: vi.fn(),
 			releaseEventSessionOperation: vi.fn(),
 			findEventSession: vi.fn(),
 			updateState: vi.fn(),
@@ -514,6 +548,13 @@ function buildActor() {
 			isCenturion: false,
 			isOptio: false
 		}
+	};
+}
+
+function createOperationLease() {
+	return {
+		ensureOwned: vi.fn().mockResolvedValue(true),
+		stop: vi.fn().mockResolvedValue(undefined)
 	};
 }
 

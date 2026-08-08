@@ -100,6 +100,8 @@ export async function handleEventPingButton({
 		logger.info(logBindings, 'event.ping.succeeded');
 	} else if (result.kind === 'sent' || result.kind === 'receipt_failed' || result.secondaryFailures.length > 0) {
 		logger.warn(logBindings, 'event.ping.partial');
+	} else if (result.kind === 'announcement_failed' || result.kind === 'coordination_unavailable') {
+		logger.warn(logBindings, 'event.ping.infrastructure_failed');
 	} else {
 		logger.info(logBindings, 'event.ping.rejected');
 	}

@@ -11,6 +11,10 @@ describe('sendEventPing', () => {
 		deps = {
 			findEventSession: vi.fn().mockResolvedValue(session),
 			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'token-1' }),
+			startEventSessionOperationLease: vi.fn().mockReturnValue({
+				ensureOwned: vi.fn().mockResolvedValue(true),
+				stop: vi.fn().mockResolvedValue(undefined)
+			}),
 			releaseEventSessionOperation: vi.fn().mockResolvedValue(true),
 			syncSummary: vi.fn().mockResolvedValue({ failedCount: 0 }),
 			sendAnnouncement: vi.fn().mockResolvedValue(true),
@@ -31,6 +35,7 @@ describe('sendEventPing', () => {
 			secondaryFailures: []
 		});
 		expect(deps.acquireEventSessionOperation).toHaveBeenCalledWith(42);
+		expect(deps.startEventSessionOperationLease).toHaveBeenCalledWith(42, 'token-1');
 		expect(deps.syncSummary).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: 42, eventPingSentAt: null }), true);
 		expect(deps.sendAnnouncement).toHaveBeenCalledWith({
 			eventSession: expect.objectContaining({ id: 42 }),
@@ -69,7 +74,7 @@ describe('sendEventPing', () => {
 			secondaryFailures: []
 		});
 		expect(deps.postAudit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'receipt_failed' }));
-		expect(deps.syncSummary).toHaveBeenNthCalledWith(2, expect.objectContaining({ eventPingSentAt: null }), false);
+		expect(deps.syncSummary).toHaveBeenNthCalledWith(2, expect.objectContaining({ eventPingSentAt: null }), true);
 	});
 
 	it('records a concurrency loser without sending or changing presentation', async () => {
@@ -82,6 +87,22 @@ describe('sendEventPing', () => {
 		expect(deps.sendAnnouncement).not.toHaveBeenCalled();
 		expect(deps.syncSummary).not.toHaveBeenCalled();
 		expect(deps.postAudit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'concurrency_conflict' }));
+	});
+
+	it('stops before announcement delivery when token-owned lease renewal is lost', async () => {
+		vi.mocked(deps.startEventSessionOperationLease).mockReturnValue({
+			ensureOwned: vi.fn().mockResolvedValue(false),
+			stop: vi.fn().mockResolvedValue(undefined)
+		});
+
+		await expect(sendEventPing(deps, { actor: buildActor(), eventSessionId: 42 })).resolves.toEqual({
+			kind: 'coordination_unavailable',
+			secondaryFailures: []
+		});
+		expect(deps.sendAnnouncement).not.toHaveBeenCalled();
+		expect(deps.syncSummary).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: 42 }), true);
+		expect(deps.syncSummary).toHaveBeenNthCalledWith(2, expect.objectContaining({ id: 42 }), false);
+		expect(deps.postAudit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'coordination_unavailable' }));
 	});
 
 	it('allows one ordinary send across simultaneous clicks and reports the loser accurately', async () => {
