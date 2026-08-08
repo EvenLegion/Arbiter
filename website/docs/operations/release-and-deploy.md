@@ -111,6 +111,20 @@ The production Docker stack currently runs:
 
 Postgres is not part of the production compose stack. Production expects an external database reachable through `DATABASE_URL`.
 
+### Runtime Dependency Verification
+
+Arbiter's production images require Node.js 22.12.0 or newer and earlier than Node.js 23, and install with the repository's pinned pnpm 10 release. Dependency security checks must verify both the lockfile and the pruned images:
+
+1. run `pnpm audit --prod` against the workspace lockfile
+2. build both the final bot runtime and migration targets from the committed manifest and lockfile
+3. record the immutable image digest for each target and verify that each reports a Node.js version in the supported range
+4. inspect the installed package graph inside both final targets
+5. confirm that patched versions are present on Discord, Postgres, Prisma, Redis, and scheduled-task paths
+
+Do not treat every package stored under pnpm's virtual store as application-reachable. Check whether the final image exposes the package through Node resolution and whether compiled runtime code imports it. Prisma peer tooling can leave helper packages in the image even when the Prisma CLI and their optional server dependencies are not resolvable at runtime.
+
+Any accepted audit exception must record the advisory, complete package path, runtime reachability evidence, owner, expiration date, and removal trigger. A severity-only suppression or workspace-only audit is not enough.
+
 ### Why The Migration Container Exists
 
 Schema migration is an explicit deployment step rather than an invisible side effect of bot startup. That separation makes failed migrations easier to reason about and keeps the runtime container focused on running the bot.
