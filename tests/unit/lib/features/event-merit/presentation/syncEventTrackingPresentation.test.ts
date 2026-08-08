@@ -2,12 +2,14 @@ import { EventSessionChannelKind, EventSessionMessageKind, EventSessionState } f
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+	getSession: vi.fn(),
 	listSessionMessages: vi.fn(),
 	editReferencedMessage: vi.fn()
 }));
 
 vi.mock('../../../../../../src/integrations/prisma/repositories', () => ({
 	eventRepository: {
+		getSession: mocks.getSession,
 		listSessionMessages: mocks.listSessionMessages
 	}
 }));
@@ -23,6 +25,7 @@ import { syncEventTrackingSummaryPresentation } from '../../../../../../src/lib/
 
 describe('syncEventTrackingSummaryPresentation', () => {
 	beforeEach(() => {
+		mocks.getSession.mockReset();
 		mocks.listSessionMessages.mockReset();
 		mocks.editReferencedMessage.mockReset();
 		mocks.listSessionMessages.mockResolvedValue([
@@ -37,6 +40,31 @@ describe('syncEventTrackingSummaryPresentation', () => {
 				messageId: 'summary-parent'
 			}
 		]);
+		mocks.getSession.mockResolvedValue({ eventPingSentAt: null });
+	});
+
+	it('repairs stale summary writes when the durable Event Ping receipt changes during synchronization', async () => {
+		const sentAt = new Date('2026-08-08T20:00:00Z');
+		mocks.getSession.mockResolvedValueOnce({ eventPingSentAt: null }).mockResolvedValueOnce({ eventPingSentAt: sentAt });
+		mocks.editReferencedMessage.mockResolvedValue({ id: 'updated' });
+
+		await expect(
+			syncEventTrackingSummaryPresentation({
+				guild: {} as never,
+				eventSession: buildSession(),
+				logger: { warn: vi.fn() }
+			})
+		).resolves.toEqual({
+			attemptedCount: 2,
+			updatedCount: 2,
+			failedCount: 0
+		});
+
+		expect(mocks.editReferencedMessage).toHaveBeenCalledTimes(4);
+		const stalePayload = mocks.editReferencedMessage.mock.calls[0][0].payload;
+		const repairedPayload = mocks.editReferencedMessage.mock.calls[2][0].payload;
+		expect(stalePayload.components[0].components[1].data).toEqual(expect.objectContaining({ label: 'Event Ping', disabled: false }));
+		expect(repairedPayload.components[0].components[1].data).toEqual(expect.objectContaining({ label: 'Event Ping', disabled: true }));
 	});
 
 	it('derives one disabled Event Ping payload and applies it to both stored summary copies', async () => {
