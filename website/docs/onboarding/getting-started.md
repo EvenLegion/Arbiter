@@ -18,8 +18,8 @@ It covers:
 
 Arbiter expects:
 
-- Node.js 22
-- `pnpm` 10.x
+- Node.js 22.12.0 or newer, but earlier than Node.js 23
+- the `pnpm` version declared by the root `packageManager` field
 - Docker
 - a Discord bot token plus guild-specific IDs in `.env`
 
@@ -101,11 +101,10 @@ When using `pnpm docs:serve`, remember that the built site is served under `/Arb
 For most code changes, this is the safe default:
 
 ```bash
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm docs:build
+pnpm check
 ```
+
+`pnpm check` is the repository-owned local and CI contract. It lints GitHub workflow files, typechecks, lints application code, runs unit and integration tests, and builds the documentation. Use `pnpm workflow:lint` by itself when editing files under `.github/workflows/`.
 
 Useful narrower loops:
 
@@ -117,7 +116,7 @@ pnpm test:integration
 - `pnpm test:unit` is the fast loop for pure logic, presenters, and service branching
 - `pnpm test:integration` is the storage-backed loop for Prisma and Redis work
 
-Integration tests require Docker. If container runtime support is missing, the integration runner exits cleanly instead of failing with infrastructure noise.
+Integration tests require Docker. If container runtime support is missing, the integration runner reports that it skipped coverage and exits cleanly instead of failing with infrastructure noise; do not treat that result as completed integration coverage.
 
 ## How The Repo Is Organized
 

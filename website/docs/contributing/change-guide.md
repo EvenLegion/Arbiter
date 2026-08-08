@@ -133,11 +133,10 @@ Expected work:
 For most code changes, the safe default is:
 
 ```bash
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm docs:build
+pnpm check
 ```
+
+The root check command is also the CI validation chain: workflow lint, typecheck, application lint, unit tests, integration tests, and the docs build. Run `pnpm workflow:lint` directly for a faster loop while editing GitHub Actions workflows.
 
 Add `pnpm test:integration` when:
 

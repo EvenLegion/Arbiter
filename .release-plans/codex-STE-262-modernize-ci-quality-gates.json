@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "codex/STE-262-modernize-ci-quality-gates",
+	"baseRef": "origin/dev",
+	"mergeBase": "599328503ea1b281a9333e5b422e471763f96efe",
+	"headRef": "ebb3b9da17583b515ff63dc8da878ae4c0a6d15a",
+	"generatedAt": "2026-08-08T19:28:49.556Z",
+	"bump": "patch",
+	"targetVersion": "3.3.1",
+	"commits": [
+		{
+			"sha": "ebb3b9da17583b515ff63dc8da878ae4c0a6d15a",
+			"subject": "ci: modernize runtime and quality gates",
+			"committedAt": "2026-08-08T09:28:32-10:00",
+			"committedAtMs": 1786217312000,
+			"type": "ci",
+			"scope": null,
+			"description": "Improved the automated checks used before Arbiter changes are merged, so outdated runs stop sooner and workflow mistakes are caught consistently. This behind-the-scenes maintenance does not change Discord commands or member behavior.",
+			"breaking": false,
+			"section": "Maintenance"
+		}
+	]
+}
