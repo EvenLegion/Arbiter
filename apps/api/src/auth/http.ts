@@ -23,7 +23,8 @@ export async function handleAuthHttpRequest({
 	requestId,
 	body,
 	config,
-	authService
+	authService,
+	signal
 }: {
 	request: IncomingMessage;
 	response: ServerResponse;
@@ -32,6 +33,7 @@ export async function handleAuthHttpRequest({
 	body: unknown;
 	config: ApiConfig;
 	authService: AuthService;
+	signal: AbortSignal;
 }): Promise<boolean> {
 	if (!AUTH_ROUTES.has(url.pathname)) return false;
 	const cookies = parseCookies(request.headers.cookie);
@@ -41,7 +43,12 @@ export async function handleAuthHttpRequest({
 			requireMethod(request, response, ['POST']);
 			const input = OAuthStartRequestSchema.safeParse(body);
 			if (!input.success) throw new ApiHttpError(400, 'bad_request', 'Invalid OAuth start request');
-			const started = await authService.beginOAuth({ redirectUri: input.data.redirectUri, bindingId: cookies[OAUTH_BINDING_COOKIE] });
+			const started = await authService.beginOAuth({
+				redirectUri: input.data.redirectUri,
+				bindingId: cookies[OAUTH_BINDING_COOKIE],
+				signal
+			});
+			signal.throwIfAborted();
 			response.setHeader('set-cookie', serializeCookie(OAUTH_BINDING_COOKIE, started.bindingId, oauthBindingCookieOptions(config)));
 			writeJson(response, 200, { data: { authorizationUrl: started.authorizationUrl }, meta: { requestId } });
 			return true;
@@ -57,8 +64,10 @@ export async function handleAuthHttpRequest({
 				code,
 				state,
 				bindingId: cookies[OAUTH_BINDING_COOKIE],
-				existingSessionId: cookies[SESSION_COOKIE]
+				existingSessionId: cookies[SESSION_COOKIE],
+				signal
 			});
+			signal.throwIfAborted();
 			response.setHeader('set-cookie', [
 				serializeCookie(OAUTH_BINDING_COOKIE, '', { ...oauthBindingCookieOptions(config), maxAge: 0 }),
 				serializeCookie(SESSION_COOKIE, completed.sessionId, sessionCookieOptions(config))
@@ -70,7 +79,8 @@ export async function handleAuthHttpRequest({
 		if (url.pathname === API_V1_ROUTES.authSession) {
 			requireMethod(request, response, ['GET']);
 			const sessionId = cookies[SESSION_COOKIE];
-			const session = await authService.requireSession(sessionId);
+			const session = await authService.requireSession(sessionId, signal);
+			signal.throwIfAborted();
 			if (sessionId) response.setHeader('set-cookie', serializeCookie(SESSION_COOKIE, sessionId, sessionCookieOptions(config)));
 			writeJson(response, 200, {
 				data: {
@@ -87,14 +97,16 @@ export async function handleAuthHttpRequest({
 		if (url.pathname === API_V1_ROUTES.authIdentity) {
 			requireMethod(request, response, ['GET']);
 			const sessionId = cookies[SESSION_COOKIE];
-			const session = await authService.requireSession(sessionId);
+			const session = await authService.requireSession(sessionId, signal);
+			signal.throwIfAborted();
 			if (sessionId) response.setHeader('set-cookie', serializeCookie(SESSION_COOKIE, sessionId, sessionCookieOptions(config)));
 			writeJson(response, 200, { data: session.identity, meta: { requestId } });
 			return true;
 		}
 
 		requireMethod(request, response, ['POST']);
-		await authService.logout(cookies[SESSION_COOKIE], singleHeader(request.headers['x-csrf-token']));
+		await authService.logout(cookies[SESSION_COOKIE], singleHeader(request.headers['x-csrf-token']), signal);
+		signal.throwIfAborted();
 		response.setHeader('set-cookie', serializeCookie(SESSION_COOKIE, '', { ...sessionCookieOptions(config), maxAge: 0 }));
 		writeJson(response, 200, { data: { loggedOut: true }, meta: { requestId } });
 		return true;
@@ -167,6 +179,7 @@ function singleHeader(value: string | string[] | undefined): string | undefined 
 }
 
 function writeJson(response: ServerResponse, statusCode: number, payload: unknown): void {
+	if (response.writableEnded) return;
 	const body = JSON.stringify(payload);
 	response.statusCode = statusCode;
 	response.setHeader('content-type', 'application/json; charset=utf-8');
@@ -175,6 +188,7 @@ function writeJson(response: ServerResponse, statusCode: number, payload: unknow
 }
 
 function writeRedirect(response: ServerResponse, location: string): void {
+	if (response.writableEnded) return;
 	response.statusCode = 302;
 	response.removeHeader('content-type');
 	response.setHeader('location', location);

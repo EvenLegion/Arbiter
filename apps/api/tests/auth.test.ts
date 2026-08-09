@@ -120,6 +120,25 @@ describe('API browser authentication service', () => {
 		});
 		await expect(service.requireSession(sessionId)).rejects.toMatchObject({ code: 'service_unavailable' });
 	});
+
+	it('revokes a newly persisted session when the request is aborted before completion', async () => {
+		const store = createMemoryStore();
+		const service = createService(store);
+		const started = await service.beginOAuth({ redirectUri: REDIRECT_URL });
+		const state = new URL(started.authorizationUrl).searchParams.get('state')!;
+		const controller = new AbortController();
+		const putSession = store.putSession;
+		store.putSession = async (...args) => {
+			const stored = await putSession(...args);
+			controller.abort(new Error('request deadline exceeded'));
+			return stored;
+		};
+
+		await expect(
+			service.completeOAuth({ code: 'discord-code', state, bindingId: started.bindingId, signal: controller.signal })
+		).rejects.toMatchObject({ code: 'service_unavailable' });
+		expect(store.sessions.size).toBe(0);
+	});
 });
 
 describe('Discord OAuth client', () => {
@@ -137,6 +156,27 @@ describe('Discord OAuth client', () => {
 		await expect(client.resolveDiscordUserId('single-use-code')).resolves.toBe(STAFF_IDENTITY.discordUserId);
 		expect(fetchImpl).toHaveBeenCalledTimes(2);
 		expect(fetchImpl.mock.calls[1]?.[1]?.headers).toEqual({ authorization: 'Bearer temporary-access-token' });
+	});
+
+	it('cancels an in-flight Discord exchange when its request is aborted', async () => {
+		const fetchImpl = vi.fn<typeof fetch>().mockImplementation(
+			(_input, init) =>
+				new Promise((_resolve, reject) => {
+					init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true });
+				})
+		);
+		const client = createDiscordOAuthClient({
+			clientId: '100000000000000001',
+			clientSecret: 'discord-client-secret',
+			callbackUrl: CALLBACK_URL,
+			fetchImpl
+		});
+		const controller = new AbortController();
+		const exchange = client.resolveDiscordUserId('single-use-code', controller.signal);
+		controller.abort(new Error('request deadline exceeded'));
+
+		await expect(exchange).rejects.toThrow('request deadline exceeded');
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
 	});
 });
 

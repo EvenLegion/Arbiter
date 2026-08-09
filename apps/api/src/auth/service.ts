@@ -28,8 +28,9 @@ export function createAuthService({
 }): AuthService {
 	const allowedRedirects = new Set(allowedRedirectUrls);
 
-	async function createSession(discordUserId: string): Promise<{ sessionId: string; csrfToken: string }> {
+	async function createSession(discordUserId: string, signal?: AbortSignal): Promise<{ sessionId: string; csrfToken: string }> {
 		for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt += 1) {
+			throwIfAborted(signal);
 			const sessionId = generateOpaqueToken();
 			const csrfToken = generateOpaqueToken();
 			const nowMs = now();
@@ -44,21 +45,32 @@ export function createAuthService({
 				},
 				sessionIdleTtlSeconds
 			);
-			if (stored) return { sessionId, csrfToken };
+			if (stored) {
+				try {
+					throwIfAborted(signal);
+					return { sessionId, csrfToken };
+				} catch (error) {
+					await store.revokeSession(sessionId);
+					throw error;
+				}
+			}
 		}
 		throw new AuthFailure('service_unavailable');
 	}
 
-	async function readSession(sessionId: string | undefined) {
+	async function readSession(sessionId: string | undefined, signal?: AbortSignal) {
+		throwIfAborted(signal);
 		if (!isOpaqueToken(sessionId)) throw new AuthFailure('unauthorized');
 		const session = await store.readAndRefreshSession(sessionId, now(), sessionIdleTtlSeconds);
+		throwIfAborted(signal);
 		if (!session) throw new AuthFailure('unauthorized');
 		return { sessionId, session };
 	}
 
 	return {
-		beginOAuth: ({ redirectUri, bindingId }) =>
+		beginOAuth: ({ redirectUri, bindingId, signal }) =>
 			withServiceBoundary(async () => {
+				throwIfAborted(signal);
 				if (!allowedRedirects.has(redirectUri)) throw new AuthFailure('invalid_redirect');
 				const resolvedBindingId = isOpaqueToken(bindingId) ? bindingId : generateOpaqueToken();
 				for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt += 1) {
@@ -69,6 +81,12 @@ export function createAuthService({
 						stateTtlSeconds
 					);
 					if (!stored) continue;
+					try {
+						throwIfAborted(signal);
+					} catch (error) {
+						await store.consumeOAuthState(state);
+						throw error;
+					}
 					const authorizationUrl = new URL('https://discord.com/oauth2/authorize');
 					authorizationUrl.search = new URLSearchParams({
 						client_id: clientId,
@@ -81,29 +99,41 @@ export function createAuthService({
 				}
 				throw new AuthFailure('service_unavailable');
 			}),
-		completeOAuth: ({ code, state, bindingId, existingSessionId }) =>
+		completeOAuth: ({ code, state, bindingId, existingSessionId, signal }) =>
 			withServiceBoundary(async () => {
+				throwIfAborted(signal);
 				if (!isOpaqueToken(state) || code.length < 1 || code.length > 512) throw new AuthFailure('invalid_oauth_state');
 				const stateRecord = await store.consumeOAuthState(state);
+				throwIfAborted(signal);
 				if (!stateRecord || !opaqueTokenMatches(bindingId, stateRecord.bindingDigest) || !allowedRedirects.has(stateRecord.redirectUri)) {
 					throw new AuthFailure('invalid_oauth_state');
 				}
 				let discordUserId: string;
 				try {
-					discordUserId = await oauthClient.resolveDiscordUserId(code);
+					discordUserId = await oauthClient.resolveDiscordUserId(code, signal);
 				} catch {
+					throwIfAborted(signal);
 					throw new AuthFailure('oauth_failed');
 				}
+				throwIfAborted(signal);
 				const identity = await repository.findStaffIdentityByDiscordUserId(discordUserId);
+				throwIfAborted(signal);
 				if (!identity) throw new AuthFailure('forbidden');
-				if (isOpaqueToken(existingSessionId)) await store.revokeSession(existingSessionId);
-				const session = await createSession(identity.discordUserId);
-				return { sessionId: session.sessionId, redirectUri: stateRecord.redirectUri };
+				const session = await createSession(identity.discordUserId, signal);
+				try {
+					if (isOpaqueToken(existingSessionId)) await store.revokeSession(existingSessionId);
+					throwIfAborted(signal);
+					return { sessionId: session.sessionId, redirectUri: stateRecord.redirectUri };
+				} catch (error) {
+					await store.revokeSession(session.sessionId);
+					throw error;
+				}
 			}),
-		requireSession: (sessionId) =>
+		requireSession: (sessionId, signal) =>
 			withServiceBoundary(async () => {
-				const current = await readSession(sessionId);
+				const current = await readSession(sessionId, signal);
 				const identity = await repository.findStaffIdentityByDiscordUserId(current.session.discordUserId);
+				throwIfAborted(signal);
 				if (!identity) {
 					await store.revokeSession(current.sessionId);
 					throw new AuthFailure('forbidden');
@@ -115,9 +145,9 @@ export function createAuthService({
 					absoluteExpiresAt: new Date(current.session.absoluteExpiresAtMs).toISOString()
 				};
 			}),
-		logout: (sessionId, csrfToken) =>
+		logout: (sessionId, csrfToken, signal) =>
 			withServiceBoundary(async () => {
-				const current = await readSession(sessionId);
+				const current = await readSession(sessionId, signal);
 				if (!opaqueTokensEqual(csrfToken, current.session.csrfToken)) throw new AuthFailure('csrf_failed');
 				await store.revokeSession(current.sessionId);
 			})
@@ -131,4 +161,8 @@ async function withServiceBoundary<T>(operation: () => Promise<T>): Promise<T> {
 		if (error instanceof AuthFailure) throw error;
 		throw new AuthFailure('service_unavailable');
 	}
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+	if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('Authentication request aborted');
 }

@@ -79,8 +79,10 @@ async function handleRequest({
 	response.setHeader('referrer-policy', 'no-referrer');
 	response.setHeader('x-content-type-options', 'nosniff');
 	let requestTimedOut = false;
+	const requestAbortController = new AbortController();
 	const requestTimeout = setTimeout(() => {
 		requestTimedOut = true;
+		requestAbortController.abort(new ApiHttpError(408, 'request_timeout', 'Request timed out'));
 		response.setHeader('connection', 'close');
 		writeJson(
 			response,
@@ -102,7 +104,19 @@ async function handleRequest({
 		}
 		const body = await readJsonRequestBody(request, config.bodyLimitBytes);
 		if (requestTimedOut) return;
-		if (await handleAuthHttpRequest({ request, response, url, requestId, body, config, authService: dependencies.authService })) return;
+		if (
+			await handleAuthHttpRequest({
+				request,
+				response,
+				url,
+				requestId,
+				body,
+				config,
+				authService: dependencies.authService,
+				signal: requestAbortController.signal
+			})
+		)
+			return;
 
 		if (path === API_V1_ROUTES.health) {
 			requireReadMethod(request, response);
@@ -123,6 +137,7 @@ async function handleRequest({
 
 		throw new ApiHttpError(404, 'not_found', 'Route not found');
 	} catch (error) {
+		if (requestTimedOut) return;
 		const apiError = toApiError(error);
 		if (apiError.statusCode >= 500) {
 			logger.error({ requestId, errorName: error instanceof Error ? error.name : 'UnknownError' }, 'API request failed');

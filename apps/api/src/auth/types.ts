@@ -30,7 +30,7 @@ export type AuthRepository = {
 };
 
 export type DiscordOAuthClient = {
-	resolveDiscordUserId: (code: string) => Promise<string>;
+	resolveDiscordUserId: (code: string, signal?: AbortSignal) => Promise<string>;
 };
 
 export type AuthSessionResult = {
@@ -41,15 +41,20 @@ export type AuthSessionResult = {
 };
 
 export type AuthService = {
-	beginOAuth: (input: { redirectUri: string; bindingId?: string }) => Promise<{ authorizationUrl: string; bindingId: string }>;
+	beginOAuth: (input: {
+		redirectUri: string;
+		bindingId?: string;
+		signal?: AbortSignal;
+	}) => Promise<{ authorizationUrl: string; bindingId: string }>;
 	completeOAuth: (input: {
 		code: string;
 		state: string;
 		bindingId?: string;
 		existingSessionId?: string;
+		signal?: AbortSignal;
 	}) => Promise<{ sessionId: string; redirectUri: string }>;
-	requireSession: (sessionId?: string) => Promise<AuthSessionResult>;
-	logout: (sessionId: string | undefined, csrfToken: string | undefined) => Promise<void>;
+	requireSession: (sessionId?: string, signal?: AbortSignal) => Promise<AuthSessionResult>;
+	logout: (sessionId: string | undefined, csrfToken: string | undefined, signal?: AbortSignal) => Promise<void>;
 };
 
 export type AuthFailureCode =

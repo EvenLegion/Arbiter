@@ -119,6 +119,36 @@ describe('API HTTP runtime', () => {
 		expect(await response.json()).toMatchObject({ error: { code: 'request_timeout' } });
 	});
 
+	it('aborts OAuth callback work when the request deadline expires', async () => {
+		let callbackSignal: AbortSignal | undefined;
+		const authService = {
+			completeOAuth: vi.fn().mockImplementation(async ({ signal }: { signal?: AbortSignal }) => {
+				callbackSignal = signal;
+				await new Promise<never>((_resolve, reject) => {
+					if (signal?.aborted) {
+						reject(signal.reason);
+						return;
+					}
+					signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+				});
+			})
+		} as unknown as AuthService;
+		runtime = createApiRuntime({
+			config: { ...config, requestTimeoutMs: 20 },
+			dependencies: { ...createDependencies(true), authService },
+			logger: pino({ level: 'silent' })
+		});
+		const address = await runtime.start();
+		const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/auth/discord/callback?code=discord-code&state=${'T'.repeat(43)}`, {
+			headers: { cookie: `arbiter_oauth_binding=${'B'.repeat(43)}` },
+			redirect: 'manual'
+		});
+
+		expect(response.status).toBe(408);
+		expect(await response.json()).toMatchObject({ error: { code: 'request_timeout' } });
+		expect(callbackSignal?.aborted).toBe(true);
+	});
+
 	it('supports an exact external origin across login, session, CSRF logout, and CORS', async () => {
 		const authService: AuthService = {
 			beginOAuth: vi
@@ -179,12 +209,14 @@ describe('API HTTP runtime', () => {
 		expect(callback.status).toBe(302);
 		expect(callback.headers.get('location')).toBe('http://127.0.0.1:4173/auth/callback');
 		expect(callback.headers.get('set-cookie')).toContain(`arbiter_session=${'S'.repeat(43)}`);
-		expect(authService.completeOAuth).toHaveBeenCalledWith({
-			code: 'discord-code',
-			state: 'T'.repeat(43),
-			bindingId: 'B'.repeat(43),
-			existingSessionId: undefined
-		});
+		expect(authService.completeOAuth).toHaveBeenCalledWith(
+			expect.objectContaining({
+				code: 'discord-code',
+				state: 'T'.repeat(43),
+				bindingId: 'B'.repeat(43),
+				existingSessionId: undefined
+			})
+		);
 
 		const session = await fetch(`${baseUrl}/api/v1/auth/session`, {
 			headers: { origin, cookie: `arbiter_session=${'S'.repeat(43)}` }
@@ -197,7 +229,7 @@ describe('API HTTP runtime', () => {
 			headers: { origin, cookie: `arbiter_session=${'S'.repeat(43)}`, 'x-csrf-token': 'C'.repeat(43) }
 		});
 		expect(logout.status).toBe(200);
-		expect(authService.logout).toHaveBeenCalledWith('S'.repeat(43), 'C'.repeat(43));
+		expect(authService.logout).toHaveBeenCalledWith('S'.repeat(43), 'C'.repeat(43), expect.anything());
 		expect(logout.headers.get('set-cookie')).toContain('Max-Age=0');
 	});
 });
