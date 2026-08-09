@@ -19,10 +19,18 @@ describe('API logger', () => {
 			{
 				authorization: 'Bearer secret-token',
 				headers: { 'x-csrf-token': 'csrf-header-value', 'set-cookie': 'arbiter_session=session-cookie-value' },
+				req: {
+					headers: {
+						'x-csrf-token': 'nested-csrf-header-value',
+						'set-cookie': 'arbiter_session=nested-session-cookie-value'
+					}
+				},
 				config: {
 					databaseUrl: 'postgresql://secret',
 					credentialPepper: 'pepper-secret',
-					auth: { discordClientSecret: 'discord-client-secret' }
+					auth: { discordClientSecret: 'discord-client-secret' },
+					API_CREDENTIAL_PEPPER: 'env-credential-pepper',
+					API_DISCORD_CLIENT_SECRET: 'env-discord-client-secret'
 				},
 				verifier: 'stored-digest-secret',
 				credential: { verifier: 'nested-verifier-secret', secret: 'one-time-secret' },
@@ -58,6 +66,10 @@ describe('API logger', () => {
 		expect(output).not.toContain('oauth-state-value');
 		expect(output).not.toContain('csrf-header-value');
 		expect(output).not.toContain('session-cookie-value');
+		expect(output).not.toContain('nested-csrf-header-value');
+		expect(output).not.toContain('nested-session-cookie-value');
+		expect(output).not.toContain('env-credential-pepper');
+		expect(output).not.toContain('env-discord-client-secret');
 	});
 
 	it('anchors relative file destinations at the repository root for Alloy', () => {

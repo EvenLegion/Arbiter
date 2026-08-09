@@ -88,6 +88,15 @@ describe('parseApiConfig', () => {
 				...authEnv,
 				DATABASE_URL: 'postgresql://arbiter@localhost/arbiter',
 				API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters',
+				API_ALLOWED_ORIGINS: 'https://*.example.com'
+			})
+		).toThrowError(/wildcard hosts/);
+
+		expect(() =>
+			parseApiConfig({
+				...authEnv,
+				DATABASE_URL: 'postgresql://arbiter@localhost/arbiter',
+				API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters',
 				API_AUTH_REDIRECT_URLS: 'http://localhost:9999/auth/callback'
 			})
 		).toThrowError(/API_AUTH_REDIRECT_URLS/);

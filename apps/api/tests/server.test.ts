@@ -198,9 +198,18 @@ describe('API HTTP runtime', () => {
 			body: JSON.stringify({ redirectUri: 'http://127.0.0.1:4173/auth/callback' })
 		});
 		expect(started.status).toBe(200);
-		expect(started.headers.get('set-cookie')).toContain('arbiter_oauth_binding=');
-		expect(started.headers.get('set-cookie')).toContain('HttpOnly; SameSite=Lax; Secure');
-		expect(started.headers.get('set-cookie')).not.toContain('Domain=');
+		const bindingCookie = started.headers.getSetCookie().find((value) => value.startsWith('arbiter_oauth_binding='));
+		expect(bindingCookie).toContain('HttpOnly');
+		expect(bindingCookie).toContain('SameSite=Lax');
+		expect(bindingCookie).toContain('Secure');
+		expect(bindingCookie).not.toContain('Domain=');
+
+		const invalidCallback = await fetch(`${baseUrl}/api/v1/auth/discord/callback`, {
+			headers: { cookie: `arbiter_oauth_binding=${'B'.repeat(43)}` },
+			redirect: 'manual'
+		});
+		expect(invalidCallback.status).toBe(400);
+		expect(invalidCallback.headers.getSetCookie()).toEqual([]);
 
 		const callback = await fetch(`${baseUrl}/api/v1/auth/discord/callback?code=discord-code&state=${'T'.repeat(43)}`, {
 			headers: { cookie: `arbiter_oauth_binding=${'B'.repeat(43)}` },
@@ -208,7 +217,9 @@ describe('API HTTP runtime', () => {
 		});
 		expect(callback.status).toBe(302);
 		expect(callback.headers.get('location')).toBe('http://127.0.0.1:4173/auth/callback');
-		expect(callback.headers.get('set-cookie')).toContain(`arbiter_session=${'S'.repeat(43)}`);
+		const callbackCookies = callback.headers.getSetCookie();
+		expect(callbackCookies.find((value) => value.startsWith('arbiter_oauth_binding='))).toContain('Max-Age=0');
+		expect(callbackCookies.find((value) => value.startsWith('arbiter_session='))).toContain(`arbiter_session=${'S'.repeat(43)}`);
 		expect(authService.completeOAuth).toHaveBeenCalledWith(
 			expect.objectContaining({
 				code: 'discord-code',

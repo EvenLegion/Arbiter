@@ -167,6 +167,7 @@ function parseExactUrl(field: string, rawValue: string, nodeEnv: ApiConfig['node
 		throw new Error(`Invalid API environment configuration: ${field} must contain valid absolute URLs`);
 	}
 	if (url.username || url.password) throw new Error(`Invalid API environment configuration: ${field} must not contain credentials`);
+	if (url.hostname.includes('*')) throw new Error(`Invalid API environment configuration: ${field} must not contain wildcard hosts`);
 	const localHttp = url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1') && nodeEnv !== 'production';
 	if (url.protocol !== 'https:' && !localHttp) {
 		throw new Error(`Invalid API environment configuration: ${field} must use HTTPS (local HTTP is development/test only)`);

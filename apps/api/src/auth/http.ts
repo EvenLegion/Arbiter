@@ -56,7 +56,6 @@ export async function handleAuthHttpRequest({
 
 		if (url.pathname === API_V1_ROUTES.authDiscordCallback) {
 			requireMethod(request, response, ['GET']);
-			response.setHeader('set-cookie', serializeCookie(OAUTH_BINDING_COOKIE, '', { ...oauthBindingCookieOptions(config), maxAge: 0 }));
 			const code = url.searchParams.get('code');
 			const state = url.searchParams.get('state');
 			if (!code || !state) throw new AuthFailure('invalid_oauth_state');
