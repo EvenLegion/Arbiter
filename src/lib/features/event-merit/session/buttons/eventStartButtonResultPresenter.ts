@@ -39,6 +39,18 @@ export function presentEventStartButtonResult({
 			content: 'Event session not found.'
 		};
 	}
+	if (result.kind === 'concurrency_conflict') {
+		return {
+			delivery: 'fail',
+			content: 'Another Event Ping or End Event action is already in progress. Please try again shortly.'
+		};
+	}
+	if (result.kind === 'coordination_unavailable') {
+		return {
+			delivery: 'fail',
+			content: `Event coordination is temporarily unavailable. Please try again. requestId=${requestId}`
+		};
+	}
 	if (result.kind === 'invalid_state') {
 		const expectedState = action === 'confirm' || action === 'cancel' ? EventSessionState.DRAFT : EventSessionState.ACTIVE;
 		return {

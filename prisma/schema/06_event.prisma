@@ -43,6 +43,7 @@ model Event {
   name                    String
   state                   EventSessionState @default(DRAFT)
   startedAt               DateTime?
+  eventPingSentAt         DateTime?
   endedAt                 DateTime?
   reviewFinalizedAt       DateTime?
   reviewFinalizedByUserId String?

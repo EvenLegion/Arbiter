@@ -38,7 +38,8 @@ export function pushPrismaSchema(databaseUrl: string) {
 		cwd: repoRoot,
 		env: {
 			...process.env,
-			DATABASE_URL: databaseUrl
+			DATABASE_URL: databaseUrl,
+			PRISMA_DATABASE_URL: databaseUrl
 		},
 		stdio: 'pipe'
 	});
