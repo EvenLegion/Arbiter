@@ -15,7 +15,7 @@
 			"committedAtMs": 1786208615000,
 			"type": "docs",
 			"scope": null,
-			"description": "Improved the safety checks, code review process, documentation and release instructions used by LLM assistants who help maintain Arbiter.",
+			"description": "Improved the instructions and safety checks used by automated coding assistants, helping future Arbiter updates stay focused, documented, and safer to review.",
 			"breaking": false,
 			"section": "Maintenance"
 		}

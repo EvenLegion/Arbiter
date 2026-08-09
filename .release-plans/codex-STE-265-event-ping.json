@@ -15,7 +15,7 @@
 			"committedAtMs": 1786229571000,
 			"type": "feat",
 			"scope": null,
-			"description": "An Event Ping button was added to Arbiter's event controls, that enables staff, Centurions, and Optios to send out a ping to an Event Notifications role when their event has started.",
+			"description": "Added a one-time Event Ping button for staff, Centurions, and Optios. After an event starts, authorized hosts can notify the Event Notifications role, and Arbiter prevents the same event from being pinged more than once.",
 			"breaking": false,
 			"section": "Features"
 		}

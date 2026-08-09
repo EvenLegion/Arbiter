@@ -15,7 +15,7 @@
 			"committedAtMs": 1786217312000,
 			"type": "ci",
 			"scope": null,
-			"description": "Improved the automated checks used before Arbiter changes are merged, so outdated runs stop sooner and workflow mistakes are caught consistently. This behind-the-scenes maintenance does not change Discord commands or member behavior.",
+			"description": "Improved the checks run before Arbiter updates are merged, making it more likely that broken or incomplete changes are caught before release.",
 			"breaking": false,
 			"section": "Maintenance"
 		}

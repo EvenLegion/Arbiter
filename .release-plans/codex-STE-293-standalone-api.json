@@ -15,7 +15,7 @@
 			"committedAtMs": 1786251289000,
 			"type": "feat",
 			"scope": null,
-			"description": "Initialize the foundation for a new Arbiter API that will provide member division and merit-rank information. This is a behind-the-scenes capability and does not change current Discord commands or member behavior.",
+			"description": "Began building a new Arbiter API that will provide member division and merit-rank information to future tools.",
 			"breaking": false,
 			"section": "Features"
 		}

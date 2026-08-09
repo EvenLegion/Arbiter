@@ -15,7 +15,7 @@
 			"committedAtMs": 1786222479000,
 			"type": "fix",
 			"scope": null,
-			"description": "Limited finished background-task history to 5,000 successful runs with a 24-hour cleanup window and 1,000 failed runs with a seven-day cleanup window, and increased Redis's default memory allowance to 1 GiB. This prevents old scheduler records from exhausting memory and interrupting event attendance tracking. Operators also gain safer health and rollback checks. Discord commands and normal member interactions are unchanged.",
+			"description": "Arbiter now automatically cleans up old background-task records and gives Redis more memory, reducing the chance that event attendance tracking is interrupted during busy periods.",
 			"breaking": false,
 			"section": "Fixes"
 		}
