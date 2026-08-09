@@ -182,6 +182,22 @@ At minimum, production needs:
 - `DISCORD_GUILD_ID`
 - the Discord role and channel IDs the bot depends on
 
+The standalone API additionally requires `API_CREDENTIAL_PEPPER`. Store it only in the API runtime's secret configuration, use at least 32 randomly generated characters, and do not inject it into the bot, portal, logs, build artifacts, or migration command. Changing it invalidates every existing API credential, so rotation requires an explicit credential-remint and cutover plan.
+
+### API Credential Migration And Rollback
+
+The integration and credential migration is additive to Arbiter's existing Postgres database. It creates `ApiIntegration`, `ApiCredential`, their enum, indexes, and foreign keys to canonical `User` records. It performs no backfill, copy, synchronization, or production execution as part of development.
+
+For an approved deployment:
+
+1. take and verify the normal external Postgres backup
+2. provision `API_CREDENTIAL_PEPPER` in the API runtime secret boundary
+3. run the canonical `pnpm db:migrate` deploy step once against the existing database
+4. verify the new tables, constraints, and migration record before starting API code that uses them
+5. start the API with its bounded `API_DB_POOL_MAX`; keep enough connection capacity for the bot and operator access
+
+Before migration, rollback is a normal code/image revert. After the additive migration has applied, an older bot or health-only API can run while leaving the unused tables in place. Dropping the tables, enum, or credential records is destructive and requires separate approval; do not improvise a production down migration. Restore from the verified backup only under the database recovery procedure and explicit operational authority.
+
 Event Ping specifically requires both `EVENT_PING_CHANNEL_ID` and
 `EVENT_PING_ROLE_ID`. The bot must be able to view and send messages in the
 configured destination, access active event tracking threads and stored summary
