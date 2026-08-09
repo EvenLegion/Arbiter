@@ -3,7 +3,12 @@ import { z } from 'zod';
 export const API_V1_PREFIX = '/api/v1' as const;
 export const API_V1_ROUTES = {
 	health: `${API_V1_PREFIX}/health`,
-	readiness: `${API_V1_PREFIX}/readiness`
+	readiness: `${API_V1_PREFIX}/readiness`,
+	authDiscordStart: `${API_V1_PREFIX}/auth/discord/start`,
+	authDiscordCallback: `${API_V1_PREFIX}/auth/discord/callback`,
+	authSession: `${API_V1_PREFIX}/auth/session`,
+	authIdentity: `${API_V1_PREFIX}/auth/me`,
+	authLogout: `${API_V1_PREFIX}/auth/logout`
 } as const;
 
 export const RequestIdSchema = z
@@ -32,6 +37,13 @@ export const ApiErrorCodeSchema = z.enum([
 	'not_found',
 	'payload_too_large',
 	'request_timeout',
+	'unauthorized',
+	'forbidden',
+	'invalid_oauth_state',
+	'oauth_failed',
+	'csrf_failed',
+	'origin_not_allowed',
+	'invalid_redirect',
 	'service_unavailable',
 	'internal_error'
 ]);

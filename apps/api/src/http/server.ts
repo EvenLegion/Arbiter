@@ -6,9 +6,11 @@ import { API_V1_ROUTES, RequestIdSchema } from '@arbiter/api-contracts';
 import type { Logger } from 'pino';
 
 import type { ApiConfig } from '../config';
+import { handleAuthHttpRequest } from '../auth/http';
 import type { ApiDependencies } from '../runtime/dependencies';
+import { applyExactOriginCors, writeCorsPreflight } from './cors';
 import { ApiHttpError, createErrorEnvelope, toApiError } from './errors';
-import { validateRequestBody } from './request';
+import { readJsonRequestBody } from './request';
 
 export type ApiRuntime = {
 	start: () => Promise<{ host: string; port: number }>;
@@ -74,9 +76,21 @@ async function handleRequest({
 	response.setHeader('x-request-id', requestId);
 	response.setHeader('content-type', 'application/json; charset=utf-8');
 	response.setHeader('cache-control', 'no-store');
+	response.setHeader('referrer-policy', 'no-referrer');
+	response.setHeader('x-content-type-options', 'nosniff');
 	let requestTimedOut = false;
+	let clientDisconnected = false;
+	const requestAbortController = new AbortController();
+	const abortForDisconnect = () => {
+		if (response.writableFinished || requestAbortController.signal.aborted) return;
+		clientDisconnected = true;
+		requestAbortController.abort(new Error('Client disconnected'));
+	};
+	request.once('aborted', abortForDisconnect);
+	response.once('close', abortForDisconnect);
 	const requestTimeout = setTimeout(() => {
 		requestTimedOut = true;
+		requestAbortController.abort(new ApiHttpError(408, 'request_timeout', 'Request timed out'));
 		response.setHeader('connection', 'close');
 		writeJson(
 			response,
@@ -91,21 +105,34 @@ async function handleRequest({
 	try {
 		const url = new URL(request.url ?? '/', 'http://arbiter-api.local');
 		path = url.pathname;
-		await validateRequestBody(request, config.bodyLimitBytes);
-		if (requestTimedOut) return;
-		if (request.method !== 'GET' && request.method !== 'HEAD') {
-			if (path === API_V1_ROUTES.health || path === API_V1_ROUTES.readiness) {
-				response.setHeader('allow', 'GET, HEAD');
-				throw new ApiHttpError(405, 'method_not_allowed', 'Method not allowed');
-			}
-			throw new ApiHttpError(404, 'not_found', 'Route not found');
+		applyExactOriginCors(request, response, config.auth.allowedOrigins);
+		if (request.method === 'OPTIONS') {
+			writeCorsPreflight(response);
+			return;
 		}
+		const body = await readJsonRequestBody(request, config.bodyLimitBytes);
+		if (requestTimedOut) return;
+		if (
+			await handleAuthHttpRequest({
+				request,
+				response,
+				url,
+				requestId,
+				body,
+				config,
+				authService: dependencies.authService,
+				signal: requestAbortController.signal
+			})
+		)
+			return;
 
 		if (path === API_V1_ROUTES.health) {
+			requireReadMethod(request, response);
 			writeJson(response, 200, { data: { status: 'ok' }, meta: { requestId } }, request.method === 'HEAD');
 			return;
 		}
 		if (path === API_V1_ROUTES.readiness) {
+			requireReadMethod(request, response);
 			const ready = await dependencies.checkReadiness(config.readinessTimeoutMs);
 			writeJson(
 				response,
@@ -118,6 +145,7 @@ async function handleRequest({
 
 		throw new ApiHttpError(404, 'not_found', 'Route not found');
 	} catch (error) {
+		if (requestTimedOut || clientDisconnected || response.destroyed) return;
 		const apiError = toApiError(error);
 		if (apiError.statusCode >= 500) {
 			logger.error({ requestId, errorName: error instanceof Error ? error.name : 'UnknownError' }, 'API request failed');
@@ -125,17 +153,25 @@ async function handleRequest({
 		writeJson(response, apiError.statusCode, createErrorEnvelope(apiError, requestId), request.method === 'HEAD');
 	} finally {
 		clearTimeout(requestTimeout);
+		request.removeListener('aborted', abortForDisconnect);
+		response.removeListener('close', abortForDisconnect);
 		logger.info(
 			{
 				requestId,
 				method: request.method,
 				path,
-				statusCode: response.statusCode,
+				statusCode: clientDisconnected ? 499 : response.statusCode,
 				durationMs: Math.round((performance.now() - startedAt) * 100) / 100
 			},
 			'API request completed'
 		);
 	}
+}
+
+function requireReadMethod(request: IncomingMessage, response: ServerResponse): void {
+	if (request.method === 'GET' || request.method === 'HEAD') return;
+	response.setHeader('allow', 'GET, HEAD');
+	throw new ApiHttpError(405, 'method_not_allowed', 'Method not allowed');
 }
 
 function resolveRequestId(header: string | string[] | undefined): string {

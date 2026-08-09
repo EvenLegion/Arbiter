@@ -4,12 +4,18 @@ import Redis from 'ioredis';
 import { Pool } from 'pg';
 import type { Logger } from 'pino';
 
+import { createDiscordOAuthClient } from '../auth/discordOAuthClient';
+import { createPrismaAuthRepository } from '../auth/prismaRepository';
+import { createRedisAuthStore } from '../auth/redisStore';
+import { createAuthService } from '../auth/service';
+import type { AuthService } from '../auth/types';
 import type { ApiConfig } from '../config';
 import { createPrismaApiCredentialRepository } from '../credentials/prismaRepository';
 import { createApiCredentialService } from '../credentials/service';
 import type { ApiCredentialService } from '../credentials/types';
 
 export type ApiDependencies = {
+	authService: AuthService;
 	credentialService: ApiCredentialService;
 	checkReadiness: (timeoutMs: number) => Promise<boolean>;
 	close: () => Promise<void>;
@@ -47,8 +53,25 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 		repository: createPrismaApiCredentialRepository(prisma),
 		pepper: config.credentialPepper
 	});
+	const authService = createAuthService({
+		store: createRedisAuthStore(redis),
+		repository: createPrismaAuthRepository(prisma),
+		oauthClient: createDiscordOAuthClient({
+			clientId: config.auth.discordClientId,
+			clientSecret: config.auth.discordClientSecret,
+			callbackUrl: config.auth.discordCallbackUrl,
+			timeoutMs: Math.min(5_000, config.requestTimeoutMs)
+		}),
+		clientId: config.auth.discordClientId,
+		callbackUrl: config.auth.discordCallbackUrl,
+		allowedRedirectUrls: config.auth.allowedRedirectUrls,
+		stateTtlSeconds: config.auth.stateTtlSeconds,
+		sessionIdleTtlSeconds: config.auth.sessionIdleTtlSeconds,
+		sessionAbsoluteTtlSeconds: config.auth.sessionAbsoluteTtlSeconds
+	});
 
 	return {
+		authService,
 		credentialService,
 		checkReadiness: async (timeoutMs) => {
 			const [databaseReady, redisReady] = await Promise.all([

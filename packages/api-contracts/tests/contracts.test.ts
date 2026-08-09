@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	API_V1_ROUTES,
+	ApiAuthIdentitySchema,
 	ApiCredentialMetadataSchema,
 	ApiErrorEnvelopeSchema,
 	ApiIntegrationSchema,
@@ -21,6 +22,22 @@ describe('v1 API contracts', () => {
 			}).success
 		).toBe(true);
 		expect(API_V1_ROUTES.health).toBe('/api/v1/health');
+	});
+
+	it('defines safe browser auth contracts without OAuth or session secrets', () => {
+		const identity = ApiAuthIdentitySchema.parse({
+			userId: '33b20a61-1e86-4115-b999-f319808d5a87',
+			discordUserId: '100000000000000001',
+			discordUsername: 'staff-user',
+			discordNickname: 'Staff User',
+			discordAvatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png',
+			role: 'STAFF'
+		});
+		expect(identity.role).toBe('STAFF');
+		expect(identity).not.toHaveProperty('accessToken');
+		expect(identity).not.toHaveProperty('sessionId');
+		expect(API_V1_ROUTES.authDiscordStart).toBe('/api/v1/auth/discord/start');
+		expect(API_V1_ROUTES.authIdentity).toBe('/api/v1/auth/me');
 	});
 
 	it('keeps the initial scope catalog intentionally small', () => {
