@@ -12,13 +12,15 @@ describe('Prisma datasource configuration', () => {
 		vi.resetModules();
 	});
 
-	it('fails closed when DATABASE_URL is missing outside development', async () => {
+	it('leaves the datasource unset when DATABASE_URL is missing outside development', async () => {
 		process.env.NODE_ENV = 'production';
 		process.env.DATABASE_URL = '';
 		process.env.PRISMA_DATABASE_URL = 'postgresql://integration-override';
 		vi.resetModules();
 
-		await expect(import('../../../prisma.config')).rejects.toThrow('DATABASE_URL is required outside development');
+		const config = (await import('../../../prisma.config')).default;
+
+		expect(config.datasource?.url).toBeUndefined();
 	});
 
 	it('allows the integration schema override only during development', async () => {
