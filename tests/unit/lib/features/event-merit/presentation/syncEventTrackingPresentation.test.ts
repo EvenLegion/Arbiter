@@ -55,8 +55,8 @@ describe('syncEventTrackingSummaryPresentation', () => {
 				logger: { warn: vi.fn() }
 			})
 		).resolves.toEqual({
-			attemptedCount: 2,
-			updatedCount: 2,
+			attemptedCount: 4,
+			updatedCount: 4,
 			failedCount: 0
 		});
 

@@ -67,13 +67,18 @@ export async function syncEventTrackingSummaryPresentation({
 	});
 	const latestEventPingSentAt = await loadCurrentEventPingSentAt(eventSession);
 	if (!sameEventPingReceipt(initialEventPingSentAt, latestEventPingSentAt)) {
-		syncResult = await editTrackingSummaryCopies({
+		const repairResult = await editTrackingSummaryCopies({
 			guild,
 			eventSessionId: eventSession.id,
 			summaryMessageRefs,
 			summaryPayload: buildSummaryPayload(latestEventPingSentAt),
 			logger
 		});
+		syncResult = {
+			attemptedCount: syncResult.attemptedCount + repairResult.attemptedCount,
+			updatedCount: syncResult.updatedCount + repairResult.updatedCount,
+			failedCount: syncResult.failedCount + repairResult.failedCount
+		};
 	}
 
 	return syncResult;
