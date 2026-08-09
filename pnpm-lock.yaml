@@ -11,6 +11,9 @@ overrides:
 importers:
     .:
         dependencies:
+            '@arbiter/domain':
+                specifier: workspace:*
+                version: link:packages/domain
             '@prisma/adapter-pg':
                 specifier: ^7.9.1
                 version: 7.9.1
@@ -153,6 +156,71 @@ importers:
             tsx:
                 specifier: ^4.21.0
                 version: 4.21.0
+            typescript:
+                specifier: ~5.4.5
+                version: 5.4.5
+            vitest:
+                specifier: ^4.1.0
+                version: 4.1.0(@types/node@22.19.13)(vite@8.0.0(@emnapi/core@1.9.0)(@emnapi/runtime@1.9.0)(@types/node@22.19.13)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+
+    apps/api:
+        dependencies:
+            '@arbiter/api-contracts':
+                specifier: workspace:*
+                version: link:../../packages/api-contracts
+            '@arbiter/domain':
+                specifier: workspace:*
+                version: link:../../packages/domain
+            '@prisma/adapter-pg':
+                specifier: ^7.9.1
+                version: 7.9.1
+            '@prisma/client':
+                specifier: ^7.9.1
+                version: 7.9.1(prisma@7.9.1(@types/react@19.2.18)(better-sqlite3@12.6.2)(magicast@0.5.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.4.5))(typescript@5.4.5)
+            ioredis:
+                specifier: ^5.9.3
+                version: 5.9.3
+            pg:
+                specifier: ^8.22.0
+                version: 8.22.0
+            pino:
+                specifier: ^10.1.0
+                version: 10.3.1
+            zod:
+                specifier: ^4.3.6
+                version: 4.3.6
+        devDependencies:
+            '@types/node':
+                specifier: ^22.10.7
+                version: 22.19.13
+            '@types/pg':
+                specifier: ^8.16.0
+                version: 8.16.0
+            tsx:
+                specifier: ^4.21.0
+                version: 4.21.0
+            typescript:
+                specifier: ~5.4.5
+                version: 5.4.5
+            vitest:
+                specifier: ^4.1.0
+                version: 4.1.0(@types/node@22.19.13)(vite@8.0.0(@emnapi/core@1.9.0)(@emnapi/runtime@1.9.0)(@types/node@22.19.13)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+
+    packages/api-contracts:
+        dependencies:
+            zod:
+                specifier: ^4.3.6
+                version: 4.3.6
+        devDependencies:
+            typescript:
+                specifier: ~5.4.5
+                version: 5.4.5
+            vitest:
+                specifier: ^4.1.0
+                version: 4.1.0(@types/node@22.19.13)(vite@8.0.0(@emnapi/core@1.9.0)(@emnapi/runtime@1.9.0)(@types/node@22.19.13)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+
+    packages/domain:
+        devDependencies:
             typescript:
                 specifier: ~5.4.5
                 version: 5.4.5

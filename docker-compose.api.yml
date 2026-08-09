@@ -1,0 +1,39 @@
+services:
+  arbiter-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: arbiter-api:${ARBITER_API_IMAGE_TAG:-local}
+    init: true
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: development
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      DATABASE_URL: ${API_DATABASE_URL:-postgresql://arbiter:arbiter@host.docker.internal:5432/arbiter}
+      REDIS_HOST: host.docker.internal
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      API_REDIS_NAMESPACE: ${API_REDIS_NAMESPACE:-arbiter:api:v1}
+      API_REDIS_MAX_TTL_SECONDS: ${API_REDIS_MAX_TTL_SECONDS:-3600}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - '127.0.0.1:${API_PORT:-3000}:3000'
+    stop_grace_period: 15s
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/v1/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

@@ -23,7 +23,7 @@ Arbiter expects:
 - Docker
 - a Discord bot token plus guild-specific IDs in `.env`
 
-The bot talks to three local dependencies:
+The repository is a pnpm workspace. The existing root package remains the Discord bot, while `apps/api` is an independently startable HTTP process. Both runtimes can talk to the same local dependencies:
 
 - Postgres for durable application state
 - Redis for event tracking and short-lived coordination state
@@ -78,6 +78,22 @@ pnpm dev
 
 Development mode also enables the `dev` command group for repair and migration-style helpers.
 
+7. Start the health-only API independently when working on the API surface.
+
+```bash
+pnpm dev:api
+```
+
+The API exposes `GET /api/v1/health` for liveness and `GET /api/v1/readiness` for Postgres-and-Redis readiness. It does not expose a business route yet. Stopping the API closes only its own bounded Postgres pool and Redis client; it does not control the bot process or the shared services.
+
+To run the API as its own local container against the already-running development Postgres and Redis services:
+
+```bash
+docker compose -f docker-compose.api.yml up --build
+```
+
+`docker-compose.api.yml` defines only the API service. It does not create Postgres or Redis. On Docker Desktop it reaches the host-published development services through `host.docker.internal`; set `API_DATABASE_URL` when your existing database is reachable through a different container-safe address.
+
 ## Optional Local Services
 
 Start the observability stack when you want production-like log inspection:
@@ -111,6 +127,8 @@ Useful narrower loops:
 ```bash
 pnpm test:unit
 pnpm test:integration
+pnpm build:api
+pnpm api:container:smoke
 ```
 
 - `pnpm test:unit` is the fast loop for pure logic, presenters, and service branching
@@ -124,16 +142,19 @@ The important question is not "where is every file?" The important question is "
 
 ### Top-Level Directories
 
-| Path                   | What it owns                                                |
-| ---------------------- | ----------------------------------------------------------- |
-| `src/`                 | Runtime application code                                    |
-| `tests/`               | Unit and integration tests                                  |
-| `prisma/`              | Split schema files, migrations, seeds, and repair utilities |
-| `observability/`       | Loki, Alloy, and Grafana config                             |
-| `website/`             | This Docusaurus site                                        |
-| `scripts/`             | Repository automation, including release tooling            |
-| `.github/workflows/`   | CI, docs publish, and release automation                    |
-| `docker-compose.*.yml` | Local and production infrastructure entrypoints             |
+| Path                     | What it owns                                                         |
+| ------------------------ | -------------------------------------------------------------------- |
+| `src/`                   | Existing Discord bot runtime application code                        |
+| `apps/api/`              | Standalone HTTP API process and API-owned dependency lifecycle       |
+| `packages/api-contracts` | Versioned transport schemas, safe envelopes, and scope names         |
+| `packages/domain`        | Pure canonical rules shared by runtimes, starting with merit ranking |
+| `tests/`                 | Bot and cross-runtime integration tests                              |
+| `prisma/`                | Canonical split schema, migrations, seeds, and repair utilities      |
+| `observability/`         | Loki, Alloy, and Grafana config                                      |
+| `website/`               | This Docusaurus site                                                 |
+| `scripts/`               | Repository automation, including release tooling                     |
+| `.github/workflows/`     | CI, docs publish, and release automation                             |
+| `docker-compose.*.yml`   | Local and production infrastructure entrypoints                      |
 
 ### Runtime Layout
 

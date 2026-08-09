@@ -10,30 +10,24 @@ WORKDIR /app
 FROM base AS deps
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 ENV HUSKY=0
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/domain/package.json ./packages/domain/package.json
-COPY packages/api-contracts/package.json ./packages/api-contracts/package.json
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/api/package.json ./apps/api/package.json
-COPY .npmrc ./
+COPY packages/api-contracts/package.json ./packages/api-contracts/package.json
+COPY packages/domain/package.json ./packages/domain/package.json
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-FROM deps AS migrate
-COPY prisma ./prisma
-COPY prisma.config.ts ./
-RUN pnpm db:generate
-
 FROM deps AS build
-COPY tsconfig.json ./
 COPY prisma ./prisma
-COPY prisma.config.ts ./
-COPY src ./src
+COPY prisma.config.ts ./prisma.config.ts
+COPY apps/api ./apps/api
+COPY packages/api-contracts ./packages/api-contracts
 COPY packages/domain ./packages/domain
 RUN pnpm db:generate
-RUN pnpm build
+RUN pnpm --filter @arbiter/api build
 RUN generated_prisma_dir="$(find node_modules/.pnpm -type d -path '*/node_modules/.prisma' -print -quit)" \
 	&& test -n "$generated_prisma_dir" \
 	&& cp -R "$generated_prisma_dir" /app/.generated-prisma-client
-RUN pnpm --filter arbiter... install --prod --offline --ignore-scripts --frozen-lockfile --force
+RUN pnpm --filter @arbiter/api... install --prod --offline --ignore-scripts --frozen-lockfile --force
 RUN prisma_client_dir="$(find node_modules/.pnpm -type d -path '*/node_modules/@prisma/client' -print -quit)" \
 	&& test -n "$prisma_client_dir" \
 	&& prisma_modules_dir="$(dirname "$(dirname "$prisma_client_dir")")" \
@@ -44,14 +38,19 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/prisma.config.ts ./prisma.config.ts
-COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build /app/packages/api-contracts/package.json ./packages/api-contracts/package.json
+COPY --from=build /app/packages/api-contracts/dist ./packages/api-contracts/dist
+COPY --from=build /app/packages/api-contracts/node_modules ./packages/api-contracts/node_modules
 COPY --from=build /app/packages/domain/package.json ./packages/domain/package.json
 COPY --from=build /app/packages/domain/dist ./packages/domain/dist
-
-RUN mkdir -p /app/logs && chown -R node:node /app/logs
+COPY --from=build /app/packages/domain/node_modules ./packages/domain/node_modules
 
 USER node
-CMD ["node", "dist/index.js"]
+EXPOSE 3000
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+	CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
+CMD ["node", "apps/api/dist/index.js"]
