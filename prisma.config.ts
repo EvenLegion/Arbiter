@@ -7,7 +7,9 @@ localUrl.password = process.env.POSTGRES_PASSWORD || 'arbiter';
 localUrl.port = process.env.POSTGRES_PORT || '5432';
 localUrl.pathname = `/${process.env.POSTGRES_DB || 'arbiter'}`;
 
-const url = process.env.NODE_ENV === 'development' ? localUrl.toString() : process.env.DATABASE_URL || localUrl.toString();
+const url =
+	process.env.PRISMA_DATABASE_URL ||
+	(process.env.NODE_ENV === 'development' ? localUrl.toString() : process.env.DATABASE_URL || localUrl.toString());
 
 export default defineConfig({
 	datasource: {
