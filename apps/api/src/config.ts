@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { API_V1_ROUTES } from '@arbiter/api-contracts';
 
 const ApiConfigSchema = z.object({
 	NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -17,6 +18,14 @@ const ApiConfigSchema = z.object({
 	API_SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
 	API_DB_POOL_MAX: z.coerce.number().int().min(1).max(10).default(4),
 	API_CREDENTIAL_PEPPER: z.string().min(32, 'API_CREDENTIAL_PEPPER must be at least 32 characters'),
+	API_DISCORD_CLIENT_ID: z.string().regex(/^\d{17,20}$/, 'API_DISCORD_CLIENT_ID must be a Discord application ID'),
+	API_DISCORD_CLIENT_SECRET: z.string().min(16, 'API_DISCORD_CLIENT_SECRET must be at least 16 characters'),
+	API_DISCORD_CALLBACK_URL: z.url(),
+	API_ALLOWED_ORIGINS: z.string().min(1),
+	API_AUTH_REDIRECT_URLS: z.string().min(1),
+	API_AUTH_STATE_TTL_SECONDS: z.coerce.number().int().min(60).max(900).default(600),
+	API_SESSION_IDLE_TTL_SECONDS: z.coerce.number().int().min(300).max(3_600).default(1_800),
+	API_SESSION_ABSOLUTE_TTL_SECONDS: z.coerce.number().int().min(900).max(86_400).default(28_800),
 	DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 	REDIS_HOST: z.string().min(1).default('127.0.0.1'),
 	REDIS_PORT: z.coerce.number().int().min(1).max(65_535).default(6379),
@@ -49,6 +58,16 @@ export type ApiConfig = {
 	databaseUrl: string;
 	databasePoolMax: number;
 	credentialPepper: string;
+	auth: {
+		discordClientId: string;
+		discordClientSecret: string;
+		discordCallbackUrl: string;
+		allowedOrigins: readonly string[];
+		allowedRedirectUrls: readonly string[];
+		stateTtlSeconds: number;
+		sessionIdleTtlSeconds: number;
+		sessionAbsoluteTtlSeconds: number;
+	};
 	redis: {
 		host: string;
 		port: number;
@@ -67,6 +86,23 @@ export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfi
 	}
 
 	const value = parsed.data;
+	const allowedOrigins = parseUrlList('API_ALLOWED_ORIGINS', value.API_ALLOWED_ORIGINS, true, value.NODE_ENV);
+	const allowedRedirectUrls = parseUrlList('API_AUTH_REDIRECT_URLS', value.API_AUTH_REDIRECT_URLS, false, value.NODE_ENV);
+	const callbackUrl = parseExactUrl('API_DISCORD_CALLBACK_URL', value.API_DISCORD_CALLBACK_URL, value.NODE_ENV);
+	if (callbackUrl.search || callbackUrl.hash)
+		throw new Error('Invalid API environment configuration: API_DISCORD_CALLBACK_URL must not contain query or fragment');
+	if (callbackUrl.pathname !== API_V1_ROUTES.authDiscordCallback) {
+		throw new Error(`Invalid API environment configuration: API_DISCORD_CALLBACK_URL must use ${API_V1_ROUTES.authDiscordCallback}`);
+	}
+	if (allowedRedirectUrls.some((url) => !allowedOrigins.includes(new URL(url).origin))) {
+		throw new Error('Invalid API environment configuration: every API_AUTH_REDIRECT_URLS origin must appear in API_ALLOWED_ORIGINS');
+	}
+	if (value.API_AUTH_STATE_TTL_SECONDS > value.API_REDIS_MAX_TTL_SECONDS || value.API_SESSION_IDLE_TTL_SECONDS > value.API_REDIS_MAX_TTL_SECONDS) {
+		throw new Error('Invalid API environment configuration: auth state and idle session TTLs must not exceed API_REDIS_MAX_TTL_SECONDS');
+	}
+	if (value.API_SESSION_ABSOLUTE_TTL_SECONDS < value.API_SESSION_IDLE_TTL_SECONDS) {
+		throw new Error('Invalid API environment configuration: API_SESSION_ABSOLUTE_TTL_SECONDS must be at least the idle TTL');
+	}
 	return {
 		nodeEnv: value.NODE_ENV,
 		host: value.API_HOST,
@@ -85,6 +121,16 @@ export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfi
 		databaseUrl: value.DATABASE_URL,
 		databasePoolMax: value.API_DB_POOL_MAX,
 		credentialPepper: value.API_CREDENTIAL_PEPPER,
+		auth: {
+			discordClientId: value.API_DISCORD_CLIENT_ID,
+			discordClientSecret: value.API_DISCORD_CLIENT_SECRET,
+			discordCallbackUrl: callbackUrl.toString(),
+			allowedOrigins,
+			allowedRedirectUrls,
+			stateTtlSeconds: value.API_AUTH_STATE_TTL_SECONDS,
+			sessionIdleTtlSeconds: value.API_SESSION_IDLE_TTL_SECONDS,
+			sessionAbsoluteTtlSeconds: value.API_SESSION_ABSOLUTE_TTL_SECONDS
+		},
 		redis: {
 			host: value.REDIS_HOST,
 			port: value.REDIS_PORT,
@@ -94,4 +140,36 @@ export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfi
 			maxTtlSeconds: value.API_REDIS_MAX_TTL_SECONDS
 		}
 	};
+}
+
+function parseUrlList(field: string, rawValue: string, originsOnly: boolean, nodeEnv: ApiConfig['nodeEnv']): readonly string[] {
+	const values = rawValue
+		.split(',')
+		.map((value) => value.trim())
+		.filter(Boolean);
+	if (values.length === 0 || values.includes('*')) throw new Error(`Invalid API environment configuration: ${field} must contain exact URLs`);
+	const normalized = values.map((value) => {
+		const url = parseExactUrl(field, value, nodeEnv);
+		if (originsOnly && (url.pathname !== '/' || url.search || url.hash)) {
+			throw new Error(`Invalid API environment configuration: ${field} entries must be origins without paths, queries, or fragments`);
+		}
+		if (!originsOnly && url.hash) throw new Error(`Invalid API environment configuration: ${field} entries must not contain fragments`);
+		return originsOnly ? url.origin : url.toString();
+	});
+	return [...new Set(normalized)];
+}
+
+function parseExactUrl(field: string, rawValue: string, nodeEnv: ApiConfig['nodeEnv']): URL {
+	let url: URL;
+	try {
+		url = new URL(rawValue);
+	} catch {
+		throw new Error(`Invalid API environment configuration: ${field} must contain valid absolute URLs`);
+	}
+	if (url.username || url.password) throw new Error(`Invalid API environment configuration: ${field} must not contain credentials`);
+	const localHttp = url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1') && nodeEnv !== 'production';
+	if (url.protocol !== 'https:' && !localHttp) {
+		throw new Error(`Invalid API environment configuration: ${field} must use HTTPS (local HTTP is development/test only)`);
+	}
+	return url;
 }

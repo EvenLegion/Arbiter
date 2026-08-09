@@ -46,7 +46,7 @@ Today the bot exposes a small number of ingress families:
 - gateway listeners for startup and guild-member lifecycle events
 - scheduled tasks for refreshing the division cache and ticking active event tracking sessions
 
-The API is deliberately smaller at this stage. It is a separate package, Node.js process, image, and local container with only versioned health and readiness routes. Its runtime shell owns HTTP request IDs, validation, size and time limits, sanitized JSON errors, structured logs, dependency readiness, and graceful shutdown. Transport-independent integration and credential services now persist in the canonical database, but business routes, OAuth, sessions, portal behavior, and directory reads are introduced by later tickets.
+The API is a separate package, Node.js process, image, and local container with versioned health, readiness, and browser-authentication routes. Its runtime shell owns HTTP request IDs, exact-origin credentialed CORS, validation, size and time limits, sanitized JSON errors, structured logs, dependency readiness, and graceful shutdown. The auth service owns Discord OAuth state and session transitions; Postgres repositories own current membership reads; Redis owns only transient, TTL-bounded coordination. Transport-independent integration and credential services persist in the canonical database, while portal pages and directory reads remain later work.
 
 ## Package And Process Boundaries
 
@@ -66,7 +66,7 @@ flowchart LR
 
 The root package remains the bot; it is not hidden inside `apps/bot`. `packages/api-contracts` is transport-only authority and may be consumed by a future portal without importing Prisma, Redis, secrets, or server lifecycle code. The initial permission catalog contains only `users:read`. `packages/domain` owns pure reusable rules. Merit-rank thresholds moved there once, while the bot's previous module path re-exports the package to preserve existing callers.
 
-The API opens its own small Postgres pool and Redis client because process-local connections cannot be shared safely. Those connections point to the same database, schema authority, migration history, and Redis service used by the bot. Stopping either process closes only its own clients. Neither runtime starts, stops, reconnects, or terminates the other. `API_DB_POOL_MAX` defaults to four so the API cannot silently consume an unbounded share of the existing Postgres connection budget.
+The API opens its own small Postgres pool and Redis client because process-local connections cannot be shared safely. Those connections point to the same database, schema authority, migration history, and Redis service used by the bot. Discord OAuth proves identity, but every protected API request re-reads current Postgres division memberships for authorization. Redis stores only digested-key OAuth state and browser sessions under the API namespace. Stopping either process closes only its own clients. Neither runtime starts, stops, reconnects, or terminates the other. `API_DB_POOL_MAX` defaults to four so the API cannot silently consume an unbounded share of the existing Postgres connection budget.
 
 ## How Requests Move Through The Bot
 
@@ -172,7 +172,7 @@ Redis stores transient runtime coordination data. Today that is mainly active ev
 
 The rule is simple: Redis holds state that matters while a workflow is in flight. Postgres holds state that matters afterward.
 
-API-owned transient keys must use the `arbiter:api:v1:` prefix and a TTL no greater than `API_REDIS_MAX_TTL_SECONDS`. API credentials themselves live in Postgres, not Redis. The namespace and bound remain reserved for later OAuth/session and throttling work so it cannot collide with bot or BullMQ keys.
+API-owned transient keys must use the `arbiter:api:v1:` prefix and a TTL no greater than `API_REDIS_MAX_TTL_SECONDS`. OAuth state is browser-bound, single-use, and stored under `auth:oauth-state:` with a digested key. Browser sessions use digested `auth:session:` keys, sliding idle expiry, non-sliding absolute expiry, and session-bound CSRF tokens. API credentials themselves live in Postgres, not Redis. These keys cannot collide with bot or BullMQ ownership.
 
 ### In-Process Division Cache
 

@@ -78,7 +78,7 @@ pnpm dev
 
 Development mode also enables the `dev` command group for repair and migration-style helpers.
 
-7. Start the health-only API independently when working on the API surface.
+7. Start the standalone API independently when working on health, browser authentication, or later API surfaces.
 
 ```bash
 pnpm dev:api

@@ -6,6 +6,7 @@ import { createApiRuntime, type ApiRuntime } from './http/server';
 import { createApiLogger } from './logger';
 import { createApiDependencies } from './runtime/dependencies';
 
+export * from './auth';
 export * from './credentials';
 
 export async function runApi(): Promise<ApiRuntime> {

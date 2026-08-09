@@ -2,9 +2,18 @@ import { describe, expect, it } from 'vitest';
 
 import { parseApiConfig } from '../src/config';
 
+const authEnv = {
+	API_DISCORD_CLIENT_ID: '100000000000000001',
+	API_DISCORD_CLIENT_SECRET: 'test-discord-client-secret',
+	API_DISCORD_CALLBACK_URL: 'http://127.0.0.1:3000/api/v1/auth/discord/callback',
+	API_ALLOWED_ORIGINS: 'http://127.0.0.1:4173,http://localhost:4173',
+	API_AUTH_REDIRECT_URLS: 'http://127.0.0.1:4173/auth/callback,http://localhost:4173/auth/callback'
+};
+
 describe('parseApiConfig', () => {
 	it('builds bounded API, database, and Redis configuration', () => {
 		const config = parseApiConfig({
+			...authEnv,
 			DATABASE_URL: 'postgresql://arbiter:secret@db.example/arbiter',
 			API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters',
 			REDIS_HOST: 'redis.example',
@@ -38,6 +47,7 @@ describe('parseApiConfig', () => {
 
 		try {
 			parseApiConfig({
+				...authEnv,
 				DATABASE_URL: 'postgresql://arbiter:super-secret@db.example/arbiter',
 				API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters',
 				API_REDIS_NAMESPACE: 'INVALID NAMESPACE'
@@ -49,6 +59,7 @@ describe('parseApiConfig', () => {
 
 	it('treats an empty Redis password as no password for local Compose', () => {
 		const config = parseApiConfig({
+			...authEnv,
 			DATABASE_URL: 'postgresql://arbiter@localhost/arbiter',
 			API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters',
 			REDIS_PASSWORD: ''
@@ -57,8 +68,39 @@ describe('parseApiConfig', () => {
 	});
 
 	it('requires a non-trivial API-only credential pepper', () => {
-		expect(() => parseApiConfig({ DATABASE_URL: 'postgresql://arbiter@localhost/arbiter', API_CREDENTIAL_PEPPER: 'too-short' })).toThrowError(
-			/API_CREDENTIAL_PEPPER/
-		);
+		expect(() =>
+			parseApiConfig({ ...authEnv, DATABASE_URL: 'postgresql://arbiter@localhost/arbiter', API_CREDENTIAL_PEPPER: 'too-short' })
+		).toThrowError(/API_CREDENTIAL_PEPPER/);
+	});
+
+	it('requires exact credentialed origins and redirect allowlisting', () => {
+		expect(() =>
+			parseApiConfig({
+				...authEnv,
+				DATABASE_URL: 'postgresql://arbiter@localhost/arbiter',
+				API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters',
+				API_ALLOWED_ORIGINS: '*'
+			})
+		).toThrowError(/API_ALLOWED_ORIGINS/);
+
+		expect(() =>
+			parseApiConfig({
+				...authEnv,
+				DATABASE_URL: 'postgresql://arbiter@localhost/arbiter',
+				API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters',
+				API_AUTH_REDIRECT_URLS: 'http://localhost:9999/auth/callback'
+			})
+		).toThrowError(/API_AUTH_REDIRECT_URLS/);
+	});
+
+	it('requires HTTPS auth URLs in production', () => {
+		expect(() =>
+			parseApiConfig({
+				...authEnv,
+				NODE_ENV: 'production',
+				DATABASE_URL: 'postgresql://arbiter@localhost/arbiter',
+				API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters'
+			})
+		).toThrowError(/HTTPS/);
 	});
 });

@@ -182,7 +182,9 @@ At minimum, production needs:
 - `DISCORD_GUILD_ID`
 - the Discord role and channel IDs the bot depends on
 
-The standalone API additionally requires `API_CREDENTIAL_PEPPER`. Store it only in the API runtime's secret configuration, use at least 32 randomly generated characters, and do not inject it into the bot, portal, logs, build artifacts, or migration command. Changing it invalidates every existing API credential, so rotation requires an explicit credential-remint and cutover plan.
+The standalone API additionally requires `API_CREDENTIAL_PEPPER` and `API_DISCORD_CLIENT_SECRET`. Store them only in the API runtime's secret configuration and do not inject either into the bot, portal, logs, build artifacts, or migration command. Use at least 32 randomly generated characters for the credential pepper. Changing it invalidates every existing API credential, so rotation requires an explicit credential-remint and cutover plan. Rotating the Discord client secret requires updating only the API runtime and the Discord application; existing browser sessions remain valid until their Redis expiry or explicit revocation.
+
+Configure `API_DISCORD_CALLBACK_URL`, `API_ALLOWED_ORIGINS`, and `API_AUTH_REDIRECT_URLS` as exact HTTPS values. Production should place the API and portal on custom hostnames under the same parent domain so the host-only `SameSite=Lax` API cookie remains compatible with browser credential rules. Wildcard CORS, unrelated redirect origins, and bot-token injection into the API are rejected boundaries, not deployment shortcuts.
 
 ### API Credential Migration And Rollback
 
