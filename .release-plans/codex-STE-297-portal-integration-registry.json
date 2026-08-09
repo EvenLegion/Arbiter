@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "codex/STE-297-portal-integration-registry",
+	"baseRef": "origin/dev",
+	"mergeBase": "4106a46acd064b2082b0cfb59d79198a726c5a5b",
+	"headRef": "2080d9c0dc5cf269bad2c44a5f8067645a164364",
+	"generatedAt": "2026-08-09T22:02:30.335Z",
+	"bump": "minor",
+	"targetVersion": "3.5.0",
+	"commits": [
+		{
+			"sha": "2080d9c0dc5cf269bad2c44a5f8067645a164364",
+			"subject": "feat(api): add staff integration registry portal",
+			"committedAt": "2026-08-09T12:02:11-10:00",
+			"committedAtMs": 1786312931000,
+			"type": "feat",
+			"scope": "api",
+			"description": "add staff integration registry portal",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
