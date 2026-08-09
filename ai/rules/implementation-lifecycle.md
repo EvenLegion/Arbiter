@@ -139,11 +139,20 @@ When the requested scope and required local validation are complete:
    push is imminent. Do not create or update a plan for local-only work.
 8. Review every release-plan description as public-facing copy for the general
    Even Legion Discord audience. Use detailed, plain language to explain what
-   changed, why it matters, and the practical member or operator impact. Avoid
-   repository jargon, file paths, ticket shorthand, and unexplained technical
-   terms. State clearly when the change is behind the scenes and does not alter
-   Discord commands or member behavior. If generated copy is too technical,
-   improve the existing plan entry without creating a second branch plan.
+   changed, why it matters, and the practical member or operator impact. Lead
+   with the concrete Arbiter capability and domain purpose: name what members,
+   staff, or operators will eventually be able to do or learn. Do not accept
+   vague architecture copy such as "add a foundation," "add infrastructure,"
+   "use a separate process," or "create shared packages" unless the same
+   sentence says which product capability that work enables. For staged work,
+   distinguish honestly between the capability prepared now and behavior that
+   will arrive in later tickets; never imply that a future route or workflow is
+   already available. Avoid repository jargon, file paths, ticket shorthand,
+   and unexplained technical terms. State clearly when the change is behind the
+   scenes and does not alter Discord commands or member behavior, but put that
+   sentence after the purpose statement. If generated copy is too technical or
+   too generic, improve the existing plan entry without creating a second
+   branch plan.
    After editing a plan, rerun `pnpm release:plan:check` and commit the updated
    plan file before continuing to step 9.
 9. Push the branch and open a ready-for-review PR against `dev`. Use a draft only

@@ -139,7 +139,18 @@ The production Docker stack currently runs:
 - Alloy
 - Grafana
 
+The repository also contains an independently buildable `Dockerfile.api` and local-only `docker-compose.api.yml`. That compose file is a development foundation and is not wired into the production stack by this change. Production API service configuration, network exposure, proxy/TLS, resource sizing, and deployment remain a separately approved deployment-readiness task.
+
+The API already follows the production observability contract: it writes structured JSON to `API_LOG_FILE_PATH`, defaults to `logs/api.log`, and the existing Alloy configuration assigns that file `service=arbiter-api` before shipping it to Loki. Local source and API-container runs share `./logs` with the observability stack. A future production API service must mount its log directory into the existing Alloy container at `/var/log/arbiter/api.log` (or set `ARBITER_API_LOG_GLOB` to the matching mounted path); it must not bypass the redaction and request-ID fields already established here.
+
 Postgres is not part of the production compose stack. Production expects an external database reachable through `DATABASE_URL`.
+
+The API image uses the same canonical generated Prisma client and `DATABASE_URL`, opens a separately bounded pool, and reuses the existing Redis service under `arbiter:api:v1:`. It contains no Discord bot token requirement and no portal runtime. Build and smoke-test it without deploying it:
+
+```bash
+pnpm build:api
+pnpm api:container:smoke
+```
 
 ### Runtime Dependency Verification
 
@@ -209,6 +220,8 @@ The production stack expects persistent host directories for:
 - Loki data
 - Grafana data
 - Alloy data
+
+When the API is added to the production stack in a separately approved change, its `API_LOG_FILE_PATH` must also use a persistent host-mounted log directory visible to Alloy. The current production Compose does not yet run the API and therefore does not create that mount.
 
 If those paths move or change ownership, update the environment configuration to match. The bot and Redis containers may run under explicit numeric users, so host ownership matters.
 

@@ -5,7 +5,7 @@ sidebar_position: 3
 
 # System Guide
 
-Arbiter is a long-running Discord bot with several ingress types, several kinds of state, and a strong preference for explicit workflow boundaries.
+Arbiter has two independently startable runtime packages: the existing long-running Discord bot at the repository root and a standalone HTTP API under `apps/api`. They share canonical domain rules and storage authorities, but they do not share process lifecycle.
 
 This page replaces the old split between runtime overview, request flow, state/storage, and observability because those topics are easier to understand together than in isolation.
 
@@ -45,6 +45,28 @@ Today the bot exposes a small number of ingress families:
 - button and modal flows for event lifecycle control, event review, merit pagination, division selection, and name-change review
 - gateway listeners for startup and guild-member lifecycle events
 - scheduled tasks for refreshing the division cache and ticking active event tracking sessions
+
+The API is deliberately smaller at this stage. It is a separate package, Node.js process, image, and local container with only versioned health and readiness routes. Its runtime shell owns HTTP request IDs, validation, size and time limits, sanitized JSON errors, structured logs, dependency readiness, and graceful shutdown. Business routes, OAuth, sessions, credentials, and directory reads are introduced by later tickets.
+
+## Package And Process Boundaries
+
+```mermaid
+flowchart LR
+    P["Future portal on Vercel"] -->|"versioned HTTPS REST"| A["apps/api process"]
+    D["Discord"] --> B["root bot process"]
+    A --> C["Canonical Prisma client and schema"]
+    B --> C
+    C --> PG["Existing Arbiter Postgres"]
+    A -->|"arbiter:api:v1 namespace"| R["Existing Redis"]
+    B -->|"bot and queue namespaces"| R
+    A --> AC["packages/api-contracts"]
+    A --> DOM["packages/domain"]
+    B --> DOM
+```
+
+The root package remains the bot; it is not hidden inside `apps/bot`. `packages/api-contracts` is transport-only authority and may be consumed by a future portal without importing Prisma, Redis, secrets, or server lifecycle code. The initial permission catalog contains only `users:read`. `packages/domain` owns pure reusable rules. Merit-rank thresholds moved there once, while the bot's previous module path re-exports the package to preserve existing callers.
+
+The API opens its own small Postgres pool and Redis client because process-local connections cannot be shared safely. Those connections point to the same database, schema authority, migration history, and Redis service used by the bot. Stopping either process closes only its own clients. Neither runtime starts, stops, reconnects, or terminates the other.
 
 ## How Requests Move Through The Bot
 
@@ -147,6 +169,8 @@ Redis stores transient runtime coordination data. Today that is mainly active ev
 
 The rule is simple: Redis holds state that matters while a workflow is in flight. Postgres holds state that matters afterward.
 
+API-owned transient keys must use the `arbiter:api:v1:` prefix and a TTL no greater than `API_REDIS_MAX_TTL_SECONDS`. The foundation writes no API keys yet; the namespace and bound are established so later OAuth/session and throttling work cannot collide with bot or BullMQ keys.
+
 ### In-Process Division Cache
 
 Arbiter also keeps a process-local division cache loaded from Postgres and refreshed on a schedule. Division-aware behavior is common enough that repeated raw DB reads would be wasteful.
@@ -198,6 +222,8 @@ At runtime:
 - Alloy tails the log file
 - Loki stores the logs
 - Grafana reads from Loki
+
+The standalone API writes structured JSON to `logs/api.log` and optionally mirrors JSON to standard output. The existing Alloy pipeline tails that file and sends it to Loki with `service=arbiter-api`, so the provisioned Grafana views and request-ID correlation work across both runtimes. It logs request ID, method, normalized path, status, and duration, but not headers, query values, request bodies, database/Redis URLs, passwords, cookies, authorization values, tokens, or secrets. API error responses expose only a stable code, safe message, and request ID. Readiness intentionally collapses dependency failures to `not_ready` without identifying or quoting the failing dependency.
 
 The same file-first model exists locally and in production, so debugging techniques transfer cleanly between the two.
 

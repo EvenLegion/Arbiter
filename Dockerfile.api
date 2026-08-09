@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:22-bookworm-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
+WORKDIR /app
+
+FROM base AS deps
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
+ENV HUSKY=0
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY packages/api-contracts/package.json ./packages/api-contracts/package.json
+COPY packages/domain/package.json ./packages/domain/package.json
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+FROM deps AS build
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
+COPY apps/api ./apps/api
+COPY packages/api-contracts ./packages/api-contracts
+COPY packages/domain ./packages/domain
+RUN pnpm db:generate
+RUN pnpm --filter @arbiter/api build
+RUN generated_prisma_dir="$(find node_modules/.pnpm -type d -path '*/node_modules/.prisma' -print -quit)" \
+	&& test -n "$generated_prisma_dir" \
+	&& cp -R "$generated_prisma_dir" /app/.generated-prisma-client
+RUN pnpm --filter @arbiter/api... install --prod --offline --ignore-scripts --frozen-lockfile --force
+RUN prisma_client_dir="$(find node_modules/.pnpm -type d -path '*/node_modules/@prisma/client' -print -quit)" \
+	&& test -n "$prisma_client_dir" \
+	&& prisma_modules_dir="$(dirname "$(dirname "$prisma_client_dir")")" \
+	&& cp -R /app/.generated-prisma-client "$prisma_modules_dir/.prisma"
+
+FROM base AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build /app/packages/api-contracts/package.json ./packages/api-contracts/package.json
+COPY --from=build /app/packages/api-contracts/dist ./packages/api-contracts/dist
+COPY --from=build /app/packages/api-contracts/node_modules ./packages/api-contracts/node_modules
+COPY --from=build /app/packages/domain/package.json ./packages/domain/package.json
+COPY --from=build /app/packages/domain/dist ./packages/domain/dist
+COPY --from=build /app/packages/domain/node_modules ./packages/domain/node_modules
+
+RUN mkdir -p /app/logs && chown node:node /app/logs
+USER node
+EXPOSE 3000
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+	CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
+CMD ["node", "apps/api/dist/index.js"]
