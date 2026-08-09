@@ -43,7 +43,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Validate branch release plan
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.base_ref == 'dev'
         env:
           RELEASE_PLAN_BRANCH: ${{ github.head_ref }}
         run: pnpm release:plan:check -- --branch "$RELEASE_PLAN_BRANCH" --base origin/dev
