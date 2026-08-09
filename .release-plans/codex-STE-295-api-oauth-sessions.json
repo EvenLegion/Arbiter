@@ -15,7 +15,7 @@
 			"committedAtMs": 1786299466000,
 			"type": "feat",
 			"scope": "api",
-			"description": "add Discord OAuth staff sessions",
+			"description": "Allow authorized Even Legion staff to sign in to the future management portal with Discord while Arbiter verifies current staff membership before every protected request. Sign-in now uses short-lived, revocable sessions, exact approved browser origins and redirects, and protections against replay and cross-site requests; Discord tokens and secrets stay inside the API and are not stored. This delivers the API authentication flow, while the portal interface and production deployment arrive in later work; no Discord commands or current member workflows change yet.",
 			"breaking": false,
 			"section": "Features"
 		}
