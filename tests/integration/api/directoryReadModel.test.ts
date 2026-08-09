@@ -37,7 +37,9 @@ describe('API directory read model', () => {
 
 		const first = await service.query({ limit: 2 });
 		expect(first.ok).toBe(true);
-		if (!first.ok || !first.value.nextCursor) return;
+		if (!first.ok) throw new Error('Expected the first directory page to succeed');
+		expect(first.value.nextCursor).not.toBeNull();
+		if (!first.value.nextCursor) throw new Error('Expected the first directory page to include a cursor');
 		expect(first.value.users).toEqual([
 			{
 				discordUserId: fixture.zero.discordUserId,

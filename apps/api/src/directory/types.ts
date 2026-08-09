@@ -1,4 +1,4 @@
-import type { ApiDirectoryMembership, ApiDirectoryPage, ApiDirectoryQuery } from '@arbiter/api-contracts';
+import type { ApiDirectoryMembership, ApiDirectoryPage, ApiDirectoryQueryInput } from '@arbiter/api-contracts';
 
 export type DirectoryRepositoryQuery = {
 	discordUserIds?: string[];
@@ -31,5 +31,5 @@ export type DirectoryServiceError = { code: 'invalid_input' } | { code: 'unknown
 export type DirectoryServiceResult = { ok: true; value: ApiDirectoryPage } | { ok: false; error: DirectoryServiceError };
 
 export type DirectoryService = {
-	query: (input: ApiDirectoryQuery) => Promise<DirectoryServiceResult>;
+	query: (input: ApiDirectoryQueryInput) => Promise<DirectoryServiceResult>;
 };

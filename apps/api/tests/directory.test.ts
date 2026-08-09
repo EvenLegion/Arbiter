@@ -68,7 +68,9 @@ describe('API directory service', () => {
 		const first = createRepository({ rows: firstRows, unknownDivisionCodes: [] });
 		const firstResult = await createDirectoryService(first.repository).query({ limit: 2 });
 		expect(firstResult.ok).toBe(true);
-		if (!firstResult.ok || !firstResult.value.nextCursor) return;
+		if (!firstResult.ok) throw new Error('Expected the first directory page to succeed');
+		expect(firstResult.value.nextCursor).toBeTypeOf('string');
+		if (!firstResult.value.nextCursor) throw new Error('Expected the first directory page to include a cursor');
 		expect(firstResult.value.nextCursor).not.toContain('100000000000000002');
 
 		const second = createRepository({ rows: [], unknownDivisionCodes: [] });

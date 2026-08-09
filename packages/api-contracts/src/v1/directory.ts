@@ -44,7 +44,7 @@ export const ApiDirectoryUserSchema = z
 	.object({
 		discordUserId: DiscordUserIdSchema,
 		memberships: z.array(ApiDirectoryMembershipSchema),
-		totalMerits: z.number().int().safe(),
+		totalMerits: z.number().int(),
 		rankLevel: RankLevelSchema.nullable(),
 		rankSymbol: z.string().min(1).nullable()
 	})
@@ -61,8 +61,8 @@ export const ApiDirectoryPageSchema = z
 	})
 	.strict();
 
-export type ApiDirectoryQuery = z.input<typeof ApiDirectoryQuerySchema>;
-export type ApiDirectoryQueryInput = z.output<typeof ApiDirectoryQuerySchema>;
+export type ApiDirectoryQueryInput = z.input<typeof ApiDirectoryQuerySchema>;
+export type ParsedApiDirectoryQuery = z.output<typeof ApiDirectoryQuerySchema>;
 export type ApiDirectoryMembership = z.infer<typeof ApiDirectoryMembershipSchema>;
 export type ApiDirectoryUser = z.infer<typeof ApiDirectoryUserSchema>;
 export type ApiDirectoryPage = z.infer<typeof ApiDirectoryPageSchema>;
