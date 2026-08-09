@@ -5,6 +5,8 @@ const ApiConfigSchema = z.object({
 	API_HOST: z.string().min(1).default('0.0.0.0'),
 	API_PORT: z.coerce.number().int().min(0).max(65_535).default(3000),
 	API_LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
+	API_LOG_FILE_PATH: z.string().min(1).default('logs/api.log'),
+	API_CONSOLE_LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
 	API_BODY_LIMIT_BYTES: z.coerce.number().int().min(1).max(1_048_576).default(65_536),
 	API_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(10_000),
 	API_HEADERS_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(10_000),
@@ -31,6 +33,8 @@ export type ApiConfig = {
 	host: string;
 	port: number;
 	logLevel: z.infer<typeof ApiConfigSchema>['API_LOG_LEVEL'];
+	logFilePath: string;
+	consoleLogLevel: z.infer<typeof ApiConfigSchema>['API_CONSOLE_LOG_LEVEL'];
 	bodyLimitBytes: number;
 	requestTimeoutMs: number;
 	headersTimeoutMs: number;
@@ -62,6 +66,8 @@ export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfi
 		host: value.API_HOST,
 		port: value.API_PORT,
 		logLevel: value.API_LOG_LEVEL,
+		logFilePath: value.API_LOG_FILE_PATH,
+		consoleLogLevel: value.API_CONSOLE_LOG_LEVEL,
 		bodyLimitBytes: value.API_BODY_LIMIT_BYTES,
 		requestTimeoutMs: value.API_REQUEST_TIMEOUT_MS,
 		headersTimeoutMs: value.API_HEADERS_TIMEOUT_MS,

@@ -13,6 +13,8 @@ services:
       NODE_ENV: development
       API_HOST: 0.0.0.0
       API_PORT: 3000
+      API_LOG_FILE_PATH: /app/logs/api.log
+      API_CONSOLE_LOG_LEVEL: ${API_CONSOLE_LOG_LEVEL:-info}
       DATABASE_URL: ${API_DATABASE_URL:-postgresql://arbiter:arbiter@host.docker.internal:5432/arbiter}
       REDIS_HOST: host.docker.internal
       REDIS_PORT: ${REDIS_PORT:-6379}
@@ -24,6 +26,8 @@ services:
       - 'host.docker.internal:host-gateway'
     ports:
       - '127.0.0.1:${API_PORT:-3000}:3000'
+    volumes:
+      - ./logs:/app/logs
     stop_grace_period: 15s
     healthcheck:
       test:

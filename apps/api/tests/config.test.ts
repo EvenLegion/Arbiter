@@ -13,6 +13,8 @@ describe('parseApiConfig', () => {
 
 		expect(config.databasePoolMax).toBe(4);
 		expect(config.bodyLimitBytes).toBe(65_536);
+		expect(config.logFilePath).toBe('logs/api.log');
+		expect(config.consoleLogLevel).toBe('info');
 		expect(config.redis).toMatchObject({
 			host: 'redis.example',
 			namespace: 'arbiter:api:v1',

@@ -56,10 +56,33 @@ try {
 	}
 	if (!healthy) throw new Error('API container did not become healthy');
 
+	const logDeadline = Date.now() + 10_000;
+	let fileLoggingVerified = false;
+	while (Date.now() < logDeadline) {
+		try {
+			execFileSync(
+				'docker',
+				[
+					'exec',
+					containerId,
+					'node',
+					'-e',
+					"const fs=require('node:fs'); const records=fs.readFileSync('/app/logs/api.log','utf8').trim().split('\\n').map(JSON.parse); if (!records.some((record) => record.app === 'arbiter' && record.service === 'arbiter-api' && record.requestId && record.path === '/api/v1/health')) process.exit(1);"
+				],
+				{ stdio: 'ignore' }
+			);
+			fileLoggingVerified = true;
+			break;
+		} catch {
+			await new Promise((resolve) => setTimeout(resolve, 250));
+		}
+	}
+	if (!fileLoggingVerified) throw new Error('API container did not write its structured request log');
+
 	execFileSync('docker', ['stop', '--timeout', '10', containerId], { stdio: 'inherit' });
 	execFileSync('docker', ['rm', containerId], { stdio: 'ignore' });
 	containerId = undefined;
-	process.stdout.write('API container health and graceful-stop smoke test passed.\n');
+	process.stdout.write('API container health, file logging, and graceful-stop smoke test passed.\n');
 } finally {
 	if (containerId) {
 		execFileSync('docker', ['rm', '--force', containerId], { stdio: 'ignore' });

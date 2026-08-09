@@ -86,6 +86,8 @@ pnpm dev:api
 
 The API exposes `GET /api/v1/health` for liveness and `GET /api/v1/readiness` for Postgres-and-Redis readiness. It does not expose a business route yet. Stopping the API closes only its own bounded Postgres pool and Redis client; it does not control the bot process or the shared services.
 
+See [Standalone API](../api/standalone-api.md) for its current purpose, complete configuration, response contract, Docker workflow, and observability path.
+
 To run the API as its own local container against the already-running development Postgres and Redis services:
 
 ```bash
@@ -101,6 +103,8 @@ Start the observability stack when you want production-like log inspection:
 ```bash
 pnpm obs:up
 ```
+
+Both the bot's `logs/arbiter.log` and the API's `logs/api.log` flow through Alloy into Loki. The provisioned Grafana dashboard can correlate API requests by `X-Request-Id`; filter the API stream with `{app="arbiter", service="arbiter-api"}`.
 
 Docs workflow commands:
 

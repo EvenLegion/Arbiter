@@ -13,9 +13,11 @@ describe('API logger', () => {
 				callback();
 			}
 		});
-		const logger = createApiLogger({ logLevel: 'info', nodeEnv: 'test' }, destination);
+		const logger = createApiLogger({ logLevel: 'info', logFilePath: 'unused.log', consoleLogLevel: 'silent', nodeEnv: 'test' }, destination);
 		logger.info({ authorization: 'Bearer secret-token', config: { databaseUrl: 'postgresql://secret' } }, 'redaction test');
 
+		expect(output).toContain('"app":"arbiter"');
+		expect(output).toContain('"service":"arbiter-api"');
 		expect(output).toContain('[REDACTED]');
 		expect(output).not.toContain('secret-token');
 		expect(output).not.toContain('postgresql://secret');

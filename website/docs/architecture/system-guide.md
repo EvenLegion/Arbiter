@@ -223,7 +223,7 @@ At runtime:
 - Loki stores the logs
 - Grafana reads from Loki
 
-The standalone API emits structured JSON to standard output with `service=arbiter-api`. It logs request ID, method, normalized path, status, and duration, but not headers, query values, request bodies, database/Redis URLs, passwords, cookies, authorization values, tokens, or secrets. API error responses expose only a stable code, safe message, and request ID. Readiness intentionally collapses dependency failures to `not_ready` without identifying or quoting the failing dependency.
+The standalone API writes structured JSON to `logs/api.log` and optionally mirrors JSON to standard output. The existing Alloy pipeline tails that file and sends it to Loki with `service=arbiter-api`, so the provisioned Grafana views and request-ID correlation work across both runtimes. It logs request ID, method, normalized path, status, and duration, but not headers, query values, request bodies, database/Redis URLs, passwords, cookies, authorization values, tokens, or secrets. API error responses expose only a stable code, safe message, and request ID. Readiness intentionally collapses dependency failures to `not_ready` without identifying or quoting the failing dependency.
 
 The same file-first model exists locally and in production, so debugging techniques transfer cleanly between the two.
 

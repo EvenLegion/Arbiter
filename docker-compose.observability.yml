@@ -17,7 +17,8 @@ services:
     command: ['run', '/etc/alloy/config.alloy']
     environment:
       ARBITER_ENV: development
-      ARBITER_LOG_GLOB: /var/log/arbiter/*.log
+      ARBITER_LOG_GLOB: /var/log/arbiter/arbiter.log
+      ARBITER_API_LOG_GLOB: /var/log/arbiter/api.log
       LOKI_WRITE_URL: http://arbiter-loki:3100/loki/api/v1/push
     volumes:
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro

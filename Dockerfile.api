@@ -48,6 +48,7 @@ COPY --from=build /app/packages/domain/package.json ./packages/domain/package.js
 COPY --from=build /app/packages/domain/dist ./packages/domain/dist
 COPY --from=build /app/packages/domain/node_modules ./packages/domain/node_modules
 
+RUN mkdir -p /app/logs && chown node:node /app/logs
 USER node
 EXPOSE 3000
 STOPSIGNAL SIGTERM

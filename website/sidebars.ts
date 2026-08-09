@@ -5,6 +5,7 @@ const sidebars: SidebarsConfig = {
 		'intro',
 		'onboarding/getting-started',
 		'architecture/system-guide',
+		'api/standalone-api',
 		'features/event-system',
 		'features/division-and-membership',
 		'contributing/change-guide',
