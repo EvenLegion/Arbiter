@@ -40,18 +40,16 @@ export async function migrateUsersByDiscordUserId({ oldDiscordUserId, newDiscord
 	}
 
 	return prisma.$transaction(async (tx) => {
-		const [oldUser, newUser] = await Promise.all([
-			tx.user.findUnique({
-				where: {
-					discordUserId: oldDiscordUserId
-				}
-			}),
-			tx.user.findUnique({
-				where: {
-					discordUserId: newDiscordUserId
-				}
-			})
-		]);
+		const oldUser = await tx.user.findUnique({
+			where: {
+				discordUserId: oldDiscordUserId
+			}
+		});
+		const newUser = await tx.user.findUnique({
+			where: {
+				discordUserId: newDiscordUserId
+			}
+		});
 
 		if (!oldUser) {
 			return {
@@ -80,70 +78,65 @@ export async function migrateUsersByDiscordUserId({ oldDiscordUserId, newDiscord
 			reviewDecisionsReassigned: 0,
 			reviewDecisionsMerged: 0,
 			baseNicknameCopied:
-				typeof oldUser.discordNickname === 'string' &&
-				oldUser.discordNickname !== '' &&
-				oldUser.discordNickname !== newUser.discordNickname
+				typeof oldUser.discordNickname === 'string' && oldUser.discordNickname !== '' && oldUser.discordNickname !== newUser.discordNickname
 		};
 
-		const [requestedNameChanges, reviewedNameChanges, meritsReceived, meritsAwarded, hostedEvents, finalizedEvents, eventChannels] =
-			await Promise.all([
-				tx.nameChangeRequest.updateMany({
-					where: {
-						requesterUserId: oldUser.id
-					},
-					data: {
-						requesterUserId: newUser.id
-					}
-				}),
-				tx.nameChangeRequest.updateMany({
-					where: {
-						reviewerUserId: oldUser.id
-					},
-					data: {
-						reviewerUserId: newUser.id
-					}
-				}),
-				tx.merit.updateMany({
-					where: {
-						userId: oldUser.id
-					},
-					data: {
-						userId: newUser.id
-					}
-				}),
-				tx.merit.updateMany({
-					where: {
-						awardedByUserId: oldUser.id
-					},
-					data: {
-						awardedByUserId: newUser.id
-					}
-				}),
-				tx.event.updateMany({
-					where: {
-						hostUserId: oldUser.id
-					},
-					data: {
-						hostUserId: newUser.id
-					}
-				}),
-				tx.event.updateMany({
-					where: {
-						reviewFinalizedByUserId: oldUser.id
-					},
-					data: {
-						reviewFinalizedByUserId: newUser.id
-					}
-				}),
-				tx.eventChannel.updateMany({
-					where: {
-						addedByUserId: oldUser.id
-					},
-					data: {
-						addedByUserId: newUser.id
-					}
-				})
-			]);
+		const requestedNameChanges = await tx.nameChangeRequest.updateMany({
+			where: {
+				requesterUserId: oldUser.id
+			},
+			data: {
+				requesterUserId: newUser.id
+			}
+		});
+		const reviewedNameChanges = await tx.nameChangeRequest.updateMany({
+			where: {
+				reviewerUserId: oldUser.id
+			},
+			data: {
+				reviewerUserId: newUser.id
+			}
+		});
+		const meritsReceived = await tx.merit.updateMany({
+			where: {
+				userId: oldUser.id
+			},
+			data: {
+				userId: newUser.id
+			}
+		});
+		const meritsAwarded = await tx.merit.updateMany({
+			where: {
+				awardedByUserId: oldUser.id
+			},
+			data: {
+				awardedByUserId: newUser.id
+			}
+		});
+		const hostedEvents = await tx.event.updateMany({
+			where: {
+				hostUserId: oldUser.id
+			},
+			data: {
+				hostUserId: newUser.id
+			}
+		});
+		const finalizedEvents = await tx.event.updateMany({
+			where: {
+				reviewFinalizedByUserId: oldUser.id
+			},
+			data: {
+				reviewFinalizedByUserId: newUser.id
+			}
+		});
+		const eventChannels = await tx.eventChannel.updateMany({
+			where: {
+				addedByUserId: oldUser.id
+			},
+			data: {
+				addedByUserId: newUser.id
+			}
+		});
 
 		counts.requestedNameChangesMigrated = requestedNameChanges.count;
 		counts.reviewedNameChangesMigrated = reviewedNameChanges.count;
@@ -378,69 +371,56 @@ export async function purgeUserByDiscordUserId({ discordUserId }: { discordUserI
 }
 
 async function getUserReferenceCounts(tx: Prisma.TransactionClient, userId: string): Promise<UserReferenceCounts> {
-	const [
-		divisionMemberships,
-		nameChangeRequestsRequested,
-		nameChangeRequestsReviewed,
-		meritsReceived,
-		meritsAwarded,
-		hostedEvents,
-		finalizedEvents,
-		eventChannelsAdded,
-		participantStats,
-		reviewDecisions
-	] = await Promise.all([
-		tx.divisionMembership.count({
-			where: {
-				userId
-			}
-		}),
-		tx.nameChangeRequest.count({
-			where: {
-				requesterUserId: userId
-			}
-		}),
-		tx.nameChangeRequest.count({
-			where: {
-				reviewerUserId: userId
-			}
-		}),
-		tx.merit.count({
-			where: {
-				userId
-			}
-		}),
-		tx.merit.count({
-			where: {
-				awardedByUserId: userId
-			}
-		}),
-		tx.event.count({
-			where: {
-				hostUserId: userId
-			}
-		}),
-		tx.event.count({
-			where: {
-				reviewFinalizedByUserId: userId
-			}
-		}),
-		tx.eventChannel.count({
-			where: {
-				addedByUserId: userId
-			}
-		}),
-		tx.eventParticipantStat.count({
-			where: {
-				userId
-			}
-		}),
-		tx.eventReviewDecision.count({
-			where: {
-				targetUserId: userId
-			}
-		})
-	]);
+	const divisionMemberships = await tx.divisionMembership.count({
+		where: {
+			userId
+		}
+	});
+	const nameChangeRequestsRequested = await tx.nameChangeRequest.count({
+		where: {
+			requesterUserId: userId
+		}
+	});
+	const nameChangeRequestsReviewed = await tx.nameChangeRequest.count({
+		where: {
+			reviewerUserId: userId
+		}
+	});
+	const meritsReceived = await tx.merit.count({
+		where: {
+			userId
+		}
+	});
+	const meritsAwarded = await tx.merit.count({
+		where: {
+			awardedByUserId: userId
+		}
+	});
+	const hostedEvents = await tx.event.count({
+		where: {
+			hostUserId: userId
+		}
+	});
+	const finalizedEvents = await tx.event.count({
+		where: {
+			reviewFinalizedByUserId: userId
+		}
+	});
+	const eventChannelsAdded = await tx.eventChannel.count({
+		where: {
+			addedByUserId: userId
+		}
+	});
+	const participantStats = await tx.eventParticipantStat.count({
+		where: {
+			userId
+		}
+	});
+	const reviewDecisions = await tx.eventReviewDecision.count({
+		where: {
+			targetUserId: userId
+		}
+	});
 
 	return {
 		divisionMemberships,

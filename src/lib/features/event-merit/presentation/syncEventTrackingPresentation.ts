@@ -26,10 +26,12 @@ export type EventTrackingPresentationSession = Prisma.EventGetPayload<{
 export async function syncEventTrackingSummaryPresentation({
 	guild,
 	eventSession,
+	eventPingInProgress = false,
 	logger
 }: {
 	guild: Guild;
 	eventSession: EventTrackingPresentationSession;
+	eventPingInProgress?: boolean;
 	logger: {
 		warn: (...values: readonly unknown[]) => void;
 	};
@@ -37,25 +39,80 @@ export async function syncEventTrackingSummaryPresentation({
 	const trackedVoiceChannelIds = eventSession.channels
 		.filter((channel) => channel.kind === EventSessionChannelKind.PARENT_VC || channel.kind === EventSessionChannelKind.CHILD_VC)
 		.map((channel) => channel.channelId);
-
-	const summaryPayload = buildEventTrackingSummaryPayload({
-		eventSessionId: eventSession.id,
-		eventName: eventSession.name,
-		tierName: eventSession.eventTier.name,
-		tierMeritAmount: eventSession.eventTier.meritType.meritAmount,
-		hostDiscordUserId: eventSession.hostUser.discordUserId,
-		trackedChannelIds: trackedVoiceChannelIds,
-		trackingThreadId: eventSession.threadId,
-		state: eventSession.state
-	});
-
 	const summaryMessageRefs = await eventRepository.listSessionMessages({
 		eventSessionId: eventSession.id,
 		kinds: [EventSessionMessageKind.TRACKING_SUMMARY, EventSessionMessageKind.TRACKING_SUMMARY_PARENT_VC]
 	});
+	const buildSummaryPayload = (eventPingSentAt: Date | null) =>
+		buildEventTrackingSummaryPayload({
+			eventSessionId: eventSession.id,
+			eventName: eventSession.name,
+			tierName: eventSession.eventTier.name,
+			tierMeritAmount: eventSession.eventTier.meritType.meritAmount,
+			hostDiscordUserId: eventSession.hostUser.discordUserId,
+			trackedChannelIds: trackedVoiceChannelIds,
+			trackingThreadId: eventSession.threadId,
+			state: eventSession.state,
+			eventPingSentAt,
+			eventPingInProgress
+		});
 
+	const initialEventPingSentAt = await loadCurrentEventPingSentAt(eventSession);
+	let syncResult = await editTrackingSummaryCopies({
+		guild,
+		eventSessionId: eventSession.id,
+		summaryMessageRefs,
+		summaryPayload: buildSummaryPayload(initialEventPingSentAt),
+		logger
+	});
+	const latestEventPingSentAt = await loadCurrentEventPingSentAt(eventSession);
+	if (!sameEventPingReceipt(initialEventPingSentAt, latestEventPingSentAt)) {
+		const repairResult = await editTrackingSummaryCopies({
+			guild,
+			eventSessionId: eventSession.id,
+			summaryMessageRefs,
+			summaryPayload: buildSummaryPayload(latestEventPingSentAt),
+			logger
+		});
+		syncResult = {
+			attemptedCount: syncResult.attemptedCount + repairResult.attemptedCount,
+			updatedCount: syncResult.updatedCount + repairResult.updatedCount,
+			failedCount: syncResult.failedCount + repairResult.failedCount
+		};
+	}
+
+	return syncResult;
+}
+
+async function loadCurrentEventPingSentAt(eventSession: EventTrackingPresentationSession) {
+	const currentEventSession = await eventRepository.getSession({
+		eventSessionId: eventSession.id
+	});
+	return currentEventSession ? currentEventSession.eventPingSentAt : eventSession.eventPingSentAt;
+}
+
+function sameEventPingReceipt(left: Date | null, right: Date | null) {
+	return left?.getTime() === right?.getTime();
+}
+
+async function editTrackingSummaryCopies({
+	guild,
+	eventSessionId,
+	summaryMessageRefs,
+	summaryPayload,
+	logger
+}: {
+	guild: Guild;
+	eventSessionId: number;
+	summaryMessageRefs: Awaited<ReturnType<typeof eventRepository.listSessionMessages>>;
+	summaryPayload: ReturnType<typeof buildEventTrackingSummaryPayload>;
+	logger: {
+		warn: (...values: readonly unknown[]) => void;
+	};
+}) {
+	let updatedCount = 0;
 	for (const summaryRef of summaryMessageRefs) {
-		await editReferencedMessage({
+		const updated = await editReferencedMessage({
 			guild,
 			channelId: summaryRef.channelId,
 			messageId: summaryRef.messageId,
@@ -63,10 +120,19 @@ export async function syncEventTrackingSummaryPresentation({
 			logger,
 			failureLogMessage: 'Failed to sync tracking summary message',
 			logBindings: {
-				eventSessionId: eventSession.id
+				eventSessionId
 			}
 		});
+		if (updated) {
+			updatedCount += 1;
+		}
 	}
+
+	return {
+		attemptedCount: summaryMessageRefs.length,
+		updatedCount,
+		failedCount: summaryMessageRefs.length - updatedCount
+	};
 }
 
 export async function postDraftEventTrackingSummaryPresentation({

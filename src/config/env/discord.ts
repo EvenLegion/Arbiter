@@ -46,6 +46,8 @@ const DiscordSchema = z.object({
 
 	// Event and merit tracking config
 	EVENT_TRACKING_CHANNEL_ID: z.string().min(1, 'EVENT_TRACKING_CHANNEL_ID is required'),
+	EVENT_PING_CHANNEL_ID: z.string().min(1, 'EVENT_PING_CHANNEL_ID is required'),
+	EVENT_PING_ROLE_ID: z.string().min(1, 'EVENT_PING_ROLE_ID is required'),
 	EVENT_TRACKING_INTERVAL_SECONDS: z.coerce.number().int().min(1),
 	EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT: z.coerce.number().int().min(0).max(100)
 });

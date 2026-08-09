@@ -1,0 +1,32 @@
+{
+	"name": "@arbiter/api",
+	"version": "0.1.0",
+	"private": true,
+	"type": "commonjs",
+	"main": "dist/index.js",
+	"types": "src/index.ts",
+	"scripts": {
+		"build": "pnpm --filter @arbiter/domain build && pnpm --filter @arbiter/api-contracts build && tsc -p tsconfig.json",
+		"dev": "pnpm --filter @arbiter/domain build && pnpm --filter @arbiter/api-contracts build && tsx src/index.ts",
+		"start": "node dist/index.js",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test": "pnpm --filter @arbiter/domain build && pnpm --filter @arbiter/api-contracts build && vitest run"
+	},
+	"dependencies": {
+		"@arbiter/api-contracts": "workspace:*",
+		"@arbiter/domain": "workspace:*",
+		"@prisma/adapter-pg": "^7.9.1",
+		"@prisma/client": "^7.9.1",
+		"ioredis": "^5.9.3",
+		"pg": "^8.22.0",
+		"pino": "^10.1.0",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.7",
+		"@types/pg": "^8.16.0",
+		"tsx": "^4.21.0",
+		"typescript": "~5.4.5",
+		"vitest": "^4.1.0"
+	}
+}

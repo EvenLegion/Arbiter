@@ -36,6 +36,8 @@ const DEFAULT_TEST_ENV = {
 	INT_ROLE_ID: 'int-role-id',
 	RES_ROLE_ID: 'res-role-id',
 	EVENT_TRACKING_CHANNEL_ID: 'event-tracking-channel-id',
+	EVENT_PING_CHANNEL_ID: 'event-ping-channel-id',
+	EVENT_PING_ROLE_ID: 'event-ping-role-id',
 	EVENT_TRACKING_INTERVAL_SECONDS: '15',
 	EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT: '50'
 } as const;

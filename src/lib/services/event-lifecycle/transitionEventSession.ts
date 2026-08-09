@@ -25,6 +25,8 @@ export type TransitionEventSessionDeps = {
 export type TransitionEventSessionResult =
 	| { kind: 'forbidden' }
 	| { kind: 'event_not_found' }
+	| { kind: 'concurrency_conflict' }
+	| { kind: 'coordination_unavailable' }
 	| { kind: 'invalid_state'; currentState: EventSessionState }
 	| { kind: 'state_conflict' }
 	| { kind: 'event_missing_after_transition' }
@@ -38,6 +40,21 @@ export type TransitionEventSessionWorkflowInput = {
 	fromState: EventSessionState;
 	toState: Extract<EventSessionState, 'ACTIVE' | 'CANCELLED' | 'ENDED_PENDING_REVIEW'>;
 	actorTag?: string;
+	ensureOperationOwned?: () => Promise<boolean>;
+};
+
+type EndActiveEventDeps = TransitionEventSessionDeps & {
+	acquireEventSessionOperation: (
+		eventSessionId: number
+	) => Promise<{ kind: 'acquired'; token: string } | { kind: 'busy' } | { kind: 'unavailable' }>;
+	startEventSessionOperationLease: (
+		eventSessionId: number,
+		token: string
+	) => {
+		ensureOwned: () => Promise<boolean>;
+		stop: () => Promise<void>;
+	};
+	releaseEventSessionOperation: (eventSessionId: number, token: string) => Promise<boolean>;
 };
 
 export type PersistTransitionInput = Pick<TransitionEventSessionWorkflowInput, 'eventSessionId' | 'fromState' | 'toState'>;
@@ -90,20 +107,47 @@ export async function cancelDraftEvent(
 }
 
 export async function endActiveEvent(
-	deps: TransitionEventSessionDeps,
+	deps: EndActiveEventDeps,
 	input: {
 		actor: ActorContext;
 		actorTag: string;
 		eventSessionId: number;
 	}
 ): Promise<TransitionEventSessionResult> {
-	return transitionEventSession(deps, {
-		actor: input.actor,
-		actorTag: input.actorTag,
-		eventSessionId: input.eventSessionId,
-		fromState: EventSessionState.ACTIVE,
-		toState: EventSessionState.ENDED_PENDING_REVIEW
-	});
+	if (!hasStaffOrCenturionEquivalentCapability(input.actor.capabilities)) {
+		return {
+			kind: 'forbidden'
+		};
+	}
+
+	const lock = await deps.acquireEventSessionOperation(input.eventSessionId);
+	if (lock.kind !== 'acquired') {
+		return {
+			kind: lock.kind === 'busy' ? 'concurrency_conflict' : 'coordination_unavailable'
+		};
+	}
+
+	const lease = deps.startEventSessionOperationLease(input.eventSessionId, lock.token);
+	try {
+		const stillOwnsOperation = await lease.ensureOwned().catch(() => false);
+		if (!stillOwnsOperation) {
+			return {
+				kind: 'coordination_unavailable'
+			};
+		}
+
+		return await transitionEventSession(deps, {
+			actor: input.actor,
+			actorTag: input.actorTag,
+			eventSessionId: input.eventSessionId,
+			fromState: EventSessionState.ACTIVE,
+			toState: EventSessionState.ENDED_PENDING_REVIEW,
+			ensureOperationOwned: () => lease.ensureOwned().catch(() => false)
+		});
+	} finally {
+		await lease.stop().catch(() => undefined);
+		await deps.releaseEventSessionOperation(input.eventSessionId, lock.token).catch(() => false);
+	}
 }
 
 async function transitionEventSession(
@@ -113,6 +157,11 @@ async function transitionEventSession(
 	const validation = await loadAndValidateEventTransition(deps, input);
 	if ('result' in validation) {
 		return validation.result;
+	}
+	if (!(await ensureTransitionMayContinue(input))) {
+		return {
+			kind: 'coordination_unavailable'
+		};
 	}
 
 	const now = deps.now();
@@ -129,18 +178,7 @@ async function transitionEventSession(
 		return persisted.result;
 	}
 
-	const sideEffects = await runEventTransitionSideEffects(
-		deps,
-		{
-			actor: input.actor,
-			eventSessionId: input.eventSessionId,
-			fromState: input.fromState,
-			toState: input.toState,
-			actorTag: input.actorTag
-		},
-		persisted.eventSession,
-		now
-	);
+	const sideEffects = await runEventTransitionSideEffects(deps, input, persisted.eventSession, now);
 
 	if (input.toState === EventSessionState.ACTIVE) {
 		return {
@@ -301,6 +339,10 @@ async function runEventTransitionSideEffects(
 	return {
 		reviewInitializationFailed: input.toState === EventSessionState.ENDED_PENDING_REVIEW ? !reviewResult.initialized : false
 	};
+}
+
+async function ensureTransitionMayContinue(input: TransitionEventSessionWorkflowInput) {
+	return input.ensureOperationOwned ? input.ensureOperationOwned() : true;
 }
 
 function isTransitionAllowed(fromState: EventSessionState, toState: EventSessionState) {

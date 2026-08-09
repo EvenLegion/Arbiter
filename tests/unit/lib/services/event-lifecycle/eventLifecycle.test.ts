@@ -193,6 +193,9 @@ describe('eventLifecycle', () => {
 
 	it('rejects ending an event that is not currently active', async () => {
 		const deps = {
+			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
+			startEventSessionOperationLease: vi.fn().mockReturnValue(createOperationLease()),
+			releaseEventSessionOperation: vi.fn().mockResolvedValue(true),
 			findEventSession: vi.fn().mockResolvedValue(buildEventSession()),
 			updateState: vi.fn(),
 			reloadEventSession: vi.fn(),
@@ -211,9 +214,11 @@ describe('eventLifecycle', () => {
 			currentState: EventSessionState.DRAFT
 		});
 		expect(deps.updateState).not.toHaveBeenCalled();
+		expect(deps.releaseEventSessionOperation).toHaveBeenCalledWith(10, 'end-token');
 	});
 
-	it('ends an active event, posts feedback links to tracked voice channels, and initializes review', async () => {
+	it('ends an active event, posts feedback links, initializes review, and preserves success when lock release rejects', async () => {
+		const lease = createOperationLease();
 		const refreshed = buildEventSession({
 			name: 'Worm Farm',
 			state: EventSessionState.ENDED_PENDING_REVIEW,
@@ -239,6 +244,9 @@ describe('eventLifecycle', () => {
 			]
 		});
 		const deps = {
+			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
+			startEventSessionOperationLease: vi.fn().mockReturnValue(lease),
+			releaseEventSessionOperation: vi.fn().mockRejectedValue(new Error('redis unavailable during release')),
 			findEventSession: vi.fn().mockResolvedValue(
 				buildEventSession({
 					state: EventSessionState.ACTIVE
@@ -285,6 +293,136 @@ describe('eventLifecycle', () => {
 		expect(deps.initializeReview).toHaveBeenCalledWith({
 			eventSessionId: 10
 		});
+		expect(lease.ensureOwned).toHaveBeenCalledTimes(2);
+		expect(deps.releaseEventSessionOperation).toHaveBeenCalledWith(10, 'end-token');
+	});
+
+	it('prevents End Event from crossing an in-flight Event Ping operation', async () => {
+		const deps = {
+			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'busy' }),
+			startEventSessionOperationLease: vi.fn(),
+			releaseEventSessionOperation: vi.fn(),
+			findEventSession: vi.fn(),
+			updateState: vi.fn(),
+			reloadEventSession: vi.fn(),
+			syncLifecyclePresentation: vi.fn(),
+			now: vi.fn()
+		};
+
+		await expect(
+			endActiveEvent(deps, {
+				actor: buildActor(),
+				actorTag: 'Reviewer#1234',
+				eventSessionId: 10
+			})
+		).resolves.toEqual({
+			kind: 'concurrency_conflict'
+		});
+		expect(deps.findEventSession).not.toHaveBeenCalled();
+		expect(deps.releaseEventSessionOperation).not.toHaveBeenCalled();
+	});
+
+	it('stops End Event before durable transition when lease ownership is lost', async () => {
+		const lease = createOperationLease();
+		lease.ensureOwned.mockResolvedValue(false);
+		const deps = {
+			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
+			startEventSessionOperationLease: vi.fn().mockReturnValue(lease),
+			releaseEventSessionOperation: vi.fn().mockResolvedValue(true),
+			findEventSession: vi.fn(),
+			updateState: vi.fn(),
+			reloadEventSession: vi.fn(),
+			syncLifecyclePresentation: vi.fn(),
+			now: vi.fn()
+		};
+
+		await expect(
+			endActiveEvent(deps, {
+				actor: buildActor(),
+				actorTag: 'Reviewer#1234',
+				eventSessionId: 10
+			})
+		).resolves.toEqual({
+			kind: 'coordination_unavailable'
+		});
+		expect(deps.startEventSessionOperationLease).toHaveBeenCalledWith(10, 'end-token');
+		expect(deps.findEventSession).not.toHaveBeenCalled();
+		expect(deps.updateState).not.toHaveBeenCalled();
+		expect(lease.stop).toHaveBeenCalledOnce();
+		expect(deps.releaseEventSessionOperation).toHaveBeenCalledWith(10, 'end-token');
+	});
+
+	it('stops End Event before the durable transition when ownership is lost after validation', async () => {
+		const lease = createOperationLease();
+		lease.ensureOwned.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+		const deps = {
+			acquireEventSessionOperation: vi.fn().mockResolvedValue({ kind: 'acquired', token: 'end-token' }),
+			startEventSessionOperationLease: vi.fn().mockReturnValue(lease),
+			releaseEventSessionOperation: vi.fn().mockResolvedValue(true),
+			findEventSession: vi.fn().mockResolvedValue(
+				buildEventSession({
+					state: EventSessionState.ACTIVE
+				})
+			),
+			updateState: vi.fn(),
+			reloadEventSession: vi.fn(),
+			stopTracking: vi.fn(),
+			renameParentVoiceChannel: vi.fn(),
+			syncLifecyclePresentation: vi.fn(),
+			postEndedEventFeedbackLinks: vi.fn(),
+			initializeReview: vi.fn(),
+			now: vi.fn().mockReturnValue(new Date('2026-03-15T11:00:00Z'))
+		};
+
+		await expect(
+			endActiveEvent(deps, {
+				actor: buildActor(),
+				actorTag: 'Reviewer#1234',
+				eventSessionId: 10
+			})
+		).resolves.toEqual({
+			kind: 'coordination_unavailable'
+		});
+		expect(deps.findEventSession).toHaveBeenCalledWith(10);
+		expect(deps.updateState).not.toHaveBeenCalled();
+		expect(deps.stopTracking).not.toHaveBeenCalled();
+		expect(deps.renameParentVoiceChannel).not.toHaveBeenCalled();
+		expect(deps.syncLifecyclePresentation).not.toHaveBeenCalled();
+		expect(deps.postEndedEventFeedbackLinks).not.toHaveBeenCalled();
+		expect(deps.initializeReview).not.toHaveBeenCalled();
+		expect(lease.stop).toHaveBeenCalledOnce();
+		expect(deps.releaseEventSessionOperation).toHaveBeenCalledWith(10, 'end-token');
+	});
+
+	it('rejects an unauthorized End Event caller before acquiring coordination state', async () => {
+		const deps = {
+			acquireEventSessionOperation: vi.fn(),
+			startEventSessionOperationLease: vi.fn(),
+			releaseEventSessionOperation: vi.fn(),
+			findEventSession: vi.fn(),
+			updateState: vi.fn(),
+			reloadEventSession: vi.fn(),
+			syncLifecyclePresentation: vi.fn(),
+			now: vi.fn()
+		};
+
+		await expect(
+			endActiveEvent(deps, {
+				actor: {
+					...buildActor(),
+					capabilities: {
+						isStaff: false,
+						isCenturion: false,
+						isOptio: false
+					}
+				},
+				actorTag: 'Unauthorized#1234',
+				eventSessionId: 10
+			})
+		).resolves.toEqual({
+			kind: 'forbidden'
+		});
+		expect(deps.acquireEventSessionOperation).not.toHaveBeenCalled();
 	});
 
 	it('initializes review participants and reports when the review message could not sync', async () => {
@@ -457,6 +595,13 @@ function buildActor() {
 	};
 }
 
+function createOperationLease() {
+	return {
+		ensureOwned: vi.fn().mockResolvedValue(true),
+		stop: vi.fn().mockResolvedValue(undefined)
+	};
+}
+
 function buildEventSession(overrides: Partial<EventLifecycleEventSession> = {}): EventLifecycleEventSession {
 	return {
 		id: 10,
@@ -466,6 +611,7 @@ function buildEventSession(overrides: Partial<EventLifecycleEventSession> = {}):
 		hostUserId: 'host-db-user',
 		eventTierId: 1,
 		startedAt: null,
+		eventPingSentAt: null,
 		endedAt: null,
 		reviewFinalizedAt: null,
 		reviewFinalizedByUserId: null,

@@ -146,6 +146,37 @@ describe('event session state integration', () => {
 		).resolves.toBe(false);
 	});
 
+	it('records Event Ping success once only while the event remains active', async () => {
+		const hostUser = await createUser(standalone.prisma, {
+			discordUserId: '4205',
+			discordUsername: 'event-ping-host'
+		});
+		const eventSession = await createEventSession(standalone.prisma, {
+			hostUserId: hostUser.id,
+			threadId: 'thread-4205',
+			name: 'Ping Once',
+			state: EventSessionState.ACTIVE,
+			eventTierCode: MeritTypeCode.TIER_2
+		});
+		const sentAt = new Date('2026-08-08T20:00:00Z');
+
+		await expect(
+			eventRepository.markEventPingSent({
+				eventSessionId: eventSession.id,
+				sentAt
+			})
+		).resolves.toBe(true);
+		await expect(
+			eventRepository.markEventPingSent({
+				eventSessionId: eventSession.id,
+				sentAt: new Date('2026-08-08T20:01:00Z')
+			})
+		).resolves.toBe(false);
+		await expect(eventRepository.getSession({ eventSessionId: eventSession.id })).resolves.toMatchObject({
+			eventPingSentAt: sentAt
+		});
+	});
+
 	it('rejects invalid transition shapes before touching the database', async () => {
 		const hostUser = await createUser(standalone.prisma, {
 			discordUserId: '4204',

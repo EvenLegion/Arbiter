@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildEventTrackingSummaryPayload } from '../../../../../../src/lib/features/event-merit/presentation/shared/buildEventTrackingSummaryPayload';
 import { buildEventStartButtonId } from '../../../../../../src/lib/features/event-merit/session/buttons/eventStartButtonCustomId';
+import { buildEventPingButtonCustomId } from '../../../../../../src/lib/features/event-merit/session/event-ping/eventPingButtonCustomId';
 
 describe('buildEventTrackingSummaryPayload', () => {
 	it('shows start and cancel controls while the event is still a draft', () => {
@@ -17,12 +18,30 @@ describe('buildEventTrackingSummaryPayload', () => {
 		]);
 	});
 
-	it('shows only the end control while the event is active', () => {
+	it('shows independent End Event and enabled Event Ping controls while the event is active', () => {
 		const payload = buildEventTrackingSummaryPayload(createParams({ state: EventSessionState.ACTIVE }));
 
 		expect(payload.components).toHaveLength(1);
-		expect(payload.components[0].components.map((component) => component.data.label)).toEqual(['End Event']);
+		expect(payload.components[0].components.map((component) => component.data.label)).toEqual(['End Event', 'Event Ping']);
 		expect(payload.components[0].components[0].data.custom_id).toBe(buildEventStartButtonId({ action: 'end', eventSessionId: 77 }));
+		expect(payload.components[0].components[1].data.custom_id).toBe(buildEventPingButtonCustomId(77));
+		expect(payload.components[0].components[0].data.disabled).not.toBe(true);
+		expect(payload.components[0].components[1].data.disabled).not.toBe(true);
+	});
+
+	it.each([
+		['durable success', { eventPingSentAt: new Date('2026-08-08T20:00:00Z') }],
+		['an in-flight attempt', { eventPingInProgress: true }]
+	])('disables only Event Ping after %s', (_label, override) => {
+		const payload = buildEventTrackingSummaryPayload(
+			createParams({
+				state: EventSessionState.ACTIVE,
+				...override
+			})
+		);
+
+		expect(payload.components[0].components[0].data.disabled).not.toBe(true);
+		expect(payload.components[0].components[1].data.disabled).toBe(true);
 	});
 
 	it('returns a read-only payload once the event is no longer editable', () => {

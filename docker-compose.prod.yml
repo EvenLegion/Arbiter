@@ -26,6 +26,7 @@ services:
       NODE_ENV: production
       REDIS_HOST: arbiter-redis
       REDIS_PORT: 6379
+      REDIS_DB: ${REDIS_DB:-0}
       LOG_FILE_PATH: /app/logs/arbiter.log
     user: ${BOT_UID:-1000}:${BOT_GID:-1000}
     volumes:
@@ -49,6 +50,7 @@ services:
       - ${REDIS_DATA_DIR:-/opt/arbiter/redis-data}:/data
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
     command: >-
       sh -c '
       if [ -n "$${REDIS_PASSWORD}" ]; then
@@ -66,7 +68,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
-    mem_limit: ${REDIS_MEM_LIMIT:-256m}
+    mem_limit: ${REDIS_MEM_LIMIT:-1g}
     cpus: ${REDIS_CPUS:-0.5}
 
   arbiter-loki:
@@ -89,7 +91,8 @@ services:
     command: ['run', '/etc/alloy/config.alloy']
     environment:
       ARBITER_ENV: production
-      ARBITER_LOG_GLOB: /var/log/arbiter/*.log
+      ARBITER_LOG_GLOB: /var/log/arbiter/arbiter.log
+      ARBITER_API_LOG_GLOB: /var/log/arbiter/api.log
       LOKI_WRITE_URL: http://arbiter-loki:3100/loki/api/v1/push
     volumes:
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro

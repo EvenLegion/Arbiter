@@ -6,6 +6,7 @@ import { findManyEventSessionMessages } from '../event/session/findManyEventSess
 import { findManyEventSessions, findUniqueEventSession } from '../event/session/findEventSessions';
 import { findManyReservedEventVoiceChannelIds } from '../event/session/findManyReservedEventVoiceChannelIds';
 import { findReservedEventVoiceChannelReservation } from '../event/session/findReservedEventVoiceChannelReservation';
+import { markEventPingSent } from '../event/session/markEventPingSent';
 import { updateEventSessionState } from '../event/session/updateEventSessionState';
 import { upsertEventSessionChannel } from '../event/session/upsertEventSessionChannel';
 import { upsertEventSessionMessageRef } from '../event/session/upsertEventSessionMessageRef';
@@ -39,6 +40,7 @@ export const eventRepository = {
 	listSessionMessages: findManyEventSessionMessages,
 	listReservedVoiceChannelIds: findManyReservedEventVoiceChannelIds,
 	getReservedVoiceChannelReservation: findReservedEventVoiceChannelReservation,
+	markEventPingSent,
 	updateSessionState: updateEventSessionState,
 	upsertSessionChannel: upsertEventSessionChannel,
 	upsertSessionMessageRef: upsertEventSessionMessageRef,

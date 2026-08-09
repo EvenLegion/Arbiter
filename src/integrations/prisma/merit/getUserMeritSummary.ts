@@ -35,7 +35,7 @@ export async function getUserMeritSummary(params: GetUserMeritSummaryParams): Pr
 		const resolvedPage = Math.min(parsed.page, totalPages);
 		const skip = (resolvedPage - 1) * parsed.pageSize;
 
-		const entries = await tx.merit.findMany({
+		const meritRows = await tx.merit.findMany({
 			where: {
 				userId: parsed.userDbUserId
 			},
@@ -46,26 +46,66 @@ export async function getUserMeritSummary(params: GetUserMeritSummaryParams): Pr
 				id: true,
 				reason: true,
 				createdAt: true,
-				awardedByUser: {
-					select: {
-						discordNickname: true,
-						discordUsername: true
-					}
-				},
-				meritType: {
-					select: {
-						meritAmount: true,
-						name: true
-					}
-				},
-				eventSession: {
-					select: {
-						id: true,
-						name: true
-					}
-				}
+				awardedByUserId: true,
+				meritTypeId: true,
+				eventSessionId: true
 			}
 		});
+		if (meritRows.length === 0) {
+			return {
+				totalMerits,
+				totalAwards,
+				totalLinkedEvents: linkedEventsCount,
+				page: resolvedPage,
+				pageSize: parsed.pageSize,
+				totalPages,
+				entries: []
+			};
+		}
+
+		const awarderIds = [...new Set(meritRows.map((entry) => entry.awardedByUserId))];
+		const meritTypeIds = [...new Set(meritRows.map((entry) => entry.meritTypeId))];
+		const eventSessionIds = [
+			...new Set(meritRows.map((entry) => entry.eventSessionId).filter((eventSessionId): eventSessionId is number => eventSessionId !== null))
+		];
+		const awarders = await tx.user.findMany({
+			where: {
+				id: {
+					in: awarderIds
+				}
+			},
+			select: {
+				id: true,
+				discordNickname: true,
+				discordUsername: true
+			}
+		});
+		const meritTypes = await tx.meritType.findMany({
+			where: {
+				id: {
+					in: meritTypeIds
+				}
+			},
+			select: {
+				id: true,
+				meritAmount: true,
+				name: true
+			}
+		});
+		const eventSessions = await tx.event.findMany({
+			where: {
+				id: {
+					in: eventSessionIds
+				}
+			},
+			select: {
+				id: true,
+				name: true
+			}
+		});
+		const awarderById = new Map(awarders.map((awarder) => [awarder.id, awarder]));
+		const meritTypeById = new Map(meritTypes.map((meritType) => [meritType.id, meritType]));
+		const eventSessionById = new Map(eventSessions.map((eventSession) => [eventSession.id, eventSession]));
 
 		return {
 			totalMerits,
@@ -74,15 +114,23 @@ export async function getUserMeritSummary(params: GetUserMeritSummaryParams): Pr
 			page: resolvedPage,
 			pageSize: parsed.pageSize,
 			totalPages,
-			entries: entries.map((entry) => ({
-				id: entry.id,
-				amount: entry.meritType.meritAmount,
-				meritTypeName: entry.meritType.name,
-				awardedByName: entry.awardedByUser.discordNickname || entry.awardedByUser.discordUsername,
-				reason: entry.reason,
-				createdAt: entry.createdAt,
-				eventSession: entry.eventSession
-			}))
+			entries: meritRows.map((entry) => {
+				const awarder = awarderById.get(entry.awardedByUserId);
+				const meritType = meritTypeById.get(entry.meritTypeId);
+				if (!awarder || !meritType) {
+					throw new Error(`Merit ${entry.id} references missing required records.`);
+				}
+
+				return {
+					id: entry.id,
+					amount: meritType.meritAmount,
+					meritTypeName: meritType.name,
+					awardedByName: awarder.discordNickname || awarder.discordUsername,
+					reason: entry.reason,
+					createdAt: entry.createdAt,
+					eventSession: entry.eventSessionId === null ? null : (eventSessionById.get(entry.eventSessionId) ?? null)
+				};
+			})
 		};
 	});
 }

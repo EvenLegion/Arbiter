@@ -1,0 +1,32 @@
+{
+	"name": "@arbiter/api-contracts",
+	"version": "1.0.0",
+	"private": true,
+	"type": "commonjs",
+	"main": "dist/index.js",
+	"types": "src/index.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"require": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./v1": {
+			"types": "./src/v1/index.ts",
+			"require": "./dist/v1/index.js",
+			"default": "./dist/v1/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"typescript": "~5.4.5",
+		"vitest": "^4.1.0"
+	}
+}

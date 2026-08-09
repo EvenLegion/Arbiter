@@ -75,6 +75,33 @@ Active or draft events can also track more than one voice channel. The add-voice
 - synchronize tracking summary presentation
 - post timeline or announcement messages where appropriate
 
+### Manual Event Ping
+
+After activation, both stored tracking summaries show **End Event** and **Event
+Ping**. Event Ping is deliberately manual: private or not-yet-ready events stay
+quiet until a staff member, Centurion, or Optio with the existing
+`staff-or-centurion` capability presses it.
+
+One successful use is stored on the Postgres event row, so restarts, Add VC
+refreshes, and later presentation synchronization keep both Event Ping buttons
+disabled. Redis holds only a short-lived, token-owned per-session operation
+lock. Event Ping and End Event use that same lock, preventing an announcement
+from crossing an event-end transition.
+
+The announcement goes only to `EVENT_PING_CHANNEL_ID`, mentions only
+`EVENT_PING_ROLE_ID`, and links the durable parent voice channel. Explicit
+allowed-mention settings suppress notification effects from the event name and
+all other user or role mention text. Every authorized attempt is recorded in
+the event tracking thread, while the clicker receives private success, retry,
+or operator-guidance feedback.
+
+Discord delivery and the Postgres receipt are separate systems. Arbiter uses a
+deterministic enforced Discord nonce to reduce immediate duplicates, but there
+is still a rare crash or database-failure window after Discord accepts the
+announcement and before Postgres records it. In that case Arbiter reports that
+delivery succeeded but receipt persistence failed and tells the operator not to
+retry without review. The workflow does not claim strict exactly-once delivery.
+
 ## Live Attendance Tracking
 
 While an event is active, a scheduled task periodically inspects tracked voice channels and applies attendance ticks.

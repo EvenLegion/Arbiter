@@ -24,21 +24,74 @@ At a high level:
 
 ### Contributor Expectations
 
-Before opening or updating a PR into `dev`, run:
+Each working branch owns exactly one release plan by the time it is pushed for
+review. Before every push from a working branch, run:
 
 ```bash
-pnpm release:plan
+pnpm release:plan:check
 ```
 
-That script:
+The checker reads every JSON file under `.release-plans/` and treats the parsed
+`branch` field as authoritative. It fails when no plan or multiple plans own the
+current branch. It also checks the schema, `origin/dev` base, current merge base,
+semantic bump and target version, and recorded commit ancestry. The check is
+read-only and leaves the worktree unchanged. It deliberately does not judge the
+quality of release-note prose; contributors and reviewers remain responsible
+for the public copy.
+
+Reuse the matching plan when it:
+
+- parses successfully
+- records the current branch
+- uses `origin/dev` as its base
+- records the current merge base with `origin/dev`
+- still has the intended semantic bump and release-note scope
+
+A routine later implementation or review-fix commit does not by itself make a
+valid plan stale. Do not run the planner again merely because the branch moved
+forward.
+
+If no matching plan exists, first commit the scoped work with Conventional
+Commit subjects, then choose the smallest intended semantic bump explicitly:
+
+```bash
+pnpm release:plan -- --bump patch
+```
+
+Use `minor` or `major` instead when the compatibility or member-facing impact
+requires it. The script:
 
 - compares your branch against `dev`
 - collects Conventional Commit subjects from the branch
-- asks which bump is intended: `patch`, `minor`, or `major`
+- uses the explicit `patch`, `minor`, or `major` bump (or prompts in an
+  interactive terminal when `--bump` is omitted)
 - writes a release-plan file under `.release-plans/`
 - commits that plan file when needed
 
+Running the same command again with an already-valid plan prints that it is
+reusing the plan and performs no writes, staging, or commits.
+
 If the script cannot find meaningful Conventional Commit history, it fails instead of guessing.
+
+Release-plan descriptions are user-facing. They feed the changelog, GitHub
+release notes, and optional Discord release announcement. Each description
+should explain in plain language what changed, why it matters, and what members
+or operators will notice. For maintenance-only work, say clearly that the
+change is behind the scenes and does not alter Discord commands or member
+behavior. Avoid file paths, ticket IDs, and unexplained technical terms.
+
+Regenerate an existing matching plan only when it names the wrong base, records
+an obsolete merge base after a rebase, has the wrong bump, or no longer
+represents the release-note scope. State the reason explicitly:
+
+```bash
+pnpm release:plan -- --regenerate --bump patch --reason "the branch was rebased onto the current dev history"
+```
+
+Regeneration replaces only the plan whose parsed `branch` field owns the
+current branch. An unreadable plan or duplicate branch-owned plans cannot be
+chosen safely: repair or remove the specific bad file manually, then rerun the
+checker. The tool never creates a second plan for the branch.
 
 Good commit subjects look like:
 
@@ -86,7 +139,32 @@ The production Docker stack currently runs:
 - Alloy
 - Grafana
 
+The repository also contains an independently buildable `Dockerfile.api` and local-only `docker-compose.api.yml`. That compose file is a development foundation and is not wired into the production stack by this change. Production API service configuration, network exposure, proxy/TLS, resource sizing, and deployment remain a separately approved deployment-readiness task.
+
+The API already follows the production observability contract: it writes structured JSON to `API_LOG_FILE_PATH`, defaults to `logs/api.log`, and the existing Alloy configuration assigns that file `service=arbiter-api` before shipping it to Loki. Local source and API-container runs share `./logs` with the observability stack. A future production API service must mount its log directory into the existing Alloy container at `/var/log/arbiter/api.log` (or set `ARBITER_API_LOG_GLOB` to the matching mounted path); it must not bypass the redaction and request-ID fields already established here.
+
 Postgres is not part of the production compose stack. Production expects an external database reachable through `DATABASE_URL`.
+
+The API image uses the same canonical generated Prisma client and `DATABASE_URL`, opens a separately bounded pool, and reuses the existing Redis service under `arbiter:api:v1:`. It contains no Discord bot token requirement and no portal runtime. Build and smoke-test it without deploying it:
+
+```bash
+pnpm build:api
+pnpm api:container:smoke
+```
+
+### Runtime Dependency Verification
+
+Arbiter's production images require Node.js 22.12.0 or newer and earlier than Node.js 23, and install with the repository's pinned pnpm 10 release. Dependency security checks must verify both the lockfile and the pruned images:
+
+1. run `pnpm audit --prod` against the workspace lockfile
+2. build both the final bot runtime and migration targets from the committed manifest and lockfile
+3. record the immutable image digest for each target and verify that each reports a Node.js version in the supported range
+4. inspect the installed package graph inside both final targets
+5. confirm that patched versions are present on Discord, Postgres, Prisma, Redis, and scheduled-task paths
+
+Do not treat every package stored under pnpm's virtual store as application-reachable. Check whether the final image exposes the package through Node resolution and whether compiled runtime code imports it. Prisma peer tooling can leave helper packages in the image even when the Prisma CLI and their optional server dependencies are not resolvable at runtime.
+
+Any accepted audit exception must record the advisory, complete package path, runtime reachability evidence, owner, expiration date, and removal trigger. A severity-only suppression or workspace-only audit is not enough.
 
 ### Why The Migration Container Exists
 
@@ -104,6 +182,12 @@ At minimum, production needs:
 - `DISCORD_GUILD_ID`
 - the Discord role and channel IDs the bot depends on
 
+Event Ping specifically requires both `EVENT_PING_CHANNEL_ID` and
+`EVENT_PING_ROLE_ID`. The bot must be able to view and send messages in the
+configured destination, access active event tracking threads and stored summary
+messages, and mention the configured role. Startup fails configuration
+validation when either Event Ping value is missing.
+
 Operationally important values also include:
 
 - log file configuration
@@ -112,6 +196,26 @@ Operationally important values also include:
 - container resource limits
 - Grafana credentials
 - image tag overrides if you use them
+
+The production Redis container defaults to a 1 GiB memory limit. The previous
+256 MiB limit did not leave enough headroom for Arbiter's observed scheduler
+workload. Override `REDIS_MEM_LIMIT` only from current host measurements, and
+keep enough host memory available for the bot and observability containers.
+
+Scheduled-task job history is also bounded at the queue level:
+
+- completed jobs become eligible for removal after 24 hours, with at most 5,000
+  records retained
+- failed jobs become eligible for removal after seven days, with at most 1,000
+  records retained
+
+Both the age and count limit apply, so whichever boundary is reached first
+selects older finalized history for removal. BullMQ performs that cleanup
+lazily: a later successful job prunes eligible completed history, and a later
+failed job prunes eligible failed history. The longer failed-job window
+preserves useful diagnostics. These limits do not target active, delayed,
+repeatable, or pending-retry jobs. Postgres remains the durable source of event
+and review truth; Redis remains transient scheduling and tracking state.
 
 ## Persistent Host Data
 
@@ -122,6 +226,8 @@ The production stack expects persistent host directories for:
 - Loki data
 - Grafana data
 - Alloy data
+
+When the API is added to the production stack in a separately approved change, its `API_LOG_FILE_PATH` must also use a persistent host-mounted log directory visible to Alloy. The current production Compose does not yet run the API and therefore does not create that mount.
 
 If those paths move or change ownership, update the environment configuration to match. The bot and Redis containers may run under explicit numeric users, so host ownership matters.
 
@@ -147,6 +253,12 @@ docker compose -f docker-compose.prod.yml logs -f arbiter-bot
 ```
 
 Before running migrations against production, take a database backup or otherwise ensure you have a rollback plan for durable data.
+
+The Event Ping rollout adds a nullable receipt timestamp and requires no
+backfill. Apply the additive migration and set both Event Ping environment
+values before starting the new bot image. A rollback may restore the prior bot
+image and environment while leaving the nullable column in place. Removing the
+column is destructive and is not part of the normal rollback.
 
 ## Normal Update Deploy
 
@@ -177,12 +289,87 @@ At minimum, verify:
 
 The bot log stream is usually the fastest first check after deployment.
 
+### Redis and Scheduled-Task Verification
+
+Production deployment and rollback require separate operational approval. Before
+an approved deployment, retain the prior bot image under an immutable rollback
+tag, preserve a secure copy of the active environment configuration, and record
+the current measurements below. Never use `FLUSHALL`, `FLUSHDB`, volume removal,
+or broad queue cleanup as part of this procedure.
+
+Check the Redis container's current usage and configured memory ceiling:
+
+```bash
+docker stats --no-stream arbiter-v3-redis
+docker compose -f docker-compose.prod.yml exec -T arbiter-redis sh -lc '
+redis_cli() {
+  if [ -n "$REDIS_PASSWORD" ]; then
+    REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli -n "${REDIS_DB:-0}" "$@"
+  else
+    redis-cli -n "${REDIS_DB:-0}" "$@"
+  fi
+}
+redis_cli INFO memory | grep -E "^(used_memory_human|maxmemory_human|mem_fragmentation_ratio):"
+redis_cli DBSIZE
+'
+```
+
+Inspect only the scheduled-task queue counters. Completed and failed are
+sorted-set history; active and waiting are lists; delayed and repeatable work
+are sorted sets:
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T arbiter-redis sh -lc '
+redis_cli() {
+  if [ -n "$REDIS_PASSWORD" ]; then
+    REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli -n "${REDIS_DB:-0}" "$@"
+  else
+    redis-cli -n "${REDIS_DB:-0}" "$@"
+  fi
+}
+printf "completed="; redis_cli ZCARD bull:scheduled-tasks:completed
+printf "failed="; redis_cli ZCARD bull:scheduled-tasks:failed
+printf "active="; redis_cli LLEN bull:scheduled-tasks:active
+printf "waiting="; redis_cli LLEN bull:scheduled-tasks:wait
+printf "delayed="; redis_cli ZCARD bull:scheduled-tasks:delayed
+printf "repeatable="; redis_cli ZCARD bull:scheduled-tasks:repeat
+'
+```
+
+After an approved deployment:
+
+1. Confirm `arbiter-v3-bot` logs both `Logged in` and `runtime.initialized` and
+   remains running.
+2. Re-run the memory and queue-counter checks. A transient active count is
+   normal; active, delayed, repeatable, and retry work must not disappear.
+3. In the mounted bot log, confirm at least three consecutive
+   `task.eventTrackingTick` entries with `task.completed`, spanning at least two
+   configured tracking intervals. Also confirm no intervening `task.failed`
+   entries for that flow.
+4. Recheck memory and queue counts after the observation window. Finalized
+   history should remain inside the documented count limits and memory should
+   stay comfortably below the 1 GiB container ceiling.
+
+If bot readiness, repeat scheduling, event-tracking ticks, or Redis health
+regresses, redeploy the retained prior bot image and restore the prior approved
+application configuration, but keep `REDIS_MEM_LIMIT` at 1 GiB or the current
+higher value. Lower that limit only when fresh memory measurements explicitly
+prove the smaller ceiling safe. Recreate the bot by default; recreate Redis only
+for a separately approved Redis-specific correction. Do not delete the Redis
+data directory. Rolling back the bot stops future pruning under the new policy,
+but finalized history already removed by retention cannot be restored.
+
 ## Common Failure Modes
 
 Release workflow failures:
 
 - the planner ignored commits because the commit subjects were not Conventional Commit subjects
-- the wrong bump was selected and `pnpm release:plan` needs to be rerun
+- `pnpm release:plan:check` found no branch-owned plan; commit the scoped work,
+  then run `pnpm release:plan -- --bump patch` with the intended bump
+- the checker found duplicate branch owners or unreadable JSON; repair or remove
+  the named file and rerun the read-only check
+- the wrong bump or a rewritten merge base invalidated a plan; confirm the cause,
+  then use explicit `--regenerate`, `--bump`, and `--reason` arguments
 - the `dev` to `main` PR does not contain prepared release artifacts because the release-prep PR into `dev` was not merged
 - generated release files were edited manually instead of coming from the workflow
 

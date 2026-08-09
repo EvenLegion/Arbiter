@@ -1,9 +1,16 @@
 import { EventSessionState } from '@prisma/client';
 import type { ButtonInteraction, Guild } from 'discord.js';
+import { randomUUID } from 'node:crypto';
 
 import { startTrackingSession, stopTrackingSession } from '../../../../../integrations/redis/eventTracking';
+import {
+	acquireEventSessionOperationLock,
+	releaseEventSessionOperationLock,
+	startEventSessionOperationLockLease
+} from '../../../../../integrations/redis/eventSessionOperationLock';
 import { eventRepository } from '../../../../../integrations/prisma/repositories';
 import { createChildExecutionContext, type ExecutionContext } from '../../../../logging/executionContext';
+import { toErrorLogFields } from '../../../../logging/errorDetails';
 import { EVENT_LIFECYCLE_SESSION_INCLUDE, type EventLifecycleEventSession } from '../../../../services/event-lifecycle';
 import { postEndedEventFeedbackLinks as postEndedEventFeedbackLinksGateway } from '../../gateways/postEndedEventFeedbackLinks';
 import { syncEventLifecyclePresentation } from '../../presentation/syncEventLifecyclePresentation';
@@ -33,6 +40,54 @@ export function createEventSessionTransitionRuntime({
 
 	return {
 		findEventSession: loadEventSession,
+		acquireEventSessionOperation: async (eventSessionId: number) => {
+			const token = randomUUID();
+			return acquireEventSessionOperationLock({
+				eventSessionId,
+				token
+			})
+				.then((acquired) => (acquired ? ({ kind: 'acquired', token } as const) : ({ kind: 'busy' } as const)))
+				.catch((error: unknown) => {
+					logger.warn(
+						{
+							...toErrorLogFields(error),
+							eventSessionId
+						},
+						'Failed to acquire event-session operation lock for End Event'
+					);
+					return {
+						kind: 'unavailable'
+					} as const;
+				});
+		},
+		startEventSessionOperationLease: (eventSessionId: number, token: string) =>
+			startEventSessionOperationLockLease({
+				eventSessionId,
+				token,
+				onRenewalError: (error) => {
+					logger.warn(
+						{
+							...toErrorLogFields(error),
+							eventSessionId
+						},
+						'Failed to renew event-session operation lock for End Event'
+					);
+				}
+			}),
+		releaseEventSessionOperation: (eventSessionId: number, token: string) =>
+			releaseEventSessionOperationLock({
+				eventSessionId,
+				token
+			}).catch((error: unknown) => {
+				logger.warn(
+					{
+						...toErrorLogFields(error),
+						eventSessionId
+					},
+					'Failed to release event-session operation lock for End Event'
+				);
+				return false;
+			}),
 		updateState: updateEventSessionState,
 		reloadEventSession: loadEventSession,
 		syncLifecyclePresentation: ({ eventSession, actorDiscordUserId }: { eventSession: EventLifecycleEventSession; actorDiscordUserId: string }) =>

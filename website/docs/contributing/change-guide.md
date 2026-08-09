@@ -133,11 +133,10 @@ Expected work:
 For most code changes, the safe default is:
 
 ```bash
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm docs:build
+pnpm check
 ```
+
+The root check command is also the CI validation chain: workflow lint, typecheck, application lint, unit tests, integration tests, and the docs build. Run `pnpm workflow:lint` directly for a faster loop while editing GitHub Actions workflows.
 
 Add `pnpm test:integration` when:
 
@@ -180,15 +179,33 @@ Avoid documenting:
 - deep path inventories that duplicate repository search
 - claims that only stay true if no one ever refactors
 
-## Before A PR Or Release
+## Before Every Working-Branch Push
 
-Before opening or updating a PR into `dev`, run:
+Before every push from a working branch, run `pnpm release:plan:check`. The
+read-only checker finds the plan by its parsed `branch` field and validates its
+schema, `origin/dev` merge base, version intent, and recorded commit ancestry.
 
-```bash
-pnpm release:plan
-```
+- Reuse that plan when it still targets `origin/dev`, records the current merge
+  base, and has the intended version bump and release-note scope.
+- Do not create another plan merely because you added a later implementation or
+  review-fix commit.
+- If no matching plan exists, commit the scoped work with Conventional Commit
+  subjects, then run `pnpm release:plan -- --bump patch` once, substituting the
+  intended `minor` or `major` bump when appropriate.
+- Regenerate a matching plan only when its branch, base, merge base, version
+  bump, or release-note scope is no longer valid. Use
+  `pnpm release:plan -- --regenerate --bump patch --reason "why replacement is required"`.
 
-That script compares your branch against `dev`, reads Conventional Commit subjects, asks for the intended bump, and writes a plan file under `.release-plans/`. The full release and deployment model is documented in [Operations](/operations/release-and-deploy).
+The planner reuses a valid plan without changing the worktree. For a missing
+plan, it writes the branch-owned file under `.release-plans/` and commits it.
+Unreadable or duplicate plans require manual repair before the tool can safely
+identify ownership. The full validity and recovery model is documented in
+[Operations](/operations/release-and-deploy).
+
+The plan descriptions become public release notes and may be posted to the Even
+Legion Discord. Write them for members who do not know the codebase: explain the
+change, why it matters, and whether it changes commands or member behavior. Do
+not use file names, ticket shorthand, or technical jargon without explanation.
 
 ## A Good Final Smell Test
 
