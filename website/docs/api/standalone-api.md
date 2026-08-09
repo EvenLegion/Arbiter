@@ -23,6 +23,10 @@ The API exposes infrastructure and browser-authentication endpoints:
 
 The API package also contains transport-independent integration and credential lifecycle services backed by Arbiter's canonical database. They can create, list, edit, and archive shared integrations; mint, list, authenticate, and revoke credentials; and record last use at a bounded interval. No HTTP management or directory route invokes those services yet, so defining the lifecycle does not expose user data.
 
+The package also contains a transport-independent user-directory read service. It reads canonical users, every durable division membership, raw merit totals, and the shared merit-rank policy from the existing Arbiter database. Queries support up to 100 Discord IDs, multiple division codes, exact/minimum/maximum ranks, a bounded page size, and opaque keyset cursors. Filter categories intersect, while multiple division codes match any requested division. Unknown division codes and malformed cursors fail validation. The repository performs a bounded page read inside one repeatable-read snapshot and never loops over users or contacts Discord. No HTTP directory route exists yet.
+
+Rank filters must aggregate merit totals for every eligible canonical user before applying the page limit because rank is derived rather than stored. That work is linear in the eligible configured-guild roster and repeats for each rank-filtered page. This is an accepted MVP cost for Arbiter's community-sized directory; observed latency or roster growth that makes it material is the trigger for a separately approved derived-total or indexing design. Non-rank-filtered reads limit candidate users before merit aggregation.
+
 The only credential permission is `users:read`. A minted secret is returned once, while Postgres stores only a non-secret lookup prefix and an HMAC-SHA-256 verifier keyed by `API_CREDENTIAL_PEPPER`. Expired, revoked, unknown, malformed, or archived-integration credentials authenticate as the same invalid-credential outcome. Integration archive and credential revocation retain the first authoritative actor and timestamp under retries or concurrency.
 
 The API reuses Arbiter's canonical Postgres schema and existing Redis service. It owns its own bounded database pool and Redis client, and stopping it closes only those API-owned resources. The Discord bot and shared services continue running.
@@ -204,13 +208,13 @@ pnpm api:container:smoke
 pnpm docs:build
 ```
 
-The integration suite starts real Postgres and Redis containers and proves OAuth replay/TTL behavior, idle and absolute session expiry, current STAFF/EXEC authorization, and that stopping the API does not close separately owned bot-side clients. The HTTP harness exercises an external configured origin across start, session, CSRF logout, and CORS. The container smoke test verifies the production dependency set, liveness, file logging, and graceful shutdown without deploying anything. A real Discord callback still requires a non-production Discord application and registered callback; never use production credentials for local validation.
+The integration suite starts real Postgres and Redis containers and proves OAuth replay/TTL behavior, idle and absolute session expiry, current STAFF/EXEC authorization, canonical directory hydration/filtering/pagination, indexed Discord-ID lookup planning, and that stopping the API does not close separately owned bot-side clients. The HTTP harness exercises an external configured origin across start, session, CSRF logout, and CORS. The container smoke test verifies the production dependency set, liveness, file logging, and graceful shutdown without deploying anything. A real Discord callback still requires a non-production Discord application and registered callback; never use production credentials for local validation.
 
 ## Current Boundaries
 
 This foundation deliberately does not include:
 
-- a user-directory or credential-management HTTP endpoint, or any permission beyond `users:read`
+- a user-directory or credential-management HTTP endpoint, or any permission beyond `users:read` (the directory read service is internal until its route ticket)
 - portal pages or portal-owned secrets, database access, or Redis access
 - a second database, Redis service, schema authority, or synchronization path
 - production proxy, TLS, network exposure, resource sizing, or deployment wiring

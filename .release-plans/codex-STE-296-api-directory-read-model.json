@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "codex/STE-296-api-directory-read-model",
+	"baseRef": "origin/dev",
+	"mergeBase": "70dadce162aa084dbb3f17807e24622afa9fd860",
+	"headRef": "8338a7821fa6964c73428ea54dbb1c60ed2ac9f9",
+	"generatedAt": "2026-08-09T20:48:17.809Z",
+	"bump": "patch",
+	"targetVersion": "3.4.1",
+	"commits": [
+		{
+			"sha": "8338a7821fa6964c73428ea54dbb1c60ed2ac9f9",
+			"subject": "feat(api): add canonical user directory read model",
+			"committedAt": "2026-08-09T10:47:59-10:00",
+			"committedAtMs": 1786308479000,
+			"type": "feat",
+			"scope": "api",
+			"description": "Arbiter can now assemble reliable member directory information from its existing records, including every division membership, merit total, and merit-rank level, so upcoming approved integrations can query consistent data without contacting Discord or creating a duplicate database. This is behind-the-scenes preparation; no API route, Discord command, or member-facing behavior changes yet.",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}

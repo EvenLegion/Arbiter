@@ -4,6 +4,8 @@ import {
 	API_V1_ROUTES,
 	ApiAuthIdentitySchema,
 	ApiCredentialMetadataSchema,
+	ApiDirectoryPageSchema,
+	ApiDirectoryQuerySchema,
 	ApiErrorEnvelopeSchema,
 	ApiIntegrationSchema,
 	HealthResponseSchema,
@@ -42,6 +44,34 @@ describe('v1 API contracts', () => {
 
 	it('keeps the initial scope catalog intentionally small', () => {
 		expect(normalizeApiScopes(['users:read'])).toEqual(['users:read']);
+	});
+
+	it('defines bounded directory queries and safe user read models', () => {
+		expect(
+			ApiDirectoryQuerySchema.parse({
+				discordUserIds: ['100000000000000001'],
+				divisionCodesAny: ['LGN', 'RES'],
+				minimumRank: 1,
+				maximumRank: 5
+			})
+		).toMatchObject({ limit: 100 });
+		expect(ApiDirectoryQuerySchema.safeParse({ discordUserIds: Array.from({ length: 101 }, () => '100000000000000001') }).success).toBe(false);
+		expect(ApiDirectoryQuerySchema.safeParse({ minimumRank: 5, maximumRank: 4 }).success).toBe(false);
+
+		const page = ApiDirectoryPageSchema.parse({
+			users: [
+				{
+					discordUserId: '100000000000000001',
+					memberships: [{ divisionCode: 'LGN', divisionName: 'Legionnaire', divisionKind: 'LEGIONNAIRE' }],
+					totalMerits: -1,
+					rankLevel: null,
+					rankSymbol: null
+				}
+			],
+			nextCursor: null
+		});
+		expect(page.users[0]).not.toHaveProperty('discordUsername');
+		expect(page.users[0]).not.toHaveProperty('discordNickname');
 	});
 
 	it('defines safe integration and credential metadata without secret material', () => {

@@ -13,10 +13,14 @@ import type { ApiConfig } from '../config';
 import { createPrismaApiCredentialRepository } from '../credentials/prismaRepository';
 import { createApiCredentialService } from '../credentials/service';
 import type { ApiCredentialService } from '../credentials/types';
+import { createPrismaDirectoryRepository } from '../directory/prismaRepository';
+import { createDirectoryService } from '../directory/service';
+import type { DirectoryService } from '../directory/types';
 
 export type ApiDependencies = {
 	authService: AuthService;
 	credentialService: ApiCredentialService;
+	directoryService: DirectoryService;
 	checkReadiness: (timeoutMs: number) => Promise<boolean>;
 	close: () => Promise<void>;
 };
@@ -69,10 +73,12 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 		sessionIdleTtlSeconds: config.auth.sessionIdleTtlSeconds,
 		sessionAbsoluteTtlSeconds: config.auth.sessionAbsoluteTtlSeconds
 	});
+	const directoryService = createDirectoryService(createPrismaDirectoryRepository(prisma));
 
 	return {
 		authService,
 		credentialService,
+		directoryService,
 		checkReadiness: async (timeoutMs) => {
 			const [databaseReady, redisReady] = await Promise.all([
 				settlesWithin(prisma.$queryRaw`SELECT 1`, timeoutMs),
