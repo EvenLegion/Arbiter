@@ -95,6 +95,19 @@ export function App({ api }: { api: PortalApi }) {
 		}
 	}
 
+	async function refreshRegistry() {
+		setBusy(true);
+		setFeedback(null);
+		try {
+			await loadRegistry(includeArchived);
+			setFeedback('Registry refreshed.');
+		} catch (error) {
+			setFeedback(describePortalError(error));
+		} finally {
+			setBusy(false);
+		}
+	}
+
 	async function createIntegration(input: { name: string; purpose: string }) {
 		if (!ready) return;
 		await runMutation(async () => {
@@ -157,54 +170,79 @@ export function App({ api }: { api: PortalApi }) {
 	if (status === 'signed-out') return <SignedOutScreen busy={busy} feedback={feedback} onSignIn={() => void signIn()} />;
 	if (status === 'error' || !ready) return <ErrorScreen message={fatalMessage} />;
 
+	const activeCount = ready.integrations.filter((integration) => integration.state === 'active').length;
+	const archivedCount = ready.integrations.filter((integration) => integration.state === 'archived').length;
+
 	return (
 		<div className="app-shell">
-			<PortalSidebar
-				identity={ready.identity}
-				integrations={ready.integrations}
-				includeArchived={includeArchived}
-				busy={busy}
-				onToggleArchived={(next) => void toggleArchived(next)}
-				onLogout={() => void logout()}
-			/>
+			<PortalHeader identity={ready.identity} busy={busy} onLogout={() => void logout()} />
 			<main id="main-content">
-				<div className="context-strip" aria-label="Portal context">
-					<span className="context-year">{new Date().getFullYear()}</span>
-					<span className="context-item active">Registry</span>
-					<span className="context-item">Staff access</span>
-					<span className="context-item">API owned</span>
-				</div>
-				<section className="hero" aria-labelledby="registry-title">
+				<section className="page-intro" aria-labelledby="registry-title">
 					<div>
-						<p className="eyebrow">Shared_access_layer</p>
 						<h1 id="registry-title">Integration registry</h1>
-						<p className="hero-copy">
-							Register the systems that connect to Arbiter. Credentials stay API-owned and are managed separately.
+						<p className="intro-copy">
+							Systems with API access to Arbiter, registered and described by staff. Credentials are issued and revoked in a separate
+							workflow — this registry never shows secrets.
 						</p>
 					</div>
-					<div className="hero-actions">
-						<button className="button primary" type="button" disabled={busy} onClick={() => setDialog({ kind: 'create' })}>
-							Register integration <span aria-hidden="true">»</span>
+					<button className="button primary" type="button" disabled={busy} onClick={() => setDialog({ kind: 'create' })}>
+						Register integration
+					</button>
+				</section>
+
+				<div className="registry-toolbar">
+					<div className="registry-counts" aria-label="Registry counts">
+						<span className="count">
+							<span className="count-label">Active</span>
+							<span className="count-value">{String(activeCount).padStart(2, '0')}</span>
+						</span>
+						<span className="count">
+							<span className="count-label">Archived</span>
+							<span className="count-value">{includeArchived ? String(archivedCount).padStart(2, '0') : '——'}</span>
+						</span>
+					</div>
+					<div className="registry-scope">
+						<label className="scope-toggle">
+							<input
+								type="checkbox"
+								checked={includeArchived}
+								disabled={busy}
+								onChange={(event) => void toggleArchived(event.currentTarget.checked)}
+							/>
+							Include archived
+						</label>
+						<button className="toolbar-action" type="button" disabled={busy} onClick={() => void refreshRegistry()}>
+							Refresh
 						</button>
 					</div>
-				</section>
+				</div>
 
 				<div className="status-line" role="status" aria-live="polite">
 					{feedback ?? `${ready.integrations.length} integration${ready.integrations.length === 1 ? '' : 's'} in this view`}
 				</div>
 
-				<RegistryGrid
+				<RegistryList
 					identity={ready.identity}
 					integrations={ready.integrations}
+					includeArchived={includeArchived}
 					onEdit={(integration) => setDialog({ kind: 'edit', integration })}
 					onArchive={(integration) => setDialog({ kind: 'archive', integration })}
 				/>
+
+				<footer className="access-notes">
+					<p>
+						{ready.identity.role === 'EXEC'
+							? 'EXEC access — you can register integrations, edit any active record, and archive.'
+							: 'STAFF access — you can register integrations and edit the ones you created. Archiving requires EXEC.'}
+					</p>
+					<p>Credential secrets and credential management are intentionally not available in this portal.</p>
+				</footer>
 			</main>
 
 			{dialog?.kind === 'create' && (
 				<IntegrationFormDialog
 					title="Register an integration"
-					description="Give staff enough context to understand why this integration exists. Names are unique after trimming, spacing, and case normalization."
+					description="Describe what this system does with Arbiter's API so any staff member can understand it later. Names are unique after trimming, spacing, and case normalization."
 					submitLabel="Register integration"
 					busy={busy}
 					onClose={() => setDialog(null)}
@@ -235,89 +273,51 @@ export function App({ api }: { api: PortalApi }) {
 	);
 }
 
-function PortalSidebar({
-	identity,
-	integrations,
-	includeArchived,
-	busy,
-	onToggleArchived,
-	onLogout
-}: {
-	identity: ApiAuthIdentity;
-	integrations: ApiIntegrationRegistryItem[];
-	includeArchived: boolean;
-	busy: boolean;
-	onToggleArchived: (next: boolean) => void;
-	onLogout: () => void;
-}) {
-	const activeCount = integrations.filter((integration) => integration.state === 'active').length;
-	const archivedCount = integrations.filter((integration) => integration.state === 'archived').length;
-
+function PortalHeader({ identity, busy, onLogout }: { identity: ApiAuthIdentity; busy: boolean; onLogout: () => void }) {
 	return (
-		<aside className="sidebar" aria-label="Registry controls">
+		<header className="portal-header">
 			<div className="brand-lockup">
-				<strong>
-					<span aria-hidden="true">&gt;</span> ARBITER.REGISTRY
-				</strong>
-				<span>v1.0</span>
+				<strong>Arbiter</strong>
+				<span>Staff portal</span>
 			</div>
-			<div className="filter-heading">
-				<span>Registry_filters</span>
-				<span>[{integrations.length.toString().padStart(2, '0')}]</span>
-			</div>
-			<nav className="filter-list" aria-label="Integration filters">
-				<div className="filter-row static">
-					<span>
-						<span aria-hidden="true">&gt; [×]</span> Active
-					</span>
-					<span>[{activeCount.toString().padStart(2, '0')}]</span>
-				</div>
-				<label className="filter-row">
-					<input
-						type="checkbox"
-						checked={includeArchived}
-						disabled={busy}
-						onChange={(event) => onToggleArchived(event.currentTarget.checked)}
-					/>
-					<span>
-						<span aria-hidden="true">&gt; [{includeArchived ? '×' : ' '}]</span> Archived
-					</span>
-					<span>[{includeArchived ? archivedCount.toString().padStart(2, '0') : '--'}]</span>
-				</label>
-			</nav>
-			<div className="identity-block">
+			<div className="header-session">
 				<div className="identity-line">
 					<img src={identity.discordAvatarUrl} alt="" />
 					<div>
 						<strong>{identity.discordNickname}</strong>
-						<span>{identity.role} / authenticated</span>
+						<span>{identity.role} session</span>
 					</div>
 				</div>
-				<button className="sidebar-action" type="button" disabled={busy} onClick={onLogout}>
-					&gt; Sign out
+				<button className="toolbar-action" type="button" disabled={busy} onClick={onLogout}>
+					Sign out
 				</button>
 			</div>
-		</aside>
+		</header>
 	);
 }
 
-function RegistryGrid({
+function RegistryList({
 	identity,
 	integrations,
+	includeArchived,
 	onEdit,
 	onArchive
 }: {
 	identity: ApiAuthIdentity;
 	integrations: ApiIntegrationRegistryItem[];
+	includeArchived: boolean;
 	onEdit: (integration: ApiIntegrationRegistryItem) => void;
 	onArchive: (integration: ApiIntegrationRegistryItem) => void;
 }) {
 	if (integrations.length === 0) {
 		return (
 			<section className="empty-state">
-				<div className="empty-orbit" aria-hidden="true" />
 				<h2>No integrations in this view</h2>
-				<p>Register the first integration, or include archived records to inspect earlier entries.</p>
+				<p>
+					{includeArchived
+						? 'Nothing has been registered yet. Register the first integration to start the shared registry.'
+						: 'No active integrations. Register one, or include archived records to inspect earlier entries.'}
+				</p>
 			</section>
 		);
 	}
@@ -326,12 +326,10 @@ function RegistryGrid({
 	const archived = integrations.filter((integration) => integration.state === 'archived');
 
 	return (
-		<section className="registry-feed" aria-label="Registered integrations">
-			{active.length > 0 && (
-				<RegistryGroup label="Active_registry" integrations={active} identity={identity} onEdit={onEdit} onArchive={onArchive} />
-			)}
+		<section className="registry-records" aria-label="Registered integrations">
+			{active.length > 0 && <RegistryGroup label="Active" integrations={active} identity={identity} onEdit={onEdit} onArchive={onArchive} />}
 			{archived.length > 0 && (
-				<RegistryGroup label="Archived_registry" integrations={archived} identity={identity} onEdit={onEdit} onArchive={onArchive} />
+				<RegistryGroup label="Archived" integrations={archived} identity={identity} onEdit={onEdit} onArchive={onArchive} />
 			)}
 		</section>
 	);
@@ -356,38 +354,51 @@ function RegistryGroup({
 				{label} <span>[{integrations.length.toString().padStart(2, '0')}]</span>
 			</h2>
 			{integrations.map((integration) => (
-				<article className={`integration-card ${integration.state}`} key={integration.id}>
-					<div className="card-topline">
-						<span className={`state-pill ${integration.state}`}>
-							<span aria-hidden="true" /> {integration.state}
-						</span>
-						<span className="credential-count">
-							{integration.credentialCount} credential{integration.credentialCount === 1 ? '' : 's'} /{' '}
-							{integration.creator.discordNickname}
-						</span>
-						<time dateTime={integration.updatedAt}>{formatDate(integration.updatedAt)}</time>
+				<article className={`record ${integration.state}`} key={integration.id}>
+					<div className="record-main">
+						<h3>{integration.name}</h3>
+						<p className="record-purpose">{integration.purpose}</p>
 					</div>
-					<div className="card-content">
+					<dl className="record-meta">
 						<div>
-							<h3>{integration.name}</h3>
-							<p className="purpose">{integration.purpose}</p>
-							<p className="record-meta">Registered / {formatDate(integration.createdAt)}</p>
+							<dt>Status</dt>
+							<dd className={`record-status ${integration.state}`}>{integration.state}</dd>
 						</div>
-						<div className="card-actions">
-							{canEditIntegration(identity, integration) && (
-								<button className="record-action" type="button" onClick={() => onEdit(integration)}>
-									Edit metadata »
-								</button>
-							)}
-							{canArchiveIntegration(identity, integration) && (
-								<button className="record-action danger" type="button" onClick={() => onArchive(integration)}>
-									Archive »
-								</button>
-							)}
-							{!canEditIntegration(identity, integration) && !canArchiveIntegration(identity, integration) && (
-								<span className="read-only-note">View_only</span>
-							)}
+						<div>
+							<dt>Credentials</dt>
+							<dd>{integration.credentialCount}</dd>
 						</div>
+						<div>
+							<dt>Created by</dt>
+							<dd>{integration.creator.discordNickname}</dd>
+						</div>
+						<div>
+							<dt>Registered</dt>
+							<dd>
+								<time dateTime={integration.createdAt}>{formatDate(integration.createdAt)}</time>
+							</dd>
+						</div>
+						<div>
+							<dt>Last updated</dt>
+							<dd>
+								<time dateTime={integration.updatedAt}>{formatDate(integration.updatedAt)}</time>
+							</dd>
+						</div>
+					</dl>
+					<div className="record-actions">
+						{canEditIntegration(identity, integration) && (
+							<button className="record-action" type="button" onClick={() => onEdit(integration)}>
+								Edit
+							</button>
+						)}
+						{canArchiveIntegration(identity, integration) && (
+							<button className="record-action danger" type="button" onClick={() => onArchive(integration)}>
+								Archive
+							</button>
+						)}
+						{!canEditIntegration(identity, integration) && !canArchiveIntegration(identity, integration) && (
+							<span className="read-only-note">View only</span>
+						)}
 					</div>
 				</article>
 			))}
@@ -498,8 +509,11 @@ function ArchiveDialog({
 			</div>
 			<h2 id="archive-title">Archive {integration.name}?</h2>
 			<p>
-				Archiving this integration immediately invalidates all {integration.credentialCount} associated credentials. Existing clients will
-				lose access, and the integration cannot be restored from this portal.
+				{integration.credentialCount > 0
+					? `Archiving this integration immediately invalidates all ${integration.credentialCount} associated credential${
+							integration.credentialCount === 1 ? '' : 's'
+						}. Systems using them will lose API access, and the integration cannot be restored from this portal.`
+					: 'This integration has no credentials to invalidate. Archiving is still permanent — it cannot be undone from this portal.'}
 			</p>
 			<div className="modal-actions">
 				<button className="button ghost" type="button" autoFocus disabled={busy} onClick={onClose}>
@@ -539,9 +553,9 @@ function LoadingScreen() {
 	return (
 		<FullScreenPanel>
 			<div className="loader" aria-hidden="true" />
-			<p className="eyebrow">Secure session</p>
-			<h1>Recovering staff access</h1>
-			<p>Arbiter is checking your API-owned session and current staff membership.</p>
+			<p className="eyebrow">Arbiter staff portal</p>
+			<h1>Checking your session</h1>
+			<p>Confirming your current staff membership with the Arbiter API.</p>
 		</FullScreenPanel>
 	);
 }
@@ -549,12 +563,12 @@ function LoadingScreen() {
 function SignedOutScreen({ busy, feedback, onSignIn }: { busy: boolean; feedback: string | null; onSignIn: () => void }) {
 	return (
 		<FullScreenPanel>
-			<div className="brand-mark large" aria-hidden="true">
-				A
-			</div>
-			<p className="eyebrow">Even Legion operations</p>
-			<h1>Staff access, deliberately bounded.</h1>
-			<p>Sign in with Discord. Arbiter’s API verifies your current staff membership before showing the shared registry.</p>
+			<p className="eyebrow">Arbiter · Even Legion</p>
+			<h1>Staff portal</h1>
+			<p>
+				The registry of systems with API access to Arbiter. Sign in with Discord — the API verifies your current staff membership before the
+				registry loads.
+			</p>
 			<button className="button primary wide" type="button" disabled={busy} onClick={onSignIn}>
 				{busy ? 'Connecting…' : 'Continue with Discord'}
 			</button>
