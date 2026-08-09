@@ -78,16 +78,20 @@ export function App({ api }: { api: PortalApi }) {
 			setFeedback('Signed out securely.');
 		} catch (error) {
 			setFeedback(describePortalError(error));
+			if (error instanceof PortalApiError && error.code === 'unauthorized') {
+				setReady(null);
+				setStatus('signed-out');
+			}
 		} finally {
 			setBusy(false);
 		}
 	}
 
 	async function toggleArchived(next: boolean) {
-		setIncludeArchived(next);
 		setBusy(true);
 		try {
 			await loadRegistry(next);
+			setIncludeArchived(next);
 		} catch (error) {
 			setFeedback(describePortalError(error));
 		} finally {
@@ -153,7 +157,11 @@ export function App({ api }: { api: PortalApi }) {
 		} catch (error) {
 			setFeedback(describePortalError(error));
 			if (error instanceof PortalApiError && (error.code === 'stale' || error.code === 'integration_archived')) {
-				await loadRegistry(includeArchived).catch(() => undefined);
+				try {
+					await loadRegistry(includeArchived);
+				} catch (refreshError) {
+					setFeedback(describePortalError(refreshError));
+				}
 				setDialog(null);
 			}
 			if (error instanceof PortalApiError && error.code === 'unauthorized') {

@@ -73,34 +73,43 @@ export type ApiCredentialServiceErrorCode =
 export type ApiCredentialServiceResult<T> = { ok: true; value: T } | { ok: false; error: { code: ApiCredentialServiceErrorCode } };
 
 export type ApiCredentialRepository = {
-	createIntegration: (input: {
-		name: string;
-		nameKey: string;
-		purpose: string;
-		actorUserId: string;
-	}) => Promise<{ status: 'created'; integration: ApiIntegrationRegistryRecord } | { status: 'conflict' }>;
+	createIntegration: (
+		input: {
+			name: string;
+			nameKey: string;
+			purpose: string;
+			actorUserId: string;
+		},
+		signal?: AbortSignal
+	) => Promise<{ status: 'created'; integration: ApiIntegrationRegistryRecord } | { status: 'conflict' }>;
 	findIntegrationById: (id: string) => Promise<ApiIntegrationRecord | null>;
 	listIntegrations: (includeArchived: boolean) => Promise<ApiIntegrationRegistryRecord[]>;
-	updateIntegration: (input: {
-		id: string;
-		name: string;
-		nameKey: string;
-		purpose: string;
-		actorUserId: string;
-		expectedUpdatedAt: Date;
-	}) => Promise<
+	updateIntegration: (
+		input: {
+			id: string;
+			name: string;
+			nameKey: string;
+			purpose: string;
+			actorUserId: string;
+			expectedUpdatedAt: Date;
+		},
+		signal?: AbortSignal
+	) => Promise<
 		| { status: 'updated'; integration: ApiIntegrationRegistryRecord }
 		| { status: 'conflict' }
 		| { status: 'inactive' }
 		| { status: 'not_found' }
 		| { status: 'stale' }
 	>;
-	archiveIntegration: (input: {
-		id: string;
-		actorUserId: string;
-		archivedAt: Date;
-		expectedUpdatedAt: Date;
-	}) => Promise<
+	archiveIntegration: (
+		input: {
+			id: string;
+			actorUserId: string;
+			archivedAt: Date;
+			expectedUpdatedAt: Date;
+		},
+		signal?: AbortSignal
+	) => Promise<
 		{ status: 'archived' | 'already_archived'; integration: ApiIntegrationRegistryRecord } | { status: 'not_found' } | { status: 'stale' }
 	>;
 	mintCredential: (input: {
@@ -131,16 +140,19 @@ export type ApiCredentialRepository = {
 export type ApiCredentialService = {
 	createIntegration: (
 		actor: ApiCredentialActor,
-		input: { name: string; purpose: string }
+		input: { name: string; purpose: string },
+		signal?: AbortSignal
 	) => Promise<ApiCredentialServiceResult<ApiIntegrationRegistryItem>>;
 	listIntegrations: (actor: ApiCredentialActor, includeArchived?: boolean) => Promise<ApiCredentialServiceResult<ApiIntegrationRegistryItem[]>>;
 	editIntegration: (
 		actor: ApiCredentialActor,
-		input: { integrationId: string; name: string; purpose: string; expectedUpdatedAt: string }
+		input: { integrationId: string; name: string; purpose: string; expectedUpdatedAt: string },
+		signal?: AbortSignal
 	) => Promise<ApiCredentialServiceResult<ApiIntegrationRegistryItem>>;
 	archiveIntegration: (
 		actor: ApiCredentialActor,
-		input: { integrationId: string; expectedUpdatedAt: string }
+		input: { integrationId: string; expectedUpdatedAt: string },
+		signal?: AbortSignal
 	) => Promise<ApiCredentialServiceResult<ApiIntegrationRegistryItem>>;
 	mintCredential: (
 		actor: ApiCredentialActor,

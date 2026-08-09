@@ -6,6 +6,7 @@ const PORT = 3000;
 const PORTAL_ORIGIN = 'http://127.0.0.1:4173';
 const USER_ID = '33b20a61-1e86-4115-b999-f319808d5a87';
 const CSRF_TOKEN = 'CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC';
+const SESSION_ID = 'HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH';
 
 let sequence = 0;
 let integrations = [
@@ -43,6 +44,24 @@ const server = createServer(async (request, response) => {
 		response.end();
 		return;
 	}
+	if (url.pathname === '/api/v1/auth/discord/start' && request.method === 'POST') {
+		return json(response, 200, {
+			data: { authorizationUrl: `http://${HOST}:${PORT}/harness/login` },
+			meta: { requestId }
+		});
+	}
+	if (url.pathname === '/harness/login' && request.method === 'GET') {
+		response.statusCode = 302;
+		response.removeHeader('content-type');
+		response.setHeader('set-cookie', sessionCookie(SESSION_ID));
+		response.setHeader('location', `${PORTAL_ORIGIN}/auth/callback`);
+		response.setHeader('content-length', '0');
+		response.end();
+		return;
+	}
+	if (isProtectedRoute(url.pathname) && !hasSession(request)) {
+		return error(response, 401, 'unauthorized', 'Authentication required', requestId);
+	}
 
 	if (url.pathname === '/api/v1/auth/session' && request.method === 'GET') {
 		return json(response, 200, {
@@ -70,6 +89,7 @@ const server = createServer(async (request, response) => {
 	}
 	if (url.pathname === '/api/v1/auth/logout' && request.method === 'POST') {
 		if (!hasCsrf(request)) return error(response, 403, 'csrf_failed', 'CSRF validation failed', requestId);
+		response.setHeader('set-cookie', sessionCookie('', 0));
 		return json(response, 200, { data: { loggedOut: true }, meta: { requestId } });
 	}
 	if (url.pathname === '/api/v1/integrations' && request.method === 'GET') {
@@ -97,7 +117,10 @@ const server = createServer(async (request, response) => {
 		const index = integrations.findIndex((integration) => integration.id === editMatch[1]);
 		if (index < 0) return error(response, 404, 'not_found', 'Integration was not found', requestId);
 		const current = integrations[index];
-		if (!body || body.expectedUpdatedAt !== current.updatedAt) {
+		if (!body || typeof body.name !== 'string' || typeof body.purpose !== 'string') {
+			return error(response, 400, 'bad_request', 'Integration update is invalid', requestId);
+		}
+		if (body.expectedUpdatedAt !== current.updatedAt) {
 			return error(response, 409, 'stale', 'Integration changed; refresh before trying again', requestId);
 		}
 		const updated = { ...current, name: body.name.trim(), purpose: body.purpose.trim(), updatedAt: nextTimestamp() };
@@ -162,7 +185,24 @@ function nextTimestamp() {
 }
 
 function hasCsrf(request) {
-	return request.headers['x-csrf-token'] === CSRF_TOKEN;
+	return hasSession(request) && request.headers['x-csrf-token'] === CSRF_TOKEN;
+}
+
+function hasSession(request) {
+	return (request.headers.cookie ?? '').split(';').some((cookie) => cookie.trim() === `arbiter_session=${SESSION_ID}`);
+}
+
+function isProtectedRoute(pathname) {
+	return (
+		pathname === '/api/v1/auth/session' ||
+		pathname === '/api/v1/auth/me' ||
+		pathname === '/api/v1/auth/logout' ||
+		pathname.startsWith('/api/v1/integrations')
+	);
+}
+
+function sessionCookie(value, maxAge = 1800) {
+	return `arbiter_session=${value}; Path=/api/v1; Max-Age=${maxAge}; HttpOnly; SameSite=Lax`;
 }
 
 async function readBody(request) {

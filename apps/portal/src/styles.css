@@ -10,7 +10,7 @@
 	color: #e8e6e1;
 	background: #030303;
 	font-synthesis: none;
-	text-rendering: optimizeLegibility;
+	text-rendering: optimizelegibility;
 	--ink: #e8e6e1;
 	--muted: #8a8985;
 	--faint: #55544f;
@@ -19,7 +19,7 @@
 	--line-strong: #3c3c39;
 	--accent: #e0524a;
 	--danger: #d85f54;
-	--mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+	--mono: ui-monospace, 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', monospace;
 }
 
 * {

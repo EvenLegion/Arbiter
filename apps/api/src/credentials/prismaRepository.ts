@@ -25,19 +25,23 @@ const registryInclude = {
 
 export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCredentialRepository {
 	return {
-		createIntegration: async (input) => {
+		createIntegration: async (input, signal) => {
 			try {
-				const integration = await prisma.apiIntegration.create({
-					data: {
-						name: input.name,
-						nameKey: input.nameKey,
-						purpose: input.purpose,
-						createdByUserId: input.actorUserId,
-						updatedByUserId: input.actorUserId
-					},
-					include: registryInclude
+				return await prisma.$transaction(async (tx) => {
+					signal?.throwIfAborted();
+					const integration = await tx.apiIntegration.create({
+						data: {
+							name: input.name,
+							nameKey: input.nameKey,
+							purpose: input.purpose,
+							createdByUserId: input.actorUserId,
+							updatedByUserId: input.actorUserId
+						},
+						include: registryInclude
+					});
+					signal?.throwIfAborted();
+					return { status: 'created', integration: mapRegistryIntegration(integration) } as const;
 				});
-				return { status: 'created', integration: mapRegistryIntegration(integration) };
 			} catch (error) {
 				if (isUniqueConstraintError(error)) return { status: 'conflict' };
 				throw error;
@@ -55,33 +59,39 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 			});
 			return integrations.map(mapRegistryIntegration);
 		},
-		updateIntegration: async (input) => {
+		updateIntegration: async (input, signal) => {
 			try {
-				const result = await prisma.apiIntegration.updateMany({
-					where: { id: input.id, state: ApiIntegrationState.ACTIVE, updatedAt: input.expectedUpdatedAt },
-					data: {
-						name: input.name,
-						nameKey: input.nameKey,
-						purpose: input.purpose,
-						updatedByUserId: input.actorUserId
-					}
+				return await prisma.$transaction(async (tx) => {
+					signal?.throwIfAborted();
+					await lockIntegration(tx, input.id);
+					signal?.throwIfAborted();
+					const existing = await tx.apiIntegration.findUnique({ where: { id: input.id }, select: { state: true, updatedAt: true } });
+					if (!existing) return { status: 'not_found' } as const;
+					if (existing.state !== ApiIntegrationState.ACTIVE) return { status: 'inactive' } as const;
+					if (existing.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()) return { status: 'stale' } as const;
+					const integration = await tx.apiIntegration.update({
+						where: { id: input.id },
+						data: {
+							name: input.name,
+							nameKey: input.nameKey,
+							purpose: input.purpose,
+							updatedByUserId: input.actorUserId
+						},
+						include: registryInclude
+					});
+					signal?.throwIfAborted();
+					return { status: 'updated', integration: mapRegistryIntegration(integration) } as const;
 				});
-				if (result.count === 0) {
-					const existing = await prisma.apiIntegration.findUnique({ where: { id: input.id }, select: { state: true, updatedAt: true } });
-					if (!existing) return { status: 'not_found' };
-					if (existing.state !== ApiIntegrationState.ACTIVE) return { status: 'inactive' };
-					return { status: 'stale' };
-				}
-				const integration = await prisma.apiIntegration.findUniqueOrThrow({ where: { id: input.id }, include: registryInclude });
-				return { status: 'updated', integration: mapRegistryIntegration(integration) };
 			} catch (error) {
 				if (isUniqueConstraintError(error)) return { status: 'conflict' };
 				throw error;
 			}
 		},
-		archiveIntegration: ({ id, actorUserId, archivedAt, expectedUpdatedAt }) =>
+		archiveIntegration: ({ id, actorUserId, archivedAt, expectedUpdatedAt }, signal) =>
 			prisma.$transaction(async (tx) => {
+				signal?.throwIfAborted();
 				await lockIntegration(tx, id);
+				signal?.throwIfAborted();
 				const existing = await tx.apiIntegration.findUnique({ where: { id }, include: registryInclude });
 				if (!existing) return { status: 'not_found' } as const;
 				if (existing.state === ApiIntegrationState.ARCHIVED) {
@@ -98,6 +108,7 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 					},
 					include: registryInclude
 				});
+				signal?.throwIfAborted();
 				return { status: 'archived', integration: mapRegistryIntegration(integration) } as const;
 			}),
 		mintCredential: async (input) => {

@@ -118,6 +118,16 @@ describe('API integration and credential lifecycle', () => {
 		expect(repeated).toEqual(archived);
 	});
 
+	it('rolls back a registry write when its request is already cancelled', async () => {
+		const controller = new AbortController();
+		controller.abort(new Error('request ended'));
+
+		await expect(
+			service.createIntegration(creator, { name: 'Cancelled client', purpose: 'Must not persist' }, controller.signal)
+		).rejects.toThrow('request ended');
+		expect(await standalone.prisma.apiIntegration.count()).toBe(0);
+	});
+
 	it('mints one-time secrets, authenticates safely, and bounds last-use writes', async () => {
 		const integration = await createIntegration();
 		const minted = await service.mintCredential(creator, {

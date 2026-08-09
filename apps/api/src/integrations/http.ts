@@ -57,7 +57,7 @@ export async function handleIntegrationHttpRequest({
 		const input = CreateApiIntegrationRequestSchema.safeParse(body);
 		if (!input.success) throw new ApiHttpError(400, 'bad_request', 'Integration name and purpose are required');
 		const result = await callService(
-			() => credentialService.createIntegration({ userId: session.identity.userId, role: session.identity.role }, input.data),
+			() => credentialService.createIntegration({ userId: session.identity.userId, role: session.identity.role }, input.data, signal),
 			signal
 		);
 		writeResult(response, requestId, result, 201, (integration) => integration);
@@ -73,7 +73,8 @@ export async function handleIntegrationHttpRequest({
 			() =>
 				credentialService.editIntegration(
 					{ userId: session.identity.userId, role: session.identity.role },
-					{ integrationId: route.integrationId, ...input.data }
+					{ integrationId: route.integrationId, ...input.data },
+					signal
 				),
 			signal
 		);
@@ -89,7 +90,8 @@ export async function handleIntegrationHttpRequest({
 		() =>
 			credentialService.archiveIntegration(
 				{ userId: session.identity.userId, role: session.identity.role },
-				{ integrationId: route.integrationId, expectedUpdatedAt: input.data.expectedUpdatedAt }
+				{ integrationId: route.integrationId, expectedUpdatedAt: input.data.expectedUpdatedAt },
+				signal
 			),
 		signal
 	);

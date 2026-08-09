@@ -1,9 +1,11 @@
+import { fileURLToPath } from 'node:url';
+
 import { defineConfig } from 'vite';
 
 export default defineConfig({
 	resolve: {
 		alias: {
-			'@arbiter/api-contracts': new URL('../../packages/api-contracts/src/index.ts', import.meta.url).pathname
+			'@arbiter/api-contracts': fileURLToPath(new URL('../../packages/api-contracts/src/index.ts', import.meta.url))
 		}
 	},
 	server: {

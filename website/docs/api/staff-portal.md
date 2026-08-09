@@ -63,7 +63,7 @@ pnpm --filter @arbiter/portal browser:harness
 VITE_API_BASE_URL=http://127.0.0.1:3000 pnpm --filter @arbiter/portal dev
 ```
 
-Open `http://127.0.0.1:4173`. Validate direct navigation and refresh, create and edit forms, archive confirmation copy, archived filtering, keyboard focus and Escape dismissal, and desktop/narrow/mobile layouts. API HTTP integration tests separately prove real session, CSRF, CORS, actor-policy, stale, and dependency outcomes; the harness is UI validation, not an auth substitute.
+Open `http://127.0.0.1:4173` and choose **Continue with Discord**. The harness redirects through its local fixture sign-in route, sets an HttpOnly fixture session, and returns to the portal; protected harness routes still require that session and mutations also require its CSRF token. Validate direct navigation and refresh, create and edit forms, archive confirmation copy, archived filtering, keyboard focus and Escape dismissal, and desktop/narrow/mobile layouts. API HTTP integration tests separately prove real session, CSRF, CORS, actor-policy, stale, and dependency outcomes; the harness is UI validation, not an auth substitute.
 
 ## Failure Behavior
 

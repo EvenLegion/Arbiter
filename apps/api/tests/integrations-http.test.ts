@@ -112,6 +112,32 @@ describe('integration registry HTTP routes', () => {
 		expect(await conflict.json()).toMatchObject({ error: { code: 'conflict' } });
 	});
 
+	it('propagates request cancellation into registry mutations', async () => {
+		let mutationSignal: AbortSignal | undefined;
+		const credentialService = createCredentialService();
+		credentialService.createIntegration = vi.fn().mockImplementation(
+			(_actor, _input, signal: AbortSignal | undefined) =>
+				new Promise((_resolve, reject) => {
+					mutationSignal = signal;
+					if (signal?.aborted) {
+						reject(signal.reason);
+						return;
+					}
+					signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+				})
+		);
+		const { baseUrl } = await startRuntime({ credentialService, config: { ...config, requestTimeoutMs: 20 } });
+		const response = await fetch(`${baseUrl}/api/v1/integrations`, {
+			method: 'POST',
+			headers: browserHeaders({ 'content-type': 'application/json', 'x-csrf-token': CSRF_TOKEN }),
+			body: JSON.stringify({ name: 'Portal client', purpose: 'Manage members' })
+		});
+
+		expect(response.status).toBe(408);
+		expect(await response.json()).toMatchObject({ error: { code: 'request_timeout' } });
+		expect(mutationSignal?.aborted).toBe(true);
+	});
+
 	it('surfaces forbidden and stale mutations and archives through POST only', async () => {
 		const { baseUrl, credentialService } = await startRuntime();
 		(credentialService.editIntegration as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: false, error: { code: 'stale' } });
@@ -148,9 +174,9 @@ describe('integration registry HTTP routes', () => {
 		expect(credentialService.listIntegrations).not.toHaveBeenCalled();
 	});
 
-	async function startRuntime(overrides: { authService?: AuthService } = {}) {
+	async function startRuntime(overrides: { authService?: AuthService; credentialService?: ApiCredentialService; config?: ApiConfig } = {}) {
 		const authService = overrides.authService ?? createAuthService();
-		const credentialService = createCredentialService();
+		const credentialService = overrides.credentialService ?? createCredentialService();
 		const dependencies: ApiDependencies = {
 			authService,
 			credentialService,
@@ -158,7 +184,7 @@ describe('integration registry HTTP routes', () => {
 			checkReadiness: vi.fn().mockResolvedValue(true),
 			close: vi.fn().mockResolvedValue(undefined)
 		};
-		runtime = createApiRuntime({ config, dependencies, logger: pino({ level: 'silent' }) });
+		runtime = createApiRuntime({ config: overrides.config ?? config, dependencies, logger: pino({ level: 'silent' }) });
 		const address = await runtime.start();
 		return { baseUrl: `http://127.0.0.1:${address.port}`, credentialService, authService };
 	}
