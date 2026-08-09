@@ -17,7 +17,7 @@
 	--panel: #0d0d0c;
 	--line: #262624;
 	--line-strong: #3c3c39;
-	--accent: #dcb43c;
+	--accent: #e0524a;
 	--danger: #d85f54;
 	--mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 }
@@ -261,7 +261,7 @@ h1 {
 .button.primary {
 	border-color: var(--accent);
 	color: var(--accent);
-	background: rgba(220, 180, 60, 0.07);
+	background: rgba(224, 82, 74, 0.08);
 }
 
 .button.primary:hover:not(:disabled) {
@@ -280,14 +280,15 @@ h1 {
 }
 
 .button.danger {
-	border-color: rgba(216, 95, 84, 0.65);
-	color: #e78a80;
-	background: rgba(216, 95, 84, 0.08);
+	border-color: var(--danger);
+	color: #080808;
+	background: var(--danger);
 }
 
 .button.danger:hover:not(:disabled) {
+	border-color: #e57d74;
 	color: #080808;
-	background: var(--danger);
+	background: #e57d74;
 }
 
 .button.wide {
