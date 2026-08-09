@@ -1,3 +1,5 @@
+import { request as httpRequest } from 'node:http';
+
 import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -147,6 +149,41 @@ describe('API HTTP runtime', () => {
 		expect(response.status).toBe(408);
 		expect(await response.json()).toMatchObject({ error: { code: 'request_timeout' } });
 		expect(callbackSignal?.aborted).toBe(true);
+	});
+
+	it('aborts OAuth callback work when the client disconnects', async () => {
+		let callbackSignal: AbortSignal | undefined;
+		let callbackStarted: (() => void) | undefined;
+		const started = new Promise<void>((resolve) => {
+			callbackStarted = resolve;
+		});
+		const authService = {
+			completeOAuth: vi.fn().mockImplementation(async ({ signal }: { signal?: AbortSignal }) => {
+				callbackSignal = signal;
+				callbackStarted?.();
+				await new Promise<never>((_resolve, reject) => {
+					signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+				});
+			})
+		} as unknown as AuthService;
+		runtime = createApiRuntime({
+			config,
+			dependencies: { ...createDependencies(true), authService },
+			logger: pino({ level: 'silent' })
+		});
+		const address = await runtime.start();
+		const request = httpRequest({
+			host: '127.0.0.1',
+			port: address.port,
+			path: `/api/v1/auth/discord/callback?code=discord-code&state=${'T'.repeat(43)}`,
+			headers: { cookie: `arbiter_oauth_binding=${'B'.repeat(43)}` }
+		});
+		request.on('error', () => undefined);
+		request.end();
+		await started;
+		request.destroy();
+
+		await vi.waitFor(() => expect(callbackSignal?.aborted).toBe(true));
 	});
 
 	it('supports an exact external origin across login, session, CSRF logout, and CORS', async () => {

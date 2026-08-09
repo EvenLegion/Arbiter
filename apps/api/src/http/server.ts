@@ -79,7 +79,15 @@ async function handleRequest({
 	response.setHeader('referrer-policy', 'no-referrer');
 	response.setHeader('x-content-type-options', 'nosniff');
 	let requestTimedOut = false;
+	let clientDisconnected = false;
 	const requestAbortController = new AbortController();
+	const abortForDisconnect = () => {
+		if (response.writableFinished || requestAbortController.signal.aborted) return;
+		clientDisconnected = true;
+		requestAbortController.abort(new Error('Client disconnected'));
+	};
+	request.once('aborted', abortForDisconnect);
+	response.once('close', abortForDisconnect);
 	const requestTimeout = setTimeout(() => {
 		requestTimedOut = true;
 		requestAbortController.abort(new ApiHttpError(408, 'request_timeout', 'Request timed out'));
@@ -137,7 +145,7 @@ async function handleRequest({
 
 		throw new ApiHttpError(404, 'not_found', 'Route not found');
 	} catch (error) {
-		if (requestTimedOut) return;
+		if (requestTimedOut || clientDisconnected || response.destroyed) return;
 		const apiError = toApiError(error);
 		if (apiError.statusCode >= 500) {
 			logger.error({ requestId, errorName: error instanceof Error ? error.name : 'UnknownError' }, 'API request failed');
@@ -145,12 +153,14 @@ async function handleRequest({
 		writeJson(response, apiError.statusCode, createErrorEnvelope(apiError, requestId), request.method === 'HEAD');
 	} finally {
 		clearTimeout(requestTimeout);
+		request.removeListener('aborted', abortForDisconnect);
+		response.removeListener('close', abortForDisconnect);
 		logger.info(
 			{
 				requestId,
 				method: request.method,
 				path,
-				statusCode: response.statusCode,
+				statusCode: clientDisconnected ? 499 : response.statusCode,
 				durationMs: Math.round((performance.now() - startedAt) * 100) / 100
 			},
 			'API request completed'
