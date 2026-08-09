@@ -15,7 +15,7 @@
 			"committedAtMs": 1786319586000,
 			"type": "feat",
 			"scope": "api",
-			"description": "expose credential-authenticated directory routes",
+			"description": "Trusted integrations can now read Arbiter's current member directory through versioned API-key routes, including division memberships, raw merit totals, and canonical ranks, with bounded filtering, pagination, rate limits, and safe errors. This adds the protected API capability behind the scenes but does not expose it to production or change Discord commands or member behavior.",
 			"breaking": false,
 			"section": "Features"
 		}
