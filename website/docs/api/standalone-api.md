@@ -157,7 +157,7 @@ API logs are structured JSON with `app=arbiter`, `service=arbiter-api`, and the 
 
 ## Browser Session And CSRF Policy
 
-OAuth state and sessions are opaque 256-bit values. Redis keys contain SHA-256 digests rather than the browser values, use the existing `arbiter:api:v1:` namespace, and always have bounded TTLs. OAuth state is bound to a short-lived HttpOnly callback cookie and consumed atomically before validation, so expired, mismatched, or replayed callbacks fail.
+OAuth state and sessions are opaque 256-bit values. Redis keys contain SHA-256 digests rather than the browser values, use the existing `arbiter:api:v1:` namespace, and always have bounded TTLs. OAuth state is bound to a short-lived HttpOnly cookie scoped to the Discord OAuth routes and consumed atomically before validation, so overlapping login starts share one browser binding while expired, mismatched, or replayed callbacks still fail.
 
 The API-host session cookie is HttpOnly, `Secure` in production, `SameSite=Lax`, host-only, and scoped to `/api/v1`. Protected reads refresh its idle lifetime while Redis enforces both the sliding idle limit and a non-sliding absolute limit. Successful authentication replaces and revokes any previous session; logout requires the session's CSRF token in `X-CSRF-Token`, revokes the Redis record, and clears the cookie.
 

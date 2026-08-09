@@ -236,6 +236,7 @@ describe('API HTTP runtime', () => {
 		});
 		expect(started.status).toBe(200);
 		const bindingCookie = started.headers.getSetCookie().find((value) => value.startsWith('arbiter_oauth_binding='));
+		expect(bindingCookie).toContain('Path=/api/v1/auth/discord');
 		expect(bindingCookie).toContain('HttpOnly');
 		expect(bindingCookie).toContain('SameSite=Lax');
 		expect(bindingCookie).toContain('Secure');

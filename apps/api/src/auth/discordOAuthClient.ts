@@ -20,10 +20,8 @@ export function createDiscordOAuthClient({
 }): DiscordOAuthClient {
 	return {
 		resolveDiscordUserId: async (code, signal) => {
-			const tokenResponse = await fetchWithDeadline(
-				fetchImpl,
-				'https://discord.com/api/v10/oauth2/token',
-				{
+			const token = await withDeadline(signal, timeoutMs, async (deadlineSignal) => {
+				const response = await fetchImpl('https://discord.com/api/v10/oauth2/token', {
 					method: 'POST',
 					headers: { 'content-type': 'application/x-www-form-urlencoded' },
 					body: new URLSearchParams({
@@ -32,44 +30,41 @@ export function createDiscordOAuthClient({
 						grant_type: 'authorization_code',
 						code,
 						redirect_uri: callbackUrl
-					})
-				},
-				signal,
-				timeoutMs
-			);
-			if (!tokenResponse.ok) throw new Error('Discord OAuth token exchange failed');
-			const token = DiscordTokenResponseSchema.safeParse(await tokenResponse.json());
-			if (!token.success) throw new Error('Discord OAuth token response was invalid');
+					}),
+					signal: deadlineSignal
+				});
+				if (!response.ok) throw new Error('Discord OAuth token exchange failed');
+				const parsed = DiscordTokenResponseSchema.safeParse(await response.json());
+				if (!parsed.success) throw new Error('Discord OAuth token response was invalid');
+				return parsed.data;
+			});
 
-			const identityResponse = await fetchWithDeadline(
-				fetchImpl,
-				'https://discord.com/api/v10/users/@me',
-				{ headers: { authorization: `Bearer ${token.data.access_token}` } },
-				signal,
-				timeoutMs
-			);
-			if (!identityResponse.ok) throw new Error('Discord OAuth identity lookup failed');
-			const identity = DiscordIdentitySchema.safeParse(await identityResponse.json());
-			if (!identity.success) throw new Error('Discord OAuth identity response was invalid');
-			return identity.data.id;
+			return withDeadline(signal, timeoutMs, async (deadlineSignal) => {
+				const response = await fetchImpl('https://discord.com/api/v10/users/@me', {
+					headers: { authorization: `Bearer ${token.access_token}` },
+					signal: deadlineSignal
+				});
+				if (!response.ok) throw new Error('Discord OAuth identity lookup failed');
+				const identity = DiscordIdentitySchema.safeParse(await response.json());
+				if (!identity.success) throw new Error('Discord OAuth identity response was invalid');
+				return identity.data.id;
+			});
 		}
 	};
 }
 
-async function fetchWithDeadline(
-	request: typeof fetch,
-	input: Parameters<typeof fetch>[0],
-	init: RequestInit,
+async function withDeadline<T>(
 	requestSignal: AbortSignal | undefined,
-	timeoutMs: number
-): Promise<Response> {
+	timeoutMs: number,
+	operation: (signal: AbortSignal) => Promise<T>
+): Promise<T> {
 	const controller = new AbortController();
 	const abortFromRequest = () => controller.abort(requestSignal?.reason);
 	if (requestSignal?.aborted) abortFromRequest();
 	else requestSignal?.addEventListener('abort', abortFromRequest, { once: true });
 	const timeout = setTimeout(() => controller.abort(new Error('Discord OAuth request timed out')), timeoutMs);
 	try {
-		return await request(input, { ...init, signal: controller.signal });
+		return await operation(controller.signal);
 	} finally {
 		clearTimeout(timeout);
 		requestSignal?.removeEventListener('abort', abortFromRequest);

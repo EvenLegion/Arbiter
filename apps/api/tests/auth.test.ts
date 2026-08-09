@@ -28,6 +28,9 @@ describe('API browser authentication service', () => {
 		expect(authorizationUrl.searchParams.get('state')).toMatch(/^[A-Za-z0-9_-]{43}$/);
 		expect(started.bindingId).toMatch(/^[A-Za-z0-9_-]{43}$/);
 		expect([...store.oauthStates.values()][0]).toMatchObject({ redirectUri: REDIRECT_URL, ttlSeconds: 600 });
+		await expect(service.beginOAuth({ redirectUri: REDIRECT_URL, bindingId: started.bindingId })).resolves.toMatchObject({
+			bindingId: started.bindingId
+		});
 		await expect(service.beginOAuth({ redirectUri: 'http://127.0.0.1:4173/unapproved' })).rejects.toMatchObject({
 			code: 'invalid_redirect'
 		});
@@ -176,6 +179,36 @@ describe('Discord OAuth client', () => {
 		controller.abort(new Error('request deadline exceeded'));
 
 		await expect(exchange).rejects.toThrow('request deadline exceeded');
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps cancellation active while reading a Discord response body', async () => {
+		let bodyStarted: (() => void) | undefined;
+		const started = new Promise<void>((resolve) => {
+			bodyStarted = resolve;
+		});
+		const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+			return {
+				ok: true,
+				json: () =>
+					new Promise((_resolve, reject) => {
+						bodyStarted?.();
+						init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true });
+					})
+			} as Response;
+		});
+		const client = createDiscordOAuthClient({
+			clientId: '100000000000000001',
+			clientSecret: 'discord-client-secret',
+			callbackUrl: CALLBACK_URL,
+			fetchImpl
+		});
+		const controller = new AbortController();
+		const exchange = client.resolveDiscordUserId('single-use-code', controller.signal);
+		await started;
+		controller.abort(new Error('client disconnected'));
+
+		await expect(exchange).rejects.toThrow('client disconnected');
 		expect(fetchImpl).toHaveBeenCalledTimes(1);
 	});
 });

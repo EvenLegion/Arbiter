@@ -7,6 +7,7 @@ import { ApiHttpError } from '../http/errors';
 import { AuthFailure, type AuthService } from './types';
 
 const OAUTH_BINDING_COOKIE = 'arbiter_oauth_binding';
+const OAUTH_BINDING_COOKIE_PATH = '/api/v1/auth/discord';
 const SESSION_COOKIE = 'arbiter_session';
 const AUTH_ROUTES = new Set<string>([
 	API_V1_ROUTES.authDiscordStart,
@@ -159,7 +160,7 @@ function serializeCookie(name: string, value: string, options: { path: string; m
 
 function oauthBindingCookieOptions(config: ApiConfig) {
 	return {
-		path: API_V1_ROUTES.authDiscordCallback,
+		path: OAUTH_BINDING_COOKIE_PATH,
 		maxAge: config.auth.stateTtlSeconds,
 		secure: config.nodeEnv === 'production'
 	};
