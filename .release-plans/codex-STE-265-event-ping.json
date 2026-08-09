@@ -15,7 +15,7 @@
 			"committedAtMs": 1786229571000,
 			"type": "feat",
 			"scope": null,
-			"description": "Active events now show a one-use Event Ping control beside End Event in both event summaries. Authorized staff, Centurions, and Optios can manually notify the configured role only when an event is ready, so private or not-yet-ready events remain quiet. Successful pings stay disabled after restarts, failed sends can be retried, and Arbiter keeps both summary copies synchronized. Server operators must configure the destination channel and audience role and apply the included additive database update before rollout.",
+			"description": "An Event Ping button was added to Arbiter's event controls, that enables staff, Centurions, and Optios to send out a ping to an Event Notifications role when their event has started."
 			"breaking": false,
 			"section": "Features"
 		}
