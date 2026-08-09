@@ -15,7 +15,7 @@ export function applyExactOriginCors(request: IncomingMessage, response: ServerR
 
 export function writeCorsPreflight(response: ServerResponse): void {
 	response.statusCode = 204;
-	response.setHeader('access-control-allow-methods', 'GET, POST, HEAD, OPTIONS');
+	response.setHeader('access-control-allow-methods', 'GET, POST, PATCH, HEAD, OPTIONS');
 	response.setHeader('access-control-allow-headers', 'Content-Type, X-CSRF-Token, X-Request-Id');
 	response.setHeader('access-control-max-age', '600');
 	response.end();

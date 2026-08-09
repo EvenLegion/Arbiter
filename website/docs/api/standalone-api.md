@@ -9,19 +9,25 @@ The Arbiter API is an HTTP process that runs independently from the Discord bot.
 
 ## Current Capability
 
-The API exposes infrastructure and browser-authentication endpoints:
+The API exposes infrastructure, browser-authentication, and staff integration-registry endpoints:
 
-| Method      | Route                           | Purpose                                                                                                                  |
-| ----------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `GET, HEAD` | `/api/v1/health`                | Process liveness. Returns `200` without checking external dependencies.                                                  |
-| `GET, HEAD` | `/api/v1/readiness`             | Checks the API-owned Postgres pool and Redis client.                                                                     |
-| `POST`      | `/api/v1/auth/discord/start`    | Creates browser-bound OAuth state and returns the Discord authorization URL.                                             |
-| `GET`       | `/api/v1/auth/discord/callback` | Consumes the one-use state, resolves Discord identity, creates a staff session, and redirects to an approved portal URL. |
-| `GET`       | `/api/v1/auth/session`          | Returns session expiry and a CSRF token for an authorized current staff session.                                         |
-| `GET`       | `/api/v1/auth/me`               | Returns the safe canonical identity and current `STAFF` or `EXEC` role.                                                  |
-| `POST`      | `/api/v1/auth/logout`           | Validates CSRF, revokes the Redis session, and clears the browser cookie.                                                |
+| Method      | Route                              | Purpose                                                                                                                  |
+| ----------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `GET, HEAD` | `/api/v1/health`                   | Process liveness. Returns `200` without checking external dependencies.                                                  |
+| `GET, HEAD` | `/api/v1/readiness`                | Checks the API-owned Postgres pool and Redis client.                                                                     |
+| `POST`      | `/api/v1/auth/discord/start`       | Creates browser-bound OAuth state and returns the Discord authorization URL.                                             |
+| `GET`       | `/api/v1/auth/discord/callback`    | Consumes the one-use state, resolves Discord identity, creates a staff session, and redirects to an approved portal URL. |
+| `GET`       | `/api/v1/auth/session`             | Returns session expiry and a CSRF token for an authorized current staff session.                                         |
+| `GET`       | `/api/v1/auth/me`                  | Returns the safe canonical identity and current `STAFF` or `EXEC` role.                                                  |
+| `POST`      | `/api/v1/auth/logout`              | Validates CSRF, revokes the Redis session, and clears the browser cookie.                                                |
+| `GET`       | `/api/v1/integrations`             | Lists the staff-visible shared registry with safe creator and credential-count metadata.                                 |
+| `POST`      | `/api/v1/integrations`             | Registers an integration for any authenticated staff member; requires session CSRF.                                      |
+| `PATCH`     | `/api/v1/integrations/:id`         | Edits active metadata as the creator or `EXEC`; requires session CSRF and the observed update timestamp.                 |
+| `POST`      | `/api/v1/integrations/:id/archive` | Idempotently archives as `EXEC`, invalidates credentials, and never mutates on `GET`.                                    |
 
-The API package also contains transport-independent integration and credential lifecycle services backed by Arbiter's canonical database. They can create, list, edit, and archive shared integrations; mint, list, authenticate, and revoke credentials; and record last use at a bounded interval. No HTTP management or directory route invokes those services yet, so defining the lifecycle does not expose user data.
+Integration management routes resolve the API-owned browser session, re-read the current staff identity, validate CSRF for every mutation, and then invoke the transport-independent integration service. Names are unique after trimming, collapsing internal whitespace, and lowercasing. Edit and archive requests carry the last observed update timestamp so a concurrent change returns `stale` rather than overwriting newer intent. Repository failures collapse to `service_unavailable`, and raw dependency errors are never returned.
+
+The same transport-independent package services mint, list, authenticate, and revoke credentials and record last use at a bounded interval. Credential management remains intentionally absent from these routes and the portal.
 
 The package also contains a transport-independent user-directory read service. It reads canonical users, every durable division membership, raw merit totals, and the shared merit-rank policy from the existing Arbiter database. Queries support up to 100 Discord IDs, multiple division codes, exact/minimum/maximum ranks, a bounded page size, and opaque keyset cursors. Filter categories intersect, while multiple division codes match any requested division. Unknown division codes and malformed cursors fail validation. The repository performs a bounded page read inside one repeatable-read snapshot and never loops over users or contacts Discord. No HTTP directory route exists yet.
 
@@ -212,10 +218,10 @@ The integration suite starts real Postgres and Redis containers and proves OAuth
 
 ## Current Boundaries
 
-This foundation deliberately does not include:
+Current boundaries deliberately do not include:
 
 - a user-directory or credential-management HTTP endpoint, or any permission beyond `users:read` (the directory read service is internal until its route ticket)
-- portal pages or portal-owned secrets, database access, or Redis access
+- portal-owned secrets, database access, Redis access, authoritative sessions, or a portal backend
 - a second database, Redis service, schema authority, or synchronization path
 - production proxy, TLS, network exposure, resource sizing, or deployment wiring
 - Discord bot process ownership or bot-token access

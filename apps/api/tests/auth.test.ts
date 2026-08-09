@@ -89,12 +89,14 @@ describe('API browser authentication service', () => {
 		store.sessions.set(sessionId, sessionRecord(STAFF_IDENTITY.discordUserId));
 
 		await expect(service.requireSession(sessionId)).resolves.toMatchObject({ identity: STAFF_IDENTITY, csrfToken: 'C'.repeat(43) });
+		await expect(service.requireMutationSession(sessionId, 'C'.repeat(43))).resolves.toMatchObject({ identity: STAFF_IDENTITY });
+		await expect(service.requireMutationSession(sessionId, 'X'.repeat(43))).rejects.toMatchObject({ code: 'csrf_failed' });
 		(repository.findStaffIdentityByDiscordUserId as ReturnType<typeof vi.fn>).mockResolvedValue({ ...STAFF_IDENTITY, role: 'EXEC' });
 		await expect(service.requireSession(sessionId)).resolves.toMatchObject({ identity: { role: 'EXEC' } });
 		(repository.findStaffIdentityByDiscordUserId as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 		await expect(service.requireSession(sessionId)).rejects.toMatchObject({ code: 'forbidden' });
 		expect(store.sessions.has(sessionId)).toBe(false);
-		expect(repository.findStaffIdentityByDiscordUserId).toHaveBeenCalledTimes(3);
+		expect(repository.findStaffIdentityByDiscordUserId).toHaveBeenCalledTimes(5);
 	});
 
 	it('requires the session-bound CSRF token before logout', async () => {

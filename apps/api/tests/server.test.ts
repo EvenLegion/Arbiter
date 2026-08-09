@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApiConfig } from '../src/config';
 import type { AuthService } from '../src/auth/types';
 import type { ApiCredentialService } from '../src/credentials/types';
+import type { DirectoryService } from '../src/directory/types';
 import { createApiRuntime, type ApiRuntime } from '../src/http/server';
 import type { ApiDependencies } from '../src/runtime/dependencies';
 
@@ -106,6 +107,7 @@ describe('API HTTP runtime', () => {
 		const dependencies: ApiDependencies = {
 			authService: {} as AuthService,
 			credentialService: {} as ApiCredentialService,
+			directoryService: {} as DirectoryService,
 			checkReadiness: vi.fn().mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(true), 100))),
 			close: vi.fn().mockResolvedValue(undefined)
 		};
@@ -205,6 +207,19 @@ describe('API HTTP runtime', () => {
 				idleExpiresAt: '2026-08-09T18:30:00.000Z',
 				absoluteExpiresAt: '2026-08-10T02:00:00.000Z'
 			}),
+			requireMutationSession: vi.fn().mockResolvedValue({
+				identity: {
+					userId: '33b20a61-1e86-4115-b999-f319808d5a87',
+					discordUserId: '100000000000000001',
+					discordUsername: 'staff-user',
+					discordNickname: 'Staff User',
+					discordAvatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png',
+					role: 'STAFF'
+				},
+				csrfToken: 'C'.repeat(43),
+				idleExpiresAt: '2026-08-09T18:30:00.000Z',
+				absoluteExpiresAt: '2026-08-10T02:00:00.000Z'
+			}),
 			logout: vi.fn().mockResolvedValue(undefined)
 		};
 		runtime = createApiRuntime({
@@ -287,6 +302,7 @@ function createDependencies(ready: boolean): ApiDependencies & { close: ReturnTy
 	return {
 		authService: {} as AuthService,
 		credentialService: {} as ApiCredentialService,
+		directoryService: {} as DirectoryService,
 		checkReadiness: vi.fn().mockResolvedValue(ready),
 		close: vi.fn().mockResolvedValue(undefined)
 	};

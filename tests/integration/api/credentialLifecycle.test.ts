@@ -72,7 +72,14 @@ describe('API integration and credential lifecycle', () => {
 			ok: false,
 			error: { code: 'conflict' }
 		});
-		expect(await service.editIntegration(otherStaff, { integrationId: created.value.id, name: 'Renamed', purpose: 'No' })).toEqual({
+		expect(
+			await service.editIntegration(otherStaff, {
+				integrationId: created.value.id,
+				name: 'Renamed',
+				purpose: 'No',
+				expectedUpdatedAt: created.value.updatedAt
+			})
+		).toEqual({
 			ok: false,
 			error: { code: 'forbidden' }
 		});
@@ -80,16 +87,45 @@ describe('API integration and credential lifecycle', () => {
 		const edited = await service.editIntegration(creator, {
 			integrationId: created.value.id,
 			name: 'Member Directory',
-			purpose: 'Read canonical user records'
+			purpose: 'Read canonical user records',
+			expectedUpdatedAt: created.value.updatedAt
 		});
 		expect(edited).toMatchObject({ ok: true, value: { name: 'Member Directory', updatedByUserId: creator.userId } });
-		expect(await service.archiveIntegration(creator, created.value.id)).toEqual({ ok: false, error: { code: 'forbidden' } });
+		if (!edited.ok) return;
+		expect(
+			await service.editIntegration(creator, {
+				integrationId: created.value.id,
+				name: 'Stale overwrite',
+				purpose: 'Must not win',
+				expectedUpdatedAt: created.value.updatedAt
+			})
+		).toEqual({ ok: false, error: { code: 'stale' } });
+		expect(await service.archiveIntegration(creator, { integrationId: created.value.id, expectedUpdatedAt: edited.value.updatedAt })).toEqual({
+			ok: false,
+			error: { code: 'forbidden' }
+		});
 
-		const archived = await service.archiveIntegration(execActor, created.value.id);
+		const archived = await service.archiveIntegration(execActor, {
+			integrationId: created.value.id,
+			expectedUpdatedAt: edited.value.updatedAt
+		});
 		expect(archived).toMatchObject({ ok: true, value: { state: 'archived', archivedByUserId: execActor.userId } });
 		currentTime = new Date(currentTime.getTime() + 60_000);
-		const repeated = await service.archiveIntegration({ ...execActor, userId: creator.userId }, created.value.id);
+		const repeated = await service.archiveIntegration(
+			{ ...execActor, userId: creator.userId },
+			{ integrationId: created.value.id, expectedUpdatedAt: created.value.updatedAt }
+		);
 		expect(repeated).toEqual(archived);
+	});
+
+	it('rolls back a registry write when its request is already cancelled', async () => {
+		const controller = new AbortController();
+		controller.abort(new Error('request ended'));
+
+		await expect(
+			service.createIntegration(creator, { name: 'Cancelled client', purpose: 'Must not persist' }, controller.signal)
+		).rejects.toThrow('request ended');
+		expect(await standalone.prisma.apiIntegration.count()).toBe(0);
 	});
 
 	it('mints one-time secrets, authenticates safely, and bounds last-use writes', async () => {
@@ -111,6 +147,11 @@ describe('API integration and credential lifecycle', () => {
 		});
 		expect(JSON.stringify(minted.value.credential)).not.toContain('verifier');
 		expect(JSON.stringify(minted.value.credential)).not.toContain(minted.value.secret);
+		const registry = await service.listIntegrations(creator);
+		expect(registry).toMatchObject({
+			ok: true,
+			value: [{ credentialCount: 1, creator: { userId: creator.userId, discordNickname: 'user-100000000000000001' } }]
+		});
 
 		const stored = await standalone.prisma.apiCredential.findUniqueOrThrow({ where: { id: minted.value.credential.id } });
 		expect(stored.verifier).toMatch(/^[a-f0-9]{64}$/);
@@ -202,7 +243,7 @@ describe('API integration and credential lifecycle', () => {
 
 		currentTime = new Date(START_TIME);
 		const archivedCredential = await mint(integration.id, new Date(START_TIME.getTime() + 60 * 60_000));
-		await service.archiveIntegration(execActor, integration.id);
+		await service.archiveIntegration(execActor, { integrationId: integration.id, expectedUpdatedAt: integration.updatedAt });
 		expect(await service.authenticate(archivedCredential.secret)).toEqual({ ok: false, error: { code: 'invalid_credential' } });
 		const listed = await service.listCredentials(creator, integration.id);
 		expect(listed).toMatchObject({ ok: true });
@@ -217,7 +258,7 @@ describe('API integration and credential lifecycle', () => {
 				label: 'Racing mint',
 				scopes: ['users:read']
 			}),
-			service.archiveIntegration(execActor, integration.id)
+			service.archiveIntegration(execActor, { integrationId: integration.id, expectedUpdatedAt: integration.updatedAt })
 		]);
 
 		if (mintResult.ok) {

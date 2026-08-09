@@ -3,7 +3,7 @@ import {
 	normalizeApiScopes,
 	type ApiCredentialMetadata,
 	type ApiCredentialStatus,
-	type ApiIntegration
+	type ApiIntegrationRegistryItem
 } from '@arbiter/api-contracts';
 import { z } from 'zod';
 
@@ -15,11 +15,12 @@ import type {
 	ApiCredentialServiceErrorCode,
 	ApiCredentialServiceResult,
 	ApiCredentialWithIntegrationRecord,
-	ApiIntegrationRecord
+	ApiIntegrationRegistryRecord
 } from './types';
 
 const ActorSchema = z.object({ userId: z.uuid(), role: z.enum(['STAFF', 'EXEC']) });
 const IntegrationInputSchema = z.object({ name: z.string().trim().min(1).max(100), purpose: z.string().trim().min(1).max(500) });
+const ExpectedUpdatedAtSchema = z.iso.datetime({ offset: true });
 const IdSchema = z.uuid();
 const LabelSchema = z.string().trim().min(1).max(100);
 const ScopeListSchema = z.array(ApiScopeSchema).min(1).max(1);
@@ -43,15 +44,18 @@ export function createApiCredentialService({
 	if (pepper.length < 32) throw new Error('API credential pepper must be at least 32 characters');
 
 	return {
-		createIntegration: async (actor, input) => {
+		createIntegration: async (actor, input, signal) => {
 			if (!isValidActor(actor)) return failure('invalid_input');
 			const parsed = IntegrationInputSchema.safeParse(input);
 			if (!parsed.success) return failure('invalid_input');
-			const result = await repository.createIntegration({
-				...parsed.data,
-				nameKey: normalizeIntegrationName(parsed.data.name),
-				actorUserId: actor.userId
-			});
+			const result = await repository.createIntegration(
+				{
+					...parsed.data,
+					nameKey: normalizeIntegrationName(parsed.data.name),
+					actorUserId: actor.userId
+				},
+				signal
+			);
 			return result.status === 'conflict' ? failure('conflict') : success(toIntegrationDto(result.integration));
 		},
 		listIntegrations: async (actor, includeArchived = false) => {
@@ -59,31 +63,48 @@ export function createApiCredentialService({
 			const integrations = await repository.listIntegrations(includeArchived);
 			return success(integrations.map(toIntegrationDto));
 		},
-		editIntegration: async (actor, input) => {
+		editIntegration: async (actor, input, signal) => {
 			if (!isValidActor(actor)) return failure('invalid_input');
-			const parsed = IntegrationInputSchema.extend({ integrationId: IdSchema }).safeParse(input);
+			const parsed = IntegrationInputSchema.extend({ integrationId: IdSchema, expectedUpdatedAt: ExpectedUpdatedAtSchema }).safeParse(input);
 			if (!parsed.success) return failure('invalid_input');
 			const existing = await repository.findIntegrationById(parsed.data.integrationId);
 			if (!existing) return failure('not_found');
 			if (actor.role !== 'EXEC' && existing.createdByUserId !== actor.userId) return failure('forbidden');
 			if (existing.state === 'ARCHIVED') return failure('integration_archived');
-			const result = await repository.updateIntegration({
-				id: existing.id,
-				name: parsed.data.name,
-				nameKey: normalizeIntegrationName(parsed.data.name),
-				purpose: parsed.data.purpose,
-				actorUserId: actor.userId
-			});
+			const result = await repository.updateIntegration(
+				{
+					id: existing.id,
+					name: parsed.data.name,
+					nameKey: normalizeIntegrationName(parsed.data.name),
+					purpose: parsed.data.purpose,
+					actorUserId: actor.userId,
+					expectedUpdatedAt: new Date(parsed.data.expectedUpdatedAt)
+				},
+				signal
+			);
 			if (result.status === 'conflict') return failure('conflict');
 			if (result.status === 'not_found') return failure('not_found');
 			if (result.status === 'inactive') return failure('integration_archived');
+			if (result.status === 'stale') return failure('stale');
 			return success(toIntegrationDto(result.integration));
 		},
-		archiveIntegration: async (actor, integrationId) => {
-			if (!isValidActor(actor) || !IdSchema.safeParse(integrationId).success) return failure('invalid_input');
+		archiveIntegration: async (actor, input, signal) => {
+			if (!isValidActor(actor)) return failure('invalid_input');
+			const parsed = z.object({ integrationId: IdSchema, expectedUpdatedAt: ExpectedUpdatedAtSchema }).safeParse(input);
+			if (!parsed.success) return failure('invalid_input');
 			if (actor.role !== 'EXEC') return failure('forbidden');
-			const result = await repository.archiveIntegration(integrationId, actor.userId, now());
-			return result.status === 'not_found' ? failure('not_found') : success(toIntegrationDto(result.integration));
+			const result = await repository.archiveIntegration(
+				{
+					id: parsed.data.integrationId,
+					actorUserId: actor.userId,
+					archivedAt: now(),
+					expectedUpdatedAt: new Date(parsed.data.expectedUpdatedAt)
+				},
+				signal
+			);
+			if (result.status === 'not_found') return failure('not_found');
+			if (result.status === 'stale') return failure('stale');
+			return success(toIntegrationDto(result.integration));
 		},
 		mintCredential: async (actor, input) => {
 			if (!isValidActor(actor)) return failure('invalid_input');
@@ -174,7 +195,7 @@ function isValidActor(actor: ApiCredentialActor): boolean {
 	return ActorSchema.safeParse(actor).success;
 }
 
-function toIntegrationDto(integration: ApiIntegrationRecord): ApiIntegration {
+function toIntegrationDto(integration: ApiIntegrationRegistryRecord): ApiIntegrationRegistryItem {
 	return {
 		id: integration.id,
 		name: integration.name,
@@ -185,7 +206,13 @@ function toIntegrationDto(integration: ApiIntegrationRecord): ApiIntegration {
 		archivedByUserId: integration.archivedByUserId,
 		archivedAt: integration.archivedAt?.toISOString() ?? null,
 		createdAt: integration.createdAt.toISOString(),
-		updatedAt: integration.updatedAt.toISOString()
+		updatedAt: integration.updatedAt.toISOString(),
+		creator: {
+			userId: integration.createdByUserId,
+			discordUsername: integration.creatorDiscordUsername,
+			discordNickname: integration.creatorDiscordNickname
+		},
+		credentialCount: integration.credentialCount
 	};
 }
 

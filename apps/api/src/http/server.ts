@@ -7,6 +7,7 @@ import type { Logger } from 'pino';
 
 import type { ApiConfig } from '../config';
 import { handleAuthHttpRequest } from '../auth/http';
+import { handleIntegrationHttpRequest } from '../integrations/http';
 import type { ApiDependencies } from '../runtime/dependencies';
 import { applyExactOriginCors, writeCorsPreflight } from './cors';
 import { ApiHttpError, createErrorEnvelope, toApiError } from './errors';
@@ -121,6 +122,20 @@ async function handleRequest({
 				body,
 				config,
 				authService: dependencies.authService,
+				signal: requestAbortController.signal
+			})
+		)
+			return;
+		if (
+			await handleIntegrationHttpRequest({
+				request,
+				response,
+				url,
+				requestId,
+				body,
+				config,
+				authService: dependencies.authService,
+				credentialService: dependencies.credentialService,
 				signal: requestAbortController.signal
 			})
 		)
