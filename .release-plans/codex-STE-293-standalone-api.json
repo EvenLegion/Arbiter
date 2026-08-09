@@ -15,7 +15,7 @@
 			"committedAtMs": 1786251289000,
 			"type": "feat",
 			"scope": null,
-			"description": "add standalone API workspace foundation",
+			"description": "Add the separate foundation that future account and directory tools will use without sharing the Discord bot process. This is a behind-the-scenes capability and does not change current Discord commands or member behavior.",
 			"breaking": false,
 			"section": "Features"
 		}
