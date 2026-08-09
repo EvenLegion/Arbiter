@@ -15,6 +15,8 @@ describe('parseApiConfig', () => {
 		expect(config.bodyLimitBytes).toBe(65_536);
 		expect(config.logFilePath).toBe('logs/api.log');
 		expect(config.consoleLogLevel).toBe('info');
+		expect(config.databaseConnectTimeoutMs).toBe(5_000);
+		expect(config.redisConnectTimeoutMs).toBe(5_000);
 		expect(config.redis).toMatchObject({
 			host: 'redis.example',
 			namespace: 'arbiter:api:v1',

@@ -12,6 +12,8 @@ const ApiConfigSchema = z.object({
 	API_HEADERS_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(10_000),
 	API_KEEP_ALIVE_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(5_000),
 	API_READINESS_TIMEOUT_MS: z.coerce.number().int().min(100).max(10_000).default(2_000),
+	API_DB_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(5_000),
+	API_REDIS_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(5_000),
 	API_SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
 	API_DB_POOL_MAX: z.coerce.number().int().min(1).max(10).default(4),
 	DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
@@ -40,6 +42,8 @@ export type ApiConfig = {
 	headersTimeoutMs: number;
 	keepAliveTimeoutMs: number;
 	readinessTimeoutMs: number;
+	databaseConnectTimeoutMs: number;
+	redisConnectTimeoutMs: number;
 	shutdownTimeoutMs: number;
 	databaseUrl: string;
 	databasePoolMax: number;
@@ -73,6 +77,8 @@ export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfi
 		headersTimeoutMs: value.API_HEADERS_TIMEOUT_MS,
 		keepAliveTimeoutMs: value.API_KEEP_ALIVE_TIMEOUT_MS,
 		readinessTimeoutMs: value.API_READINESS_TIMEOUT_MS,
+		databaseConnectTimeoutMs: value.API_DB_CONNECT_TIMEOUT_MS,
+		redisConnectTimeoutMs: value.API_REDIS_CONNECT_TIMEOUT_MS,
 		shutdownTimeoutMs: value.API_SHUTDOWN_TIMEOUT_MS,
 		databaseUrl: value.DATABASE_URL,
 		databasePoolMax: value.API_DB_POOL_MAX,

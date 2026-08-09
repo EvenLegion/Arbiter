@@ -16,8 +16,11 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 		connectionString: config.databaseUrl,
 		max: config.databasePoolMax,
 		idleTimeoutMillis: 10_000,
-		connectionTimeoutMillis: config.readinessTimeoutMs,
+		connectionTimeoutMillis: config.databaseConnectTimeoutMs,
 		application_name: 'arbiter-api'
+	});
+	pool.on('error', (error) => {
+		logger.warn({ dependency: 'postgres', errorName: error.name }, 'API Postgres dependency error');
 	});
 	const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 	const redis = new Redis({
@@ -29,7 +32,7 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 		keyPrefix: `${config.redis.namespace}:`,
 		lazyConnect: true,
 		maxRetriesPerRequest: 1,
-		connectTimeout: config.readinessTimeoutMs,
+		connectTimeout: config.redisConnectTimeoutMs,
 		retryStrategy: (attempt) => Math.min(attempt * 100, 2_000)
 	});
 
@@ -46,16 +49,31 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 			return databaseReady && redisReady;
 		},
 		close: async () => {
-			redis.removeAllListeners('error');
+			let firstError: unknown;
 			if (redis.status !== 'end') {
 				try {
 					await redis.quit();
 				} catch {
-					redis.disconnect();
+					try {
+						redis.disconnect();
+					} catch (error) {
+						firstError = error;
+					}
 				}
 			}
-			await prisma.$disconnect();
-			await pool.end();
+
+			try {
+				await prisma.$disconnect();
+			} catch (error) {
+				firstError = error;
+			}
+			try {
+				await pool.end();
+			} catch (error) {
+				firstError ??= error;
+			}
+
+			if (firstError) throw firstError;
 		}
 	};
 }

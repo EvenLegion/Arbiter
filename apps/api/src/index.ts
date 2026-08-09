@@ -1,9 +1,13 @@
+import { resolve } from 'node:path';
+import { loadEnvFile } from 'node:process';
+
 import { parseApiConfig } from './config';
 import { createApiRuntime, type ApiRuntime } from './http/server';
 import { createApiLogger } from './logger';
 import { createApiDependencies } from './runtime/dependencies';
 
 export async function runApi(): Promise<ApiRuntime> {
+	loadApiEnvironment();
 	const config = parseApiConfig();
 	const logger = createApiLogger(config);
 	const dependencies = createApiDependencies(config, logger);
@@ -12,7 +16,12 @@ export async function runApi(): Promise<ApiRuntime> {
 	try {
 		address = await runtime.start();
 	} catch (error) {
-		await dependencies.close();
+		await dependencies.close().catch((closeError) => {
+			logger.error(
+				{ errorName: closeError instanceof Error ? closeError.name : 'UnknownError' },
+				'Arbiter API dependency cleanup failed during startup'
+			);
+		});
 		throw error;
 	}
 	logger.info({ host: address.host, port: address.port }, 'Arbiter API started');
@@ -34,16 +43,24 @@ export async function runApi(): Promise<ApiRuntime> {
 
 	process.once('SIGINT', () => void shutdown('SIGINT', 0));
 	process.once('SIGTERM', () => void shutdown('SIGTERM', 0));
-	process.once('uncaughtException', (error) => {
+	process.on('uncaughtException', (error) => {
 		logger.fatal({ errorName: error.name }, 'Arbiter API uncaught exception');
 		void shutdown('uncaughtException', 1);
 	});
-	process.once('unhandledRejection', (reason) => {
+	process.on('unhandledRejection', (reason) => {
 		logger.fatal({ errorName: reason instanceof Error ? reason.name : 'UnhandledRejection' }, 'Arbiter API unhandled rejection');
 		void shutdown('unhandledRejection', 1);
 	});
 
 	return runtime;
+}
+
+export function loadApiEnvironment(envFilePath = resolve(__dirname, '../../../.env')): void {
+	try {
+		loadEnvFile(envFilePath);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+	}
 }
 
 if (require.main === module) {

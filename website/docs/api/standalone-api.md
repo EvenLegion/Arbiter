@@ -68,6 +68,7 @@ The Compose project:
 - binds the API to `127.0.0.1:${API_PORT:-3000}`
 - mounts `./logs` at `/app/logs`
 - uses `host.docker.internal` to reach the existing local dependencies
+- passes only explicit API, Postgres, and Redis settings instead of injecting bot-only credentials from `.env`
 - does not create Postgres, Redis, storage volumes, or production networking
 
 Set `API_DATABASE_URL` if the database needs a different container-reachable address. Stop only this API project with:
@@ -98,21 +99,23 @@ Every response also includes `X-Request-Id`. A valid incoming `X-Request-Id` is 
 
 `.env.example` is the canonical configuration reference. The main API settings are:
 
-| Variable                    | Default              | Meaning                                                        |
-| --------------------------- | -------------------- | -------------------------------------------------------------- |
-| `API_HOST`                  | `127.0.0.1`          | Listen address for source runs                                 |
-| `API_PORT`                  | `3000`               | Listen port                                                    |
-| `API_LOG_FILE_PATH`         | `logs/api.log`       | Structured JSON file read by Alloy                             |
-| `API_LOG_LEVEL`             | `info`               | Minimum level written to the file                              |
-| `API_CONSOLE_LOG_LEVEL`     | `info`               | Minimum level mirrored as JSON to stdout; `silent` disables it |
-| `API_BODY_LIMIT_BYTES`      | `65536`              | Maximum request-body size                                      |
-| `API_REQUEST_TIMEOUT_MS`    | `10000`              | Per-request deadline                                           |
-| `API_READINESS_TIMEOUT_MS`  | `2000`               | Dependency readiness deadline                                  |
-| `API_SHUTDOWN_TIMEOUT_MS`   | `10000`              | Graceful-shutdown deadline                                     |
-| `API_DB_POOL_MAX`           | `4`                  | Maximum API-owned Postgres connections                         |
-| `API_REDIS_NAMESPACE`       | `arbiter:api:v1`     | Prefix reserved for API-owned Redis keys                       |
-| `API_REDIS_MAX_TTL_SECONDS` | `3600`               | Maximum lifetime for API-owned Redis values                    |
-| `DATABASE_URL`, `REDIS_*`   | shared repo settings | Existing Postgres and Redis connection settings                |
+| Variable                       | Default              | Meaning                                                        |
+| ------------------------------ | -------------------- | -------------------------------------------------------------- |
+| `API_HOST`                     | `127.0.0.1`          | Listen address for source runs                                 |
+| `API_PORT`                     | `3000`               | Listen port                                                    |
+| `API_LOG_FILE_PATH`            | `logs/api.log`       | Structured JSON file read by Alloy                             |
+| `API_LOG_LEVEL`                | `info`               | Minimum level written to the file                              |
+| `API_CONSOLE_LOG_LEVEL`        | `info`               | Minimum level mirrored as JSON to stdout; `silent` disables it |
+| `API_BODY_LIMIT_BYTES`         | `65536`              | Maximum request-body size                                      |
+| `API_REQUEST_TIMEOUT_MS`       | `10000`              | Per-request deadline                                           |
+| `API_READINESS_TIMEOUT_MS`     | `2000`               | Dependency readiness deadline                                  |
+| `API_DB_CONNECT_TIMEOUT_MS`    | `5000`               | Postgres connection-establishment timeout                      |
+| `API_REDIS_CONNECT_TIMEOUT_MS` | `5000`               | Redis connection-establishment timeout                         |
+| `API_SHUTDOWN_TIMEOUT_MS`      | `10000`              | Graceful-shutdown deadline                                     |
+| `API_DB_POOL_MAX`              | `4`                  | Maximum API-owned Postgres connections                         |
+| `API_REDIS_NAMESPACE`          | `arbiter:api:v1`     | Prefix reserved for API-owned Redis keys                       |
+| `API_REDIS_MAX_TTL_SECONDS`    | `3600`               | Maximum lifetime for API-owned Redis values                    |
+| `DATABASE_URL`, `REDIS_*`      | shared repo settings | Existing Postgres and Redis connection settings                |
 
 Configuration is validated before the server listens. Invalid startup errors identify the field but do not echo secret values.
 

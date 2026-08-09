@@ -6,15 +6,22 @@ services:
     image: arbiter-api:${ARBITER_API_IMAGE_TAG:-local}
     init: true
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
     environment:
       NODE_ENV: development
       API_HOST: 0.0.0.0
       API_PORT: 3000
       API_LOG_FILE_PATH: /app/logs/api.log
+      API_LOG_LEVEL: ${API_LOG_LEVEL:-info}
       API_CONSOLE_LOG_LEVEL: ${API_CONSOLE_LOG_LEVEL:-info}
+      API_BODY_LIMIT_BYTES: ${API_BODY_LIMIT_BYTES:-65536}
+      API_REQUEST_TIMEOUT_MS: ${API_REQUEST_TIMEOUT_MS:-10000}
+      API_HEADERS_TIMEOUT_MS: ${API_HEADERS_TIMEOUT_MS:-10000}
+      API_KEEP_ALIVE_TIMEOUT_MS: ${API_KEEP_ALIVE_TIMEOUT_MS:-5000}
+      API_READINESS_TIMEOUT_MS: ${API_READINESS_TIMEOUT_MS:-2000}
+      API_DB_CONNECT_TIMEOUT_MS: ${API_DB_CONNECT_TIMEOUT_MS:-5000}
+      API_REDIS_CONNECT_TIMEOUT_MS: ${API_REDIS_CONNECT_TIMEOUT_MS:-5000}
+      API_SHUTDOWN_TIMEOUT_MS: ${API_SHUTDOWN_TIMEOUT_MS:-10000}
+      API_DB_POOL_MAX: ${API_DB_POOL_MAX:-4}
       DATABASE_URL: ${API_DATABASE_URL:-postgresql://arbiter:arbiter@host.docker.internal:5432/arbiter}
       REDIS_HOST: host.docker.internal
       REDIS_PORT: ${REDIS_PORT:-6379}

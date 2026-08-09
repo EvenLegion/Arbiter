@@ -90,7 +90,7 @@
 		"dev:api": "pnpm --filter @arbiter/api dev",
 		"api:container:smoke": "node scripts/api/container-smoke.mjs",
 		"dev": "pnpm --filter @arbiter/domain build && tsx src/index.ts",
-		"watch:start": "tsc-watch --onSuccess \"npm run start\"",
+		"watch:start": "pnpm --filter @arbiter/domain build && tsc-watch --onSuccess \"npm run start\"",
 		"db:generate": "prisma generate",
 		"db:migrate": "prisma migrate deploy",
 		"db:backup": "node scripts/backup-database.mjs",
