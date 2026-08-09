@@ -1,8 +1,9 @@
+import { resolve } from 'node:path';
 import { Writable } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { createApiLogger } from '../src/logger';
+import { createApiLogger, resolveApiLogFilePath } from '../src/logger';
 
 describe('API logger', () => {
 	it('redacts sensitive values from structured logs', () => {
@@ -21,5 +22,10 @@ describe('API logger', () => {
 		expect(output).toContain('[REDACTED]');
 		expect(output).not.toContain('secret-token');
 		expect(output).not.toContain('postgresql://secret');
+	});
+
+	it('anchors relative file destinations at the repository root for Alloy', () => {
+		expect(resolveApiLogFilePath('logs/api.log')).toBe(resolve(__dirname, '../../../logs/api.log'));
+		expect(resolveApiLogFilePath('/var/log/arbiter/api.log')).toBe('/var/log/arbiter/api.log');
 	});
 });

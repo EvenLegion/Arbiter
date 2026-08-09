@@ -1,3 +1,5 @@
+import { isAbsolute, resolve } from 'node:path';
+
 import pino, { type DestinationStream, type Logger, type TransportMultiOptions } from 'pino';
 
 import type { ApiConfig } from './config';
@@ -41,7 +43,7 @@ export function createApiLogger(
 			target: 'pino/file',
 			level: config.logLevel,
 			options: {
-				destination: config.logFilePath,
+				destination: resolveApiLogFilePath(config.logFilePath),
 				mkdir: true
 			}
 		}
@@ -55,6 +57,10 @@ export function createApiLogger(
 	}
 
 	return pino({ ...options, transport: { targets } });
+}
+
+export function resolveApiLogFilePath(logFilePath: string): string {
+	return isAbsolute(logFilePath) ? logFilePath : resolve(__dirname, '../../../', logFilePath);
 }
 
 function resolveLowestLogLevel(levels: readonly ApiLogLevel[]): ApiLogLevel {

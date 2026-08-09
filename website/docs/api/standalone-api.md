@@ -119,6 +119,8 @@ Every response also includes `X-Request-Id`. A valid incoming `X-Request-Id` is 
 
 Configuration is validated before the server listens. Invalid startup errors identify the field but do not echo secret values.
 
+Relative `API_LOG_FILE_PATH` values resolve from the repository/application root, not the `apps/api` package working directory. The default therefore reaches the same root `logs/api.log` file whether the API starts through a root script or a filtered pnpm package command. Absolute container paths are preserved.
+
 ## Logging And Observability
 
 The API is connected to Arbiter's existing file-first observability stack:
