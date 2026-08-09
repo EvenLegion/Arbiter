@@ -8,7 +8,8 @@ export const API_V1_ROUTES = {
 	authDiscordCallback: `${API_V1_PREFIX}/auth/discord/callback`,
 	authSession: `${API_V1_PREFIX}/auth/session`,
 	authIdentity: `${API_V1_PREFIX}/auth/me`,
-	authLogout: `${API_V1_PREFIX}/auth/logout`
+	authLogout: `${API_V1_PREFIX}/auth/logout`,
+	integrationRegistry: `${API_V1_PREFIX}/integrations`
 } as const;
 
 export const RequestIdSchema = z
@@ -44,6 +45,9 @@ export const ApiErrorCodeSchema = z.enum([
 	'csrf_failed',
 	'origin_not_allowed',
 	'invalid_redirect',
+	'conflict',
+	'stale',
+	'integration_archived',
 	'service_unavailable',
 	'internal_error'
 ]);

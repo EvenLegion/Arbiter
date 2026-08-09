@@ -54,6 +54,7 @@ export type AuthService = {
 		signal?: AbortSignal;
 	}) => Promise<{ sessionId: string; redirectUri: string }>;
 	requireSession: (sessionId?: string, signal?: AbortSignal) => Promise<AuthSessionResult>;
+	requireMutationSession: (sessionId: string | undefined, csrfToken: string | undefined, signal?: AbortSignal) => Promise<AuthSessionResult>;
 	logout: (sessionId: string | undefined, csrfToken: string | undefined, signal?: AbortSignal) => Promise<void>;
 };
 

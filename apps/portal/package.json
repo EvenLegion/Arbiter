@@ -1,0 +1,26 @@
+{
+	"name": "@arbiter/portal",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "pnpm --filter @arbiter/api-contracts build && vite --host 127.0.0.1 --port 4173",
+		"build": "pnpm --filter @arbiter/api-contracts build && tsc -p tsconfig.json --noEmit && vite build",
+		"preview": "vite preview --host 127.0.0.1 --port 4173",
+		"browser:harness": "node scripts/browser-api-harness.mjs",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test": "pnpm --filter @arbiter/api-contracts build && vitest run"
+	},
+	"dependencies": {
+		"@arbiter/api-contracts": "workspace:*",
+		"react": "^19.2.4",
+		"react-dom": "^19.2.4"
+	},
+	"devDependencies": {
+		"@types/react": "^19.2.18",
+		"@types/react-dom": "^19.2.3",
+		"typescript": "~5.4.5",
+		"vite": "^8.0.0",
+		"vitest": "^4.1.0"
+	}
+}

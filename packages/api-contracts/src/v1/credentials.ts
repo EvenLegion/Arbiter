@@ -1,8 +1,12 @@
 import { z } from 'zod';
 
+import { ApiResponseMetaSchema } from './http';
 import { ApiScopeSchema } from './scopes';
 
 const IsoDateTimeSchema = z.iso.datetime({ offset: true });
+
+export const ApiIntegrationNameSchema = z.string().trim().min(1).max(100);
+export const ApiIntegrationPurposeSchema = z.string().trim().min(1).max(500);
 
 export const ApiIntegrationStateSchema = z.enum(['active', 'archived']);
 export type ApiIntegrationState = z.infer<typeof ApiIntegrationStateSchema>;
@@ -22,6 +26,55 @@ export const ApiIntegrationSchema = z
 	})
 	.strict();
 export type ApiIntegration = z.infer<typeof ApiIntegrationSchema>;
+
+export const ApiIntegrationRegistryItemSchema = ApiIntegrationSchema.extend({
+	creator: z
+		.object({
+			userId: z.uuid(),
+			discordUsername: z.string().min(1).max(100),
+			discordNickname: z.string().min(1).max(100)
+		})
+		.strict(),
+	credentialCount: z.number().int().nonnegative()
+}).strict();
+export type ApiIntegrationRegistryItem = z.infer<typeof ApiIntegrationRegistryItemSchema>;
+
+export const CreateApiIntegrationRequestSchema = z
+	.object({
+		name: ApiIntegrationNameSchema,
+		purpose: ApiIntegrationPurposeSchema
+	})
+	.strict();
+
+export const EditApiIntegrationRequestSchema = CreateApiIntegrationRequestSchema.extend({
+	expectedUpdatedAt: IsoDateTimeSchema
+}).strict();
+
+export const ArchiveApiIntegrationRequestSchema = z
+	.object({
+		expectedUpdatedAt: IsoDateTimeSchema
+	})
+	.strict();
+
+export const ApiIntegrationResponseSchema = z
+	.object({
+		data: ApiIntegrationRegistryItemSchema,
+		meta: ApiResponseMetaSchema
+	})
+	.strict();
+
+export const ApiIntegrationListResponseSchema = z
+	.object({
+		data: z.object({ integrations: z.array(ApiIntegrationRegistryItemSchema) }).strict(),
+		meta: ApiResponseMetaSchema
+	})
+	.strict();
+
+export type CreateApiIntegrationRequest = z.infer<typeof CreateApiIntegrationRequestSchema>;
+export type EditApiIntegrationRequest = z.infer<typeof EditApiIntegrationRequestSchema>;
+export type ArchiveApiIntegrationRequest = z.infer<typeof ArchiveApiIntegrationRequestSchema>;
+export type ApiIntegrationResponse = z.infer<typeof ApiIntegrationResponseSchema>;
+export type ApiIntegrationListResponse = z.infer<typeof ApiIntegrationListResponseSchema>;
 
 export const ApiCredentialStatusSchema = z.enum(['active', 'expired', 'revoked', 'integration_archived']);
 export type ApiCredentialStatus = z.infer<typeof ApiCredentialStatusSchema>;

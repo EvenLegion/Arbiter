@@ -4,7 +4,7 @@ import { API_V1_ROUTES, OAuthStartRequestSchema } from '@arbiter/api-contracts';
 
 import type { ApiConfig } from '../config';
 import { ApiHttpError } from '../http/errors';
-import { AuthFailure, type AuthService } from './types';
+import { AuthFailure, type AuthService, type AuthSessionResult } from './types';
 
 const OAUTH_BINDING_COOKIE = 'arbiter_oauth_binding';
 const OAUTH_BINDING_COOKIE_PATH = '/api/v1/auth/discord';
@@ -116,7 +116,36 @@ export async function handleAuthHttpRequest({
 	}
 }
 
-function toAuthHttpError(error: AuthFailure): ApiHttpError {
+export async function requireBrowserSession({
+	request,
+	response,
+	config,
+	authService,
+	requireCsrf,
+	signal
+}: {
+	request: IncomingMessage;
+	response: ServerResponse;
+	config: ApiConfig;
+	authService: AuthService;
+	requireCsrf: boolean;
+	signal: AbortSignal;
+}): Promise<AuthSessionResult> {
+	const sessionId = parseCookies(request.headers.cookie)[SESSION_COOKIE];
+	try {
+		const session = requireCsrf
+			? await authService.requireMutationSession(sessionId, singleHeader(request.headers['x-csrf-token']), signal)
+			: await authService.requireSession(sessionId, signal);
+		signal.throwIfAborted();
+		if (sessionId) response.setHeader('set-cookie', serializeCookie(SESSION_COOKIE, sessionId, sessionCookieOptions(config)));
+		return session;
+	} catch (error) {
+		if (error instanceof AuthFailure) throw toAuthHttpError(error);
+		throw error;
+	}
+}
+
+export function toAuthHttpError(error: AuthFailure): ApiHttpError {
 	switch (error.code) {
 		case 'invalid_oauth_state':
 			return new ApiHttpError(400, error.code, 'OAuth state is invalid or expired');

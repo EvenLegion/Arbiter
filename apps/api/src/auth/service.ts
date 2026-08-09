@@ -67,6 +67,25 @@ export function createAuthService({
 		return { sessionId, session };
 	}
 
+	async function resolveAuthorizedSession(sessionId: string | undefined, signal?: AbortSignal) {
+		const current = await readSession(sessionId, signal);
+		const identity = await repository.findStaffIdentityByDiscordUserId(current.session.discordUserId);
+		throwIfAborted(signal);
+		if (!identity) {
+			await store.revokeSession(current.sessionId);
+			throw new AuthFailure('forbidden');
+		}
+		return {
+			current,
+			result: {
+				identity,
+				csrfToken: current.session.csrfToken,
+				idleExpiresAt: new Date(current.session.idleExpiresAtMs).toISOString(),
+				absoluteExpiresAt: new Date(current.session.absoluteExpiresAtMs).toISOString()
+			}
+		};
+	}
+
 	return {
 		beginOAuth: ({ redirectUri, bindingId, signal }) =>
 			withServiceBoundary(async () => {
@@ -131,19 +150,13 @@ export function createAuthService({
 			}),
 		requireSession: (sessionId, signal) =>
 			withServiceBoundary(async () => {
-				const current = await readSession(sessionId, signal);
-				const identity = await repository.findStaffIdentityByDiscordUserId(current.session.discordUserId);
-				throwIfAborted(signal);
-				if (!identity) {
-					await store.revokeSession(current.sessionId);
-					throw new AuthFailure('forbidden');
-				}
-				return {
-					identity,
-					csrfToken: current.session.csrfToken,
-					idleExpiresAt: new Date(current.session.idleExpiresAtMs).toISOString(),
-					absoluteExpiresAt: new Date(current.session.absoluteExpiresAtMs).toISOString()
-				};
+				return (await resolveAuthorizedSession(sessionId, signal)).result;
+			}),
+		requireMutationSession: (sessionId, csrfToken, signal) =>
+			withServiceBoundary(async () => {
+				const authorized = await resolveAuthorizedSession(sessionId, signal);
+				if (!opaqueTokensEqual(csrfToken, authorized.current.session.csrfToken)) throw new AuthFailure('csrf_failed');
+				return authorized.result;
 			}),
 		logout: (sessionId, csrfToken, signal) =>
 			withServiceBoundary(async () => {

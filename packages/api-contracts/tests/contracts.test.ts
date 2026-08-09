@@ -8,6 +8,8 @@ import {
 	ApiDirectoryQuerySchema,
 	ApiErrorEnvelopeSchema,
 	ApiIntegrationSchema,
+	ApiIntegrationRegistryItemSchema,
+	EditApiIntegrationRequestSchema,
 	HealthResponseSchema,
 	normalizeApiScopes
 } from '../src/v1';
@@ -88,6 +90,25 @@ describe('v1 API contracts', () => {
 			updatedAt: '2026-08-09T08:00:00.000Z'
 		});
 		expect(integration.state).toBe('active');
+		expect(
+			ApiIntegrationRegistryItemSchema.parse({
+				...integration,
+				creator: {
+					userId: integration.createdByUserId,
+					discordUsername: 'staff-user',
+					discordNickname: 'Staff User'
+				},
+				credentialCount: 2
+			})
+		).toMatchObject({ credentialCount: 2, creator: { discordNickname: 'Staff User' } });
+		expect(
+			EditApiIntegrationRequestSchema.safeParse({
+				name: 'Directory client',
+				purpose: 'Read users',
+				expectedUpdatedAt: integration.updatedAt
+			}).success
+		).toBe(true);
+		expect(API_V1_ROUTES.integrationRegistry).toBe('/api/v1/integrations');
 
 		const credential = ApiCredentialMetadataSchema.parse({
 			id: '37513880-ac97-4333-b21f-eb919fa07957',

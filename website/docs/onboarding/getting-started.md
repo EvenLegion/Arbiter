@@ -150,6 +150,7 @@ The important question is not "where is every file?" The important question is "
 | ------------------------ | -------------------------------------------------------------------- |
 | `src/`                   | Existing Discord bot runtime application code                        |
 | `apps/api/`              | Standalone HTTP API process and API-owned dependency lifecycle       |
+| `apps/portal/`           | Static Vercel-ready staff portal and safe browser API client         |
 | `packages/api-contracts` | Versioned transport schemas, safe envelopes, and scope names         |
 | `packages/domain`        | Pure canonical rules shared by runtimes, starting with merit ranking |
 | `tests/`                 | Bot and cross-runtime integration tests                              |

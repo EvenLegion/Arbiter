@@ -1,10 +1,27 @@
 import { ApiIntegrationState, Prisma, type PrismaClient } from '@prisma/client';
 import { ApiScopeSchema } from '@arbiter/api-contracts';
 
-import type { ApiCredentialRecord, ApiCredentialRepository, ApiCredentialWithIntegrationRecord, ApiIntegrationRecord } from './types';
+import type {
+	ApiCredentialRecord,
+	ApiCredentialRepository,
+	ApiCredentialWithIntegrationRecord,
+	ApiIntegrationRecord,
+	ApiIntegrationRegistryRecord
+} from './types';
 
 type PrismaApiIntegration = Awaited<ReturnType<PrismaClient['apiIntegration']['findUniqueOrThrow']>>;
+type PrismaApiIntegrationRegistry = Prisma.ApiIntegrationGetPayload<{
+	include: {
+		createdByUser: { select: { discordUsername: true; discordNickname: true } };
+		_count: { select: { credentials: true } };
+	};
+}>;
 type PrismaApiCredentialWithIntegration = Prisma.ApiCredentialGetPayload<{ include: { integration: true } }>;
+
+const registryInclude = {
+	createdByUser: { select: { discordUsername: true, discordNickname: true } },
+	_count: { select: { credentials: true } }
+} as const;
 
 export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCredentialRepository {
 	return {
@@ -17,9 +34,10 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 						purpose: input.purpose,
 						createdByUserId: input.actorUserId,
 						updatedByUserId: input.actorUserId
-					}
+					},
+					include: registryInclude
 				});
-				return { status: 'created', integration: mapIntegration(integration) };
+				return { status: 'created', integration: mapRegistryIntegration(integration) };
 			} catch (error) {
 				if (isUniqueConstraintError(error)) return { status: 'conflict' };
 				throw error;
@@ -32,14 +50,15 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 		listIntegrations: async (includeArchived) => {
 			const integrations = await prisma.apiIntegration.findMany({
 				where: includeArchived ? undefined : { state: ApiIntegrationState.ACTIVE },
-				orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
+				orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+				include: registryInclude
 			});
-			return integrations.map(mapIntegration);
+			return integrations.map(mapRegistryIntegration);
 		},
 		updateIntegration: async (input) => {
 			try {
 				const result = await prisma.apiIntegration.updateMany({
-					where: { id: input.id, state: ApiIntegrationState.ACTIVE },
+					where: { id: input.id, state: ApiIntegrationState.ACTIVE, updatedAt: input.expectedUpdatedAt },
 					data: {
 						name: input.name,
 						nameKey: input.nameKey,
@@ -48,24 +67,27 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 					}
 				});
 				if (result.count === 0) {
-					const existing = await prisma.apiIntegration.findUnique({ where: { id: input.id }, select: { state: true } });
-					return { status: existing ? 'inactive' : 'not_found' };
+					const existing = await prisma.apiIntegration.findUnique({ where: { id: input.id }, select: { state: true, updatedAt: true } });
+					if (!existing) return { status: 'not_found' };
+					if (existing.state !== ApiIntegrationState.ACTIVE) return { status: 'inactive' };
+					return { status: 'stale' };
 				}
-				const integration = await prisma.apiIntegration.findUniqueOrThrow({ where: { id: input.id } });
-				return { status: 'updated', integration: mapIntegration(integration) };
+				const integration = await prisma.apiIntegration.findUniqueOrThrow({ where: { id: input.id }, include: registryInclude });
+				return { status: 'updated', integration: mapRegistryIntegration(integration) };
 			} catch (error) {
 				if (isUniqueConstraintError(error)) return { status: 'conflict' };
 				throw error;
 			}
 		},
-		archiveIntegration: (id, actorUserId, archivedAt) =>
+		archiveIntegration: ({ id, actorUserId, archivedAt, expectedUpdatedAt }) =>
 			prisma.$transaction(async (tx) => {
 				await lockIntegration(tx, id);
-				const existing = await tx.apiIntegration.findUnique({ where: { id } });
+				const existing = await tx.apiIntegration.findUnique({ where: { id }, include: registryInclude });
 				if (!existing) return { status: 'not_found' } as const;
 				if (existing.state === ApiIntegrationState.ARCHIVED) {
-					return { status: 'already_archived', integration: mapIntegration(existing) } as const;
+					return { status: 'already_archived', integration: mapRegistryIntegration(existing) } as const;
 				}
+				if (existing.updatedAt.getTime() !== expectedUpdatedAt.getTime()) return { status: 'stale' } as const;
 				const integration = await tx.apiIntegration.update({
 					where: { id },
 					data: {
@@ -73,9 +95,10 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 						archivedAt,
 						archivedByUserId: actorUserId,
 						updatedByUserId: actorUserId
-					}
+					},
+					include: registryInclude
 				});
-				return { status: 'archived', integration: mapIntegration(integration) } as const;
+				return { status: 'archived', integration: mapRegistryIntegration(integration) } as const;
 			}),
 		mintCredential: async (input) => {
 			try {
@@ -158,6 +181,15 @@ function mapIntegration(integration: PrismaApiIntegration): ApiIntegrationRecord
 		archivedAt: integration.archivedAt,
 		createdAt: integration.createdAt,
 		updatedAt: integration.updatedAt
+	};
+}
+
+function mapRegistryIntegration(integration: PrismaApiIntegrationRegistry): ApiIntegrationRegistryRecord {
+	return {
+		...mapIntegration(integration),
+		creatorDiscordUsername: integration.createdByUser.discordUsername,
+		creatorDiscordNickname: integration.createdByUser.discordNickname,
+		credentialCount: integration._count.credentials
 	};
 }
 

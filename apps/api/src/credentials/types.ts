@@ -1,4 +1,4 @@
-import type { ApiCredentialMetadata, ApiIntegration, ApiScope } from '@arbiter/api-contracts';
+import type { ApiCredentialMetadata, ApiIntegrationRegistryItem, ApiScope } from '@arbiter/api-contracts';
 
 // This is a trusted application context, not transport input. The API auth
 // boundary must resolve the canonical user and STAFF/EXEC role before calling
@@ -20,6 +20,12 @@ export type ApiIntegrationRecord = {
 	archivedAt: Date | null;
 	createdAt: Date;
 	updatedAt: Date;
+};
+
+export type ApiIntegrationRegistryRecord = ApiIntegrationRecord & {
+	creatorDiscordUsername: string;
+	creatorDiscordNickname: string;
+	credentialCount: number;
 };
 
 export type ApiCredentialRecord = {
@@ -55,7 +61,14 @@ export type ApiCredentialMintResult = {
 	secret: string;
 };
 
-export type ApiCredentialServiceErrorCode = 'conflict' | 'forbidden' | 'integration_archived' | 'invalid_credential' | 'invalid_input' | 'not_found';
+export type ApiCredentialServiceErrorCode =
+	| 'conflict'
+	| 'forbidden'
+	| 'integration_archived'
+	| 'invalid_credential'
+	| 'invalid_input'
+	| 'not_found'
+	| 'stale';
 
 export type ApiCredentialServiceResult<T> = { ok: true; value: T } | { ok: false; error: { code: ApiCredentialServiceErrorCode } };
 
@@ -65,23 +78,31 @@ export type ApiCredentialRepository = {
 		nameKey: string;
 		purpose: string;
 		actorUserId: string;
-	}) => Promise<{ status: 'created'; integration: ApiIntegrationRecord } | { status: 'conflict' }>;
+	}) => Promise<{ status: 'created'; integration: ApiIntegrationRegistryRecord } | { status: 'conflict' }>;
 	findIntegrationById: (id: string) => Promise<ApiIntegrationRecord | null>;
-	listIntegrations: (includeArchived: boolean) => Promise<ApiIntegrationRecord[]>;
+	listIntegrations: (includeArchived: boolean) => Promise<ApiIntegrationRegistryRecord[]>;
 	updateIntegration: (input: {
 		id: string;
 		name: string;
 		nameKey: string;
 		purpose: string;
 		actorUserId: string;
+		expectedUpdatedAt: Date;
 	}) => Promise<
-		{ status: 'updated'; integration: ApiIntegrationRecord } | { status: 'conflict' } | { status: 'inactive' } | { status: 'not_found' }
+		| { status: 'updated'; integration: ApiIntegrationRegistryRecord }
+		| { status: 'conflict' }
+		| { status: 'inactive' }
+		| { status: 'not_found' }
+		| { status: 'stale' }
 	>;
-	archiveIntegration: (
-		id: string,
-		actorUserId: string,
-		archivedAt: Date
-	) => Promise<{ status: 'archived' | 'already_archived'; integration: ApiIntegrationRecord } | { status: 'not_found' }>;
+	archiveIntegration: (input: {
+		id: string;
+		actorUserId: string;
+		archivedAt: Date;
+		expectedUpdatedAt: Date;
+	}) => Promise<
+		{ status: 'archived' | 'already_archived'; integration: ApiIntegrationRegistryRecord } | { status: 'not_found' } | { status: 'stale' }
+	>;
 	mintCredential: (input: {
 		integrationId: string;
 		label: string;
@@ -108,13 +129,19 @@ export type ApiCredentialRepository = {
 };
 
 export type ApiCredentialService = {
-	createIntegration: (actor: ApiCredentialActor, input: { name: string; purpose: string }) => Promise<ApiCredentialServiceResult<ApiIntegration>>;
-	listIntegrations: (actor: ApiCredentialActor, includeArchived?: boolean) => Promise<ApiCredentialServiceResult<ApiIntegration[]>>;
+	createIntegration: (
+		actor: ApiCredentialActor,
+		input: { name: string; purpose: string }
+	) => Promise<ApiCredentialServiceResult<ApiIntegrationRegistryItem>>;
+	listIntegrations: (actor: ApiCredentialActor, includeArchived?: boolean) => Promise<ApiCredentialServiceResult<ApiIntegrationRegistryItem[]>>;
 	editIntegration: (
 		actor: ApiCredentialActor,
-		input: { integrationId: string; name: string; purpose: string }
-	) => Promise<ApiCredentialServiceResult<ApiIntegration>>;
-	archiveIntegration: (actor: ApiCredentialActor, integrationId: string) => Promise<ApiCredentialServiceResult<ApiIntegration>>;
+		input: { integrationId: string; name: string; purpose: string; expectedUpdatedAt: string }
+	) => Promise<ApiCredentialServiceResult<ApiIntegrationRegistryItem>>;
+	archiveIntegration: (
+		actor: ApiCredentialActor,
+		input: { integrationId: string; expectedUpdatedAt: string }
+	) => Promise<ApiCredentialServiceResult<ApiIntegrationRegistryItem>>;
 	mintCredential: (
 		actor: ApiCredentialActor,
 		input: { integrationId: string; label: string; scopes: readonly ApiScope[]; expiresAt?: Date }
