@@ -13,9 +13,10 @@ type RawDirectoryRow = {
 
 export function createPrismaDirectoryRepository(prisma: PrismaClient): DirectoryRepository {
 	return {
-		query: (input) =>
+		query: (input, signal) =>
 			prisma.$transaction(
 				async (tx) => {
+					signal?.throwIfAborted();
 					const knownDivisionCodes = input.divisionCodesAny
 						? await tx.division.findMany({ where: { code: { in: input.divisionCodesAny } }, select: { code: true } })
 						: [];
@@ -24,6 +25,7 @@ export function createPrismaDirectoryRepository(prisma: PrismaClient): Directory
 					if (unknownDivisionCodes.length > 0) return { rows: [], unknownDivisionCodes };
 
 					const rawRows = await tx.$queryRaw<RawDirectoryRow[]>(buildDirectorySql(input));
+					signal?.throwIfAborted();
 					return { rows: rawRows.map(mapDirectoryRow), unknownDivisionCodes: [] };
 				},
 				{ isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead }

@@ -159,6 +159,6 @@ export type ApiCredentialService = {
 		input: { integrationId: string; label: string; scopes: readonly ApiScope[]; expiresAt?: Date }
 	) => Promise<ApiCredentialServiceResult<ApiCredentialMintResult>>;
 	listCredentials: (actor: ApiCredentialActor, integrationId: string) => Promise<ApiCredentialServiceResult<ApiCredentialMetadata[]>>;
-	authenticate: (secret: string) => Promise<ApiCredentialServiceResult<ApiCredentialAuthentication>>;
+	authenticate: (secret: string, signal?: AbortSignal) => Promise<ApiCredentialServiceResult<ApiCredentialAuthentication>>;
 	revokeCredential: (actor: ApiCredentialActor, credentialId: string) => Promise<ApiCredentialServiceResult<ApiCredentialMetadata>>;
 };

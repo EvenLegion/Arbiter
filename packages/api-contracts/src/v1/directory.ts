@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { ApiResponseMetaSchema } from './http';
+
 export const API_DIRECTORY_MAX_BATCH_SIZE = 100;
 
 export const DiscordUserIdSchema = z.string().regex(/^\d{17,20}$/);
@@ -61,8 +63,24 @@ export const ApiDirectoryPageSchema = z
 	})
 	.strict();
 
+export const ApiDirectoryUserResponseSchema = z
+	.object({
+		data: ApiDirectoryUserSchema,
+		meta: ApiResponseMetaSchema
+	})
+	.strict();
+
+export const ApiDirectoryPageResponseSchema = z
+	.object({
+		data: ApiDirectoryPageSchema,
+		meta: ApiResponseMetaSchema
+	})
+	.strict();
+
 export type ApiDirectoryQueryInput = z.input<typeof ApiDirectoryQuerySchema>;
 export type ParsedApiDirectoryQuery = z.output<typeof ApiDirectoryQuerySchema>;
 export type ApiDirectoryMembership = z.infer<typeof ApiDirectoryMembershipSchema>;
 export type ApiDirectoryUser = z.infer<typeof ApiDirectoryUserSchema>;
 export type ApiDirectoryPage = z.infer<typeof ApiDirectoryPageSchema>;
+export type ApiDirectoryUserResponse = z.infer<typeof ApiDirectoryUserResponseSchema>;
+export type ApiDirectoryPageResponse = z.infer<typeof ApiDirectoryPageResponseSchema>;

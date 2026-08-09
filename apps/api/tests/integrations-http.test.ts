@@ -66,7 +66,8 @@ const config: ApiConfig = {
 		sessionIdleTtlSeconds: 1_800,
 		sessionAbsoluteTtlSeconds: 28_800
 	},
-	redis: { host: 'unused', port: 6379, db: 0, namespace: 'arbiter:api:v1', maxTtlSeconds: 60 }
+	redis: { host: 'unused', port: 6379, db: 0, namespace: 'arbiter:api:v1', maxTtlSeconds: 60 },
+	directoryRateLimit: { requests: 60, windowSeconds: 60 }
 };
 
 describe('integration registry HTTP routes', () => {
@@ -181,6 +182,7 @@ describe('integration registry HTTP routes', () => {
 			authService,
 			credentialService,
 			directoryService: {} as DirectoryService,
+			directoryRateLimiter: { consume: vi.fn() },
 			checkReadiness: vi.fn().mockResolvedValue(true),
 			close: vi.fn().mockResolvedValue(undefined)
 		};

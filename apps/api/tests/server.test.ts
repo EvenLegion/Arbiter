@@ -38,7 +38,8 @@ const config: ApiConfig = {
 		sessionIdleTtlSeconds: 1_800,
 		sessionAbsoluteTtlSeconds: 28_800
 	},
-	redis: { host: 'unused', port: 6379, db: 0, namespace: 'arbiter:api:v1', maxTtlSeconds: 60 }
+	redis: { host: 'unused', port: 6379, db: 0, namespace: 'arbiter:api:v1', maxTtlSeconds: 60 },
+	directoryRateLimit: { requests: 60, windowSeconds: 60 }
 };
 
 describe('API HTTP runtime', () => {
@@ -108,6 +109,7 @@ describe('API HTTP runtime', () => {
 			authService: {} as AuthService,
 			credentialService: {} as ApiCredentialService,
 			directoryService: {} as DirectoryService,
+			directoryRateLimiter: { consume: vi.fn() },
 			checkReadiness: vi.fn().mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(true), 100))),
 			close: vi.fn().mockResolvedValue(undefined)
 		};
@@ -303,6 +305,7 @@ function createDependencies(ready: boolean): ApiDependencies & { close: ReturnTy
 		authService: {} as AuthService,
 		credentialService: {} as ApiCredentialService,
 		directoryService: {} as DirectoryService,
+		directoryRateLimiter: { consume: vi.fn() },
 		checkReadiness: vi.fn().mockResolvedValue(ready),
 		close: vi.fn().mockResolvedValue(undefined)
 	};

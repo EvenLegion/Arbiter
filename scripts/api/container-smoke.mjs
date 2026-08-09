@@ -68,6 +68,19 @@ try {
 	}
 	if (!healthy) throw new Error('API container did not become healthy');
 
+	const directDirectory = await fetch(`http://127.0.0.1:${port}/api/v1/users/100000000000000001`);
+	if (directDirectory.status !== 401 || (await directDirectory.json()).error?.code !== 'unauthorized') {
+		throw new Error('API container did not expose the credential-protected direct directory route');
+	}
+	const queryDirectory = await fetch(`http://127.0.0.1:${port}/api/v1/users/query`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: '{}'
+	});
+	if (queryDirectory.status !== 401 || (await queryDirectory.json()).error?.code !== 'unauthorized') {
+		throw new Error('API container did not expose the credential-protected directory query route');
+	}
+
 	const logDeadline = Date.now() + 10_000;
 	let fileLoggingVerified = false;
 	while (Date.now() < logDeadline) {
@@ -94,7 +107,7 @@ try {
 	execFileSync('docker', ['stop', '--timeout', '10', containerId], { stdio: 'inherit' });
 	execFileSync('docker', ['rm', containerId], { stdio: 'ignore' });
 	containerId = undefined;
-	process.stdout.write('API container health, file logging, and graceful-stop smoke test passed.\n');
+	process.stdout.write('API container health, protected directory routes, file logging, and graceful-stop smoke test passed.\n');
 } finally {
 	if (containerId) {
 		execFileSync('docker', ['rm', '--force', containerId], { stdio: 'ignore' });

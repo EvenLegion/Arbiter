@@ -5,7 +5,9 @@ import {
 	ApiAuthIdentitySchema,
 	ApiCredentialMetadataSchema,
 	ApiDirectoryPageSchema,
+	ApiDirectoryPageResponseSchema,
 	ApiDirectoryQuerySchema,
+	ApiDirectoryUserResponseSchema,
 	ApiErrorEnvelopeSchema,
 	ApiIntegrationSchema,
 	ApiIntegrationRegistryItemSchema,
@@ -74,6 +76,10 @@ describe('v1 API contracts', () => {
 		});
 		expect(page.users[0]).not.toHaveProperty('discordUsername');
 		expect(page.users[0]).not.toHaveProperty('discordNickname');
+		expect(ApiDirectoryUserResponseSchema.safeParse({ data: page.users[0], meta: { requestId: 'directory-direct' } }).success).toBe(true);
+		expect(ApiDirectoryPageResponseSchema.safeParse({ data: page, meta: { requestId: 'directory-query' } }).success).toBe(true);
+		expect(API_V1_ROUTES.directoryUsers).toBe('/api/v1/users');
+		expect(API_V1_ROUTES.directoryQuery).toBe('/api/v1/users/query');
 	});
 
 	it('defines safe integration and credential metadata without secret material', () => {

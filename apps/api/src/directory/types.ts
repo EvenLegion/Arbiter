@@ -23,7 +23,7 @@ export type DirectoryRepositoryResult = {
 };
 
 export type DirectoryRepository = {
-	query: (input: DirectoryRepositoryQuery) => Promise<DirectoryRepositoryResult>;
+	query: (input: DirectoryRepositoryQuery, signal?: AbortSignal) => Promise<DirectoryRepositoryResult>;
 };
 
 export type DirectoryServiceError = { code: 'invalid_input' } | { code: 'unknown_divisions'; divisionCodes: string[] };
@@ -31,5 +31,5 @@ export type DirectoryServiceError = { code: 'invalid_input' } | { code: 'unknown
 export type DirectoryServiceResult = { ok: true; value: ApiDirectoryPage } | { ok: false; error: DirectoryServiceError };
 
 export type DirectoryService = {
-	query: (input: ApiDirectoryQueryInput) => Promise<DirectoryServiceResult>;
+	query: (input: ApiDirectoryQueryInput, signal?: AbortSignal) => Promise<DirectoryServiceResult>;
 };

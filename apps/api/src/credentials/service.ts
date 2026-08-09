@@ -150,10 +150,12 @@ export function createApiCredentialService({
 			const credentials = await repository.listCredentials(integrationId);
 			return success(credentials.map((credential) => toCredentialDto(credential, timestamp)));
 		},
-		authenticate: async (secret) => {
+		authenticate: async (secret, signal) => {
+			signal?.throwIfAborted();
 			const prefix = parseApiCredentialPrefix(secret);
 			if (!prefix) return failure('invalid_credential');
 			const credential = await repository.findCredentialByPrefix(prefix);
+			signal?.throwIfAborted();
 			const expectedVerifier = credential?.verifier ?? createApiCredentialVerifier(DUMMY_SECRET, pepper);
 			if (!verifyApiCredentialSecret(secret, expectedVerifier, pepper) || !credential) return failure('invalid_credential');
 			const authenticatedAt = now();
@@ -161,6 +163,7 @@ export function createApiCredentialService({
 				return failure('invalid_credential');
 			}
 			await repository.touchLastUsed(credential.id, authenticatedAt, new Date(authenticatedAt.getTime() - lastUseWriteIntervalMs));
+			signal?.throwIfAborted();
 			return success({
 				credentialId: credential.id,
 				integrationId: credential.integrationId,

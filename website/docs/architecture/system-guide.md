@@ -172,7 +172,7 @@ Redis stores transient runtime coordination data. Today that is mainly active ev
 
 The rule is simple: Redis holds state that matters while a workflow is in flight. Postgres holds state that matters afterward.
 
-API-owned transient keys must use the `arbiter:api:v1:` prefix and a TTL no greater than `API_REDIS_MAX_TTL_SECONDS`. OAuth state is browser-bound, single-use, and stored under `auth:oauth-state:` with a digested key. Browser sessions use digested `auth:session:` keys, sliding idle expiry, non-sliding absolute expiry, and session-bound CSRF tokens. API credentials themselves live in Postgres, not Redis. These keys cannot collide with bot or BullMQ ownership.
+API-owned transient keys must use the `arbiter:api:v1:` prefix and a TTL no greater than `API_REDIS_MAX_TTL_SECONDS`. OAuth state is browser-bound, single-use, and stored under `auth:oauth-state:` with a digested key. Browser sessions use digested `auth:session:` keys, sliding idle expiry, non-sliding absolute expiry, and session-bound CSRF tokens. Credential-authenticated directory reads use atomic fixed-window counters under `rate:directory:` and fail closed when Redis is unavailable. API credentials and directory data themselves live in Postgres, not Redis. These keys cannot collide with bot or BullMQ ownership.
 
 ### In-Process Division Cache
 
