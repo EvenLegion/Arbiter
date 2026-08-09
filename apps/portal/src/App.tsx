@@ -2,7 +2,7 @@ import type { ApiAuthIdentity, ApiIntegrationRegistryItem } from '@arbiter/api-c
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 
 import { PortalApiError, type PortalApi, type PortalSession } from './api';
-import { canArchiveIntegration, canEditIntegration, describePortalError, replaceIntegration } from './state';
+import { canArchiveIntegration, canEditIntegration, describePortalError, isPortalError, replaceIntegration } from './state';
 
 type ReadyState = PortalSession & {
 	integrations: ApiIntegrationRegistryItem[];
@@ -78,10 +78,7 @@ export function App({ api }: { api: PortalApi }) {
 			setFeedback('Signed out securely.');
 		} catch (error) {
 			setFeedback(describePortalError(error));
-			if (error instanceof PortalApiError && error.code === 'unauthorized') {
-				setReady(null);
-				setStatus('signed-out');
-			}
+			returnToSignInIfUnauthorized(error);
 		} finally {
 			setBusy(false);
 		}
@@ -94,6 +91,7 @@ export function App({ api }: { api: PortalApi }) {
 			setIncludeArchived(next);
 		} catch (error) {
 			setFeedback(describePortalError(error));
+			returnToSignInIfUnauthorized(error);
 		} finally {
 			setBusy(false);
 		}
@@ -107,6 +105,7 @@ export function App({ api }: { api: PortalApi }) {
 			setFeedback('Registry refreshed.');
 		} catch (error) {
 			setFeedback(describePortalError(error));
+			returnToSignInIfUnauthorized(error);
 		} finally {
 			setBusy(false);
 		}
@@ -156,22 +155,49 @@ export function App({ api }: { api: PortalApi }) {
 			setDialog(null);
 		} catch (error) {
 			setFeedback(describePortalError(error));
-			if (error instanceof PortalApiError && (error.code === 'stale' || error.code === 'integration_archived')) {
+			if (isPortalError(error, 'network_error', 'request_timeout')) {
+				try {
+					// Registry mutations converge on retry through unique names, optimistic timestamps,
+					// and idempotent archive. Retrying once therefore crosses any in-flight commit
+					// before the reconciliation read without duplicating the requested change.
+					await operation();
+					setDialog(null);
+					return;
+				} catch (retryError) {
+					try {
+						await loadRegistry(includeArchived);
+						setFeedback('Confirmation was interrupted. The registry has been refreshed; review its current state before retrying.');
+					} catch (refreshError) {
+						setFeedback(
+							returnToSignInIfUnauthorized(refreshError)
+								? describePortalError(refreshError)
+								: 'Confirmation was interrupted and the current registry state could not be verified. Refresh before retrying.'
+						);
+					}
+					returnToSignInIfUnauthorized(retryError);
+				}
+				setDialog(null);
+			} else if (isPortalError(error, 'stale', 'integration_archived')) {
 				try {
 					await loadRegistry(includeArchived);
 				} catch (refreshError) {
 					setFeedback(describePortalError(refreshError));
+					returnToSignInIfUnauthorized(refreshError);
 				}
 				setDialog(null);
 			}
-			if (error instanceof PortalApiError && error.code === 'unauthorized') {
-				setReady(null);
-				setStatus('signed-out');
-				setDialog(null);
-			}
+			returnToSignInIfUnauthorized(error);
 		} finally {
 			setBusy(false);
 		}
+	}
+
+	function returnToSignInIfUnauthorized(error: unknown): boolean {
+		if (!isPortalError(error, 'unauthorized')) return false;
+		setReady(null);
+		setStatus('signed-out');
+		setDialog(null);
+		return true;
 	}
 
 	if (status === 'loading') return <LoadingScreen />;

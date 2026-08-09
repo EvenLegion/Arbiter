@@ -2,7 +2,7 @@ import type { ApiAuthIdentity, ApiIntegrationRegistryItem } from '@arbiter/api-c
 import { describe, expect, it } from 'vitest';
 
 import { PortalApiError } from './api';
-import { canArchiveIntegration, canEditIntegration, describePortalError, replaceIntegration } from './state';
+import { canArchiveIntegration, canEditIntegration, describePortalError, isPortalError, replaceIntegration } from './state';
 
 const creator: ApiAuthIdentity = {
 	userId: '33b20a61-1e86-4115-b999-f319808d5a87',
@@ -45,5 +45,12 @@ describe('portal view policy', () => {
 		expect(describePortalError(new PortalApiError('stale', 'raw', 409, 'request-1'))).toContain('refreshed');
 		expect(describePortalError(new PortalApiError('stale', 'raw', 409, 'request-1'))).toContain('request-1');
 		expect(describePortalError(new Error('database details'))).not.toContain('database');
+	});
+
+	it('classifies only the requested typed portal errors', () => {
+		expect(isPortalError(new PortalApiError('unauthorized', 'raw', 401, null), 'unauthorized')).toBe(true);
+		expect(isPortalError(new PortalApiError('request_timeout', 'raw', 408, null), 'network_error', 'request_timeout')).toBe(true);
+		expect(isPortalError(new PortalApiError('stale', 'raw', 409, null), 'network_error', 'request_timeout')).toBe(false);
+		expect(isPortalError(new Error('network'), 'network_error')).toBe(false);
 	});
 });

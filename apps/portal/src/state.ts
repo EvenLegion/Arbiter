@@ -43,3 +43,7 @@ export function describePortalError(error: unknown): string {
 			return `The request could not be completed.${suffix}`;
 	}
 }
+
+export function isPortalError(error: unknown, ...codes: PortalApiError['code'][]): error is PortalApiError {
+	return error instanceof PortalApiError && codes.includes(error.code);
+}
