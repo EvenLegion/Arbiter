@@ -37,7 +37,9 @@ export async function runApi(): Promise<ApiRuntime> {
 			process.exitCode = exitCode;
 		} catch (error) {
 			logger.error({ reason, errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Arbiter API shutdown failed');
-			process.exitCode = 1;
+			// The graceful deadline has expired or cleanup failed. A hard exit is
+			// required because dependency sockets may still be holding the loop open.
+			process.exit(1);
 		}
 	};
 

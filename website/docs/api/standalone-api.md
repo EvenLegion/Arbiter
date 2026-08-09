@@ -85,9 +85,7 @@ Successful responses use a `data` object and a `meta.requestId` value. Error res
 {
 	"error": {
 		"code": "not_found",
-		"message": "Route not found"
-	},
-	"meta": {
+		"message": "Route not found",
 		"requestId": "9d2f0c18-6b0d-4fe7-bd0e-7fa4e1762a1c"
 	}
 }
@@ -156,7 +154,7 @@ Use `API_CONSOLE_LOG_LEVEL=silent` when the file/Loki path is the only desired d
 
 ## Shutdown And Failure Behavior
 
-`SIGINT` and `SIGTERM` stop accepting requests, wait for active HTTP work, close API-owned Postgres and Redis clients, and exit. A bounded timeout force-closes remaining HTTP connections. Startup, shutdown, request completion, dependency warnings, and fatal process errors all use the same structured logger.
+`SIGINT` and `SIGTERM` stop accepting requests, wait for active HTTP work, close API-owned Postgres and Redis clients, and exit. A bounded timeout force-closes remaining HTTP connections. If dependency cleanup still cannot complete by that deadline, the API exits nonzero so hung sockets cannot keep the container alive indefinitely. Startup, shutdown, request completion, dependency warnings, and fatal process errors all use the same structured logger.
 
 Readiness returns only `ready` or `not_ready`. It intentionally does not reveal which dependency failed or include a raw error. Liveness remains available while a dependency is temporarily unavailable.
 
