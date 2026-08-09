@@ -120,6 +120,9 @@ const server = createServer(async (request, response) => {
 		if (!body || typeof body.name !== 'string' || typeof body.purpose !== 'string') {
 			return error(response, 400, 'bad_request', 'Integration update is invalid', requestId);
 		}
+		if (current.state === 'archived') {
+			return error(response, 409, 'integration_archived', 'Archived integrations cannot be edited', requestId);
+		}
 		if (body.expectedUpdatedAt !== current.updatedAt) {
 			return error(response, 409, 'stale', 'Integration changed; refresh before trying again', requestId);
 		}

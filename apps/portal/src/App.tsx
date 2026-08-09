@@ -155,7 +155,7 @@ export function App({ api }: { api: PortalApi }) {
 			setDialog(null);
 		} catch (error) {
 			setFeedback(describePortalError(error));
-			if (isPortalError(error, 'network_error', 'request_timeout')) {
+			if (isPortalError(error, 'network_error', 'request_timeout', 'service_unavailable')) {
 				try {
 					// Registry mutations converge on retry through unique names, optimistic timestamps,
 					// and idempotent archive. Retrying once therefore crosses any in-flight commit

@@ -49,8 +49,13 @@ describe('portal view policy', () => {
 
 	it('classifies only the requested typed portal errors', () => {
 		expect(isPortalError(new PortalApiError('unauthorized', 'raw', 401, null), 'unauthorized')).toBe(true);
-		expect(isPortalError(new PortalApiError('request_timeout', 'raw', 408, null), 'network_error', 'request_timeout')).toBe(true);
-		expect(isPortalError(new PortalApiError('stale', 'raw', 409, null), 'network_error', 'request_timeout')).toBe(false);
+		expect(
+			isPortalError(new PortalApiError('request_timeout', 'raw', 408, null), 'network_error', 'request_timeout', 'service_unavailable')
+		).toBe(true);
+		expect(
+			isPortalError(new PortalApiError('service_unavailable', 'raw', 503, null), 'network_error', 'request_timeout', 'service_unavailable')
+		).toBe(true);
+		expect(isPortalError(new PortalApiError('stale', 'raw', 409, null), 'network_error', 'request_timeout', 'service_unavailable')).toBe(false);
 		expect(isPortalError(new Error('network'), 'network_error')).toBe(false);
 	});
 });
