@@ -79,7 +79,15 @@ Release-plan descriptions are public-facing release notes and may be posted to
 the general Even Legion Discord audience. Write them in detailed, plain language
 that explains what changed, why it matters, and whether member-facing behavior
 changes. Avoid repository jargon, file names, ticket shorthand, and unexplained
-technical terms.
+technical terms. Lead with the concrete Arbiter capability and domain purpose:
+name what members, staff, or operators will eventually be able to do or learn.
+Do not use generic architecture language such as "foundation," "infrastructure,"
+"separate process," or "shared package" unless the same sentence explains the
+specific product capability it enables. For staged work, distinguish honestly
+between what ships now and what it prepares; do not imply that a future route or
+workflow is already available. Put "behind the scenes" and "no current behavior
+change" after the purpose statement as impact context, never as the main
+description.
 
 ## Code Review Rules
 

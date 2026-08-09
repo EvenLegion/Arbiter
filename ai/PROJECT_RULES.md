@@ -179,7 +179,14 @@ commits.
 Every release-plan description is public copy that can appear in the changelog,
 GitHub release, and Even Legion Discord announcement. It must give a general
 Discord member enough plain-language context to understand the change and its
-practical impact without knowing the repository, ticket, or implementation. Say
-explicitly when a behind-the-scenes change does not alter commands or member
-behavior. Detailed validity, regeneration, sequencing, copy review, and handoff
-rules live only in `ai/rules/implementation-lifecycle.md`.
+practical impact without knowing the repository, ticket, or implementation.
+Lead with the concrete Arbiter capability and domain purpose, including what
+members, staff, or operators will eventually be able to do or learn. Generic
+architecture terms such as "foundation," "infrastructure," "separate process,"
+or "shared package" are insufficient unless the same sentence names the product
+capability they enable. For staged work, distinguish what ships now from what it
+prepares and never imply that a future route or workflow is already available.
+Say explicitly when a behind-the-scenes change does not alter commands or member
+behavior, but make that secondary impact context rather than the main value
+statement. Detailed validity, regeneration, sequencing, copy review, and
+handoff rules live only in `ai/rules/implementation-lifecycle.md`.
