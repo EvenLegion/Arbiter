@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"branch": "codex/STE-293-standalone-api",
+	"baseRef": "origin/dev",
+	"mergeBase": "02d1c53505d26b2ab93be2083be708175843e344",
+	"headRef": "ec2fc7b5b35208ad9638127affb366beca52d06b",
+	"generatedAt": "2026-08-09T04:55:11.081Z",
+	"bump": "minor",
+	"targetVersion": "3.4.0",
+	"commits": [
+		{
+			"sha": "ec2fc7b5b35208ad9638127affb366beca52d06b",
+			"subject": "feat: add standalone API workspace foundation",
+			"committedAt": "2026-08-08T18:54:49-10:00",
+			"committedAtMs": 1786251289000,
+			"type": "feat",
+			"scope": null,
+			"description": "add standalone API workspace foundation",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
