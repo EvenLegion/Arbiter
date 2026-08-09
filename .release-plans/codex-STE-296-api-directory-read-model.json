@@ -15,7 +15,7 @@
 			"committedAtMs": 1786308479000,
 			"type": "feat",
 			"scope": "api",
-			"description": "add canonical user directory read model",
+			"description": "Arbiter can now assemble reliable member directory information from its existing records, including every division membership, merit total, and merit-rank level, so upcoming approved integrations can query consistent data without contacting Discord or creating a duplicate database. This is behind-the-scenes preparation; no API route, Discord command, or member-facing behavior changes yet.",
 			"breaking": false,
 			"section": "Features"
 		}
