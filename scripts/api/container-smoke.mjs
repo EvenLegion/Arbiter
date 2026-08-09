@@ -31,6 +31,8 @@ try {
 			'--env',
 			'DATABASE_URL=postgresql://unused:unused@127.0.0.1:1/unused',
 			'--env',
+			'API_CREDENTIAL_PEPPER=container-smoke-test-pepper-at-least-32-characters',
+			'--env',
 			'REDIS_HOST=127.0.0.1',
 			'--env',
 			'REDIS_PORT=1',

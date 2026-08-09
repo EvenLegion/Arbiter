@@ -2,6 +2,7 @@ import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ApiConfig } from '../src/config';
+import type { ApiCredentialService } from '../src/credentials/types';
 import { createApiRuntime, type ApiRuntime } from '../src/http/server';
 import type { ApiDependencies } from '../src/runtime/dependencies';
 
@@ -22,6 +23,7 @@ const config: ApiConfig = {
 	shutdownTimeoutMs: 2_000,
 	databaseUrl: 'postgresql://unused',
 	databasePoolMax: 1,
+	credentialPepper: 'test-credential-pepper-at-least-32-characters',
 	redis: { host: 'unused', port: 6379, db: 0, namespace: 'arbiter:api:v1', maxTtlSeconds: 60 }
 };
 
@@ -87,6 +89,7 @@ describe('API HTTP runtime', () => {
 
 	it('returns the common envelope when request work exceeds the deadline', async () => {
 		const dependencies: ApiDependencies = {
+			credentialService: {} as ApiCredentialService,
 			checkReadiness: vi.fn().mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(true), 100))),
 			close: vi.fn().mockResolvedValue(undefined)
 		};
@@ -105,6 +108,7 @@ describe('API HTTP runtime', () => {
 
 function createDependencies(ready: boolean): ApiDependencies & { close: ReturnType<typeof vi.fn> } {
 	return {
+		credentialService: {} as ApiCredentialService,
 		checkReadiness: vi.fn().mockResolvedValue(ready),
 		close: vi.fn().mockResolvedValue(undefined)
 	};

@@ -15,13 +15,25 @@ describe('API logger', () => {
 			}
 		});
 		const logger = createApiLogger({ logLevel: 'info', logFilePath: 'unused.log', consoleLogLevel: 'silent', nodeEnv: 'test' }, destination);
-		logger.info({ authorization: 'Bearer secret-token', config: { databaseUrl: 'postgresql://secret' } }, 'redaction test');
+		logger.info(
+			{
+				authorization: 'Bearer secret-token',
+				config: { databaseUrl: 'postgresql://secret', credentialPepper: 'pepper-secret' },
+				verifier: 'stored-digest-secret',
+				credential: { verifier: 'nested-verifier-secret', secret: 'one-time-secret' }
+			},
+			'redaction test'
+		);
 
 		expect(output).toContain('"app":"arbiter"');
 		expect(output).toContain('"service":"arbiter-api"');
 		expect(output).toContain('[REDACTED]');
 		expect(output).not.toContain('secret-token');
 		expect(output).not.toContain('postgresql://secret');
+		expect(output).not.toContain('pepper-secret');
+		expect(output).not.toContain('stored-digest-secret');
+		expect(output).not.toContain('nested-verifier-secret');
+		expect(output).not.toContain('one-time-secret');
 	});
 
 	it('anchors relative file destinations at the repository root for Alloy', () => {

@@ -46,7 +46,7 @@ Today the bot exposes a small number of ingress families:
 - gateway listeners for startup and guild-member lifecycle events
 - scheduled tasks for refreshing the division cache and ticking active event tracking sessions
 
-The API is deliberately smaller at this stage. It is a separate package, Node.js process, image, and local container with only versioned health and readiness routes. Its runtime shell owns HTTP request IDs, validation, size and time limits, sanitized JSON errors, structured logs, dependency readiness, and graceful shutdown. Business routes, OAuth, sessions, credentials, and directory reads are introduced by later tickets.
+The API is deliberately smaller at this stage. It is a separate package, Node.js process, image, and local container with only versioned health and readiness routes. Its runtime shell owns HTTP request IDs, validation, size and time limits, sanitized JSON errors, structured logs, dependency readiness, and graceful shutdown. Transport-independent integration and credential services now persist in the canonical database, but business routes, OAuth, sessions, portal behavior, and directory reads are introduced by later tickets.
 
 ## Package And Process Boundaries
 
@@ -66,7 +66,7 @@ flowchart LR
 
 The root package remains the bot; it is not hidden inside `apps/bot`. `packages/api-contracts` is transport-only authority and may be consumed by a future portal without importing Prisma, Redis, secrets, or server lifecycle code. The initial permission catalog contains only `users:read`. `packages/domain` owns pure reusable rules. Merit-rank thresholds moved there once, while the bot's previous module path re-exports the package to preserve existing callers.
 
-The API opens its own small Postgres pool and Redis client because process-local connections cannot be shared safely. Those connections point to the same database, schema authority, migration history, and Redis service used by the bot. Stopping either process closes only its own clients. Neither runtime starts, stops, reconnects, or terminates the other.
+The API opens its own small Postgres pool and Redis client because process-local connections cannot be shared safely. Those connections point to the same database, schema authority, migration history, and Redis service used by the bot. Stopping either process closes only its own clients. Neither runtime starts, stops, reconnects, or terminates the other. `API_DB_POOL_MAX` defaults to four so the API cannot silently consume an unbounded share of the existing Postgres connection budget.
 
 ## How Requests Move Through The Bot
 
@@ -157,6 +157,9 @@ Important durable aggregates include:
 - merit types and merit awards
 - event tiers and event sessions
 - tracked channels, stored message references, participant stats, and review decisions
+- shared API integrations and independently revocable credential metadata
+
+API credential secrets are never durable data. `ApiCredential` stores a unique non-secret prefix, an HMAC-SHA-256 verifier, the single `users:read` permission, expiry and revocation audit data, and a throttled `lastUsedAt` timestamp. The API-only pepper remains environment configuration. Integration archive and credential revocation are idempotent, and row-serialized integration mutations establish a clear order between archive and mint operations.
 
 ### Redis
 
@@ -169,7 +172,7 @@ Redis stores transient runtime coordination data. Today that is mainly active ev
 
 The rule is simple: Redis holds state that matters while a workflow is in flight. Postgres holds state that matters afterward.
 
-API-owned transient keys must use the `arbiter:api:v1:` prefix and a TTL no greater than `API_REDIS_MAX_TTL_SECONDS`. The foundation writes no API keys yet; the namespace and bound are established so later OAuth/session and throttling work cannot collide with bot or BullMQ keys.
+API-owned transient keys must use the `arbiter:api:v1:` prefix and a TTL no greater than `API_REDIS_MAX_TTL_SECONDS`. API credentials themselves live in Postgres, not Redis. The namespace and bound remain reserved for later OAuth/session and throttling work so it cannot collide with bot or BullMQ keys.
 
 ### In-Process Division Cache
 

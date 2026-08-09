@@ -22,4 +22,10 @@ model User {
 
   merits        Merit[] @relation("MeritRecipientUser")
   awardedMerits Merit[] @relation("MeritAwarderUser")
+
+  createdApiIntegrations  ApiIntegration[] @relation("ApiIntegrationCreatedByUser")
+  updatedApiIntegrations  ApiIntegration[] @relation("ApiIntegrationUpdatedByUser")
+  archivedApiIntegrations ApiIntegration[] @relation("ApiIntegrationArchivedByUser")
+  createdApiCredentials   ApiCredential[]  @relation("ApiCredentialCreatedByUser")
+  revokedApiCredentials   ApiCredential[]  @relation("ApiCredentialRevokedByUser")
 }

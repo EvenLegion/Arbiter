@@ -45,6 +45,18 @@ export function pushPrismaSchema(databaseUrl: string) {
 	});
 }
 
+export function deployPrismaMigrations(databaseUrl: string) {
+	execFileSync('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], {
+		cwd: repoRoot,
+		env: {
+			...process.env,
+			DATABASE_URL: databaseUrl,
+			PRISMA_DATABASE_URL: databaseUrl
+		},
+		stdio: 'pipe'
+	});
+}
+
 export async function seedReferenceData(prisma: PrismaClient) {
 	await seedMeritTypes(prisma);
 	await seedEventTiers(prisma);

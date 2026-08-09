@@ -16,6 +16,7 @@ const ApiConfigSchema = z.object({
 	API_REDIS_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(5_000),
 	API_SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
 	API_DB_POOL_MAX: z.coerce.number().int().min(1).max(10).default(4),
+	API_CREDENTIAL_PEPPER: z.string().min(32, 'API_CREDENTIAL_PEPPER must be at least 32 characters'),
 	DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 	REDIS_HOST: z.string().min(1).default('127.0.0.1'),
 	REDIS_PORT: z.coerce.number().int().min(1).max(65_535).default(6379),
@@ -47,6 +48,7 @@ export type ApiConfig = {
 	shutdownTimeoutMs: number;
 	databaseUrl: string;
 	databasePoolMax: number;
+	credentialPepper: string;
 	redis: {
 		host: string;
 		port: number;
@@ -82,6 +84,7 @@ export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfi
 		shutdownTimeoutMs: value.API_SHUTDOWN_TIMEOUT_MS,
 		databaseUrl: value.DATABASE_URL,
 		databasePoolMax: value.API_DB_POOL_MAX,
+		credentialPepper: value.API_CREDENTIAL_PEPPER,
 		redis: {
 			host: value.REDIS_HOST,
 			port: value.REDIS_PORT,

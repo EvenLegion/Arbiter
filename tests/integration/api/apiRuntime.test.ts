@@ -22,6 +22,7 @@ describe('standalone API dependency and lifecycle integration', () => {
 		config = parseApiConfig({
 			NODE_ENV: 'test',
 			DATABASE_URL: containers.databaseUrl,
+			API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters',
 			REDIS_HOST: redisUrl.hostname,
 			REDIS_PORT: redisUrl.port,
 			REDIS_PASSWORD: decodeURIComponent(redisUrl.password),

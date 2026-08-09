@@ -94,7 +94,7 @@ To run the API as its own local container against the already-running developmen
 docker compose -f docker-compose.api.yml up --build
 ```
 
-`docker-compose.api.yml` defines only the API service. It does not create Postgres or Redis. On Docker Desktop it reaches the host-published development services through `host.docker.internal`; set `API_DATABASE_URL` when your existing database is reachable through a different container-safe address.
+`docker-compose.api.yml` defines only the API service. It does not create Postgres or Redis. Set `API_CREDENTIAL_PEPPER` to a private value of at least 32 characters before starting it. On Docker Desktop it reaches the host-published development services through `host.docker.internal`; set `API_DATABASE_URL` when your existing database is reachable through a different container-safe address.
 
 ## Optional Local Services
 

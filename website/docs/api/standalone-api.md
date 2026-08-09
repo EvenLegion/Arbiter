@@ -9,14 +9,16 @@ The Arbiter API is an HTTP process that runs independently from the Discord bot.
 
 ## Current Capability
 
-The API currently provides infrastructure endpoints only:
+The API currently exposes only infrastructure HTTP endpoints:
 
 | Method      | Route               | Purpose                                                                 |
 | ----------- | ------------------- | ----------------------------------------------------------------------- |
 | `GET, HEAD` | `/api/v1/health`    | Process liveness. Returns `200` without checking external dependencies. |
 | `GET, HEAD` | `/api/v1/readiness` | Checks the API-owned Postgres pool and Redis client.                    |
 
-The API has no business-data route, OAuth flow, portal, or production exposure yet. The versioned contract package defines only the `users:read` permission name for the next authenticated surface; defining the name does not grant access or expose user data.
+The API package also contains transport-independent integration and credential lifecycle services backed by Arbiter's canonical database. They can create, list, edit, and archive shared integrations; mint, list, authenticate, and revoke credentials; and record last use at a bounded interval. No HTTP management or directory route invokes those services yet, so defining the lifecycle does not expose user data.
+
+The only credential permission is `users:read`. A minted secret is returned once, while Postgres stores only a non-secret lookup prefix and an HMAC-SHA-256 verifier keyed by `API_CREDENTIAL_PEPPER`. Expired, revoked, unknown, malformed, or archived-integration credentials authenticate as the same invalid-credential outcome. Integration archive and credential revocation retain the first authoritative actor and timestamp under retries or concurrency.
 
 The API reuses Arbiter's canonical Postgres schema and existing Redis service. It owns its own bounded database pool and Redis client, and stopping it closes only those API-owned resources. The Discord bot and shared services continue running.
 
@@ -31,7 +33,13 @@ pnpm redis:up
 pnpm db:migrate
 ```
 
-Copy `.env.example` to `.env`, then start the API from a separate terminal:
+Copy `.env.example` to `.env`, generate a private API credential pepper of at least 32 characters, and assign it to `API_CREDENTIAL_PEPPER`. For local development, one option is:
+
+```bash
+openssl rand -base64 48
+```
+
+Then start the API from a separate terminal:
 
 ```bash
 pnpm dev:api
@@ -111,6 +119,7 @@ Every response also includes `X-Request-Id`. A valid incoming `X-Request-Id` is 
 | `API_REDIS_CONNECT_TIMEOUT_MS` | `5000`               | Redis connection-establishment timeout                         |
 | `API_SHUTDOWN_TIMEOUT_MS`      | `10000`              | Graceful-shutdown deadline                                     |
 | `API_DB_POOL_MAX`              | `4`                  | Maximum API-owned Postgres connections                         |
+| `API_CREDENTIAL_PEPPER`        | required             | API-only HMAC key; at least 32 characters and never logged     |
 | `API_REDIS_NAMESPACE`          | `arbiter:api:v1`     | Prefix reserved for API-owned Redis keys                       |
 | `API_REDIS_MAX_TTL_SECONDS`    | `3600`               | Maximum lifetime for API-owned Redis values                    |
 | `DATABASE_URL`, `REDIS_*`      | shared repo settings | Existing Postgres and Redis connection settings                |
@@ -127,7 +136,7 @@ The API is connected to Arbiter's existing file-first observability stack:
 API -> logs/api.log -> Alloy -> Loki -> Grafana
 ```
 
-API logs are structured JSON with `app=arbiter`, `service=arbiter-api`, and the current environment. Completed requests include `requestId`, method, normalized path, status code, and duration. Dependency failures record only a dependency name and error class. Headers, cookies, authorization values, query values, request bodies, database or Redis URLs, passwords, tokens, and raw dependency errors are not logged.
+API logs are structured JSON with `app=arbiter`, `service=arbiter-api`, and the current environment. Completed requests include `requestId`, method, normalized path, status code, and duration. Dependency failures record only a dependency name and error class. Headers, cookies, authorization values, query values, request bodies, database or Redis URLs, credential peppers, verifiers, passwords, tokens, and raw dependency errors are not logged.
 
 Start the local stack before or after the API:
 
@@ -176,9 +185,9 @@ The integration suite starts real Postgres and Redis containers and proves that 
 
 This foundation deliberately does not include:
 
-- a user-directory endpoint or any permission beyond the `users:read` contract name
+- a user-directory or credential-management HTTP endpoint, or any permission beyond `users:read`
 - OAuth, sessions, browser credentials, or portal code
-- a second database, Redis service, or schema migration
+- a second database, Redis service, schema authority, or synchronization path
 - production proxy, TLS, network exposure, resource sizing, or deployment wiring
 - Discord bot process ownership or bot-token access
 

@@ -5,8 +5,12 @@ import { Pool } from 'pg';
 import type { Logger } from 'pino';
 
 import type { ApiConfig } from '../config';
+import { createPrismaApiCredentialRepository } from '../credentials/prismaRepository';
+import { createApiCredentialService } from '../credentials/service';
+import type { ApiCredentialService } from '../credentials/types';
 
 export type ApiDependencies = {
+	credentialService: ApiCredentialService;
 	checkReadiness: (timeoutMs: number) => Promise<boolean>;
 	close: () => Promise<void>;
 };
@@ -39,8 +43,13 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 	redis.on('error', (error) => {
 		logger.warn({ dependency: 'redis', errorName: error.name }, 'API Redis dependency error');
 	});
+	const credentialService = createApiCredentialService({
+		repository: createPrismaApiCredentialRepository(prisma),
+		pepper: config.credentialPepper
+	});
 
 	return {
+		credentialService,
 		checkReadiness: async (timeoutMs) => {
 			const [databaseReady, redisReady] = await Promise.all([
 				settlesWithin(prisma.$queryRaw`SELECT 1`, timeoutMs),
