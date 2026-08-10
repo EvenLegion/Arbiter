@@ -197,6 +197,23 @@ describe('API integration and credential lifecycle', () => {
 		expect((await standalone.prisma.apiCredential.findUniqueOrThrow({ where: { id: stored.id } })).lastUsedAt).toEqual(currentTime);
 	});
 
+	it('bounds credential lookup and last-use statements by the request deadline', async () => {
+		const integration = await createIntegration();
+		const minted = await service.mintCredential(creator, {
+			integrationId: integration.id,
+			label: 'Deadline reader',
+			scopes: ['users:read']
+		});
+		if (!minted.ok) throw new Error(`Credential setup failed: ${minted.error.code}`);
+
+		await expectAuthenticationDeadline(async (tx) => {
+			await tx.$executeRawUnsafe('LOCK TABLE "ApiCredential" IN ACCESS EXCLUSIVE MODE');
+		}, minted.value.secret);
+		await expectAuthenticationDeadline(async (tx) => {
+			await tx.$queryRaw`SELECT "id" FROM "ApiCredential" WHERE "id" = ${minted.value.credential.id} FOR UPDATE`;
+		}, minted.value.secret);
+	});
+
 	it('rejects unsupported scopes and expiry outside the one-year boundary', async () => {
 		const integration = await createIntegration();
 		expect(
@@ -283,5 +300,36 @@ describe('API integration and credential lifecycle', () => {
 		});
 		if (!result.ok) throw new Error(`Credential setup failed: ${result.error.code}`);
 		return result.value;
+	}
+
+	async function expectAuthenticationDeadline(
+		acquireLock: (tx: Parameters<Parameters<StandalonePrisma['prisma']['$transaction']>[0]>[0]) => Promise<void>,
+		secret: string
+	): Promise<void> {
+		let releaseLock: (() => void) | undefined;
+		const release = new Promise<void>((resolve) => {
+			releaseLock = resolve;
+		});
+		let markLocked: (() => void) | undefined;
+		const locked = new Promise<void>((resolve) => {
+			markLocked = resolve;
+		});
+		const lockTransaction = standalone.prisma.$transaction(async (tx) => {
+			await acquireLock(tx);
+			markLocked?.();
+			await release;
+		});
+		await locked;
+		const deadlineAtMs = Date.now() + 100;
+		const ciSchedulingToleranceMs = 400;
+		try {
+			await expect(service.authenticate(secret, undefined, deadlineAtMs)).rejects.toThrow(
+				/statement timeout|transaction.*(?:closed|expired)|deadline exceeded/i
+			);
+			expect(Date.now()).toBeLessThanOrEqual(deadlineAtMs + ciSchedulingToleranceMs);
+		} finally {
+			releaseLock?.();
+			await lockTransaction;
+		}
 	}
 });

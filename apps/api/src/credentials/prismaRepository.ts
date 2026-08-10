@@ -141,8 +141,10 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 			const credential = await prisma.apiCredential.findUnique({ where: { id }, include: { integration: true } });
 			return credential ? mapCredentialWithIntegration(credential) : null;
 		},
-		findCredentialByPrefix: async (prefix) => {
-			const credential = await prisma.apiCredential.findUnique({ where: { prefix }, include: { integration: true } });
+		findCredentialByPrefix: async (prefix, signal, deadlineAtMs) => {
+			const credential = await withRequestDeadline(prisma, signal, deadlineAtMs, (tx) =>
+				tx.apiCredential.findUnique({ where: { prefix }, include: { integration: true } })
+			);
 			return credential ? mapCredentialWithIntegration(credential) : null;
 		},
 		listCredentials: async (integrationId) => {
@@ -165,14 +167,38 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 				credential: mapCredentialWithIntegration(credential)
 			};
 		},
-		touchLastUsed: async (id, usedAt, staleBefore) => {
-			const result = await prisma.apiCredential.updateMany({
-				where: { id, OR: [{ lastUsedAt: null }, { lastUsedAt: { lt: staleBefore } }] },
-				data: { lastUsedAt: usedAt }
-			});
+		touchLastUsed: async (id, usedAt, staleBefore, signal, deadlineAtMs) => {
+			const result = await withRequestDeadline(prisma, signal, deadlineAtMs, (tx) =>
+				tx.apiCredential.updateMany({
+					where: { id, OR: [{ lastUsedAt: null }, { lastUsedAt: { lt: staleBefore } }] },
+					data: { lastUsedAt: usedAt }
+				})
+			);
 			return result.count === 1;
 		}
 	};
+}
+
+async function withRequestDeadline<T>(
+	prisma: PrismaClient,
+	signal: AbortSignal | undefined,
+	deadlineAtMs: number | undefined,
+	operation: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+	signal?.throwIfAborted();
+	const remainingMs = deadlineAtMs === undefined ? undefined : Math.floor(deadlineAtMs - Date.now());
+	if (remainingMs !== undefined && remainingMs <= 0) throw new Error('API credential request deadline exceeded');
+	const execute = async (tx: Prisma.TransactionClient) => {
+		signal?.throwIfAborted();
+		if (remainingMs !== undefined) {
+			await tx.$queryRaw`SELECT set_config('statement_timeout', ${`${remainingMs}ms`}, true)`;
+		}
+		const result = await operation(tx);
+		signal?.throwIfAborted();
+		return result;
+	};
+	if (remainingMs === undefined) return prisma.$transaction(execute);
+	return prisma.$transaction(execute, { maxWait: remainingMs, timeout: remainingMs });
 }
 
 async function lockIntegration(tx: Prisma.TransactionClient, id: string): Promise<void> {

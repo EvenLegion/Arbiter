@@ -46,7 +46,7 @@ export async function handleDirectoryHttpRequest({
 
 	const secret = parseBearerCredential(request.headers.authorization);
 	if (!secret) throw unauthorized(response);
-	const authentication = await callCredentialAuthentication(() => credentialService.authenticate(secret, signal), signal);
+	const authentication = await callCredentialAuthentication(() => credentialService.authenticate(secret, signal, deadlineAtMs), signal);
 	if (!authentication.ok) {
 		if (authentication.error.code === 'invalid_credential') throw unauthorized(response);
 		throw new ApiHttpError(503, 'service_unavailable', 'Directory service is unavailable');
