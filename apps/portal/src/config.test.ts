@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parsePortalConfig } from './config';
+import { buildPortalContentSecurityPolicy, parsePortalConfig } from './config';
 
 describe('portal public configuration', () => {
 	it('accepts one public HTTPS API origin and explicit local development origins', () => {
@@ -13,5 +13,12 @@ describe('portal public configuration', () => {
 		expect(() => parsePortalConfig('https://api.example/v1')).toThrow('only the API origin');
 		expect(() => parsePortalConfig('http://api.example')).toThrow('HTTPS');
 		expect(() => parsePortalConfig('http://localhost:3000', true)).toThrow('HTTPS');
+	});
+
+	it('builds an exact-origin production content security policy', () => {
+		const policy = buildPortalContentSecurityPolicy('https://api.arbiter.example');
+		expect(policy).toContain('connect-src https://api.arbiter.example');
+		expect(policy).toContain("frame-ancestors 'none'");
+		expect(policy).not.toContain('https:;');
 	});
 });

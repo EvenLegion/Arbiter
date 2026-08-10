@@ -37,6 +37,7 @@ const config: ApiConfig = {
 	requestTimeoutMs: 2_000,
 	headersTimeoutMs: 2_000,
 	keepAliveTimeoutMs: 1_000,
+	trustProxy: false,
 	readinessTimeoutMs: 100,
 	databaseConnectTimeoutMs: 1_000,
 	redisConnectTimeoutMs: 1_000,

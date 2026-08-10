@@ -1,5 +1,7 @@
 import {
 	API_V1_ROUTES,
+	API_CONTRACT_VERSION,
+	API_CONTRACT_VERSION_HEADER,
 	ApiErrorEnvelopeSchema,
 	ApiCredentialListResponseSchema,
 	ApiCredentialResponseSchema,
@@ -53,6 +55,14 @@ export function createPortalApi(config: PortalConfig, fetchImpl: typeof fetch = 
 			});
 		} catch {
 			throw new PortalApiError('network_error', 'The Arbiter API could not be reached.', null, null);
+		}
+		if (response.headers.get(API_CONTRACT_VERSION_HEADER) !== API_CONTRACT_VERSION) {
+			throw new PortalApiError(
+				'invalid_response',
+				'The Arbiter API is not compatible with this portal deployment.',
+				response.status,
+				response.headers.get('x-request-id')
+			);
 		}
 
 		const payload = await readJson(response);

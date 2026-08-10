@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	API_V1_ROUTES,
+	API_CONTRACT_VERSION,
+	API_CONTRACT_VERSION_HEADER,
 	ApiAuthIdentitySchema,
 	ApiCredentialMetadataSchema,
 	ApiCredentialListResponseSchema,
@@ -33,6 +35,8 @@ describe('v1 API contracts', () => {
 			}).success
 		).toBe(true);
 		expect(API_V1_ROUTES.health).toBe('/api/v1/health');
+		expect(API_CONTRACT_VERSION).toBe('1');
+		expect(API_CONTRACT_VERSION_HEADER).toBe('x-arbiter-api-contract-version');
 	});
 
 	it('defines safe browser auth contracts without OAuth or session secrets', () => {

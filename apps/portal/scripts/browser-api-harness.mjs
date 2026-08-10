@@ -44,11 +44,13 @@ const server = createServer(async (request, response) => {
 	response.setHeader('content-type', 'application/json; charset=utf-8');
 	response.setHeader('cache-control', 'no-store');
 	response.setHeader('x-request-id', requestId);
+	response.setHeader('x-arbiter-api-contract-version', '1');
 	const origin = request.headers.origin;
 	if (origin && origin !== PORTAL_ORIGIN) return error(response, 403, 'origin_not_allowed', 'Origin is not allowed', requestId);
 	if (origin === PORTAL_ORIGIN) {
 		response.setHeader('access-control-allow-origin', origin);
 		response.setHeader('access-control-allow-credentials', 'true');
+		response.setHeader('access-control-expose-headers', 'X-Request-Id, X-Arbiter-Api-Contract-Version');
 		response.setHeader('vary', 'Origin');
 	}
 	if (request.method === 'OPTIONS') {

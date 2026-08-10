@@ -41,6 +41,65 @@ services:
     mem_limit: ${BOT_MEM_LIMIT:-768m}
     cpus: ${BOT_CPUS:-1.0}
 
+  arbiter-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: arbiter-api:${ARBITER_API_IMAGE_TAG:-latest}
+    container_name: arbiter-v3-api
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      API_PUBLIC_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL is required}
+      API_TRUST_PROXY: 'true'
+      API_LOG_FILE_PATH: /app/logs/api.log
+      API_LOG_LEVEL: ${API_LOG_LEVEL:-info}
+      API_CONSOLE_LOG_LEVEL: ${API_CONSOLE_LOG_LEVEL:-info}
+      API_BODY_LIMIT_BYTES: ${API_BODY_LIMIT_BYTES:-65536}
+      API_REQUEST_TIMEOUT_MS: ${API_REQUEST_TIMEOUT_MS:-10000}
+      API_HEADERS_TIMEOUT_MS: ${API_HEADERS_TIMEOUT_MS:-10000}
+      API_KEEP_ALIVE_TIMEOUT_MS: ${API_KEEP_ALIVE_TIMEOUT_MS:-5000}
+      API_READINESS_TIMEOUT_MS: ${API_READINESS_TIMEOUT_MS:-2000}
+      API_DB_CONNECT_TIMEOUT_MS: ${API_DB_CONNECT_TIMEOUT_MS:-5000}
+      API_REDIS_CONNECT_TIMEOUT_MS: ${API_REDIS_CONNECT_TIMEOUT_MS:-5000}
+      API_SHUTDOWN_TIMEOUT_MS: ${API_SHUTDOWN_TIMEOUT_MS:-10000}
+      API_DB_POOL_MAX: ${API_DB_POOL_MAX:-4}
+      API_CREDENTIAL_PEPPER: ${API_CREDENTIAL_PEPPER:?API_CREDENTIAL_PEPPER is required}
+      API_DISCORD_CLIENT_ID: ${API_DISCORD_CLIENT_ID:?API_DISCORD_CLIENT_ID is required}
+      API_DISCORD_CLIENT_SECRET: ${API_DISCORD_CLIENT_SECRET:?API_DISCORD_CLIENT_SECRET is required}
+      API_DISCORD_CALLBACK_URL: ${API_DISCORD_CALLBACK_URL:?API_DISCORD_CALLBACK_URL is required}
+      API_ALLOWED_ORIGINS: ${API_ALLOWED_ORIGINS:?API_ALLOWED_ORIGINS is required}
+      API_AUTH_REDIRECT_URLS: ${API_AUTH_REDIRECT_URLS:?API_AUTH_REDIRECT_URLS is required}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_HOST: arbiter-redis
+      REDIS_PORT: 6379
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      API_REDIS_NAMESPACE: ${API_REDIS_NAMESPACE:-arbiter:api:v1}
+      API_REDIS_MAX_TTL_SECONDS: ${API_REDIS_MAX_TTL_SECONDS:-3600}
+      API_DIRECTORY_RATE_LIMIT_REQUESTS: ${API_DIRECTORY_RATE_LIMIT_REQUESTS:-60}
+      API_DIRECTORY_RATE_LIMIT_WINDOW_SECONDS: ${API_DIRECTORY_RATE_LIMIT_WINDOW_SECONDS:-60}
+    user: ${API_UID:-1000}:${API_GID:-1000}
+    ports:
+      - '${API_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-3000}:3000'
+    volumes:
+      - ${API_LOGS_DIR:-/opt/arbiter/api-logs}:/app/logs
+    depends_on:
+      arbiter-redis:
+        condition: service_healthy
+      arbiter-loki:
+        condition: service_started
+      arbiter-alloy:
+        condition: service_started
+    stop_grace_period: 15s
+    mem_limit: ${API_MEM_LIMIT:-512m}
+    cpus: ${API_CPUS:-0.5}
+
   arbiter-redis:
     image: ${REDIS_DOCKER_VERSION:-redis:7-alpine}
     container_name: arbiter-v3-redis
@@ -92,11 +151,12 @@ services:
     environment:
       ARBITER_ENV: production
       ARBITER_LOG_GLOB: /var/log/arbiter/arbiter.log
-      ARBITER_API_LOG_GLOB: /var/log/arbiter/api.log
+      ARBITER_API_LOG_GLOB: /var/log/arbiter-api/api.log
       LOKI_WRITE_URL: http://arbiter-loki:3100/loki/api/v1/push
     volumes:
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - ${BOT_LOGS_DIR:-/opt/arbiter/bot-logs}:/var/log/arbiter:ro
+      - ${API_LOGS_DIR:-/opt/arbiter/api-logs}:/var/log/arbiter-api:ro
       - ${ALLOY_DATA_DIR:-/opt/arbiter/alloy-data}:/var/lib/alloy
     depends_on:
       arbiter-loki:

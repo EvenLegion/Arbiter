@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "pnpm --filter @arbiter/api-contracts build && vite --host 127.0.0.1 --port 4173",
-		"build": "pnpm --filter @arbiter/api-contracts build && tsc -p tsconfig.json --noEmit && vite build",
+		"build": "pnpm --filter @arbiter/api-contracts build && tsc -p tsconfig.json --noEmit && vite build && node scripts/verify-build.mjs",
 		"preview": "vite preview --host 127.0.0.1 --port 4173",
 		"browser:harness": "node scripts/browser-api-harness.mjs",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
