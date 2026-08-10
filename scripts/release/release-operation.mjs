@@ -14,14 +14,20 @@ import {
 } from './lib.mjs';
 import { assertValidReleaseAggregation, prepareReleasePreview } from './release-aggregation.mjs';
 
-export async function runReleasePreview({ repoRoot = REPO_ROOT, releaseDate = new Date(), attributions = null } = {}) {
+export async function runReleasePreview({
+	repoRoot = REPO_ROOT,
+	releaseDate = new Date(),
+	attributions = null,
+	requireCompleteAttribution = false
+} = {}) {
 	const plans = readReleasePlans({ repoRoot });
 	if (plans.length === 0) {
 		return { status: 'empty', plans: [] };
 	}
 
 	assertValidReleaseAggregation(plans);
-	const resolvedAttributions = attributions ?? (await resolveReleaseCommitAttributions(plans, { repoRoot }));
+	const resolvedAttributions =
+		attributions ?? (await resolveReleaseCommitAttributions(plans, { repoRoot, strictAttribution: requireCompleteAttribution }));
 	const packageJson = readPackageJson({ repoRoot });
 	return {
 		status: 'ready',
@@ -36,7 +42,7 @@ export async function runReleasePreview({ repoRoot = REPO_ROOT, releaseDate = ne
 }
 
 export async function runReleasePublish({ repoRoot = REPO_ROOT, releaseDate = new Date(), attributions = null, log = console.log } = {}) {
-	const preview = await runReleasePreview({ repoRoot, releaseDate, attributions });
+	const preview = await runReleasePreview({ repoRoot, releaseDate, attributions, requireCompleteAttribution: true });
 	if (preview.status === 'empty') {
 		log('No release plans found. Skipping release.');
 		writeGithubOutput('release_created', 'false');

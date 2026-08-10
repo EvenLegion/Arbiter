@@ -169,6 +169,12 @@ output, delete plans, stage, or commit. Missing publishers, duplicate publishers
 conflicting group sections, invalid public descriptions, and legacy schemas fail
 with the affected group and plan names plus recovery guidance.
 
+An unpushed working-branch commit can appear without GitHub attribution in a
+local preview, with a warning to push and preview again. Release preparation is
+strict: it fails before consuming plans if GitHub metadata cannot be resolved,
+so the committed provenance manifest never silently drops available PR or
+contributor attribution.
+
 Review the combined preview as one announcement. The Discord publisher truncates
 the release-note embed at 4,000 characters, so consolidate overlapping outcomes
 before release prep instead of relying on truncation.

@@ -356,7 +356,7 @@ export function aggregatePlanEntries(plans) {
 	});
 }
 
-export async function aggregateReleaseEntries(plans, { repoRoot = REPO_ROOT } = {}) {
+export async function aggregateReleaseEntries(plans, { repoRoot = REPO_ROOT, strictAttribution = false } = {}) {
 	const commitEntries = aggregatePlanEntries(plans);
 	const githubContext = resolveGitHubContext({ repoRoot });
 	if (!githubContext) {
@@ -365,7 +365,8 @@ export async function aggregateReleaseEntries(plans, { repoRoot = REPO_ROOT } = 
 
 	const pullRequestEntries = await resolvePullRequestEntries({
 		entries: commitEntries,
-		githubContext
+		githubContext,
+		strictAttribution
 	});
 	if (pullRequestEntries.length === 0) {
 		return commitEntries;
@@ -374,8 +375,8 @@ export async function aggregateReleaseEntries(plans, { repoRoot = REPO_ROOT } = 
 	return pullRequestEntries;
 }
 
-export async function resolveReleaseCommitAttributions(plans, { repoRoot = REPO_ROOT } = {}) {
-	const entries = await aggregateReleaseEntries(plans, { repoRoot });
+export async function resolveReleaseCommitAttributions(plans, { repoRoot = REPO_ROOT, strictAttribution = false } = {}) {
+	const entries = await aggregateReleaseEntries(plans, { repoRoot, strictAttribution });
 	return new Map(entries.map((entry) => [entry.sha.toLowerCase(), entry]));
 }
 
@@ -446,7 +447,7 @@ function parseGitHubRepositoryFromOrigin({ repoRoot = REPO_ROOT } = {}) {
 	return null;
 }
 
-async function resolvePullRequestEntries({ entries, githubContext }) {
+async function resolvePullRequestEntries({ entries, githubContext, strictAttribution }) {
 	const results = await mapWithConcurrencyLimit(entries, 5, async (entry) => {
 		let pullRequest;
 		try {
@@ -455,11 +456,16 @@ async function resolvePullRequestEntries({ entries, githubContext }) {
 				githubContext
 			});
 		} catch (error) {
-			throw new Error(
+			const message =
 				`Unable to resolve PR metadata for commit ${entry.sha.slice(0, 7)}. ` +
-					'Release preview and preparation cannot guarantee complete attribution until GitHub metadata is available. ' +
-					`GitHub reported: ${error instanceof Error ? error.message : String(error)}`
+				`GitHub reported: ${error instanceof Error ? error.message : String(error)}`;
+			if (strictAttribution) {
+				throw new Error(`${message} Release preparation requires complete attribution before consuming plans.`);
+			}
+			console.warn(
+				`Warning: ${message} The read-only preview will show available attribution; push the commit and preview again to refresh it.`
 			);
+			pullRequest = null;
 		}
 
 		return {

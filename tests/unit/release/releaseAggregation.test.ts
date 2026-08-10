@@ -2,7 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { resolveReleaseCommitAttributions } from '../../../scripts/release/lib.mjs';
 import { collectReleasePlanStructureIssues } from '../../../scripts/release/plan-contract.mjs';
 import { collectReleaseAggregationIssues, prepareReleasePreview } from '../../../scripts/release/release-aggregation.mjs';
 import { runReleasePlanMigration } from '../../../scripts/release/plan-migration.mjs';
@@ -12,6 +13,8 @@ const repositories: string[] = [];
 const releaseDate = new Date('2026-08-10T12:00:00.000Z');
 
 afterEach(() => {
+	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
 	for (const repository of repositories.splice(0)) {
 		rmSync(repository, { recursive: true, force: true });
 	}
@@ -185,6 +188,31 @@ describe('consolidated release preview', () => {
 		expect(readFileSync(path.join(repository, 'CHANGELOG.md'), 'utf8')).toContain(preview.notes.trim());
 		expect(() => readFileSync(path.join(repository, '.release-plans', 'standalone.json'))).toThrow();
 		expect(() => readFileSync(path.join(repository, '.release-plans', 'internal.json'))).toThrow();
+	});
+
+	it('allows unavailable attribution in local preview but requires it during release preparation', async () => {
+		const plans = [makePlan('unpushed.json', { mode: 'internal' })];
+		const previousRepository = process.env.GITHUB_REPOSITORY;
+		process.env.GITHUB_REPOSITORY = 'EvenLegion/Arbiter';
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({ ok: false, status: 422, statusText: 'Unprocessable Entity' }))
+		);
+		vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+		try {
+			const localAttributions = await resolveReleaseCommitAttributions(plans);
+			expect(localAttributions.get(plans[0].plan.commits[0].sha)).toEqual(plans[0].plan.commits[0]);
+			await expect(resolveReleaseCommitAttributions(plans, { strictAttribution: true })).rejects.toThrow(
+				/Release preparation requires complete attribution/
+			);
+		} finally {
+			if (previousRepository === undefined) {
+				delete process.env.GITHUB_REPOSITORY;
+			} else {
+				process.env.GITHUB_REPOSITORY = previousRepository;
+			}
+		}
 	});
 });
 
