@@ -1,7 +1,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const buildDirectory = new URL('../dist/', import.meta.url);
+const buildDirectory = fileURLToPath(new URL('../dist/', import.meta.url));
 const forbidden = [
 	'API_CREDENTIAL_PEPPER',
 	'API_DISCORD_CLIENT_SECRET',
@@ -24,11 +25,11 @@ for (const path of await listFiles(buildDirectory)) {
 
 process.stdout.write('Portal build contains no source maps or server-only configuration markers.\n');
 
-async function listFiles(directoryUrl) {
+async function listFiles(directory) {
 	const paths = [];
-	for (const entry of await readdir(directoryUrl, { withFileTypes: true })) {
-		const path = join(directoryUrl.pathname, entry.name);
-		if (entry.isDirectory()) paths.push(...(await listFiles(new URL(`${entry.name}/`, directoryUrl))));
+	for (const entry of await readdir(directory, { withFileTypes: true })) {
+		const path = join(directory, entry.name);
+		if (entry.isDirectory()) paths.push(...(await listFiles(path)));
 		else paths.push(path);
 	}
 	return paths;
