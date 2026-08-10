@@ -31,10 +31,11 @@ export function loadPortalConfig(): PortalConfig {
 
 export function buildPortalContentSecurityPolicy(apiBaseUrl: unknown, production = true): string {
 	const config = parsePortalConfig(apiBaseUrl, production);
+	const connectSources = production ? config.apiBaseUrl : `${config.apiBaseUrl} ws://127.0.0.1:4173`;
 	return [
 		"default-src 'self'",
 		"base-uri 'none'",
-		`connect-src ${config.apiBaseUrl}`,
+		`connect-src ${connectSources}`,
 		"font-src 'self'",
 		"form-action 'none'",
 		"frame-ancestors 'none'",
