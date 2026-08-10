@@ -33,6 +33,7 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 		max: config.databasePoolMax,
 		idleTimeoutMillis: 10_000,
 		connectionTimeoutMillis: config.databaseConnectTimeoutMs,
+		statement_timeout: config.requestTimeoutMs,
 		application_name: 'arbiter-api'
 	});
 	pool.on('error', (error) => {

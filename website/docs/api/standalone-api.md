@@ -168,7 +168,7 @@ A successful direct read returns one user DTO:
 }
 ```
 
-Its `data` is `{ "users": [...], "nextCursor": null | "<opaque-cursor>" }`. At most 100 Discord IDs, division codes, and results are accepted. Unsupported fields, URL query parameters, invalid snowflakes, impossible rank bounds, oversized batches/pages, malformed cursors, or bodies over `API_BODY_LIMIT_BYTES` return stable safe errors. The whole request remains bounded by `API_REQUEST_TIMEOUT_MS`.
+Its `data` is `{ "users": [...], "nextCursor": null | "<opaque-cursor>" }`. At most 100 Discord IDs, division codes, and results are accepted. Unsupported fields, URL query parameters, invalid snowflakes, impossible rank bounds, oversized batches/pages, malformed cursors, or bodies over `API_BODY_LIMIT_BYTES` return stable safe errors. The whole request remains bounded by `API_REQUEST_TIMEOUT_MS`. The API-owned Postgres pool applies that value as its maximum statement timeout, and directory transactions tighten each statement to the request's remaining deadline so a timed-out request cannot retain a pool connection indefinitely.
 
 ## Configuration
 

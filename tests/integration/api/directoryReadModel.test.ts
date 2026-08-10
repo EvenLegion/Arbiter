@@ -118,6 +118,33 @@ describe('API directory read model', () => {
 		expect(JSON.stringify(plan)).toContain('User_discordUserId_key');
 	});
 
+	it('cancels a directory statement that cannot complete before the request deadline', async () => {
+		const division = await createDivision(standalone.prisma, { code: 'LOCKED' });
+		let releaseLock: (() => void) | undefined;
+		const release = new Promise<void>((resolve) => {
+			releaseLock = resolve;
+		});
+		let markLocked: (() => void) | undefined;
+		const locked = new Promise<void>((resolve) => {
+			markLocked = resolve;
+		});
+		const lockTransaction = standalone.prisma.$transaction(async (tx) => {
+			await tx.$executeRawUnsafe('LOCK TABLE "Division" IN ACCESS EXCLUSIVE MODE');
+			markLocked?.();
+			await release;
+		});
+		await locked;
+
+		const startedAt = Date.now();
+		try {
+			await expect(service.query({ divisionCodesAny: [division.code] }, undefined, Date.now() + 100)).rejects.toThrow();
+			expect(Date.now() - startedAt).toBeLessThan(1_000);
+		} finally {
+			releaseLock?.();
+			await lockTransaction;
+		}
+	});
+
 	async function seedDirectoryFixture() {
 		const [zero, rankThree, negative, rankOne] = await Promise.all([
 			createUser(standalone.prisma, { discordUserId: '100000000000000001' }),

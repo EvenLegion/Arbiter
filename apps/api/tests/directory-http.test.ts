@@ -88,7 +88,11 @@ describe('credential-authenticated directory HTTP routes', () => {
 		expect(await response.json()).toEqual({ data: USER, meta: { requestId: expect.any(String) } });
 		expect(credentialService.authenticate).toHaveBeenCalledWith('synthetic-secret', expect.any(AbortSignal));
 		expect(rateLimiter.consume).toHaveBeenCalledWith(AUTHENTICATION.credentialId);
-		expect(directoryService.query).toHaveBeenCalledWith({ discordUserIds: [USER.discordUserId], limit: 1 }, expect.any(AbortSignal));
+		expect(directoryService.query).toHaveBeenCalledWith(
+			{ discordUserIds: [USER.discordUserId], limit: 1 },
+			expect.any(AbortSignal),
+			expect.any(Number)
+		);
 		expect((credentialService.authenticate as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]).toBeLessThan(
 			(rateLimiter.consume as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0] ?? 0
 		);
@@ -114,7 +118,8 @@ describe('credential-authenticated directory HTTP routes', () => {
 		expect(await query.json()).toEqual({ data: { users: [], nextCursor: null }, meta: { requestId: expect.any(String) } });
 		expect(directoryService.query).toHaveBeenCalledWith(
 			expect.objectContaining({ discordUserIds: [USER.discordUserId], divisionCodesAny: ['LGN'], limit: 25 }),
-			expect.any(AbortSignal)
+			expect.any(AbortSignal),
+			expect.any(Number)
 		);
 
 		const direct = await fetch(`${baseUrl}/api/v1/users/${USER.discordUserId}`, {

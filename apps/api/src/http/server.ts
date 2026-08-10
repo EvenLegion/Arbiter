@@ -74,6 +74,7 @@ async function handleRequest({
 	logger: Logger;
 }) {
 	const startedAt = performance.now();
+	const requestDeadlineAtMs = Date.now() + config.requestTimeoutMs;
 	const requestId = resolveRequestId(request.headers['x-request-id']);
 	response.setHeader('x-request-id', requestId);
 	response.setHeader('content-type', 'application/json; charset=utf-8');
@@ -126,6 +127,7 @@ async function handleRequest({
 				directoryService: dependencies.directoryService,
 				rateLimiter: dependencies.directoryRateLimiter,
 				logContext: directoryLogContext,
+				deadlineAtMs: requestDeadlineAtMs,
 				signal: requestAbortController.signal
 			})
 		)

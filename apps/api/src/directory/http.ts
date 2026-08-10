@@ -23,6 +23,7 @@ export async function handleDirectoryHttpRequest({
 	directoryService,
 	rateLimiter,
 	logContext,
+	deadlineAtMs,
 	signal
 }: {
 	request: IncomingMessage;
@@ -34,6 +35,7 @@ export async function handleDirectoryHttpRequest({
 	directoryService: DirectoryService;
 	rateLimiter: DirectoryRateLimiter;
 	logContext: DirectoryRequestLogContext;
+	deadlineAtMs: number;
 	signal: AbortSignal;
 }): Promise<boolean> {
 	const route = parseDirectoryRoute(url.pathname);
@@ -63,7 +65,11 @@ export async function handleDirectoryHttpRequest({
 	}
 
 	if (route.kind === 'direct') {
-		const result = await callDirectory(() => directoryService.query({ discordUserIds: [route.discordUserId], limit: 1 }, signal), signal);
+		const result = await callDirectory(
+			() => directoryService.query({ discordUserIds: [route.discordUserId], limit: 1 }, signal, deadlineAtMs),
+			signal,
+			deadlineAtMs
+		);
 		if (!result.ok) throw toDirectoryHttpError(result);
 		const user = result.value.users[0];
 		if (!user) throw new ApiHttpError(404, 'not_found', 'User was not found');
@@ -73,7 +79,7 @@ export async function handleDirectoryHttpRequest({
 
 	const input = ApiDirectoryQuerySchema.safeParse(body ?? {});
 	if (!input.success) throw new ApiHttpError(400, 'bad_request', 'Directory query is invalid');
-	const result = await callDirectory(() => directoryService.query(input.data, signal), signal);
+	const result = await callDirectory(() => directoryService.query(input.data, signal, deadlineAtMs), signal, deadlineAtMs);
 	if (!result.ok) throw toDirectoryHttpError(result);
 	writeJson(response, 200, { data: result.value, meta: { requestId } });
 	return true;
@@ -136,13 +142,18 @@ async function callRateLimiter(operation: () => Promise<DirectoryRateLimitDecisi
 	}
 }
 
-async function callDirectory(operation: () => Promise<DirectoryServiceResult>, signal: AbortSignal): Promise<DirectoryServiceResult> {
+async function callDirectory(
+	operation: () => Promise<DirectoryServiceResult>,
+	signal: AbortSignal,
+	deadlineAtMs: number
+): Promise<DirectoryServiceResult> {
 	try {
 		const result = await operation();
 		signal.throwIfAborted();
 		return result;
 	} catch {
 		signal.throwIfAborted();
+		if (Date.now() >= deadlineAtMs) throw new ApiHttpError(408, 'request_timeout', 'Request timed out');
 		throw new ApiHttpError(503, 'service_unavailable', 'Directory service is unavailable');
 	}
 }
