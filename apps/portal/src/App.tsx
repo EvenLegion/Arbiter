@@ -1,8 +1,21 @@
-import type { ApiAuthIdentity, ApiIntegrationRegistryItem } from '@arbiter/api-contracts';
+import type { ApiAuthIdentity, ApiCredentialMetadata, ApiIntegrationRegistryItem, MintApiCredentialRequest } from '@arbiter/api-contracts';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 
 import { PortalApiError, type PortalApi, type PortalSession } from './api';
-import { canArchiveIntegration, canEditIntegration, describePortalError, isPortalError, replaceIntegration } from './state';
+import { CredentialView } from './CredentialView';
+import {
+	canArchiveIntegration,
+	canEditIntegration,
+	credentialDetailPath,
+	describePortalError,
+	isPortalError,
+	parsePortalRoute,
+	replaceCredential,
+	replaceIntegration,
+	transitionOneTimeSecret,
+	type OneTimeSecretState,
+	type PortalRoute
+} from './state';
 
 type ReadyState = PortalSession & {
 	integrations: ApiIntegrationRegistryItem[];
@@ -18,6 +31,9 @@ export function App({ api }: { api: PortalApi }) {
 	const [status, setStatus] = useState<'loading' | 'signed-out' | 'ready' | 'error'>('loading');
 	const [ready, setReady] = useState<ReadyState | null>(null);
 	const [includeArchived, setIncludeArchived] = useState(false);
+	const [view, setView] = useState<PortalRoute>(() => parsePortalRoute(window.location.pathname));
+	const [credentials, setCredentials] = useState<ApiCredentialMetadata[]>([]);
+	const [oneTimeSecret, setOneTimeSecret] = useState<OneTimeSecretState>(null);
 	const [dialog, setDialog] = useState<DialogState>(null);
 	const [feedback, setFeedback] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
@@ -36,10 +52,16 @@ export function App({ api }: { api: PortalApi }) {
 		void (async () => {
 			try {
 				const session = await api.recoverSession();
-				const integrations = await api.listIntegrations(false);
-				if (!active) return;
 				if (window.location.pathname === '/auth/callback') window.history.replaceState({}, '', '/');
+				const initialView = parsePortalRoute(window.location.pathname);
+				const showArchived = initialView.kind === 'credentials';
+				const integrations = await api.listIntegrations(showArchived);
+				const initialCredentials = initialView.kind === 'credentials' ? await api.listCredentials(initialView.integrationId) : [];
+				if (!active) return;
 				setReady({ ...session, integrations });
+				setIncludeArchived(showArchived);
+				setView(initialView);
+				setCredentials(initialCredentials);
 				setStatus('ready');
 			} catch (error) {
 				if (!active) return;
@@ -55,6 +77,30 @@ export function App({ api }: { api: PortalApi }) {
 			active = false;
 		};
 	}, [api]);
+
+	useEffect(() => {
+		if (!ready) return;
+		const handlePopState = () => {
+			const next = parsePortalRoute(window.location.pathname);
+			setView(next);
+			setDialog(null);
+			setFeedback(null);
+			setOneTimeSecret((current) => transitionOneTimeSecret(current, { type: 'navigate' }));
+			if (next.kind === 'credentials') {
+				setBusy(true);
+				void api
+					.listCredentials(next.integrationId)
+					.then(setCredentials)
+					.catch((error) => {
+						setFeedback(describePortalError(error));
+						returnToSignInIfUnauthorized(error);
+					})
+					.finally(() => setBusy(false));
+			}
+		};
+		window.addEventListener('popstate', handlePopState);
+		return () => window.removeEventListener('popstate', handlePopState);
+	}, [api, ready]);
 
 	async function signIn() {
 		setBusy(true);
@@ -74,6 +120,7 @@ export function App({ api }: { api: PortalApi }) {
 		try {
 			await api.logout(ready.csrfToken);
 			setReady(null);
+			setOneTimeSecret(null);
 			setStatus('signed-out');
 			setFeedback('Signed out securely.');
 		} catch (error) {
@@ -147,6 +194,119 @@ export function App({ api }: { api: PortalApi }) {
 		});
 	}
 
+	async function openCredentials(integration: ApiIntegrationRegistryItem) {
+		window.history.pushState({}, '', credentialDetailPath(integration.id));
+		setView({ kind: 'credentials', integrationId: integration.id });
+		setDialog(null);
+		setFeedback(null);
+		setOneTimeSecret((current) => transitionOneTimeSecret(current, { type: 'navigate' }));
+		setBusy(true);
+		try {
+			setCredentials(await api.listCredentials(integration.id));
+		} catch (error) {
+			setFeedback(describePortalError(error));
+			returnToSignInIfUnauthorized(error);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	function returnToRegistry() {
+		window.history.pushState({}, '', '/');
+		setView({ kind: 'registry' });
+		setCredentials([]);
+		setFeedback(null);
+		setOneTimeSecret((current) => transitionOneTimeSecret(current, { type: 'navigate' }));
+	}
+
+	async function refreshCredentials() {
+		if (view.kind !== 'credentials') return;
+		setBusy(true);
+		setFeedback(null);
+		setOneTimeSecret((current) => transitionOneTimeSecret(current, { type: 'refresh' }));
+		try {
+			setCredentials(await api.listCredentials(view.integrationId));
+			setFeedback('Credential metadata refreshed.');
+		} catch (error) {
+			setFeedback(describePortalError(error));
+			returnToSignInIfUnauthorized(error);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function mintCredential(input: MintApiCredentialRequest): Promise<boolean> {
+		if (!ready || view.kind !== 'credentials') return false;
+		setBusy(true);
+		setFeedback(null);
+		try {
+			const minted = await api.mintCredential(ready.csrfToken, view.integrationId, input);
+			setCredentials((current) => replaceCredential(current, minted.credential));
+			setReady((current) =>
+				current
+					? {
+							...current,
+							integrations: current.integrations.map((integration) =>
+								integration.id === view.integrationId
+									? { ...integration, credentialCount: integration.credentialCount + 1 }
+									: integration
+							)
+						}
+					: current
+			);
+			setOneTimeSecret((current) => transitionOneTimeSecret(current, { type: 'reveal', value: minted }));
+			setFeedback(`${minted.credential.label} was minted. Store the one-time secret now.`);
+			return true;
+		} catch (error) {
+			if (isPortalError(error, 'network_error', 'request_timeout', 'service_unavailable')) {
+				try {
+					setCredentials(await api.listCredentials(view.integrationId));
+					setFeedback(
+						'Mint confirmation was interrupted. Credential metadata was refreshed. Do not retry blindly: if the new label appears, revoke it and mint another because its secret cannot be recovered.'
+					);
+				} catch (refreshError) {
+					setFeedback(
+						returnToSignInIfUnauthorized(refreshError)
+							? describePortalError(refreshError)
+							: 'Mint confirmation was interrupted and current credential metadata could not be verified. Refresh before taking another action.'
+					);
+				}
+			} else {
+				setFeedback(describePortalError(error));
+				returnToSignInIfUnauthorized(error);
+			}
+			return false;
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function revokeCredential(credential: ApiCredentialMetadata): Promise<boolean> {
+		if (!ready || view.kind !== 'credentials') return false;
+		setBusy(true);
+		setFeedback(null);
+		try {
+			const revoked = await api.revokeCredential(ready.csrfToken, view.integrationId, credential.id);
+			setCredentials((current) => replaceCredential(current, revoked));
+			setFeedback(`${revoked.label} was revoked.`);
+			return true;
+		} catch (error) {
+			setFeedback(describePortalError(error));
+			returnToSignInIfUnauthorized(error);
+			if (isPortalError(error, 'network_error', 'request_timeout', 'service_unavailable')) {
+				try {
+					setCredentials(await api.listCredentials(view.integrationId));
+					setFeedback('Revocation confirmation was interrupted. Credential metadata was refreshed to show the authoritative result.');
+				} catch {
+					// Keep the original safe error. The user can manually refresh before retrying.
+				}
+			}
+			return false;
+		} finally {
+			setBusy(false);
+		}
+	}
+
 	async function runMutation(operation: () => Promise<void>) {
 		setBusy(true);
 		setFeedback(null);
@@ -197,6 +357,7 @@ export function App({ api }: { api: PortalApi }) {
 		setReady(null);
 		setStatus('signed-out');
 		setDialog(null);
+		setOneTimeSecret(null);
 		return true;
 	}
 
@@ -206,71 +367,100 @@ export function App({ api }: { api: PortalApi }) {
 
 	const activeCount = ready.integrations.filter((integration) => integration.state === 'active').length;
 	const archivedCount = ready.integrations.filter((integration) => integration.state === 'archived').length;
+	const selectedIntegration =
+		view.kind === 'credentials' ? ready.integrations.find((integration) => integration.id === view.integrationId) : undefined;
 
 	return (
 		<div className="app-shell">
 			<PortalHeader identity={ready.identity} busy={busy} onLogout={() => void logout()} />
 			<main id="main-content">
-				<section className="page-intro" aria-labelledby="registry-title">
-					<div>
-						<h1 id="registry-title">Integration registry</h1>
-						<p className="intro-copy">
-							Systems with API access to Arbiter, registered and described by staff. Credentials are issued and revoked in a separate
-							workflow — this registry never shows secrets.
-						</p>
-					</div>
-					<button className="button primary" type="button" disabled={busy} onClick={() => setDialog({ kind: 'create' })}>
-						Register integration
-					</button>
-				</section>
-
-				<div className="registry-toolbar">
-					<div className="registry-counts" aria-label="Registry counts">
-						<span className="count">
-							<span className="count-label">Active</span>
-							<span className="count-value">{String(activeCount).padStart(2, '0')}</span>
-						</span>
-						<span className="count">
-							<span className="count-label">Archived</span>
-							<span className="count-value">{includeArchived ? String(archivedCount).padStart(2, '0') : '——'}</span>
-						</span>
-					</div>
-					<div className="registry-scope">
-						<label className="scope-toggle">
-							<input
-								type="checkbox"
-								checked={includeArchived}
-								disabled={busy}
-								onChange={(event) => void toggleArchived(event.currentTarget.checked)}
-							/>
-							Include archived
-						</label>
-						<button className="toolbar-action" type="button" disabled={busy} onClick={() => void refreshRegistry()}>
-							Refresh
+				{view.kind === 'credentials' && selectedIntegration ? (
+					<CredentialView
+						identity={ready.identity}
+						integration={selectedIntegration}
+						credentials={credentials}
+						oneTimeSecret={oneTimeSecret}
+						busy={busy}
+						feedback={feedback}
+						onBack={returnToRegistry}
+						onRefresh={() => void refreshCredentials()}
+						onMint={mintCredential}
+						onRevoke={revokeCredential}
+						onDismissSecret={() => setOneTimeSecret((current) => transitionOneTimeSecret(current, { type: 'dismiss' }))}
+					/>
+				) : view.kind === 'credentials' ? (
+					<section className="empty-state credential-missing">
+						<h1>Integration not found</h1>
+						<p>This direct link does not match an integration visible to your current staff session.</p>
+						<button className="button ghost" type="button" onClick={returnToRegistry}>
+							Return to registry
 						</button>
-					</div>
-				</div>
+					</section>
+				) : (
+					<>
+						<section className="page-intro" aria-labelledby="registry-title">
+							<div>
+								<h1 id="registry-title">Integration registry</h1>
+								<p className="intro-copy">
+									Systems with API access to Arbiter, registered and described by staff. Open an integration to issue and revoke
+									credentials; existing secrets are never shown.
+								</p>
+							</div>
+							<button className="button primary" type="button" disabled={busy} onClick={() => setDialog({ kind: 'create' })}>
+								Register integration
+							</button>
+						</section>
 
-				<div className="status-line" role="status" aria-live="polite">
-					{feedback ?? `${ready.integrations.length} integration${ready.integrations.length === 1 ? '' : 's'} in this view`}
-				</div>
+						<div className="registry-toolbar">
+							<div className="registry-counts" aria-label="Registry counts">
+								<span className="count">
+									<span className="count-label">Active</span>
+									<span className="count-value">{String(activeCount).padStart(2, '0')}</span>
+								</span>
+								<span className="count">
+									<span className="count-label">Archived</span>
+									<span className="count-value">{includeArchived ? String(archivedCount).padStart(2, '0') : '——'}</span>
+								</span>
+							</div>
+							<div className="registry-scope">
+								<label className="scope-toggle">
+									<input
+										type="checkbox"
+										checked={includeArchived}
+										disabled={busy}
+										onChange={(event) => void toggleArchived(event.currentTarget.checked)}
+									/>
+									Include archived
+								</label>
+								<button className="toolbar-action" type="button" disabled={busy} onClick={() => void refreshRegistry()}>
+									Refresh
+								</button>
+							</div>
+						</div>
 
-				<RegistryList
-					identity={ready.identity}
-					integrations={ready.integrations}
-					includeArchived={includeArchived}
-					onEdit={(integration) => setDialog({ kind: 'edit', integration })}
-					onArchive={(integration) => setDialog({ kind: 'archive', integration })}
-				/>
+						<div className="status-line" role="status" aria-live="polite">
+							{feedback ?? `${ready.integrations.length} integration${ready.integrations.length === 1 ? '' : 's'} in this view`}
+						</div>
 
-				<footer className="access-notes">
-					<p>
-						{ready.identity.role === 'EXEC'
-							? 'EXEC access — you can register integrations, edit any active record, and archive.'
-							: 'STAFF access — you can register integrations and edit the ones you created. Archiving requires EXEC.'}
-					</p>
-					<p>Credential secrets and credential management are intentionally not available in this portal.</p>
-				</footer>
+						<RegistryList
+							identity={ready.identity}
+							integrations={ready.integrations}
+							includeArchived={includeArchived}
+							onEdit={(integration) => setDialog({ kind: 'edit', integration })}
+							onArchive={(integration) => setDialog({ kind: 'archive', integration })}
+							onManage={(integration) => void openCredentials(integration)}
+						/>
+
+						<footer className="access-notes">
+							<p>
+								{ready.identity.role === 'EXEC'
+									? 'EXEC access — you can register integrations, edit any active record, and archive.'
+									: 'STAFF access — you can register integrations and edit the ones you created. Archiving requires EXEC.'}
+							</p>
+							<p>Credential secrets are displayed only once after minting and are never recoverable from the portal.</p>
+						</footer>
+					</>
+				)}
 			</main>
 
 			{dialog?.kind === 'create' && (
@@ -335,13 +525,15 @@ function RegistryList({
 	integrations,
 	includeArchived,
 	onEdit,
-	onArchive
+	onArchive,
+	onManage
 }: {
 	identity: ApiAuthIdentity;
 	integrations: ApiIntegrationRegistryItem[];
 	includeArchived: boolean;
 	onEdit: (integration: ApiIntegrationRegistryItem) => void;
 	onArchive: (integration: ApiIntegrationRegistryItem) => void;
+	onManage: (integration: ApiIntegrationRegistryItem) => void;
 }) {
 	if (integrations.length === 0) {
 		return (
@@ -361,9 +553,18 @@ function RegistryList({
 
 	return (
 		<section className="registry-records" aria-label="Registered integrations">
-			{active.length > 0 && <RegistryGroup label="Active" integrations={active} identity={identity} onEdit={onEdit} onArchive={onArchive} />}
+			{active.length > 0 && (
+				<RegistryGroup label="Active" integrations={active} identity={identity} onEdit={onEdit} onArchive={onArchive} onManage={onManage} />
+			)}
 			{archived.length > 0 && (
-				<RegistryGroup label="Archived" integrations={archived} identity={identity} onEdit={onEdit} onArchive={onArchive} />
+				<RegistryGroup
+					label="Archived"
+					integrations={archived}
+					identity={identity}
+					onEdit={onEdit}
+					onArchive={onArchive}
+					onManage={onManage}
+				/>
 			)}
 		</section>
 	);
@@ -374,13 +575,15 @@ function RegistryGroup({
 	integrations,
 	identity,
 	onEdit,
-	onArchive
+	onArchive,
+	onManage
 }: {
 	label: string;
 	integrations: ApiIntegrationRegistryItem[];
 	identity: ApiAuthIdentity;
 	onEdit: (integration: ApiIntegrationRegistryItem) => void;
 	onArchive: (integration: ApiIntegrationRegistryItem) => void;
+	onManage: (integration: ApiIntegrationRegistryItem) => void;
 }) {
 	return (
 		<section className="registry-group" aria-labelledby={`${label}-title`}>
@@ -420,6 +623,9 @@ function RegistryGroup({
 						</div>
 					</dl>
 					<div className="record-actions">
+						<button className="record-action" type="button" onClick={() => onManage(integration)}>
+							Manage credentials
+						</button>
 						{canEditIntegration(identity, integration) && (
 							<button className="record-action" type="button" onClick={() => onEdit(integration)}>
 								Edit
@@ -429,9 +635,6 @@ function RegistryGroup({
 							<button className="record-action danger" type="button" onClick={() => onArchive(integration)}>
 								Archive
 							</button>
-						)}
-						{!canEditIntegration(identity, integration) && !canArchiveIntegration(identity, integration) && (
-							<span className="read-only-note">View only</span>
 						)}
 					</div>
 				</article>

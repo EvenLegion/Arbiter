@@ -1,4 +1,4 @@
-import type { ApiAuthIdentity, ApiIntegrationRegistryItem } from '@arbiter/api-contracts';
+import type { ApiAuthIdentity, ApiCredentialMetadata, ApiIntegrationRegistryItem } from '@arbiter/api-contracts';
 import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -38,6 +38,27 @@ const INTEGRATION: ApiIntegrationRegistryItem = {
 	},
 	credentialCount: 2
 };
+const CREDENTIAL: ApiCredentialMetadata = {
+	id: '37513880-ac97-4333-b21f-eb919fa07957',
+	integrationId: INTEGRATION.id,
+	label: 'Portal reader',
+	prefix: 'AbCdEfGhIjKl',
+	scopes: ['users:read'],
+	status: 'active',
+	createdByUserId: IDENTITY.userId,
+	creator: {
+		userId: IDENTITY.userId,
+		discordUsername: IDENTITY.discordUsername,
+		discordNickname: IDENTITY.discordNickname
+	},
+	expiresAt: '2027-08-09T08:00:00.000Z',
+	revokedByUserId: null,
+	revokedAt: null,
+	lastUsedAt: null,
+	createdAt: '2026-08-09T08:00:00.000Z',
+	updatedAt: '2026-08-09T08:00:00.000Z'
+};
+const ONE_TIME_SECRET = 'arb_v1_AbCdEfGhIjKl_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789';
 const config: ApiConfig = {
 	nodeEnv: 'test',
 	host: '127.0.0.1',
@@ -111,6 +132,49 @@ describe('integration registry HTTP routes', () => {
 		});
 		expect(conflict.status).toBe(409);
 		expect(await conflict.json()).toMatchObject({ error: { code: 'conflict' } });
+	});
+
+	it('lists only safe credential metadata and returns a minted secret only from the CSRF-protected mint response', async () => {
+		const { baseUrl, credentialService, authService } = await startRuntime();
+		const listResponse = await fetch(`${baseUrl}/api/v1/integrations/${INTEGRATION.id}/credentials`, {
+			headers: browserHeaders()
+		});
+		const listed = await listResponse.json();
+		expect(listResponse.status).toBe(200);
+		expect(listed).toMatchObject({ data: { credentials: [CREDENTIAL] } });
+		expect(JSON.stringify(listed)).not.toContain('secret');
+		expect(JSON.stringify(listed)).not.toContain('verifier');
+		expect(authService.requireSession).toHaveBeenCalled();
+
+		const mintResponse = await fetch(`${baseUrl}/api/v1/integrations/${INTEGRATION.id}/credentials`, {
+			method: 'POST',
+			headers: browserHeaders({ 'content-type': 'application/json', 'x-csrf-token': CSRF_TOKEN }),
+			body: JSON.stringify({ label: CREDENTIAL.label, scopes: ['users:read'] })
+		});
+		expect(mintResponse.status).toBe(201);
+		expect(await mintResponse.json()).toMatchObject({ data: { credential: CREDENTIAL, secret: ONE_TIME_SECRET } });
+		expect(credentialService.mintCredential).toHaveBeenCalledWith(
+			{ userId: IDENTITY.userId, role: 'STAFF' },
+			expect.objectContaining({ integrationId: INTEGRATION.id, label: CREDENTIAL.label, scopes: ['users:read'] }),
+			expect.any(AbortSignal)
+		);
+	});
+
+	it('routes idempotent revocation through the API-authoritative creator and EXEC policy', async () => {
+		const { baseUrl, credentialService } = await startRuntime();
+		const response = await fetch(`${baseUrl}/api/v1/integrations/${INTEGRATION.id}/credentials/${CREDENTIAL.id}/revoke`, {
+			method: 'POST',
+			headers: browserHeaders({ 'x-csrf-token': CSRF_TOKEN })
+		});
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({ data: { id: CREDENTIAL.id, status: 'revoked' } });
+		expect(credentialService.revokeCredential).toHaveBeenCalledWith(
+			{ userId: IDENTITY.userId, role: 'STAFF' },
+			CREDENTIAL.id,
+			INTEGRATION.id,
+			expect.any(AbortSignal)
+		);
 	});
 
 	it('propagates request cancellation into registry mutations', async () => {
@@ -214,10 +278,13 @@ function createCredentialService(): ApiCredentialService {
 		listIntegrations: vi.fn().mockResolvedValue({ ok: true, value: [INTEGRATION] }),
 		editIntegration: vi.fn().mockResolvedValue({ ok: true, value: INTEGRATION }),
 		archiveIntegration: vi.fn().mockResolvedValue({ ok: true, value: { ...INTEGRATION, state: 'archived' } }),
-		mintCredential: vi.fn(),
-		listCredentials: vi.fn(),
+		listCredentials: vi.fn().mockResolvedValue({ ok: true, value: [CREDENTIAL] }),
 		authenticate: vi.fn(),
-		revokeCredential: vi.fn()
+		mintCredential: vi.fn().mockResolvedValue({ ok: true, value: { credential: CREDENTIAL, secret: ONE_TIME_SECRET } }),
+		revokeCredential: vi.fn().mockResolvedValue({
+			ok: true,
+			value: { ...CREDENTIAL, status: 'revoked', revokedAt: '2026-08-10T08:00:00.000Z' }
+		})
 	};
 }
 

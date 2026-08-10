@@ -106,7 +106,8 @@ export function createApiCredentialService({
 			if (result.status === 'stale') return failure('stale');
 			return success(toIntegrationDto(result.integration));
 		},
-		mintCredential: async (actor, input) => {
+		mintCredential: async (actor, input, signal) => {
+			signal?.throwIfAborted();
 			if (!isValidActor(actor)) return failure('invalid_input');
 			const inputSchema = z.object({
 				integrationId: IdSchema,
@@ -126,15 +127,18 @@ export function createApiCredentialService({
 
 			for (let attempt = 0; attempt < MAX_PREFIX_ATTEMPTS; attempt += 1) {
 				const generated = generateCredential();
-				const result = await repository.mintCredential({
-					integrationId: parsed.data.integrationId,
-					label: parsed.data.label,
-					prefix: generated.prefix,
-					verifier: createApiCredentialVerifier(generated.secret, pepper),
-					scopes,
-					expiresAt,
-					actorUserId: actor.userId
-				});
+				const result = await repository.mintCredential(
+					{
+						integrationId: parsed.data.integrationId,
+						label: parsed.data.label,
+						prefix: generated.prefix,
+						verifier: createApiCredentialVerifier(generated.secret, pepper),
+						scopes,
+						expiresAt,
+						actorUserId: actor.userId
+					},
+					signal
+				);
 				if (result.status === 'prefix_conflict') continue;
 				if (result.status === 'integration_not_found') return failure('not_found');
 				if (result.status === 'integration_archived') return failure('integration_archived');
@@ -142,12 +146,13 @@ export function createApiCredentialService({
 			}
 			return failure('conflict');
 		},
-		listCredentials: async (actor, integrationId) => {
+		listCredentials: async (actor, integrationId, signal) => {
+			signal?.throwIfAborted();
 			if (!isValidActor(actor) || !IdSchema.safeParse(integrationId).success) return failure('invalid_input');
 			const integration = await repository.findIntegrationById(integrationId);
 			if (!integration) return failure('not_found');
 			const timestamp = now();
-			const credentials = await repository.listCredentials(integrationId);
+			const credentials = await repository.listCredentials(integrationId, signal);
 			return success(credentials.map((credential) => toCredentialDto(credential, timestamp)));
 		},
 		authenticate: async (secret, signal, deadlineAtMs) => {
@@ -178,13 +183,20 @@ export function createApiCredentialService({
 				scopes: credential.scopes
 			});
 		},
-		revokeCredential: async (actor, credentialId) => {
-			if (!isValidActor(actor) || !IdSchema.safeParse(credentialId).success) return failure('invalid_input');
-			const existing = await repository.findCredentialById(credentialId);
+		revokeCredential: async (actor, credentialId, expectedIntegrationId, signal) => {
+			signal?.throwIfAborted();
+			if (
+				!isValidActor(actor) ||
+				!IdSchema.safeParse(credentialId).success ||
+				(expectedIntegrationId !== undefined && !IdSchema.safeParse(expectedIntegrationId).success)
+			)
+				return failure('invalid_input');
+			const existing = await repository.findCredentialById(credentialId, signal);
 			if (!existing) return failure('not_found');
+			if (expectedIntegrationId !== undefined && existing.integrationId !== expectedIntegrationId) return failure('not_found');
 			if (actor.role !== 'EXEC' && existing.createdByUserId !== actor.userId) return failure('forbidden');
 			const revokedAt = now();
-			const result = await repository.revokeCredential(credentialId, actor.userId, revokedAt);
+			const result = await repository.revokeCredential(credentialId, actor.userId, revokedAt, signal);
 			return result.status === 'not_found' ? failure('not_found') : success(toCredentialDto(result.credential, revokedAt));
 		}
 	};
@@ -234,6 +246,11 @@ function toCredentialDto(credential: ApiCredentialWithIntegrationRecord, timesta
 		scopes: credential.scopes,
 		status: resolveCredentialStatus(credential, timestamp),
 		createdByUserId: credential.createdByUserId,
+		creator: {
+			userId: credential.createdByUserId,
+			discordUsername: credential.creatorDiscordUsername,
+			discordNickname: credential.creatorDiscordNickname
+		},
 		expiresAt: credential.expiresAt.toISOString(),
 		revokedByUserId: credential.revokedByUserId,
 		revokedAt: credential.revokedAt?.toISOString() ?? null,

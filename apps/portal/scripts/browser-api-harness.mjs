@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 const HOST = '127.0.0.1';
 const PORT = 3000;
@@ -21,6 +21,20 @@ let integrations = [
 		name: 'Training operations',
 		purpose: 'Coordinate approved training workflows without direct access to Arbiter storage.',
 		credentialCount: 1
+	})
+];
+let credentials = [
+	credentialItem({
+		id: '37513880-ac97-4333-b21f-eb919fa07957',
+		integrationId: 'd3234d29-3990-412c-a8d3-10db55d9e49f',
+		label: 'Planning dashboard',
+		prefix: 'AbCdEfGhIjKl'
+	}),
+	credentialItem({
+		id: 'f01dd4f2-b868-4be1-a4c0-698d48b47c1b',
+		integrationId: 'd3234d29-3990-412c-a8d3-10db55d9e49f',
+		label: 'Rotation standby',
+		prefix: 'MnOpQrStUvWx'
 	})
 ];
 
@@ -153,6 +167,61 @@ const server = createServer(async (request, response) => {
 		return json(response, 200, { data: archived, meta: { requestId } });
 	}
 
+	const credentialCollectionMatch = url.pathname.match(/^\/api\/v1\/integrations\/([0-9a-f-]+)\/credentials$/);
+	if (credentialCollectionMatch && request.method === 'GET') {
+		const integration = integrations.find((item) => item.id === credentialCollectionMatch[1]);
+		if (!integration) return error(response, 404, 'not_found', 'Integration was not found', requestId);
+		return json(response, 200, {
+			data: {
+				credentials: credentials
+					.filter((credential) => credential.integrationId === integration.id)
+					.map((credential) => withCredentialStatus(credential, integration))
+			},
+			meta: { requestId }
+		});
+	}
+	if (credentialCollectionMatch && request.method === 'POST') {
+		if (!hasCsrf(request)) return error(response, 403, 'csrf_failed', 'CSRF validation failed', requestId);
+		const integration = integrations.find((item) => item.id === credentialCollectionMatch[1]);
+		if (!integration) return error(response, 404, 'not_found', 'Integration was not found', requestId);
+		if (integration.state !== 'active') return error(response, 409, 'integration_archived', 'Integration is archived', requestId);
+		const body = await readBody(request);
+		if (!body || typeof body.label !== 'string' || body.label.trim().length === 0 || JSON.stringify(body.scopes) !== '["users:read"]') {
+			return error(response, 400, 'bad_request', 'Credential request is invalid', requestId);
+		}
+		const prefix = randomBytes(9).toString('base64url');
+		const credential = credentialItem({
+			id: randomUUID(),
+			integrationId: integration.id,
+			label: body.label.trim(),
+			prefix,
+			expiresAt: typeof body.expiresAt === 'string' ? body.expiresAt : oneYearFromNow()
+		});
+		credentials = [credential, ...credentials];
+		integration.credentialCount += 1;
+		return json(response, 201, {
+			data: {
+				credential: withCredentialStatus(credential, integration),
+				secret: `arb_v1_${prefix}_${randomBytes(32).toString('base64url')}`
+			},
+			meta: { requestId }
+		});
+	}
+
+	const revokeMatch = url.pathname.match(/^\/api\/v1\/integrations\/([0-9a-f-]+)\/credentials\/([0-9a-f-]+)\/revoke$/);
+	if (revokeMatch && request.method === 'POST') {
+		if (!hasCsrf(request)) return error(response, 403, 'csrf_failed', 'CSRF validation failed', requestId);
+		const integration = integrations.find((item) => item.id === revokeMatch[1]);
+		const credential = credentials.find((item) => item.id === revokeMatch[2] && item.integrationId === revokeMatch[1]);
+		if (!integration || !credential) return error(response, 404, 'not_found', 'Credential was not found', requestId);
+		if (!credential.revokedAt) {
+			credential.revokedAt = nextTimestamp();
+			credential.revokedByUserId = USER_ID;
+			credential.updatedAt = credential.revokedAt;
+		}
+		return json(response, 200, { data: withCredentialStatus(credential, integration), meta: { requestId } });
+	}
+
 	return error(response, 404, 'not_found', 'Route not found', requestId);
 });
 
@@ -180,6 +249,46 @@ function registryItem({ id, name, purpose, credentialCount }) {
 		creator: { userId: USER_ID, discordUsername: 'exec-harness', discordNickname: 'Astra Vale' },
 		credentialCount
 	};
+}
+
+function credentialItem({ id, integrationId, label, prefix, expiresAt = '2027-08-09T20:00:00.000Z' }) {
+	const timestamp = nextTimestamp();
+	return {
+		id,
+		integrationId,
+		label,
+		prefix,
+		scopes: ['users:read'],
+		status: 'active',
+		createdByUserId: USER_ID,
+		creator: { userId: USER_ID, discordUsername: 'exec-harness', discordNickname: 'Astra Vale' },
+		expiresAt,
+		revokedByUserId: null,
+		revokedAt: null,
+		lastUsedAt: null,
+		createdAt: timestamp,
+		updatedAt: timestamp
+	};
+}
+
+function withCredentialStatus(credential, integration) {
+	return {
+		...credential,
+		status:
+			integration.state === 'archived'
+				? 'integration_archived'
+				: credential.revokedAt
+					? 'revoked'
+					: new Date(credential.expiresAt) <= new Date()
+						? 'expired'
+						: 'active'
+	};
+}
+
+function oneYearFromNow() {
+	const date = new Date();
+	date.setUTCFullYear(date.getUTCFullYear() + 1);
+	return date.toISOString();
 }
 
 function nextTimestamp() {

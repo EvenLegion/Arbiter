@@ -305,6 +305,11 @@ describe('API integration and credential lifecycle', () => {
 		const minted = await mint(integration.id, new Date(START_TIME.getTime() + 60 * 60_000));
 
 		expect(await service.revokeCredential(otherStaff, minted.credential.id)).toEqual({ ok: false, error: { code: 'forbidden' } });
+		expect(await service.revokeCredential(creator, minted.credential.id, '1507b2bd-d5fa-47ab-b696-f984bce22be5')).toEqual({
+			ok: false,
+			error: { code: 'not_found' }
+		});
+		expect(await service.authenticate(minted.secret)).toMatchObject({ ok: true });
 		const [creatorResult, execResult] = await Promise.all([
 			service.revokeCredential(creator, minted.credential.id),
 			service.revokeCredential(execActor, minted.credential.id)

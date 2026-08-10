@@ -14,6 +14,14 @@ export const API_V1_ROUTES = {
 	directoryQuery: `${API_V1_PREFIX}/users/query`
 } as const;
 
+export function apiIntegrationCredentialsRoute(integrationId: string): string {
+	return `${API_V1_ROUTES.integrationRegistry}/${encodeURIComponent(integrationId)}/credentials`;
+}
+
+export function apiCredentialRevokeRoute(integrationId: string, credentialId: string): string {
+	return `${apiIntegrationCredentialsRoute(integrationId)}/${encodeURIComponent(credentialId)}/revoke`;
+}
+
 export const RequestIdSchema = z
 	.string()
 	.min(1)
