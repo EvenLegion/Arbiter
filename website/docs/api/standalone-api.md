@@ -11,25 +11,28 @@ The Arbiter API is an HTTP process that runs independently from the Discord bot.
 
 The API exposes infrastructure, browser-authentication, staff integration-registry, and API-credential directory endpoints:
 
-| Method      | Route                              | Purpose                                                                                                                  |
-| ----------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `GET, HEAD` | `/api/v1/health`                   | Process liveness. Returns `200` without checking external dependencies.                                                  |
-| `GET, HEAD` | `/api/v1/readiness`                | Checks the API-owned Postgres pool and Redis client.                                                                     |
-| `POST`      | `/api/v1/auth/discord/start`       | Creates browser-bound OAuth state and returns the Discord authorization URL.                                             |
-| `GET`       | `/api/v1/auth/discord/callback`    | Consumes the one-use state, resolves Discord identity, creates a staff session, and redirects to an approved portal URL. |
-| `GET`       | `/api/v1/auth/session`             | Returns session expiry and a CSRF token for an authorized current staff session.                                         |
-| `GET`       | `/api/v1/auth/me`                  | Returns the safe canonical identity and current `STAFF` or `EXEC` role.                                                  |
-| `POST`      | `/api/v1/auth/logout`              | Validates CSRF, revokes the Redis session, and clears the browser cookie.                                                |
-| `GET`       | `/api/v1/integrations`             | Lists the staff-visible shared registry with safe creator and credential-count metadata.                                 |
-| `POST`      | `/api/v1/integrations`             | Registers an integration for any authenticated staff member; requires session CSRF.                                      |
-| `PATCH`     | `/api/v1/integrations/:id`         | Edits active metadata as the creator or `EXEC`; requires session CSRF and the observed update timestamp.                 |
-| `POST`      | `/api/v1/integrations/:id/archive` | Idempotently archives as `EXEC`, invalidates credentials, and never mutates on `GET`.                                    |
-| `GET`       | `/api/v1/users/:discordUserId`     | Returns one canonical user-directory record for a valid Discord snowflake; a missing user returns `404`.                 |
-| `POST`      | `/api/v1/users/query`              | Runs a bounded directory batch/filter query; no matches return an empty `users` array.                                   |
+| Method      | Route                                                       | Purpose                                                                                                                  |
+| ----------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `GET, HEAD` | `/api/v1/health`                                            | Process liveness. Returns `200` without checking external dependencies.                                                  |
+| `GET, HEAD` | `/api/v1/readiness`                                         | Checks the API-owned Postgres pool and Redis client.                                                                     |
+| `POST`      | `/api/v1/auth/discord/start`                                | Creates browser-bound OAuth state and returns the Discord authorization URL.                                             |
+| `GET`       | `/api/v1/auth/discord/callback`                             | Consumes the one-use state, resolves Discord identity, creates a staff session, and redirects to an approved portal URL. |
+| `GET`       | `/api/v1/auth/session`                                      | Returns session expiry and a CSRF token for an authorized current staff session.                                         |
+| `GET`       | `/api/v1/auth/me`                                           | Returns the safe canonical identity and current `STAFF` or `EXEC` role.                                                  |
+| `POST`      | `/api/v1/auth/logout`                                       | Validates CSRF, revokes the Redis session, and clears the browser cookie.                                                |
+| `GET`       | `/api/v1/integrations`                                      | Lists the staff-visible shared registry with safe creator and credential-count metadata.                                 |
+| `POST`      | `/api/v1/integrations`                                      | Registers an integration for any authenticated staff member; requires session CSRF.                                      |
+| `PATCH`     | `/api/v1/integrations/:id`                                  | Edits active metadata as the creator or `EXEC`; requires session CSRF and the observed update timestamp.                 |
+| `POST`      | `/api/v1/integrations/:id/archive`                          | Idempotently archives as `EXEC`, invalidates credentials, and never mutates on `GET`.                                    |
+| `GET`       | `/api/v1/integrations/:id/credentials`                      | Lists safe credential metadata for any current staff session.                                                            |
+| `POST`      | `/api/v1/integrations/:id/credentials`                      | Mints `users:read` for an active integration and returns the generated secret exactly once; requires session CSRF.       |
+| `POST`      | `/api/v1/integrations/:id/credentials/:credentialId/revoke` | Idempotently revokes as the credential creator or `EXEC`; requires session CSRF.                                         |
+| `GET`       | `/api/v1/users/:discordUserId`                              | Returns one canonical user-directory record for a valid Discord snowflake; a missing user returns `404`.                 |
+| `POST`      | `/api/v1/users/query`                                       | Runs a bounded directory batch/filter query; no matches return an empty `users` array.                                   |
 
 Integration management routes resolve the API-owned browser session, re-read the current staff identity, validate CSRF for every mutation, and then invoke the transport-independent integration service. Names are unique after trimming, collapsing internal whitespace, and lowercasing. Edit and archive requests carry the last observed update timestamp so a concurrent change returns `stale` rather than overwriting newer intent. Repository failures collapse to `service_unavailable`, and raw dependency errors are never returned.
 
-The same transport-independent package services mint, list, authenticate, and revoke credentials and record last use at a bounded interval. Credential management remains intentionally absent from these routes and the portal.
+Credential management routes reuse the same transport-independent package services and API-owned browser authorization. Any current staff session can list safe metadata and mint for an active integration. The credential creator or a current `EXEC` session can revoke. Mint returns the generated secret only in its successful response; list and revoke responses contain safe metadata only.
 
 The public directory routes authenticate only an `Authorization: Bearer <credential>` header and require `users:read`; portal session cookies do not grant access. Authentication completes before any directory lookup. Unknown, malformed, expired, revoked, and archived-integration credentials all return the same sanitized `401`. A valid credential without the required scope returns `403`.
 
@@ -274,7 +277,7 @@ The integration suite starts real Postgres and Redis containers and proves OAuth
 
 Current boundaries deliberately do not include:
 
-- credential-management HTTP endpoints or any permission beyond `users:read`
+- any credential permission beyond `users:read`, secret recovery, credential attribute edits, sharing, transfer, or approval workflows
 - portal-owned secrets, database access, Redis access, authoritative sessions, or a portal backend
 - a second database, Redis service, schema authority, or synchronization path
 - production proxy, TLS, network exposure, resource sizing, or deployment wiring

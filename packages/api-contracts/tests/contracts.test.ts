@@ -4,6 +4,7 @@ import {
 	API_V1_ROUTES,
 	ApiAuthIdentitySchema,
 	ApiCredentialMetadataSchema,
+	ApiCredentialListResponseSchema,
 	ApiDirectoryPageSchema,
 	ApiDirectoryPageResponseSchema,
 	ApiDirectoryQuerySchema,
@@ -13,6 +14,10 @@ import {
 	ApiIntegrationRegistryItemSchema,
 	EditApiIntegrationRequestSchema,
 	HealthResponseSchema,
+	MintApiCredentialRequestSchema,
+	MintApiCredentialResponseSchema,
+	apiCredentialRevokeRoute,
+	apiIntegrationCredentialsRoute,
 	normalizeApiScopes
 } from '../src/v1';
 
@@ -124,6 +129,11 @@ describe('v1 API contracts', () => {
 			scopes: ['users:read'],
 			status: 'active',
 			createdByUserId: integration.createdByUserId,
+			creator: {
+				userId: integration.createdByUserId,
+				discordUsername: 'staff-user',
+				discordNickname: 'Staff User'
+			},
 			expiresAt: '2027-08-09T08:00:00.000Z',
 			revokedByUserId: null,
 			revokedAt: null,
@@ -134,5 +144,19 @@ describe('v1 API contracts', () => {
 		expect(credential).not.toHaveProperty('secret');
 		expect(credential).not.toHaveProperty('verifier');
 		expect(ApiCredentialMetadataSchema.safeParse({ ...credential, verifier: 'digest' }).success).toBe(false);
+		expect(MintApiCredentialRequestSchema.safeParse({ label: 'Reader', scopes: ['users:read'] }).success).toBe(true);
+		expect(MintApiCredentialRequestSchema.safeParse({ label: 'Reader', scopes: [] }).success).toBe(false);
+		expect(ApiCredentialListResponseSchema.safeParse({ data: { credentials: [credential] }, meta: { requestId: 'list-1' } }).success).toBe(true);
+		const oneTimeSecret = 'arb_v1_AbCdEfGhIjKl_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789';
+		expect(
+			MintApiCredentialResponseSchema.safeParse({
+				data: { credential, secret: oneTimeSecret },
+				meta: { requestId: 'mint-1' }
+			}).success
+		).toBe(true);
+		expect(apiIntegrationCredentialsRoute(integration.id)).toBe(`/api/v1/integrations/${integration.id}/credentials`);
+		expect(apiCredentialRevokeRoute(integration.id, credential.id)).toBe(
+			`/api/v1/integrations/${integration.id}/credentials/${credential.id}/revoke`
+		);
 	});
 });

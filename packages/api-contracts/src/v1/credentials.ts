@@ -79,6 +79,16 @@ export type ApiIntegrationListResponse = z.infer<typeof ApiIntegrationListRespon
 export const ApiCredentialStatusSchema = z.enum(['active', 'expired', 'revoked', 'integration_archived']);
 export type ApiCredentialStatus = z.infer<typeof ApiCredentialStatusSchema>;
 
+export const ApiCredentialLabelSchema = z.string().trim().min(1).max(100);
+
+export const ApiCredentialActorSummarySchema = z
+	.object({
+		userId: z.uuid(),
+		discordUsername: z.string().min(1).max(100),
+		discordNickname: z.string().min(1).max(100)
+	})
+	.strict();
+
 export const ApiCredentialMetadataSchema = z
 	.object({
 		id: z.uuid(),
@@ -88,6 +98,7 @@ export const ApiCredentialMetadataSchema = z
 		scopes: z.array(ApiScopeSchema).min(1),
 		status: ApiCredentialStatusSchema,
 		createdByUserId: z.uuid(),
+		creator: ApiCredentialActorSummarySchema,
 		expiresAt: IsoDateTimeSchema,
 		revokedByUserId: z.uuid().nullable(),
 		revokedAt: IsoDateTimeSchema.nullable(),
@@ -97,3 +108,42 @@ export const ApiCredentialMetadataSchema = z
 	})
 	.strict();
 export type ApiCredentialMetadata = z.infer<typeof ApiCredentialMetadataSchema>;
+
+export const MintApiCredentialRequestSchema = z
+	.object({
+		label: ApiCredentialLabelSchema,
+		scopes: z.tuple([z.literal('users:read')]),
+		expiresAt: IsoDateTimeSchema.optional()
+	})
+	.strict();
+
+export const ApiCredentialResponseSchema = z
+	.object({
+		data: ApiCredentialMetadataSchema,
+		meta: ApiResponseMetaSchema
+	})
+	.strict();
+
+export const ApiCredentialListResponseSchema = z
+	.object({
+		data: z.object({ credentials: z.array(ApiCredentialMetadataSchema) }).strict(),
+		meta: ApiResponseMetaSchema
+	})
+	.strict();
+
+export const MintApiCredentialResponseSchema = z
+	.object({
+		data: z
+			.object({
+				credential: ApiCredentialMetadataSchema,
+				secret: z.string().regex(/^arb_v1_[A-Za-z0-9_-]{12}_[A-Za-z0-9_-]{43}$/)
+			})
+			.strict(),
+		meta: ApiResponseMetaSchema
+	})
+	.strict();
+
+export type MintApiCredentialRequest = z.infer<typeof MintApiCredentialRequestSchema>;
+export type ApiCredentialResponse = z.infer<typeof ApiCredentialResponseSchema>;
+export type ApiCredentialListResponse = z.infer<typeof ApiCredentialListResponseSchema>;
+export type MintApiCredentialResponse = z.infer<typeof MintApiCredentialResponseSchema>;

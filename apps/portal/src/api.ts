@@ -1,13 +1,20 @@
 import {
 	API_V1_ROUTES,
 	ApiErrorEnvelopeSchema,
+	ApiCredentialListResponseSchema,
+	ApiCredentialResponseSchema,
 	ApiIntegrationListResponseSchema,
 	ApiIntegrationResponseSchema,
 	AuthIdentityResponseSchema,
 	AuthLogoutResponseSchema,
 	AuthSessionResponseSchema,
 	OAuthStartResponseSchema,
+	MintApiCredentialResponseSchema,
+	apiCredentialRevokeRoute,
+	apiIntegrationCredentialsRoute,
 	type ApiAuthIdentity,
+	type ApiCredentialMetadata,
+	type MintApiCredentialRequest,
 	type ApiIntegrationRegistryItem,
 	type ApiErrorCode
 } from '@arbiter/api-contracts';
@@ -128,6 +135,29 @@ export function createPortalApi(config: PortalConfig, fetchImpl: typeof fetch = 
 					body: JSON.stringify({ expectedUpdatedAt })
 				}
 			);
+			return result.data;
+		},
+		listCredentials: async (integrationId: string): Promise<ApiCredentialMetadata[]> => {
+			const result = await request(apiIntegrationCredentialsRoute(integrationId), ApiCredentialListResponseSchema);
+			return result.data.credentials;
+		},
+		mintCredential: async (
+			csrfToken: string,
+			integrationId: string,
+			input: MintApiCredentialRequest
+		): Promise<{ credential: ApiCredentialMetadata; secret: string }> => {
+			const result = await request(apiIntegrationCredentialsRoute(integrationId), MintApiCredentialResponseSchema, {
+				method: 'POST',
+				headers: mutationHeaders(csrfToken),
+				body: JSON.stringify(input)
+			});
+			return result.data;
+		},
+		revokeCredential: async (csrfToken: string, integrationId: string, credentialId: string): Promise<ApiCredentialMetadata> => {
+			const result = await request(apiCredentialRevokeRoute(integrationId, credentialId), ApiCredentialResponseSchema, {
+				method: 'POST',
+				headers: mutationHeaders(csrfToken)
+			});
 			return result.data;
 		}
 	};

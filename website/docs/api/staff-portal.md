@@ -9,12 +9,16 @@ sidebar_position: 5
 
 ## What Staff Can Do
 
-Authenticated staff can view the shared integration registry and register integrations. Each registry record shows its display name, purpose, active or archived status, creator, timestamps, and total safe credential count. The portal deliberately does not mint, reveal, list, or revoke credentials; that belongs to the separate credential-management workflow.
+Authenticated staff can view the shared integration registry, register integrations, and open an integration's direct credential-management URL. Credential views show only safe metadata: label, non-secret prefix, creator, `users:read` scope, derived status, creation and expiry times, revocation audit timestamps, and bounded last-use time. Existing secrets and verifiers are never returned.
+
+Any current staff member may mint a credential for any active integration. The API accepts only `users:read`, defaults expiry to one year, rejects expiry beyond one year, and generates the credential secret inside the API process. The portal displays that new secret once in ephemeral React view state with an explicit copy-and-store warning. Refreshing, navigating, signing out, manually refreshing credential metadata, or dismissing the panel removes it. The portal never persists it automatically or writes it to URLs, browser history, local storage, session storage, analytics, or logs. Choosing **Copy secret** is an explicit user action that writes the value to `navigator.clipboard` so it can be moved into the destination secret manager.
 
 The API remains authoritative on every request:
 
 - any current staff member may register an integration
+- any current staff member may list safe credential metadata and mint for an active integration
 - the creator or a current `EXEC` member may edit active integration metadata
+- a credential's creator may revoke it, while a current `EXEC` member may revoke any credential
 - only a current `EXEC` member may archive an integration
 - archive is idempotent and immediately invalidates associated credentials
 
@@ -63,8 +67,10 @@ pnpm --filter @arbiter/portal browser:harness
 VITE_API_BASE_URL=http://127.0.0.1:3000 pnpm --filter @arbiter/portal dev
 ```
 
-Open `http://127.0.0.1:4173` and choose **Continue with Discord**. The harness redirects through its local fixture sign-in route, sets an HttpOnly fixture session, and returns to the portal; protected harness routes still require that session and mutations also require its CSRF token. Validate direct navigation and refresh, create and edit forms, archive confirmation copy, archived filtering, keyboard focus and Escape dismissal, and desktop/narrow/mobile layouts. API HTTP integration tests separately prove real session, CSRF, CORS, actor-policy, stale, and dependency outcomes; the harness is UI validation, not an auth substitute.
+Open `http://127.0.0.1:4173` and choose **Continue with Discord**. The harness redirects through its local fixture sign-in route, sets an HttpOnly fixture session, and returns to the portal; protected harness routes still require that session and mutations also require its CSRF token. Validate direct navigation and refresh, create and edit forms, credential metadata, one-time secret dismissal and disappearance after refresh/navigation, revoke confirmation, overlapping mint-before-revoke rotation, archive confirmation copy, archived filtering, keyboard focus and Escape dismissal, and desktop/narrow/mobile layouts. API HTTP integration tests separately prove real session, CSRF, CORS, actor-policy, expiry, archive, stale, and dependency outcomes; the harness is UI validation, not an auth substitute.
 
 ## Failure Behavior
 
-The portal maps typed validation, conflict, forbidden, stale, archived, session, and dependency outcomes to safe task-oriented copy. Request IDs are shown when available. Raw database, Redis, OAuth, stack, or response details are never rendered. A stale response refreshes the registry before another edit is allowed, and an expired session returns the user to sign-in. If a timeout, network interruption, or unavailable service makes a mutation outcome uncertain, the portal retries the convergent registry operation once to cross any in-flight database commit, then refreshes the registry and directs staff to verify the current record before retrying. If reconciliation also fails, it explicitly leaves the outcome unverified.
+The portal maps typed validation, conflict, forbidden, stale, archived, session, and dependency outcomes to safe task-oriented copy. Request IDs are shown when available. Raw database, Redis, OAuth, stack, or response details are never rendered. A stale response refreshes the registry before another edit is allowed, and an expired session returns the user to sign-in.
+
+If a timeout, network interruption, or unavailable service makes a registry mutation outcome uncertain, the portal retries only operations that safely converge, then refreshes the registry. It never retries mint automatically because a committed mint whose response was lost has an unrecoverable secret. Instead it refreshes credential metadata and tells the operator to inspect recently created credentials by their unique non-secret prefix and creation time, then revoke any unexpected credential by its credential ID before minting another. Revocation preserves the API's first authoritative actor and timestamp; after an interrupted revoke, the portal retries the idempotent revoke once so any in-flight database update settles before it reports the preserved result.

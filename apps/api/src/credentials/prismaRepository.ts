@@ -16,11 +16,18 @@ type PrismaApiIntegrationRegistry = Prisma.ApiIntegrationGetPayload<{
 		_count: { select: { credentials: true } };
 	};
 }>;
-type PrismaApiCredentialWithIntegration = Prisma.ApiCredentialGetPayload<{ include: { integration: true } }>;
+type PrismaApiCredentialWithIntegration = Prisma.ApiCredentialGetPayload<{
+	include: { integration: true; createdByUser: { select: { discordUsername: true; discordNickname: true } } };
+}>;
 
 const registryInclude = {
 	createdByUser: { select: { discordUsername: true, discordNickname: true } },
 	_count: { select: { credentials: true } }
+} as const;
+
+const credentialInclude = {
+	integration: true,
+	createdByUser: { select: { discordUsername: true, discordNickname: true } }
 } as const;
 
 export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCredentialRepository {
@@ -111,10 +118,12 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 				signal?.throwIfAborted();
 				return { status: 'archived', integration: mapRegistryIntegration(integration) } as const;
 			}),
-		mintCredential: async (input) => {
+		mintCredential: async (input, signal) => {
 			try {
 				return await prisma.$transaction(async (tx) => {
+					signal?.throwIfAborted();
 					await lockIntegration(tx, input.integrationId);
+					signal?.throwIfAborted();
 					const integration = await tx.apiIntegration.findUnique({ where: { id: input.integrationId } });
 					if (!integration) return { status: 'integration_not_found' } as const;
 					if (integration.state !== ApiIntegrationState.ACTIVE) return { status: 'integration_archived' } as const;
@@ -128,8 +137,9 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 							expiresAt: input.expiresAt,
 							createdByUserId: input.actorUserId
 						},
-						include: { integration: true }
+						include: credentialInclude
 					});
+					signal?.throwIfAborted();
 					return { status: 'created', credential: mapCredentialWithIntegration(credential) } as const;
 				});
 			} catch (error) {
@@ -137,30 +147,37 @@ export function createPrismaApiCredentialRepository(prisma: PrismaClient): ApiCr
 				throw error;
 			}
 		},
-		findCredentialById: async (id) => {
-			const credential = await prisma.apiCredential.findUnique({ where: { id }, include: { integration: true } });
+		findCredentialById: async (id, signal) => {
+			signal?.throwIfAborted();
+			const credential = await prisma.apiCredential.findUnique({ where: { id }, include: credentialInclude });
+			signal?.throwIfAborted();
 			return credential ? mapCredentialWithIntegration(credential) : null;
 		},
 		findCredentialByPrefix: async (prefix, signal, deadlineAtMs) => {
 			const credential = await withRequestDeadline(prisma, signal, deadlineAtMs, (tx) =>
-				tx.apiCredential.findUnique({ where: { prefix }, include: { integration: true } })
+				tx.apiCredential.findUnique({ where: { prefix }, include: credentialInclude })
 			);
 			return credential ? mapCredentialWithIntegration(credential) : null;
 		},
-		listCredentials: async (integrationId) => {
+		listCredentials: async (integrationId, signal) => {
+			signal?.throwIfAborted();
 			const credentials = await prisma.apiCredential.findMany({
 				where: { integrationId },
-				include: { integration: true },
+				include: credentialInclude,
 				orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
 			});
+			signal?.throwIfAborted();
 			return credentials.map(mapCredentialWithIntegration);
 		},
-		revokeCredential: async (id, actorUserId, revokedAt) => {
+		revokeCredential: async (id, actorUserId, revokedAt, signal) => {
+			signal?.throwIfAborted();
 			const result = await prisma.apiCredential.updateMany({
 				where: { id, revokedAt: null },
 				data: { revokedAt, revokedByUserId: actorUserId }
 			});
-			const credential = await prisma.apiCredential.findUnique({ where: { id }, include: { integration: true } });
+			signal?.throwIfAborted();
+			const credential = await prisma.apiCredential.findUnique({ where: { id }, include: credentialInclude });
+			signal?.throwIfAborted();
 			if (!credential) return { status: 'not_found' };
 			return {
 				status: result.count === 1 ? 'revoked' : 'already_revoked',
@@ -253,7 +270,9 @@ function mapCredential(credential: Omit<PrismaApiCredentialWithIntegration, 'int
 function mapCredentialWithIntegration(credential: PrismaApiCredentialWithIntegration): ApiCredentialWithIntegrationRecord {
 	return {
 		...mapCredential(credential),
-		integration: mapIntegration(credential.integration)
+		integration: mapIntegration(credential.integration),
+		creatorDiscordUsername: credential.createdByUser.discordUsername,
+		creatorDiscordNickname: credential.createdByUser.discordNickname
 	};
 }
 
