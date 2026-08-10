@@ -76,6 +76,7 @@ export function CredentialView({
 			{dialog === 'mint' && (
 				<MintCredentialDialog
 					busy={busy}
+					feedback={feedback}
 					onClose={() => setDialog(null)}
 					onSubmit={async (input) => {
 						if (await onMint(input)) setDialog(null);
@@ -86,6 +87,7 @@ export function CredentialView({
 				<RevokeCredentialDialog
 					credential={dialog}
 					busy={busy}
+					feedback={feedback}
 					onClose={() => setDialog(null)}
 					onConfirm={async () => {
 						if (await onRevoke(dialog)) setDialog(null);
@@ -98,6 +100,11 @@ export function CredentialView({
 
 function OneTimeSecretPanel({ value, onDismiss }: { value: NonNullable<OneTimeSecretState>; onDismiss: () => void }) {
 	const [copyStatus, setCopyStatus] = useState('');
+	const headingRef = useRef<HTMLHeadingElement>(null);
+
+	useEffect(() => {
+		headingRef.current?.focus();
+	}, []);
 
 	async function copySecret() {
 		try {
@@ -113,7 +120,9 @@ function OneTimeSecretPanel({ value, onDismiss }: { value: NonNullable<OneTimeSe
 			<div className="secret-heading">
 				<div>
 					<p className="eyebrow">One-time secret</p>
-					<h2 id="one-time-secret-title">Store this credential now</h2>
+					<h2 id="one-time-secret-title" ref={headingRef} tabIndex={-1}>
+						Store this credential now
+					</h2>
 				</div>
 				<button className="icon-button" type="button" aria-label="Dismiss one-time secret" onClick={onDismiss}>
 					×
@@ -215,10 +224,12 @@ function CredentialList({
 
 function MintCredentialDialog({
 	busy,
+	feedback,
 	onClose,
 	onSubmit
 }: {
 	busy: boolean;
+	feedback: string | null;
 	onClose: () => void;
 	onSubmit: (input: MintApiCredentialRequest) => Promise<void>;
 }) {
@@ -229,7 +240,7 @@ function MintCredentialDialog({
 	function submit(event: FormEvent) {
 		event.preventDefault();
 		void onSubmit({
-			label,
+			label: label.trim(),
 			scopes: ['users:read'],
 			...(expiryDate ? { expiresAt: new Date(`${expiryDate}T00:00:00.000Z`).toISOString() } : {})
 		});
@@ -283,6 +294,11 @@ function MintCredentialDialog({
 					</label>
 					<small>No other credential permissions are available.</small>
 				</fieldset>
+				{feedback && (
+					<p className="dialog-feedback" role="alert">
+						{feedback}
+					</p>
+				)}
 				<div className="modal-actions">
 					<button className="button ghost" type="button" disabled={busy} onClick={onClose}>
 						Cancel
@@ -299,11 +315,13 @@ function MintCredentialDialog({
 function RevokeCredentialDialog({
 	credential,
 	busy,
+	feedback,
 	onClose,
 	onConfirm
 }: {
 	credential: ApiCredentialMetadata;
 	busy: boolean;
+	feedback: string | null;
 	onClose: () => void;
 	onConfirm: () => Promise<void>;
 }) {
@@ -328,6 +346,11 @@ function RevokeCredentialDialog({
 				The credential with prefix <code>arb_v1_{credential.prefix}_…</code> will stop authenticating immediately. Revocation cannot be
 				undone, and its original secret cannot be recovered.
 			</p>
+			{feedback && (
+				<p className="dialog-feedback" role="alert">
+					{feedback}
+				</p>
+			)}
 			<div className="modal-actions">
 				<button className="button ghost" type="button" autoFocus disabled={busy} onClick={onClose}>
 					Keep credential

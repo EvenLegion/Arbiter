@@ -798,6 +798,13 @@ h1 {
 	font-size: 0.62rem;
 }
 
+.dialog-feedback {
+	margin: 1rem 0 0;
+	color: var(--accent);
+	font-size: 0.78rem;
+	line-height: 1.5;
+}
+
 .credential-records {
 	padding: 1.8rem 0 1rem;
 }

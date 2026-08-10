@@ -52,7 +52,7 @@ export function replaceIntegration(
 	return next.sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id));
 }
 
-export function describePortalError(error: unknown): string {
+export function describePortalError(error: unknown, operation: 'integration' | 'credential' = 'integration'): string {
 	if (!(error instanceof PortalApiError)) return 'Something unexpected happened. Try again.';
 	const suffix = error.requestId ? ` Reference: ${error.requestId}` : '';
 	switch (error.code) {
@@ -61,7 +61,9 @@ export function describePortalError(error: unknown): string {
 		case 'forbidden':
 			return `Your current staff role does not allow that action.${suffix}`;
 		case 'conflict':
-			return `That integration name is already in use.${suffix}`;
+			return operation === 'credential'
+				? `Arbiter could not mint a unique credential. Try again.${suffix}`
+				: `That integration name is already in use.${suffix}`;
 		case 'stale':
 			return `This integration changed in another session. The registry has been refreshed.${suffix}`;
 		case 'integration_archived':

@@ -251,7 +251,7 @@ function registryItem({ id, name, purpose, credentialCount }) {
 	};
 }
 
-function credentialItem({ id, integrationId, label, prefix, expiresAt = '2027-08-09T20:00:00.000Z' }) {
+function credentialItem({ id, integrationId, label, prefix, expiresAt = oneYearFromNow() }) {
 	const timestamp = nextTimestamp();
 	return {
 		id,

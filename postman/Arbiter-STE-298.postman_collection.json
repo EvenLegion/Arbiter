@@ -103,7 +103,7 @@
 								"exec": [
 									"pm.test('returns 200', () => pm.response.to.have.status(200));",
 									"const body = pm.response.json();",
-									"pm.test('returns a bounded users page', () => pm.expect(body.data.users).to.be.an('array'));",
+									"pm.test('returns a bounded users page', () => { pm.expect(body.data.users).to.be.an('array'); pm.expect(body.data.users.length).to.be.at.most(25); });",
 									"if (body.data.nextCursor) pm.environment.set('nextCursor', body.data.nextCursor); else pm.environment.unset('nextCursor');"
 								]
 							}

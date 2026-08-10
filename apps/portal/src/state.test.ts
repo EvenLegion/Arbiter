@@ -74,7 +74,9 @@ describe('portal view policy', () => {
 		expect(canRevokeCredential({ ...creator, role: 'EXEC', userId: '1507b2bd-d5fa-47ab-b696-f984bce22be5' }, credential)).toBe(true);
 		expect(canRevokeCredential(creator, { ...credential, status: 'revoked', revokedAt: '2026-08-10T08:00:00.000Z' })).toBe(false);
 		expect(canRevokeCredential(creator, { ...credential, status: 'integration_archived' })).toBe(true);
-		expect(replaceCredential([credential], { ...credential, status: 'revoked', revokedAt: '2026-08-10T08:00:00.000Z' })).toHaveLength(1);
+		expect(replaceCredential([credential], { ...credential, status: 'revoked', revokedAt: '2026-08-10T08:00:00.000Z' })).toEqual([
+			{ ...credential, status: 'revoked', revokedAt: '2026-08-10T08:00:00.000Z' }
+		]);
 	});
 
 	it('supports direct credential routes and clears one-time secret state on every navigation or refresh', () => {
@@ -91,6 +93,8 @@ describe('portal view policy', () => {
 	it('maps typed outcomes to actionable safe copy', () => {
 		expect(describePortalError(new PortalApiError('stale', 'raw', 409, 'request-1'))).toContain('refreshed');
 		expect(describePortalError(new PortalApiError('stale', 'raw', 409, 'request-1'))).toContain('request-1');
+		expect(describePortalError(new PortalApiError('conflict', 'raw', 409, null))).toContain('integration name');
+		expect(describePortalError(new PortalApiError('conflict', 'raw', 409, null), 'credential')).toContain('unique credential');
 		expect(describePortalError(new Error('database details'))).not.toContain('database');
 	});
 

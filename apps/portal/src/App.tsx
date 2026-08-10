@@ -38,6 +38,7 @@ export function App({ api }: { api: PortalApi }) {
 	const [feedback, setFeedback] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [fatalMessage, setFatalMessage] = useState('The staff portal could not be loaded.');
+	const credentialListRequestRef = useRef(0);
 
 	const loadRegistry = useCallback(
 		async (showArchived: boolean) => {
@@ -56,12 +57,24 @@ export function App({ api }: { api: PortalApi }) {
 				const initialView = parsePortalRoute(window.location.pathname);
 				const showArchived = initialView.kind === 'credentials';
 				const integrations = await api.listIntegrations(showArchived);
-				const initialCredentials = initialView.kind === 'credentials' ? await api.listCredentials(initialView.integrationId) : [];
+				let initialCredentials: ApiCredentialMetadata[] = [];
+				let initialFeedback: string | null = null;
+				if (initialView.kind === 'credentials') {
+					try {
+						initialCredentials = await api.listCredentials(initialView.integrationId);
+					} catch (error) {
+						if (isPortalError(error, 'unauthorized')) throw error;
+						// A syntactically valid direct link can outlive its integration. Other
+						// credential-only failures stay local so the loaded registry remains usable.
+						if (!isPortalError(error, 'not_found')) initialFeedback = describePortalError(error, 'credential');
+					}
+				}
 				if (!active) return;
 				setReady({ ...session, integrations });
 				setIncludeArchived(showArchived);
 				setView(initialView);
 				setCredentials(initialCredentials);
+				setFeedback(initialFeedback);
 				setStatus('ready');
 			} catch (error) {
 				if (!active) return;
@@ -82,6 +95,7 @@ export function App({ api }: { api: PortalApi }) {
 		if (!ready) return;
 		const handlePopState = () => {
 			const next = parsePortalRoute(window.location.pathname);
+			const requestId = ++credentialListRequestRef.current;
 			setView(next);
 			setDialog(null);
 			setFeedback(null);
@@ -90,12 +104,21 @@ export function App({ api }: { api: PortalApi }) {
 				setBusy(true);
 				void api
 					.listCredentials(next.integrationId)
-					.then(setCredentials)
+					.then((nextCredentials) => {
+						if (requestId !== credentialListRequestRef.current || !isCurrentCredentialLocation(next.integrationId)) return;
+						setCredentials(nextCredentials);
+					})
 					.catch((error) => {
-						setFeedback(describePortalError(error));
+						if (requestId !== credentialListRequestRef.current || !isCurrentCredentialLocation(next.integrationId)) return;
+						setFeedback(describePortalError(error, 'credential'));
 						returnToSignInIfUnauthorized(error);
 					})
-					.finally(() => setBusy(false));
+					.finally(() => {
+						if (requestId === credentialListRequestRef.current && isCurrentCredentialLocation(next.integrationId)) setBusy(false);
+					});
+			} else {
+				setCredentials([]);
+				setBusy(false);
 			}
 		};
 		window.addEventListener('popstate', handlePopState);
@@ -196,23 +219,28 @@ export function App({ api }: { api: PortalApi }) {
 
 	async function openCredentials(integration: ApiIntegrationRegistryItem) {
 		window.history.pushState({}, '', credentialDetailPath(integration.id));
+		const requestId = ++credentialListRequestRef.current;
 		setView({ kind: 'credentials', integrationId: integration.id });
 		setDialog(null);
 		setFeedback(null);
 		setOneTimeSecret((current) => transitionOneTimeSecret(current, { type: 'navigate' }));
 		setBusy(true);
 		try {
-			setCredentials(await api.listCredentials(integration.id));
+			const nextCredentials = await api.listCredentials(integration.id);
+			if (requestId !== credentialListRequestRef.current || !isCurrentCredentialLocation(integration.id)) return;
+			setCredentials(nextCredentials);
 		} catch (error) {
-			setFeedback(describePortalError(error));
+			if (requestId !== credentialListRequestRef.current || !isCurrentCredentialLocation(integration.id)) return;
+			setFeedback(describePortalError(error, 'credential'));
 			returnToSignInIfUnauthorized(error);
 		} finally {
-			setBusy(false);
+			if (requestId === credentialListRequestRef.current && isCurrentCredentialLocation(integration.id)) setBusy(false);
 		}
 	}
 
 	function returnToRegistry() {
 		window.history.pushState({}, '', '/');
+		credentialListRequestRef.current += 1;
 		setView({ kind: 'registry' });
 		setCredentials([]);
 		setFeedback(null);
@@ -221,35 +249,40 @@ export function App({ api }: { api: PortalApi }) {
 
 	async function refreshCredentials() {
 		if (view.kind !== 'credentials') return;
+		const integrationId = view.integrationId;
+		const requestId = ++credentialListRequestRef.current;
 		setBusy(true);
 		setFeedback(null);
 		setOneTimeSecret((current) => transitionOneTimeSecret(current, { type: 'refresh' }));
 		try {
-			setCredentials(await api.listCredentials(view.integrationId));
+			const nextCredentials = await api.listCredentials(integrationId);
+			if (requestId !== credentialListRequestRef.current || !isCurrentCredentialLocation(integrationId)) return;
+			setCredentials(nextCredentials);
 			setFeedback('Credential metadata refreshed.');
 		} catch (error) {
-			setFeedback(describePortalError(error));
+			if (requestId !== credentialListRequestRef.current || !isCurrentCredentialLocation(integrationId)) return;
+			setFeedback(describePortalError(error, 'credential'));
 			returnToSignInIfUnauthorized(error);
 		} finally {
-			setBusy(false);
+			if (requestId === credentialListRequestRef.current && isCurrentCredentialLocation(integrationId)) setBusy(false);
 		}
 	}
 
 	async function mintCredential(input: MintApiCredentialRequest): Promise<boolean> {
 		if (!ready || view.kind !== 'credentials') return false;
+		const integrationId = view.integrationId;
 		setBusy(true);
 		setFeedback(null);
 		try {
-			const minted = await api.mintCredential(ready.csrfToken, view.integrationId, input);
+			const minted = await api.mintCredential(ready.csrfToken, integrationId, input);
+			if (!isCurrentCredentialLocation(integrationId)) return true;
 			setCredentials((current) => replaceCredential(current, minted.credential));
 			setReady((current) =>
 				current
 					? {
 							...current,
 							integrations: current.integrations.map((integration) =>
-								integration.id === view.integrationId
-									? { ...integration, credentialCount: integration.credentialCount + 1 }
-									: integration
+								integration.id === integrationId ? { ...integration, credentialCount: integration.credentialCount + 1 } : integration
 							)
 						}
 					: current
@@ -259,20 +292,27 @@ export function App({ api }: { api: PortalApi }) {
 			return true;
 		} catch (error) {
 			if (isPortalError(error, 'network_error', 'request_timeout', 'service_unavailable')) {
+				if (!isCurrentCredentialLocation(integrationId)) return false;
+				const requestId = ++credentialListRequestRef.current;
 				try {
-					setCredentials(await api.listCredentials(view.integrationId));
-					setFeedback(
-						'Mint confirmation was interrupted. Credential metadata was refreshed. Do not retry blindly: if the new label appears, revoke it and mint another because its secret cannot be recovered.'
-					);
+					const nextCredentials = await api.listCredentials(integrationId);
+					if (requestId === credentialListRequestRef.current && isCurrentCredentialLocation(integrationId)) {
+						setCredentials(nextCredentials);
+						setFeedback(
+							'Mint confirmation was interrupted. Review recently created credentials by unique prefix and creation time. If an unexpected credential appears, revoke it before minting another because its secret cannot be recovered.'
+						);
+					}
 				} catch (refreshError) {
-					setFeedback(
-						returnToSignInIfUnauthorized(refreshError)
-							? describePortalError(refreshError)
-							: 'Mint confirmation was interrupted and current credential metadata could not be verified. Refresh before taking another action.'
-					);
+					if (requestId === credentialListRequestRef.current && isCurrentCredentialLocation(integrationId)) {
+						setFeedback(
+							returnToSignInIfUnauthorized(refreshError)
+								? describePortalError(refreshError, 'credential')
+								: 'Mint confirmation was interrupted and current credential metadata could not be verified. Refresh before taking another action.'
+						);
+					}
 				}
 			} else {
-				setFeedback(describePortalError(error));
+				if (isCurrentCredentialLocation(integrationId)) setFeedback(describePortalError(error, 'credential'));
 				returnToSignInIfUnauthorized(error);
 			}
 			return false;
@@ -283,23 +323,40 @@ export function App({ api }: { api: PortalApi }) {
 
 	async function revokeCredential(credential: ApiCredentialMetadata): Promise<boolean> {
 		if (!ready || view.kind !== 'credentials') return false;
+		const integrationId = view.integrationId;
 		setBusy(true);
 		setFeedback(null);
 		try {
-			const revoked = await api.revokeCredential(ready.csrfToken, view.integrationId, credential.id);
-			setCredentials((current) => replaceCredential(current, revoked));
-			setFeedback(`${revoked.label} was revoked.`);
+			const revoked = await api.revokeCredential(ready.csrfToken, integrationId, credential.id);
+			if (isCurrentCredentialLocation(integrationId)) {
+				setCredentials((current) => replaceCredential(current, revoked));
+				setFeedback(`${revoked.label} was revoked.`);
+			}
 			return true;
 		} catch (error) {
-			setFeedback(describePortalError(error));
-			returnToSignInIfUnauthorized(error);
 			if (isPortalError(error, 'network_error', 'request_timeout', 'service_unavailable')) {
 				try {
-					setCredentials(await api.listCredentials(view.integrationId));
-					setFeedback('Revocation confirmation was interrupted. Credential metadata was refreshed to show the authoritative result.');
-				} catch {
-					// Keep the original safe error. The user can manually refresh before retrying.
+					// Revocation is idempotent. A second request waits behind any first
+					// in-flight database update and returns the preserved audit result.
+					const revoked = await api.revokeCredential(ready.csrfToken, integrationId, credential.id);
+					if (isCurrentCredentialLocation(integrationId)) {
+						setCredentials((current) => replaceCredential(current, revoked));
+						setFeedback(`${revoked.label} was revoked after its interrupted confirmation was reconciled.`);
+					}
+					return true;
+				} catch (retryError) {
+					if (isCurrentCredentialLocation(integrationId)) {
+						setFeedback(
+							isPortalError(retryError, 'network_error', 'request_timeout', 'service_unavailable')
+								? 'Revocation confirmation remains interrupted. Wait, then refresh the credential metadata before retrying.'
+								: describePortalError(retryError, 'credential')
+						);
+					}
+					returnToSignInIfUnauthorized(retryError);
 				}
+			} else {
+				if (isCurrentCredentialLocation(integrationId)) setFeedback(describePortalError(error, 'credential'));
+				returnToSignInIfUnauthorized(error);
 			}
 			return false;
 		} finally {
@@ -495,6 +552,11 @@ export function App({ api }: { api: PortalApi }) {
 			)}
 		</div>
 	);
+}
+
+function isCurrentCredentialLocation(integrationId: string): boolean {
+	const current = parsePortalRoute(window.location.pathname);
+	return current.kind === 'credentials' && current.integrationId === integrationId;
 }
 
 function PortalHeader({ identity, busy, onLogout }: { identity: ApiAuthIdentity; busy: boolean; onLogout: () => void }) {
