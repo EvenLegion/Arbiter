@@ -1,9 +1,12 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-const CREDENTIAL_PREFIX = 'arb_v1';
-const PREFIX_BYTES = 9;
-const SECRET_BYTES = 32;
-const CREDENTIAL_PATTERN = /^arb_v1_([A-Za-z0-9_-]{12})_[A-Za-z0-9_-]{43}$/;
+import {
+	API_CREDENTIAL_PREFIX_BYTES,
+	API_CREDENTIAL_PREFIX_LENGTH,
+	API_CREDENTIAL_SCHEME,
+	API_CREDENTIAL_SECRET_BYTES,
+	API_CREDENTIAL_SECRET_PATTERN
+} from '@arbiter/api-contracts';
 
 export type GeneratedApiCredential = {
 	prefix: string;
@@ -11,16 +14,18 @@ export type GeneratedApiCredential = {
 };
 
 export function generateApiCredential(): GeneratedApiCredential {
-	const prefix = randomBytes(PREFIX_BYTES).toString('base64url');
-	const secretMaterial = randomBytes(SECRET_BYTES).toString('base64url');
+	const prefix = randomBytes(API_CREDENTIAL_PREFIX_BYTES).toString('base64url');
+	const secretMaterial = randomBytes(API_CREDENTIAL_SECRET_BYTES).toString('base64url');
 	return {
 		prefix,
-		secret: `${CREDENTIAL_PREFIX}_${prefix}_${secretMaterial}`
+		secret: `${API_CREDENTIAL_SCHEME}_${prefix}_${secretMaterial}`
 	};
 }
 
 export function parseApiCredentialPrefix(secret: string): string | null {
-	return CREDENTIAL_PATTERN.exec(secret)?.[1] ?? null;
+	if (!API_CREDENTIAL_SECRET_PATTERN.test(secret)) return null;
+	const prefixStart = API_CREDENTIAL_SCHEME.length + 1;
+	return secret.slice(prefixStart, prefixStart + API_CREDENTIAL_PREFIX_LENGTH);
 }
 
 export function createApiCredentialVerifier(secret: string, pepper: string): string {

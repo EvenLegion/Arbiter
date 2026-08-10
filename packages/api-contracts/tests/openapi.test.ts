@@ -32,7 +32,10 @@ describe('v1 OpenAPI reference', () => {
 
 	it('derives strict fields, bounds, nullability, errors, headers, and one-time-secret semantics from contracts', () => {
 		const document = buildApiV1OpenApiDocument() as {
-			components: { schemas: Record<string, Record<string, unknown>> };
+			components: {
+				headers: Record<string, Record<string, unknown>>;
+				schemas: Record<string, Record<string, unknown>>;
+			};
 			paths: Record<
 				string,
 				Record<
@@ -63,11 +66,19 @@ describe('v1 OpenAPI reference', () => {
 		};
 		expect(mint.properties.data.properties.secret).toMatchObject({ readOnly: true, 'x-returned-once': true });
 		const directory = document.paths['/api/v1/users/{discordUserId}'].get;
-		expect(directory.responses).toHaveProperty('429');
-		expect(directory.responses['400'].headers).toHaveProperty('X-RateLimit-Limit');
-		expect(directory.responses['404'].headers).toHaveProperty('X-RateLimit-Limit');
-		expect(directory.responses['503'].headers).toHaveProperty('X-RateLimit-Limit');
-		expect(directory.responses['401'].headers).toHaveProperty('WWW-Authenticate');
+		for (const status of ['400', '404', '429', '503']) {
+			expect(directory.responses[status].headers['X-RateLimit-Limit']).toEqual({
+				$ref: '#/components/headers/RateLimitLimit'
+			});
+		}
+		expect(document.components.headers.RateLimitLimit).toEqual({
+			description: 'Credential request allowance for the current fixed window.',
+			schema: { type: 'integer', minimum: 1 }
+		});
+		expect(directory.responses['401'].headers['WWW-Authenticate']).toEqual({
+			description: 'Bearer challenge for API-credential routes.',
+			schema: { type: 'string' }
+		});
 		expect(document.paths['/api/v1/auth/session'].get.responses['401'].headers).not.toHaveProperty('WWW-Authenticate');
 		expect(document.paths['/api/v1/users/query'].post.requestBody).toMatchObject({ required: false });
 		expect(
@@ -78,7 +89,10 @@ describe('v1 OpenAPI reference', () => {
 		const mintRequest = document.components.schemas.MintApiCredentialRequest as {
 			properties: { expiresAt: { description: string } };
 		};
-		expect(mintRequest.properties.expiresAt.description).toMatch(/one calendar year/);
+		const expirationDescription = mintRequest.properties.expiresAt.description;
+		expect(expirationDescription).toContain('later than issuance');
+		expect(expirationDescription).toContain('no more than one calendar year');
+		expect(expirationDescription).toContain('omitted values default to one year');
 	});
 
 	it('accepts the current artifact and deliberately rejects a controlled mismatch', () => {

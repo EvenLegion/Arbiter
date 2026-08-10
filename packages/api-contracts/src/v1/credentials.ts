@@ -5,6 +5,17 @@ import { ApiScopeSchema } from './scopes';
 
 const IsoDateTimeSchema = z.iso.datetime({ offset: true });
 
+export const API_CREDENTIAL_SCHEME = 'arb_v1';
+export const API_CREDENTIAL_PREFIX_BYTES = 9;
+export const API_CREDENTIAL_SECRET_BYTES = 32;
+export const API_CREDENTIAL_PREFIX_LENGTH = Math.ceil((API_CREDENTIAL_PREFIX_BYTES * 8) / 6);
+export const API_CREDENTIAL_SECRET_LENGTH = Math.ceil((API_CREDENTIAL_SECRET_BYTES * 8) / 6);
+const API_CREDENTIAL_BASE64URL_SEGMENT = '[A-Za-z0-9_-]';
+export const API_CREDENTIAL_PREFIX_PATTERN = new RegExp(`^${API_CREDENTIAL_BASE64URL_SEGMENT}{${API_CREDENTIAL_PREFIX_LENGTH}}$`);
+export const API_CREDENTIAL_SECRET_PATTERN = new RegExp(
+	`^${API_CREDENTIAL_SCHEME}_${API_CREDENTIAL_BASE64URL_SEGMENT}{${API_CREDENTIAL_PREFIX_LENGTH}}_${API_CREDENTIAL_BASE64URL_SEGMENT}{${API_CREDENTIAL_SECRET_LENGTH}}$`
+);
+
 export const ApiIntegrationIdSchema = z.uuid();
 export const ApiCredentialIdSchema = z.uuid();
 export const ApiIntegrationNameSchema = z.string().trim().min(1).max(100);
@@ -88,14 +99,11 @@ export const ApiCredentialStatusSchema = z.enum(['active', 'expired', 'revoked',
 export type ApiCredentialStatus = z.infer<typeof ApiCredentialStatusSchema>;
 
 export const ApiCredentialLabelSchema = z.string().trim().min(1).max(100);
-export const ApiCredentialSecretSchema = z
-	.string()
-	.regex(/^arb_v1_[A-Za-z0-9_-]{12}_[A-Za-z0-9_-]{43}$/)
-	.meta({
-		description: 'Returned exactly once when a credential is minted; never returned by later reads.',
-		readOnly: true,
-		'x-returned-once': true
-	});
+export const ApiCredentialSecretSchema = z.string().regex(API_CREDENTIAL_SECRET_PATTERN).meta({
+	description: 'Returned exactly once when a credential is minted; never returned by later reads.',
+	readOnly: true,
+	'x-returned-once': true
+});
 
 export const ApiCredentialActorSummarySchema = z
 	.object({
@@ -110,7 +118,7 @@ export const ApiCredentialMetadataSchema = z
 		id: ApiCredentialIdSchema,
 		integrationId: ApiIntegrationIdSchema,
 		label: z.string().min(1).max(100),
-		prefix: z.string().regex(/^[A-Za-z0-9_-]{12}$/),
+		prefix: z.string().regex(API_CREDENTIAL_PREFIX_PATTERN),
 		scopes: z.array(ApiScopeSchema).min(1),
 		status: ApiCredentialStatusSchema,
 		createdByUserId: z.uuid(),
