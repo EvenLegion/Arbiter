@@ -56,6 +56,28 @@ describe('standalone API dependency and lifecycle integration', () => {
 		await stopIntegrationContainers(containers);
 	});
 
+	it('serves the first authenticated directory request without a readiness probe', async () => {
+		const user = await createUser(botDatabaseClient.prisma, { discordUserId: '100000000000000010' });
+		const integration = await dependencies.credentialService.createIntegration(
+			{ userId: user.id, role: 'STAFF' },
+			{ name: 'First request integration', purpose: 'Verify lazy rate-limit startup' }
+		);
+		if (!integration.ok) throw new Error(`Integration setup failed: ${integration.error.code}`);
+		const minted = await dependencies.credentialService.mintCredential(
+			{ userId: user.id, role: 'STAFF' },
+			{ integrationId: integration.value.id, label: 'First request test', scopes: ['users:read'] }
+		);
+		if (!minted.ok) throw new Error(`Credential setup failed: ${minted.error.code}`);
+
+		const response = await fetch(`${baseUrl}/api/v1/users/${user.discordUserId}`, {
+			headers: { authorization: `Bearer ${minted.value.secret}` }
+		});
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({ data: { discordUserId: user.discordUserId } });
+
+		await botRedisClient.del(`arbiter:api:v1:rate:directory:${minted.value.credential.id}`);
+	});
+
 	it('starts and becomes ready with the API-owned dependency clients', async () => {
 		const readiness = await fetch(`${baseUrl}/api/v1/readiness`);
 		expect(readiness.status).toBe(200);

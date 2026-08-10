@@ -11,12 +11,14 @@ import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 
 describe('API directory read model', () => {
 	let postgres: StartedPostgreSqlContainer;
+	let databaseUrl: string;
 	let standalone: StandalonePrisma;
 	let service: DirectoryService;
 
 	beforeAll(async () => {
 		const started = await startPostgresTestContainer();
 		postgres = started.postgres;
+		databaseUrl = started.databaseUrl;
 		deployPrismaMigrations(started.databaseUrl);
 		standalone = createStandalonePrisma(started.databaseUrl);
 	});
@@ -145,6 +147,40 @@ describe('API directory read model', () => {
 		} finally {
 			releaseLock?.();
 			await lockTransaction;
+		}
+	});
+
+	it('includes directory pool acquisition in the request deadline', async () => {
+		const constrained = createStandalonePrisma(databaseUrl, { max: 1 });
+		const constrainedService = createDirectoryService(createPrismaDirectoryRepository(constrained.prisma));
+		let releaseConnection: (() => void) | undefined;
+		const connectionRelease = new Promise<void>((resolve) => {
+			releaseConnection = resolve;
+		});
+		let markConnectionHeld: (() => void) | undefined;
+		const connectionHeld = new Promise<void>((resolve) => {
+			markConnectionHeld = resolve;
+		});
+		const connectionTransaction = constrained.prisma.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT 1`;
+			markConnectionHeld?.();
+			await connectionRelease;
+		});
+		await connectionHeld;
+
+		const deadlineAtMs = Date.now() + 250;
+		const ciSchedulingToleranceMs = 400;
+		const releaseTimer = setTimeout(() => releaseConnection?.(), 700);
+		try {
+			await expect(constrainedService.query({}, undefined, deadlineAtMs)).rejects.toThrow(
+				/unable to start a transaction|transaction.*(?:closed|expired)|deadline exceeded/i
+			);
+			expect(Date.now()).toBeLessThanOrEqual(deadlineAtMs + ciSchedulingToleranceMs);
+		} finally {
+			clearTimeout(releaseTimer);
+			releaseConnection?.();
+			await connectionTransaction;
+			await constrained.close();
 		}
 	});
 

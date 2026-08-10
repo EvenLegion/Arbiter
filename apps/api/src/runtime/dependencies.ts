@@ -16,7 +16,7 @@ import type { ApiCredentialService } from '../credentials/types';
 import { createPrismaDirectoryRepository } from '../directory/prismaRepository';
 import { createDirectoryService } from '../directory/service';
 import type { DirectoryService } from '../directory/types';
-import { createRedisDirectoryRateLimiter, type DirectoryRateLimiter } from '../directory/rateLimiter';
+import { createRedisDirectoryRateLimiter, type DirectoryRateLimiter, waitForRedisReady } from '../directory/rateLimiter';
 
 export type ApiDependencies = {
 	authService: AuthService;
@@ -101,7 +101,10 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 			const [databaseReady, redisReady, rateLimitRedisReady] = await Promise.all([
 				settlesWithin(prisma.$queryRaw`SELECT 1`, timeoutMs),
 				settlesWithin(redis.ping(), timeoutMs),
-				settlesWithin(pingRedisWhenReady(directoryRateLimitRedis, timeoutMs), timeoutMs)
+				settlesWithin(
+					waitForRedisReady(directoryRateLimitRedis, undefined, Date.now() + timeoutMs).then(() => directoryRateLimitRedis.ping()),
+					timeoutMs
+				)
 			]);
 			return databaseReady && redisReady && rateLimitRedisReady;
 		},
@@ -123,7 +126,7 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 			try {
 				await prisma.$disconnect();
 			} catch (error) {
-				firstError = error;
+				firstError ??= error;
 			}
 			try {
 				await pool.end();
@@ -134,35 +137,6 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 			if (firstError) throw firstError;
 		}
 	};
-}
-
-async function pingRedisWhenReady(redis: Redis, timeoutMs: number): Promise<void> {
-	if (redis.status !== 'ready') {
-		await new Promise<void>((resolve, reject) => {
-			let timeout: NodeJS.Timeout | undefined;
-			const cleanup = () => {
-				if (timeout) clearTimeout(timeout);
-				redis.off('ready', onReady);
-				redis.off('end', onEnd);
-			};
-			const onReady = () => {
-				cleanup();
-				resolve();
-			};
-			const onEnd = () => {
-				cleanup();
-				reject(new Error('Redis connection ended'));
-			};
-			redis.once('ready', onReady);
-			redis.once('end', onEnd);
-			timeout = setTimeout(() => {
-				cleanup();
-				reject(new Error('Redis connection timeout'));
-			}, timeoutMs);
-			if (redis.status === 'wait') redis.connect().catch(onEnd);
-		});
-	}
-	await redis.ping();
 }
 
 async function settlesWithin(promise: Promise<unknown>, timeoutMs: number): Promise<boolean> {
