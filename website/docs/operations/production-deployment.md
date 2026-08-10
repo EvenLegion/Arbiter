@@ -120,13 +120,16 @@ for the deployed revision:
 | Logs | Bot and API files are written to separate mounts; Alloy ships `{app="arbiter", service="bot"}` and `{app="arbiter", service="arbiter-api"}` streams to Loki. |
 | Portal | The static artifact has the reviewed response headers, direct navigation works, and a real request succeeds only against a compatible API contract. |
 
-Start API verification on the host loopback binding:
+Resolve the API's published host address from the running Compose project before
+probing it. This preserves an approved `API_BIND_ADDRESS` or `API_PORT` override
+loaded from `.env` instead of silently falling back to the shell's defaults:
 
 ```bash
-api_port="${API_PORT:-3000}"
-curl -fsS "http://127.0.0.1:${api_port}/api/v1/health"
-curl -fsS "http://127.0.0.1:${api_port}/api/v1/readiness"
-curl -fsSI "http://127.0.0.1:${api_port}/api/v1/health" \
+api_address="$(docker compose -f docker-compose.prod.yml port arbiter-api 3000)"
+test -n "$api_address"
+curl -fsS "http://${api_address}/api/v1/health"
+curl -fsS "http://${api_address}/api/v1/readiness"
+curl -fsSI "http://${api_address}/api/v1/health" \
   | grep -i '^x-arbiter-api-contract-version:'
 docker compose -f docker-compose.prod.yml logs --tail=100 \
   arbiter-api arbiter-bot
