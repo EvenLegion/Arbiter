@@ -13,22 +13,43 @@ type RawDirectoryRow = {
 
 export function createPrismaDirectoryRepository(prisma: PrismaClient): DirectoryRepository {
 	return {
-		query: (input) =>
-			prisma.$transaction(
-				async (tx) => {
-					const knownDivisionCodes = input.divisionCodesAny
-						? await tx.division.findMany({ where: { code: { in: input.divisionCodesAny } }, select: { code: true } })
-						: [];
-					const knownCodeSet = new Set(knownDivisionCodes.map(({ code }) => code));
-					const unknownDivisionCodes = input.divisionCodesAny?.filter((code) => !knownCodeSet.has(code)) ?? [];
-					if (unknownDivisionCodes.length > 0) return { rows: [], unknownDivisionCodes };
+		query: async (input, signal, deadlineAtMs) => {
+			signal?.throwIfAborted();
+			const remainingMs = deadlineAtMs === undefined ? undefined : Math.floor(deadlineAtMs - Date.now());
+			if (remainingMs !== undefined && remainingMs <= 0) throw new Error('Directory query deadline exceeded');
+			const execute = async (tx: Prisma.TransactionClient) => {
+				signal?.throwIfAborted();
+				await applyStatementDeadline(tx, deadlineAtMs);
+				const knownDivisionCodes = input.divisionCodesAny
+					? await tx.division.findMany({ where: { code: { in: input.divisionCodesAny } }, select: { code: true } })
+					: [];
+				const knownCodeSet = new Set(knownDivisionCodes.map(({ code }) => code));
+				const unknownDivisionCodes = input.divisionCodesAny?.filter((code) => !knownCodeSet.has(code)) ?? [];
+				if (unknownDivisionCodes.length > 0) return { rows: [], unknownDivisionCodes };
 
-					const rawRows = await tx.$queryRaw<RawDirectoryRow[]>(buildDirectorySql(input));
-					return { rows: rawRows.map(mapDirectoryRow), unknownDivisionCodes: [] };
-				},
-				{ isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead }
-			)
+				signal?.throwIfAborted();
+				await applyStatementDeadline(tx, deadlineAtMs);
+				const rawRows = await tx.$queryRaw<RawDirectoryRow[]>(buildDirectorySql(input));
+				signal?.throwIfAborted();
+				return { rows: rawRows.map(mapDirectoryRow), unknownDivisionCodes: [] };
+			};
+			if (remainingMs === undefined) {
+				return prisma.$transaction(execute, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+			}
+			return prisma.$transaction(execute, {
+				isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+				maxWait: remainingMs,
+				timeout: remainingMs
+			});
+		}
 	};
+}
+
+async function applyStatementDeadline(tx: Prisma.TransactionClient, deadlineAtMs: number | undefined): Promise<void> {
+	if (deadlineAtMs === undefined) return;
+	const remainingMs = Math.floor(deadlineAtMs - Date.now());
+	if (remainingMs <= 0) throw new Error('Directory query deadline exceeded');
+	await tx.$queryRaw`SELECT set_config('statement_timeout', ${`${remainingMs}ms`}, true)`;
 }
 
 export function buildDirectorySql(input: DirectoryRepositoryQuery): Prisma.Sql {

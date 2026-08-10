@@ -127,14 +127,14 @@ export type ApiCredentialRepository = {
 		| { status: 'prefix_conflict' }
 	>;
 	findCredentialById: (id: string) => Promise<ApiCredentialWithIntegrationRecord | null>;
-	findCredentialByPrefix: (prefix: string) => Promise<ApiCredentialWithIntegrationRecord | null>;
+	findCredentialByPrefix: (prefix: string, signal?: AbortSignal, deadlineAtMs?: number) => Promise<ApiCredentialWithIntegrationRecord | null>;
 	listCredentials: (integrationId: string) => Promise<ApiCredentialWithIntegrationRecord[]>;
 	revokeCredential: (
 		id: string,
 		actorUserId: string,
 		revokedAt: Date
 	) => Promise<{ status: 'revoked' | 'already_revoked'; credential: ApiCredentialWithIntegrationRecord } | { status: 'not_found' }>;
-	touchLastUsed: (id: string, usedAt: Date, staleBefore: Date) => Promise<boolean>;
+	touchLastUsed: (id: string, usedAt: Date, staleBefore: Date, signal?: AbortSignal, deadlineAtMs?: number) => Promise<boolean>;
 };
 
 export type ApiCredentialService = {
@@ -159,6 +159,6 @@ export type ApiCredentialService = {
 		input: { integrationId: string; label: string; scopes: readonly ApiScope[]; expiresAt?: Date }
 	) => Promise<ApiCredentialServiceResult<ApiCredentialMintResult>>;
 	listCredentials: (actor: ApiCredentialActor, integrationId: string) => Promise<ApiCredentialServiceResult<ApiCredentialMetadata[]>>;
-	authenticate: (secret: string) => Promise<ApiCredentialServiceResult<ApiCredentialAuthentication>>;
+	authenticate: (secret: string, signal?: AbortSignal, deadlineAtMs?: number) => Promise<ApiCredentialServiceResult<ApiCredentialAuthentication>>;
 	revokeCredential: (actor: ApiCredentialActor, credentialId: string) => Promise<ApiCredentialServiceResult<ApiCredentialMetadata>>;
 };

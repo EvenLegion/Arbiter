@@ -150,17 +150,26 @@ export function createApiCredentialService({
 			const credentials = await repository.listCredentials(integrationId);
 			return success(credentials.map((credential) => toCredentialDto(credential, timestamp)));
 		},
-		authenticate: async (secret) => {
+		authenticate: async (secret, signal, deadlineAtMs) => {
+			signal?.throwIfAborted();
 			const prefix = parseApiCredentialPrefix(secret);
 			if (!prefix) return failure('invalid_credential');
-			const credential = await repository.findCredentialByPrefix(prefix);
+			const credential = await repository.findCredentialByPrefix(prefix, signal, deadlineAtMs);
+			signal?.throwIfAborted();
 			const expectedVerifier = credential?.verifier ?? createApiCredentialVerifier(DUMMY_SECRET, pepper);
 			if (!verifyApiCredentialSecret(secret, expectedVerifier, pepper) || !credential) return failure('invalid_credential');
 			const authenticatedAt = now();
 			if (credential.revokedAt || credential.expiresAt <= authenticatedAt || credential.integration.state === 'ARCHIVED') {
 				return failure('invalid_credential');
 			}
-			await repository.touchLastUsed(credential.id, authenticatedAt, new Date(authenticatedAt.getTime() - lastUseWriteIntervalMs));
+			await repository.touchLastUsed(
+				credential.id,
+				authenticatedAt,
+				new Date(authenticatedAt.getTime() - lastUseWriteIntervalMs),
+				signal,
+				deadlineAtMs
+			);
+			signal?.throwIfAborted();
 			return success({
 				credentialId: credential.id,
 				integrationId: credential.integrationId,

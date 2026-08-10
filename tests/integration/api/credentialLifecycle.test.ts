@@ -15,6 +15,7 @@ const START_TIME = new Date('2026-08-09T08:00:00.000Z');
 
 describe('API integration and credential lifecycle', () => {
 	let postgres: StartedPostgreSqlContainer;
+	let databaseUrl: string;
 	let standalone: StandalonePrisma;
 	let currentTime: Date;
 	let service: ApiCredentialService;
@@ -25,6 +26,7 @@ describe('API integration and credential lifecycle', () => {
 	beforeAll(async () => {
 		const started = await startPostgresTestContainer();
 		postgres = started.postgres;
+		databaseUrl = started.databaseUrl;
 		deployPrismaMigrations(started.databaseUrl);
 		standalone = createStandalonePrisma(started.databaseUrl);
 	});
@@ -197,6 +199,84 @@ describe('API integration and credential lifecycle', () => {
 		expect((await standalone.prisma.apiCredential.findUniqueOrThrow({ where: { id: stored.id } })).lastUsedAt).toEqual(currentTime);
 	});
 
+	it('bounds credential lookup and last-use statements by the request deadline', async () => {
+		const integration = await createIntegration();
+		const minted = await service.mintCredential(creator, {
+			integrationId: integration.id,
+			label: 'Deadline reader',
+			scopes: ['users:read']
+		});
+		if (!minted.ok) throw new Error(`Credential setup failed: ${minted.error.code}`);
+
+		await expectAuthenticationDeadline(async (tx) => {
+			await tx.$executeRawUnsafe('LOCK TABLE "ApiCredential" IN ACCESS EXCLUSIVE MODE');
+		}, minted.value.secret);
+		await expectAuthenticationDeadline(async (tx) => {
+			await tx.$queryRaw`SELECT "id" FROM "ApiCredential" WHERE "id" = ${minted.value.credential.id} FOR UPDATE`;
+		}, minted.value.secret);
+	});
+
+	it('includes credential pool acquisition in the request deadline', async () => {
+		const integration = await createIntegration();
+		const minted = await service.mintCredential(creator, {
+			integrationId: integration.id,
+			label: 'Pool deadline reader',
+			scopes: ['users:read']
+		});
+		if (!minted.ok) throw new Error(`Credential setup failed: ${minted.error.code}`);
+
+		const constrained = createStandalonePrisma(databaseUrl, { max: 1 });
+		const constrainedService = createApiCredentialService({
+			repository: createPrismaApiCredentialRepository(constrained.prisma),
+			pepper: PEPPER,
+			now: () => new Date(currentTime)
+		});
+		let releaseConnection: (() => void) | undefined;
+		const connectionRelease = new Promise<void>((resolve) => {
+			releaseConnection = resolve;
+		});
+		let markConnectionHeld: (() => void) | undefined;
+		const connectionHeld = new Promise<void>((resolve) => {
+			markConnectionHeld = resolve;
+		});
+		const connectionTransaction = constrained.prisma.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT 1`;
+			markConnectionHeld?.();
+			await connectionRelease;
+		});
+
+		let releaseTable: (() => void) | undefined;
+		const tableRelease = new Promise<void>((resolve) => {
+			releaseTable = resolve;
+		});
+		let markTableLocked: (() => void) | undefined;
+		const tableLocked = new Promise<void>((resolve) => {
+			markTableLocked = resolve;
+		});
+		const tableLockTransaction = standalone.prisma.$transaction(async (tx) => {
+			await tx.$executeRawUnsafe('LOCK TABLE "ApiCredential" IN ACCESS EXCLUSIVE MODE');
+			markTableLocked?.();
+			await tableRelease;
+		});
+
+		await Promise.all([connectionHeld, tableLocked]);
+		const deadlineAtMs = Date.now() + 500;
+		const ciSchedulingToleranceMs = 200;
+		const releaseTimer = setTimeout(() => releaseConnection?.(), 350);
+		try {
+			await expect(constrainedService.authenticate(minted.value.secret, undefined, deadlineAtMs)).rejects.toThrow(
+				/statement timeout|transaction.*(?:closed|expired)|unable to start a transaction|deadline exceeded/i
+			);
+			expect(Date.now()).toBeLessThanOrEqual(deadlineAtMs + ciSchedulingToleranceMs);
+		} finally {
+			clearTimeout(releaseTimer);
+			releaseConnection?.();
+			releaseTable?.();
+			await Promise.all([connectionTransaction, tableLockTransaction]);
+			await constrained.close();
+		}
+	});
+
 	it('rejects unsupported scopes and expiry outside the one-year boundary', async () => {
 		const integration = await createIntegration();
 		expect(
@@ -283,5 +363,36 @@ describe('API integration and credential lifecycle', () => {
 		});
 		if (!result.ok) throw new Error(`Credential setup failed: ${result.error.code}`);
 		return result.value;
+	}
+
+	async function expectAuthenticationDeadline(
+		acquireLock: (tx: Parameters<Parameters<StandalonePrisma['prisma']['$transaction']>[0]>[0]) => Promise<void>,
+		secret: string
+	): Promise<void> {
+		let releaseLock: (() => void) | undefined;
+		const release = new Promise<void>((resolve) => {
+			releaseLock = resolve;
+		});
+		let markLocked: (() => void) | undefined;
+		const locked = new Promise<void>((resolve) => {
+			markLocked = resolve;
+		});
+		const lockTransaction = standalone.prisma.$transaction(async (tx) => {
+			await acquireLock(tx);
+			markLocked?.();
+			await release;
+		});
+		await locked;
+		const deadlineAtMs = Date.now() + 100;
+		const ciSchedulingToleranceMs = 400;
+		try {
+			await expect(service.authenticate(secret, undefined, deadlineAtMs)).rejects.toThrow(
+				/statement timeout|transaction.*(?:closed|expired)|unable to start a transaction|deadline exceeded/i
+			);
+			expect(Date.now()).toBeLessThanOrEqual(deadlineAtMs + ciSchedulingToleranceMs);
+		} finally {
+			releaseLock?.();
+			await lockTransaction;
+		}
 	}
 });

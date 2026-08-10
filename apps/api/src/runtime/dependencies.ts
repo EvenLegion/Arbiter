@@ -16,11 +16,13 @@ import type { ApiCredentialService } from '../credentials/types';
 import { createPrismaDirectoryRepository } from '../directory/prismaRepository';
 import { createDirectoryService } from '../directory/service';
 import type { DirectoryService } from '../directory/types';
+import { createRedisDirectoryRateLimiter, type DirectoryRateLimiter, waitForRedisReady } from '../directory/rateLimiter';
 
 export type ApiDependencies = {
 	authService: AuthService;
 	credentialService: ApiCredentialService;
 	directoryService: DirectoryService;
+	directoryRateLimiter: DirectoryRateLimiter;
 	checkReadiness: (timeoutMs: number) => Promise<boolean>;
 	close: () => Promise<void>;
 };
@@ -31,6 +33,7 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 		max: config.databasePoolMax,
 		idleTimeoutMillis: 10_000,
 		connectionTimeoutMillis: config.databaseConnectTimeoutMs,
+		statement_timeout: config.requestTimeoutMs,
 		application_name: 'arbiter-api'
 	});
 	pool.on('error', (error) => {
@@ -49,9 +52,19 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 		connectTimeout: config.redisConnectTimeoutMs,
 		retryStrategy: (attempt) => Math.min(attempt * 100, 2_000)
 	});
+	const directoryRateLimitRedis = redis.duplicate({
+		connectionName: 'arbiter-api-directory-rate-limit',
+		commandTimeout: config.requestTimeoutMs,
+		enableOfflineQueue: false,
+		lazyConnect: true,
+		maxRetriesPerRequest: 0
+	});
 
 	redis.on('error', (error) => {
 		logger.warn({ dependency: 'redis', errorName: error.name }, 'API Redis dependency error');
+	});
+	directoryRateLimitRedis.on('error', (error) => {
+		logger.warn({ dependency: 'redis-rate-limit', errorName: error.name }, 'API Redis dependency error');
 	});
 	const credentialService = createApiCredentialService({
 		repository: createPrismaApiCredentialRepository(prisma),
@@ -74,28 +87,38 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 		sessionAbsoluteTtlSeconds: config.auth.sessionAbsoluteTtlSeconds
 	});
 	const directoryService = createDirectoryService(createPrismaDirectoryRepository(prisma));
+	const directoryRateLimiter = createRedisDirectoryRateLimiter(directoryRateLimitRedis, {
+		limit: config.directoryRateLimit.requests,
+		windowSeconds: config.directoryRateLimit.windowSeconds
+	});
 
 	return {
 		authService,
 		credentialService,
 		directoryService,
+		directoryRateLimiter,
 		checkReadiness: async (timeoutMs) => {
-			const [databaseReady, redisReady] = await Promise.all([
+			const [databaseReady, redisReady, rateLimitRedisReady] = await Promise.all([
 				settlesWithin(prisma.$queryRaw`SELECT 1`, timeoutMs),
-				settlesWithin(redis.ping(), timeoutMs)
+				settlesWithin(redis.ping(), timeoutMs),
+				settlesWithin(
+					waitForRedisReady(directoryRateLimitRedis, undefined, Date.now() + timeoutMs).then(() => directoryRateLimitRedis.ping()),
+					timeoutMs
+				)
 			]);
-			return databaseReady && redisReady;
+			return databaseReady && redisReady && rateLimitRedisReady;
 		},
 		close: async () => {
 			let firstError: unknown;
-			if (redis.status !== 'end') {
+			for (const redisClient of [directoryRateLimitRedis, redis]) {
+				if (redisClient.status === 'end') continue;
 				try {
-					await redis.quit();
+					await redisClient.quit();
 				} catch {
 					try {
-						redis.disconnect();
+						redisClient.disconnect();
 					} catch (error) {
-						firstError = error;
+						firstError ??= error;
 					}
 				}
 			}
@@ -103,7 +126,7 @@ export function createApiDependencies(config: ApiConfig, logger: Logger): ApiDep
 			try {
 				await prisma.$disconnect();
 			} catch (error) {
-				firstError = error;
+				firstError ??= error;
 			}
 			try {
 				await pool.end();

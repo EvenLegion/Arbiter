@@ -11,12 +11,14 @@ import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 
 describe('API directory read model', () => {
 	let postgres: StartedPostgreSqlContainer;
+	let databaseUrl: string;
 	let standalone: StandalonePrisma;
 	let service: DirectoryService;
 
 	beforeAll(async () => {
 		const started = await startPostgresTestContainer();
 		postgres = started.postgres;
+		databaseUrl = started.databaseUrl;
 		deployPrismaMigrations(started.databaseUrl);
 		standalone = createStandalonePrisma(started.databaseUrl);
 	});
@@ -116,6 +118,70 @@ describe('API directory read model', () => {
 			Prisma.sql`EXPLAIN (FORMAT JSON) ${buildDirectorySql({ discordUserIds: ['100000000000001999'], limit: 2 })}`
 		);
 		expect(JSON.stringify(plan)).toContain('User_discordUserId_key');
+	});
+
+	it('cancels a directory statement that cannot complete before the request deadline', async () => {
+		const division = await createDivision(standalone.prisma, { code: 'LOCKED' });
+		let releaseLock: (() => void) | undefined;
+		const release = new Promise<void>((resolve) => {
+			releaseLock = resolve;
+		});
+		let markLocked: (() => void) | undefined;
+		const locked = new Promise<void>((resolve) => {
+			markLocked = resolve;
+		});
+		const lockTransaction = standalone.prisma.$transaction(async (tx) => {
+			await tx.$executeRawUnsafe('LOCK TABLE "Division" IN ACCESS EXCLUSIVE MODE');
+			markLocked?.();
+			await release;
+		});
+		await locked;
+
+		const deadlineAtMs = Date.now() + 100;
+		const ciSchedulingToleranceMs = 400;
+		try {
+			await expect(service.query({ divisionCodesAny: [division.code] }, undefined, deadlineAtMs)).rejects.toThrow(
+				/statement timeout|deadline exceeded/i
+			);
+			expect(Date.now()).toBeLessThanOrEqual(deadlineAtMs + ciSchedulingToleranceMs);
+		} finally {
+			releaseLock?.();
+			await lockTransaction;
+		}
+	});
+
+	it('includes directory pool acquisition in the request deadline', async () => {
+		const constrained = createStandalonePrisma(databaseUrl, { max: 1 });
+		const constrainedService = createDirectoryService(createPrismaDirectoryRepository(constrained.prisma));
+		let releaseConnection: (() => void) | undefined;
+		const connectionRelease = new Promise<void>((resolve) => {
+			releaseConnection = resolve;
+		});
+		let markConnectionHeld: (() => void) | undefined;
+		const connectionHeld = new Promise<void>((resolve) => {
+			markConnectionHeld = resolve;
+		});
+		const connectionTransaction = constrained.prisma.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT 1`;
+			markConnectionHeld?.();
+			await connectionRelease;
+		});
+		await connectionHeld;
+
+		const deadlineAtMs = Date.now() + 250;
+		const ciSchedulingToleranceMs = 400;
+		const releaseTimer = setTimeout(() => releaseConnection?.(), 700);
+		try {
+			await expect(constrainedService.query({}, undefined, deadlineAtMs)).rejects.toThrow(
+				/unable to start a transaction|transaction.*(?:closed|expired)|deadline exceeded/i
+			);
+			expect(Date.now()).toBeLessThanOrEqual(deadlineAtMs + ciSchedulingToleranceMs);
+		} finally {
+			clearTimeout(releaseTimer);
+			releaseConnection?.();
+			await connectionTransaction;
+			await constrained.close();
+		}
 	});
 
 	async function seedDirectoryFixture() {

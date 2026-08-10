@@ -33,6 +33,7 @@ describe('parseApiConfig', () => {
 			namespace: 'arbiter:api:v1',
 			maxTtlSeconds: 3_600
 		});
+		expect(config.directoryRateLimit).toEqual({ requests: 60, windowSeconds: 60 });
 	});
 
 	it('reports invalid field names without echoing secret values', () => {
@@ -71,6 +72,20 @@ describe('parseApiConfig', () => {
 		expect(() =>
 			parseApiConfig({ ...authEnv, DATABASE_URL: 'postgresql://arbiter@localhost/arbiter', API_CREDENTIAL_PEPPER: 'too-short' })
 		).toThrowError(/API_CREDENTIAL_PEPPER/);
+	});
+
+	it('keeps the directory rate window within the API Redis TTL boundary', () => {
+		expect(() =>
+			parseApiConfig({
+				...authEnv,
+				DATABASE_URL: 'postgresql://arbiter@localhost/arbiter',
+				API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters',
+				API_REDIS_MAX_TTL_SECONDS: '300',
+				API_AUTH_STATE_TTL_SECONDS: '300',
+				API_SESSION_IDLE_TTL_SECONDS: '300',
+				API_DIRECTORY_RATE_LIMIT_WINDOW_SECONDS: '600'
+			})
+		).toThrowError(/API_DIRECTORY_RATE_LIMIT_WINDOW_SECONDS/);
 	});
 
 	it('requires exact credentialed origins and redirect allowlisting', () => {

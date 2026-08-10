@@ -37,7 +37,9 @@ const ApiConfigSchema = z.object({
 		.max(80)
 		.regex(/^[a-z0-9:-]+$/)
 		.default('arbiter:api:v1'),
-	API_REDIS_MAX_TTL_SECONDS: z.coerce.number().int().min(1).max(86_400).default(3_600)
+	API_REDIS_MAX_TTL_SECONDS: z.coerce.number().int().min(1).max(86_400).default(3_600),
+	API_DIRECTORY_RATE_LIMIT_REQUESTS: z.coerce.number().int().min(1).max(10_000).default(60),
+	API_DIRECTORY_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).max(3_600).default(60)
 });
 
 export type ApiConfig = {
@@ -76,6 +78,10 @@ export type ApiConfig = {
 		namespace: string;
 		maxTtlSeconds: number;
 	};
+	directoryRateLimit: {
+		requests: number;
+		windowSeconds: number;
+	};
 };
 
 export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfig {
@@ -102,6 +108,9 @@ export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfi
 	}
 	if (value.API_SESSION_ABSOLUTE_TTL_SECONDS < value.API_SESSION_IDLE_TTL_SECONDS) {
 		throw new Error('Invalid API environment configuration: API_SESSION_ABSOLUTE_TTL_SECONDS must be at least the idle TTL');
+	}
+	if (value.API_DIRECTORY_RATE_LIMIT_WINDOW_SECONDS > value.API_REDIS_MAX_TTL_SECONDS) {
+		throw new Error('Invalid API environment configuration: API_DIRECTORY_RATE_LIMIT_WINDOW_SECONDS must not exceed API_REDIS_MAX_TTL_SECONDS');
 	}
 	return {
 		nodeEnv: value.NODE_ENV,
@@ -138,6 +147,10 @@ export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfi
 			db: value.REDIS_DB,
 			namespace: value.API_REDIS_NAMESPACE,
 			maxTtlSeconds: value.API_REDIS_MAX_TTL_SECONDS
+		},
+		directoryRateLimit: {
+			requests: value.API_DIRECTORY_RATE_LIMIT_REQUESTS,
+			windowSeconds: value.API_DIRECTORY_RATE_LIMIT_WINDOW_SECONDS
 		}
 	};
 }

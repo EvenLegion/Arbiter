@@ -9,7 +9,9 @@ export const API_V1_ROUTES = {
 	authSession: `${API_V1_PREFIX}/auth/session`,
 	authIdentity: `${API_V1_PREFIX}/auth/me`,
 	authLogout: `${API_V1_PREFIX}/auth/logout`,
-	integrationRegistry: `${API_V1_PREFIX}/integrations`
+	integrationRegistry: `${API_V1_PREFIX}/integrations`,
+	directoryUsers: `${API_V1_PREFIX}/users`,
+	directoryQuery: `${API_V1_PREFIX}/users/query`
 } as const;
 
 export const RequestIdSchema = z
@@ -48,6 +50,7 @@ export const ApiErrorCodeSchema = z.enum([
 	'conflict',
 	'stale',
 	'integration_archived',
+	'rate_limited',
 	'service_unavailable',
 	'internal_error'
 ]);

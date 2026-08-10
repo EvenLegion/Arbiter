@@ -16,9 +16,10 @@ export type StandalonePrisma = {
 	close: () => Promise<void>;
 };
 
-export function createStandalonePrisma(databaseUrl: string): StandalonePrisma {
+export function createStandalonePrisma(databaseUrl: string, { max }: { max?: number } = {}): StandalonePrisma {
 	const pool = new Pool({
-		connectionString: databaseUrl
+		connectionString: databaseUrl,
+		max
 	});
 	const prisma = new PrismaClient({
 		adapter: new PrismaPg(pool)

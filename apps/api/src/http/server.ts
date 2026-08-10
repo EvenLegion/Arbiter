@@ -9,6 +9,7 @@ import type { ApiConfig } from '../config';
 import { handleAuthHttpRequest } from '../auth/http';
 import { handleIntegrationHttpRequest } from '../integrations/http';
 import type { ApiDependencies } from '../runtime/dependencies';
+import { handleDirectoryHttpRequest, type DirectoryRequestLogContext } from '../directory/http';
 import { applyExactOriginCors, writeCorsPreflight } from './cors';
 import { ApiHttpError, createErrorEnvelope, toApiError } from './errors';
 import { readJsonRequestBody } from './request';
@@ -73,6 +74,7 @@ async function handleRequest({
 	logger: Logger;
 }) {
 	const startedAt = performance.now();
+	const requestDeadlineAtMs = Date.now() + config.requestTimeoutMs;
 	const requestId = resolveRequestId(request.headers['x-request-id']);
 	response.setHeader('x-request-id', requestId);
 	response.setHeader('content-type', 'application/json; charset=utf-8');
@@ -103,6 +105,7 @@ async function handleRequest({
 	}, config.requestTimeoutMs);
 
 	let path = '/';
+	const directoryLogContext: DirectoryRequestLogContext = {};
 	try {
 		const url = new URL(request.url ?? '/', 'http://arbiter-api.local');
 		path = url.pathname;
@@ -113,6 +116,22 @@ async function handleRequest({
 		}
 		const body = await readJsonRequestBody(request, config.bodyLimitBytes);
 		if (requestTimedOut) return;
+		if (
+			await handleDirectoryHttpRequest({
+				request,
+				response,
+				url,
+				requestId,
+				body,
+				credentialService: dependencies.credentialService,
+				directoryService: dependencies.directoryService,
+				rateLimiter: dependencies.directoryRateLimiter,
+				logContext: directoryLogContext,
+				deadlineAtMs: requestDeadlineAtMs,
+				signal: requestAbortController.signal
+			})
+		)
+			return;
 		if (
 			await handleAuthHttpRequest({
 				request,
@@ -174,7 +193,10 @@ async function handleRequest({
 			{
 				requestId,
 				method: request.method,
-				path,
+				path: directoryLogContext.route ?? path,
+				route: directoryLogContext.route ?? path,
+				integrationId: directoryLogContext.integrationId,
+				credentialPrefix: directoryLogContext.credentialPrefix,
 				statusCode: clientDisconnected ? 499 : response.statusCode,
 				durationMs: Math.round((performance.now() - startedAt) * 100) / 100
 			},

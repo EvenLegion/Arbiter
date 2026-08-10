@@ -12,7 +12,8 @@ type DirectoryCursor = {
 
 export function createDirectoryService(repository: DirectoryRepository): DirectoryService {
 	return {
-		query: async (input) => {
+		query: async (input, signal, deadlineAtMs) => {
+			signal?.throwIfAborted();
 			const parsed = ApiDirectoryQuerySchema.safeParse(input);
 			if (!parsed.success || !hasValidRankBounds(parsed.data)) return { ok: false, error: { code: 'invalid_input' } };
 
@@ -31,7 +32,11 @@ export function createDirectoryService(repository: DirectoryRepository): Directo
 			if (parsed.data.maximumRank !== undefined) repositoryQuery.maximumRank = parsed.data.maximumRank;
 			if (afterDiscordUserId) repositoryQuery.afterDiscordUserId = afterDiscordUserId;
 
-			const result = await repository.query(repositoryQuery);
+			const result =
+				signal || deadlineAtMs !== undefined
+					? await repository.query(repositoryQuery, signal, deadlineAtMs)
+					: await repository.query(repositoryQuery);
+			signal?.throwIfAborted();
 			if (result.unknownDivisionCodes.length > 0) {
 				return { ok: false, error: { code: 'unknown_divisions', divisionCodes: result.unknownDivisionCodes } };
 			}
