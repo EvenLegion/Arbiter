@@ -190,8 +190,10 @@ async function withRequestDeadline<T>(
 	if (remainingMs !== undefined && remainingMs <= 0) throw new Error('API credential request deadline exceeded');
 	const execute = async (tx: Prisma.TransactionClient) => {
 		signal?.throwIfAborted();
-		if (remainingMs !== undefined) {
-			await tx.$queryRaw`SELECT set_config('statement_timeout', ${`${remainingMs}ms`}, true)`;
+		if (deadlineAtMs !== undefined) {
+			const statementRemainingMs = Math.floor(deadlineAtMs - Date.now());
+			if (statementRemainingMs <= 0) throw new Error('API credential request deadline exceeded');
+			await tx.$queryRaw`SELECT set_config('statement_timeout', ${`${statementRemainingMs}ms`}, true)`;
 		}
 		const result = await operation(tx);
 		signal?.throwIfAborted();
