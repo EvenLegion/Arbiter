@@ -57,7 +57,7 @@ export async function handleDirectoryHttpRequest({
 		throw new ApiHttpError(403, 'forbidden', 'API credential does not permit user reads');
 	}
 
-	const rate = await callRateLimiter(() => rateLimiter.consume(authentication.value.credentialId), signal);
+	const rate = await callRateLimiter(() => rateLimiter.consume(authentication.value.credentialId, signal, deadlineAtMs), signal);
 	writeRateLimitHeaders(response, rate);
 	if (!rate.allowed) {
 		response.setHeader('retry-after', String(rate.retryAfterSeconds));

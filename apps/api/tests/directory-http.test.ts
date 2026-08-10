@@ -87,7 +87,7 @@ describe('credential-authenticated directory HTTP routes', () => {
 		expect(response.headers.get('x-ratelimit-remaining')).toBe('59');
 		expect(await response.json()).toEqual({ data: USER, meta: { requestId: expect.any(String) } });
 		expect(credentialService.authenticate).toHaveBeenCalledWith('synthetic-secret', expect.any(AbortSignal));
-		expect(rateLimiter.consume).toHaveBeenCalledWith(AUTHENTICATION.credentialId);
+		expect(rateLimiter.consume).toHaveBeenCalledWith(AUTHENTICATION.credentialId, expect.any(AbortSignal), expect.any(Number));
 		expect(directoryService.query).toHaveBeenCalledWith(
 			{ discordUserIds: [USER.discordUserId], limit: 1 },
 			expect.any(AbortSignal),

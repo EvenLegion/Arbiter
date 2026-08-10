@@ -135,10 +135,13 @@ describe('API directory read model', () => {
 		});
 		await locked;
 
-		const startedAt = Date.now();
+		const deadlineAtMs = Date.now() + 100;
+		const ciSchedulingToleranceMs = 400;
 		try {
-			await expect(service.query({ divisionCodesAny: [division.code] }, undefined, Date.now() + 100)).rejects.toThrow();
-			expect(Date.now() - startedAt).toBeLessThan(1_000);
+			await expect(service.query({ divisionCodesAny: [division.code] }, undefined, deadlineAtMs)).rejects.toThrow(
+				/statement timeout|deadline exceeded/i
+			);
+			expect(Date.now()).toBeLessThanOrEqual(deadlineAtMs + ciSchedulingToleranceMs);
 		} finally {
 			releaseLock?.();
 			await lockTransaction;
