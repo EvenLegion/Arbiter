@@ -130,6 +130,8 @@ Expected work:
 
 ## Validation Checklist
 
+Use the [Testing And Validation](/local-development/testing-and-validation) matrix to choose the narrowest check that covers the changed risk, then finish with the ticket-required or repository-wide chain.
+
 For most code changes, the safe default is:
 
 ```bash
@@ -155,6 +157,8 @@ Do manual Discord checks when the change affects:
 - guild-member listeners triggered by real role changes
 
 Use automated tests for business correctness. Use manual testing for client and transport behavior.
+
+For environment, service, data, or failure diagnosis, use the focused [Local Development](/local-development/environment-and-services) runbooks instead of expanding this contributor workflow with command inventories.
 
 ## Docs Are Part Of The Change
 

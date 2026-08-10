@@ -54,6 +54,8 @@ Discord OAuth proves only the Discord user ID and requests only the `identify` s
 
 ## Start It From Source
 
+For the minimum-service matrix and daily start, stop, and log controls, begin with [Environments And Services](../local-development/environment-and-services.md). This page adds the API-specific security and response contract.
+
 Install the workspace and start the existing local dependencies:
 
 ```bash
