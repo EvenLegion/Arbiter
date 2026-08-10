@@ -1,4 +1,4 @@
-import type Redis from 'ioredis';
+import { Command, type Redis } from 'ioredis';
 
 export type DirectoryRateLimitDecision = {
 	allowed: boolean;
@@ -26,12 +26,7 @@ export function createRedisDirectoryRateLimiter(
 ): DirectoryRateLimiter {
 	return {
 		consume: async (credentialId, signal, deadlineAtMs) => {
-			const raw = await runBoundedCommand(
-				redis,
-				() => redis.eval(CONSUME_SCRIPT, 1, `rate:directory:${credentialId}`, String(windowSeconds)),
-				signal,
-				deadlineAtMs
-			);
+			const raw = await runBoundedCommand(() => executeConsume(redis, credentialId, windowSeconds, deadlineAtMs), signal, deadlineAtMs);
 			if (!Array.isArray(raw) || raw.length !== 2) throw new Error('Invalid Redis rate-limit response');
 			const count = Number(raw[0]);
 			const ttl = Number(raw[1]);
@@ -49,16 +44,13 @@ export function createRedisDirectoryRateLimiter(
 }
 
 async function runBoundedCommand(
-	redis: Redis,
 	command: () => Promise<unknown>,
 	signal: AbortSignal | undefined,
 	deadlineAtMs: number | undefined
 ): Promise<unknown> {
 	return new Promise((resolve, reject) => {
 		let settled = false;
-		let timeout: NodeJS.Timeout | undefined;
 		const cleanup = () => {
-			if (timeout) clearTimeout(timeout);
 			signal?.removeEventListener('abort', onAbort);
 		};
 		const settle = (operation: () => void) => {
@@ -67,15 +59,7 @@ async function runBoundedCommand(
 			cleanup();
 			operation();
 		};
-		const terminate = (error: unknown) => {
-			settle(() => {
-				// This limiter owns a dedicated Redis connection configured to flush
-				// pending commands before reconnecting, so expired quota writes cannot
-				// remain queued and execute after the request has already failed.
-				redis.disconnect(true);
-				reject(error);
-			});
-		};
+		const terminate = (error: unknown) => settle(() => reject(error));
 		const onAbort = () => terminate(signal?.reason ?? new Error('Redis rate-limit command aborted'));
 
 		if (signal?.aborted) {
@@ -83,17 +67,23 @@ async function runBoundedCommand(
 			return;
 		}
 		signal?.addEventListener('abort', onAbort, { once: true });
-		if (deadlineAtMs !== undefined) {
-			const remainingMs = deadlineAtMs - Date.now();
-			if (remainingMs <= 0) {
-				terminate(new Error('Redis rate-limit command deadline exceeded'));
-				return;
-			}
-			timeout = setTimeout(() => terminate(new Error('Redis rate-limit command deadline exceeded')), remainingMs);
+		if (deadlineAtMs !== undefined && deadlineAtMs <= Date.now()) {
+			terminate(new Error('Redis rate-limit command deadline exceeded'));
+			return;
 		}
 		command().then(
 			(value) => settle(() => resolve(value)),
 			(error: unknown) => settle(() => reject(error))
 		);
 	});
+}
+
+function executeConsume(redis: Redis, credentialId: string, windowSeconds: number, deadlineAtMs: number | undefined): Promise<unknown> {
+	const key = `rate:directory:${credentialId}`;
+	if (deadlineAtMs === undefined) return redis.eval(CONSUME_SCRIPT, 1, key, String(windowSeconds));
+	const remainingMs = Math.floor(deadlineAtMs - Date.now());
+	if (remainingMs <= 0) return Promise.reject(new Error('Redis rate-limit command deadline exceeded'));
+	const command = new Command('eval', [CONSUME_SCRIPT, 1, key, String(windowSeconds)], { keyPrefix: redis.options.keyPrefix });
+	command.setTimeout(remainingMs);
+	return redis.sendCommand(command) as Promise<unknown>;
 }

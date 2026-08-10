@@ -57,7 +57,7 @@ export async function handleDirectoryHttpRequest({
 		throw new ApiHttpError(403, 'forbidden', 'API credential does not permit user reads');
 	}
 
-	const rate = await callRateLimiter(() => rateLimiter.consume(authentication.value.credentialId, signal, deadlineAtMs), signal);
+	const rate = await callRateLimiter(() => rateLimiter.consume(authentication.value.credentialId, signal, deadlineAtMs), signal, deadlineAtMs);
 	writeRateLimitHeaders(response, rate);
 	if (!rate.allowed) {
 		response.setHeader('retry-after', String(rate.retryAfterSeconds));
@@ -131,13 +131,18 @@ async function callCredentialAuthentication<T>(operation: () => Promise<T>, sign
 	}
 }
 
-async function callRateLimiter(operation: () => Promise<DirectoryRateLimitDecision>, signal: AbortSignal): Promise<DirectoryRateLimitDecision> {
+async function callRateLimiter(
+	operation: () => Promise<DirectoryRateLimitDecision>,
+	signal: AbortSignal,
+	deadlineAtMs: number
+): Promise<DirectoryRateLimitDecision> {
 	try {
 		const result = await operation();
 		signal.throwIfAborted();
 		return result;
 	} catch {
 		signal.throwIfAborted();
+		if (Date.now() >= deadlineAtMs) throw new ApiHttpError(408, 'request_timeout', 'Request timed out');
 		throw new ApiHttpError(503, 'service_unavailable', 'Directory service is unavailable');
 	}
 }

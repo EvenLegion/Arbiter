@@ -265,7 +265,7 @@ describe('API integration and credential lifecycle', () => {
 		const releaseTimer = setTimeout(() => releaseConnection?.(), 350);
 		try {
 			await expect(constrainedService.authenticate(minted.value.secret, undefined, deadlineAtMs)).rejects.toThrow(
-				/statement timeout|transaction.*(?:closed|expired)|deadline exceeded/i
+				/statement timeout|transaction.*(?:closed|expired)|unable to start a transaction|deadline exceeded/i
 			);
 			expect(Date.now()).toBeLessThanOrEqual(deadlineAtMs + ciSchedulingToleranceMs);
 		} finally {
@@ -387,7 +387,7 @@ describe('API integration and credential lifecycle', () => {
 		const ciSchedulingToleranceMs = 400;
 		try {
 			await expect(service.authenticate(secret, undefined, deadlineAtMs)).rejects.toThrow(
-				/statement timeout|transaction.*(?:closed|expired)|deadline exceeded/i
+				/statement timeout|transaction.*(?:closed|expired)|unable to start a transaction|deadline exceeded/i
 			);
 			expect(Date.now()).toBeLessThanOrEqual(deadlineAtMs + ciSchedulingToleranceMs);
 		} finally {

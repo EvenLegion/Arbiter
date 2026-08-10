@@ -1,4 +1,4 @@
-import type Redis from 'ioredis';
+import { Command, type Redis } from 'ioredis';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createRedisDirectoryRateLimiter } from '../src/directory/rateLimiter';
@@ -34,21 +34,28 @@ describe('directory Redis rate limiter', () => {
 		await expect(limiter.consume('credential-id')).rejects.toThrow('Invalid Redis rate-limit response');
 	});
 
-	it('disconnects the dedicated client when a command exceeds the request deadline', async () => {
+	it('times out one command without interrupting a concurrent command', async () => {
 		vi.useFakeTimers();
 		try {
-			const disconnect = vi.fn();
-			const limiter = createRedisDirectoryRateLimiter({ eval: vi.fn(() => new Promise(() => undefined)), disconnect } as unknown as Redis, {
+			const commands: Command[] = [];
+			const sendCommand = vi.fn((command: Command) => {
+				commands.push(command);
+				return command.promise;
+			});
+			const limiter = createRedisDirectoryRateLimiter({ options: { keyPrefix: 'arbiter:api:v1:' }, sendCommand } as unknown as Redis, {
 				limit: 60,
 				windowSeconds: 60
 			});
-			const result = limiter.consume('credential-id', undefined, Date.now() + 100);
-			const rejection = expect(result).rejects.toThrow('Redis rate-limit command deadline exceeded');
+			const first = limiter.consume('first-credential', undefined, Date.now() + 100);
+			const firstRejection = expect(first).rejects.toThrow('Command timed out');
+			const second = limiter.consume('second-credential', undefined, Date.now() + 1_000);
 
 			await vi.advanceTimersByTimeAsync(100);
 
-			await rejection;
-			expect(disconnect).toHaveBeenCalledWith(true);
+			await firstRejection;
+			expect(commands).toHaveLength(2);
+			commands[1]?.resolve([1, 60]);
+			await expect(second).resolves.toMatchObject({ allowed: true });
 		} finally {
 			vi.useRealTimers();
 		}
