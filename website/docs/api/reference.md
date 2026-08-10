@@ -57,15 +57,15 @@ Returns process liveness without checking Postgres or Redis.
 - Request body: none
 - Rate-limit headers: no
 
-| Status | Body or stable error codes              |
-| ------ | --------------------------------------- |
-| `200`  | The API process is accepting requests.  |
-| `400`  | Request failed with bad_request.        |
-| `403`  | Request failed with origin_not_allowed. |
-| `405`  | Request failed with method_not_allowed. |
-| `408`  | Request failed with request_timeout.    |
-| `413`  | Request failed with payload_too_large.  |
-| `500`  | Request failed with internal_error.     |
+| Status | Response contract                          | Body or stable error codes              |
+| ------ | ------------------------------------------ | --------------------------------------- |
+| `200`  | [`HealthResponse`](#schema-healthresponse) | The API process is accepting requests.  |
+| `400`  | `schema`                                   | Request failed with bad_request.        |
+| `403`  | `schema`                                   | Request failed with origin_not_allowed. |
+| `405`  | `schema`                                   | Request failed with method_not_allowed. |
+| `408`  | `schema`                                   | Request failed with request_timeout.    |
+| `413`  | `schema`                                   | Request failed with payload_too_large.  |
+| `500`  | `schema`                                   | Request failed with internal_error.     |
 
 ### Check process liveness without a body {#headhealth}
 
@@ -77,15 +77,15 @@ Returns the same status and headers as GET without a response body.
 - Request body: none
 - Rate-limit headers: no
 
-| Status | Body or stable error codes              |
-| ------ | --------------------------------------- |
-| `200`  | The API process is accepting requests.  |
-| `400`  | Request failed with bad_request.        |
-| `403`  | Request failed with origin_not_allowed. |
-| `405`  | Request failed with method_not_allowed. |
-| `408`  | Request failed with request_timeout.    |
-| `413`  | Request failed with payload_too_large.  |
-| `500`  | Request failed with internal_error.     |
+| Status | Response contract | Body or stable error codes              |
+| ------ | ----------------- | --------------------------------------- |
+| `200`  | none              | The API process is accepting requests.  |
+| `400`  | none              | Request failed with bad_request.        |
+| `403`  | none              | Request failed with origin_not_allowed. |
+| `405`  | none              | Request failed with method_not_allowed. |
+| `408`  | none              | Request failed with request_timeout.    |
+| `413`  | none              | Request failed with payload_too_large.  |
+| `500`  | none              | Request failed with internal_error.     |
 
 ### Check dependency readiness {#getreadiness}
 
@@ -97,16 +97,16 @@ Checks the API-owned Postgres pool and Redis clients under a bounded deadline.
 - Request body: none
 - Rate-limit headers: no
 
-| Status | Body or stable error codes                     |
-| ------ | ---------------------------------------------- |
-| `200`  | All required dependencies are ready.           |
-| `400`  | Request failed with bad_request.               |
-| `403`  | Request failed with origin_not_allowed.        |
-| `405`  | Request failed with method_not_allowed.        |
-| `408`  | Request failed with request_timeout.           |
-| `413`  | Request failed with payload_too_large.         |
-| `500`  | Request failed with internal_error.            |
-| `503`  | At least one required dependency is not ready. |
+| Status | Response contract                                | Body or stable error codes                     |
+| ------ | ------------------------------------------------ | ---------------------------------------------- |
+| `200`  | [`ReadinessResponse`](#schema-readinessresponse) | All required dependencies are ready.           |
+| `400`  | `schema`                                         | Request failed with bad_request.               |
+| `403`  | `schema`                                         | Request failed with origin_not_allowed.        |
+| `405`  | `schema`                                         | Request failed with method_not_allowed.        |
+| `408`  | `schema`                                         | Request failed with request_timeout.           |
+| `413`  | `schema`                                         | Request failed with payload_too_large.         |
+| `500`  | `schema`                                         | Request failed with internal_error.            |
+| `503`  | [`ReadinessResponse`](#schema-readinessresponse) | At least one required dependency is not ready. |
 
 ### Check dependency readiness without a body {#headreadiness}
 
@@ -118,16 +118,16 @@ Returns the same status and headers as GET without a response body.
 - Request body: none
 - Rate-limit headers: no
 
-| Status | Body or stable error codes                     |
-| ------ | ---------------------------------------------- |
-| `200`  | All required dependencies are ready.           |
-| `400`  | Request failed with bad_request.               |
-| `403`  | Request failed with origin_not_allowed.        |
-| `405`  | Request failed with method_not_allowed.        |
-| `408`  | Request failed with request_timeout.           |
-| `413`  | Request failed with payload_too_large.         |
-| `500`  | Request failed with internal_error.            |
-| `503`  | At least one required dependency is not ready. |
+| Status | Response contract | Body or stable error codes                     |
+| ------ | ----------------- | ---------------------------------------------- |
+| `200`  | none              | All required dependencies are ready.           |
+| `400`  | none              | Request failed with bad_request.               |
+| `403`  | none              | Request failed with origin_not_allowed.        |
+| `405`  | none              | Request failed with method_not_allowed.        |
+| `408`  | none              | Request failed with request_timeout.           |
+| `413`  | none              | Request failed with payload_too_large.         |
+| `500`  | none              | Request failed with internal_error.            |
+| `503`  | none              | At least one required dependency is not ready. |
 
 ## Authentication
 
@@ -138,19 +138,19 @@ Returns the same status and headers as GET without a response body.
 Creates browser-bound, single-use OAuth state and returns a Discord authorization URL.
 
 - Security: Anonymous
-- Request body: `OAuthStartRequest`
+- Request body: [`OAuthStartRequest`](#schema-oauthstartrequest)
 - Rate-limit headers: no
 
-| Status | Body or stable error codes                         |
-| ------ | -------------------------------------------------- |
-| `200`  | Sign-in was started.                               |
-| `400`  | Request failed with bad_request, invalid_redirect. |
-| `403`  | Request failed with origin_not_allowed.            |
-| `405`  | Request failed with method_not_allowed.            |
-| `408`  | Request failed with request_timeout.               |
-| `413`  | Request failed with payload_too_large.             |
-| `500`  | Request failed with internal_error.                |
-| `503`  | Request failed with service_unavailable.           |
+| Status | Response contract                                  | Body or stable error codes                         |
+| ------ | -------------------------------------------------- | -------------------------------------------------- |
+| `200`  | [`OAuthStartResponse`](#schema-oauthstartresponse) | Sign-in was started.                               |
+| `400`  | `schema`                                           | Request failed with bad_request, invalid_redirect. |
+| `403`  | `schema`                                           | Request failed with origin_not_allowed.            |
+| `405`  | `schema`                                           | Request failed with method_not_allowed.            |
+| `408`  | `schema`                                           | Request failed with request_timeout.               |
+| `413`  | `schema`                                           | Request failed with payload_too_large.             |
+| `500`  | `schema`                                           | Request failed with internal_error.                |
+| `503`  | `schema`                                           | Request failed with service_unavailable.           |
 
 ### Complete staff sign-in {#completediscordoauth}
 
@@ -162,23 +162,23 @@ Consumes the one-use state, verifies current staff identity, creates a browser s
 - Request body: none
 - Rate-limit headers: no
 
-| Parameter               | Location | Required | Contract                                                                        |
-| ----------------------- | -------- | -------- | ------------------------------------------------------------------------------- |
-| `code`                  | query    | yes      | Single-use OAuth authorization code. (`OAuthCode`)                              |
-| `state`                 | query    | yes      | Single-use browser-bound OAuth state. (`OAuthState`)                            |
-| `arbiter_oauth_binding` | cookie   | yes      | HttpOnly browser binding created by the start operation. (`OpaqueBrowserToken`) |
+| Parameter               | Location | Required | Contract                                                                                                      |
+| ----------------------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `code`                  | query    | yes      | Single-use OAuth authorization code. ([`OAuthCode`](#schema-oauthcode))                                       |
+| `state`                 | query    | yes      | Single-use browser-bound OAuth state. ([`OAuthState`](#schema-oauthstate))                                    |
+| `arbiter_oauth_binding` | cookie   | yes      | HttpOnly browser binding created by the start operation. ([`OpaqueBrowserToken`](#schema-opaquebrowsertoken)) |
 
-| Status | Body or stable error codes                                              |
-| ------ | ----------------------------------------------------------------------- |
-| `302`  | Sign-in completed and the browser is redirected.                        |
-| `400`  | Request failed with bad_request, invalid_oauth_state, invalid_redirect. |
-| `403`  | Request failed with origin_not_allowed, forbidden.                      |
-| `405`  | Request failed with method_not_allowed.                                 |
-| `408`  | Request failed with request_timeout.                                    |
-| `413`  | Request failed with payload_too_large.                                  |
-| `500`  | Request failed with internal_error.                                     |
-| `502`  | Request failed with oauth_failed.                                       |
-| `503`  | Request failed with service_unavailable.                                |
+| Status | Response contract | Body or stable error codes                                              |
+| ------ | ----------------- | ----------------------------------------------------------------------- |
+| `302`  | none              | Sign-in completed and the browser is redirected.                        |
+| `400`  | `schema`          | Request failed with bad_request, invalid_oauth_state, invalid_redirect. |
+| `403`  | `schema`          | Request failed with origin_not_allowed, forbidden.                      |
+| `405`  | `schema`          | Request failed with method_not_allowed.                                 |
+| `408`  | `schema`          | Request failed with request_timeout.                                    |
+| `413`  | `schema`          | Request failed with payload_too_large.                                  |
+| `500`  | `schema`          | Request failed with internal_error.                                     |
+| `502`  | `schema`          | Request failed with oauth_failed.                                       |
+| `503`  | `schema`          | Request failed with service_unavailable.                                |
 
 ### Read the current staff session {#getauthsession}
 
@@ -190,17 +190,17 @@ Returns current session expiry and the CSRF token required for browser-session m
 - Request body: none
 - Rate-limit headers: no
 
-| Status | Body or stable error codes                         |
-| ------ | -------------------------------------------------- |
-| `200`  | The current staff session is active.               |
-| `400`  | Request failed with bad_request.                   |
-| `401`  | Request failed with unauthorized.                  |
-| `403`  | Request failed with origin_not_allowed, forbidden. |
-| `405`  | Request failed with method_not_allowed.            |
-| `408`  | Request failed with request_timeout.               |
-| `413`  | Request failed with payload_too_large.             |
-| `500`  | Request failed with internal_error.                |
-| `503`  | Request failed with service_unavailable.           |
+| Status | Response contract                                    | Body or stable error codes                         |
+| ------ | ---------------------------------------------------- | -------------------------------------------------- |
+| `200`  | [`AuthSessionResponse`](#schema-authsessionresponse) | The current staff session is active.               |
+| `400`  | `schema`                                             | Request failed with bad_request.                   |
+| `401`  | `schema`                                             | Request failed with unauthorized.                  |
+| `403`  | `schema`                                             | Request failed with origin_not_allowed, forbidden. |
+| `405`  | `schema`                                             | Request failed with method_not_allowed.            |
+| `408`  | `schema`                                             | Request failed with request_timeout.               |
+| `413`  | `schema`                                             | Request failed with payload_too_large.             |
+| `500`  | `schema`                                             | Request failed with internal_error.                |
+| `503`  | `schema`                                             | Request failed with service_unavailable.           |
 
 ### Read the current staff identity {#getauthidentity}
 
@@ -212,17 +212,17 @@ Returns the safe canonical identity and current STAFF or EXEC role.
 - Request body: none
 - Rate-limit headers: no
 
-| Status | Body or stable error codes                         |
-| ------ | -------------------------------------------------- |
-| `200`  | The current staff identity.                        |
-| `400`  | Request failed with bad_request.                   |
-| `401`  | Request failed with unauthorized.                  |
-| `403`  | Request failed with origin_not_allowed, forbidden. |
-| `405`  | Request failed with method_not_allowed.            |
-| `408`  | Request failed with request_timeout.               |
-| `413`  | Request failed with payload_too_large.             |
-| `500`  | Request failed with internal_error.                |
-| `503`  | Request failed with service_unavailable.           |
+| Status | Response contract                                      | Body or stable error codes                         |
+| ------ | ------------------------------------------------------ | -------------------------------------------------- |
+| `200`  | [`AuthIdentityResponse`](#schema-authidentityresponse) | The current staff identity.                        |
+| `400`  | `schema`                                               | Request failed with bad_request.                   |
+| `401`  | `schema`                                               | Request failed with unauthorized.                  |
+| `403`  | `schema`                                               | Request failed with origin_not_allowed, forbidden. |
+| `405`  | `schema`                                               | Request failed with method_not_allowed.            |
+| `408`  | `schema`                                               | Request failed with request_timeout.               |
+| `413`  | `schema`                                               | Request failed with payload_too_large.             |
+| `500`  | `schema`                                               | Request failed with internal_error.                |
+| `503`  | `schema`                                               | Request failed with service_unavailable.           |
 
 ### End the current staff session {#logoutauthsession}
 
@@ -234,17 +234,17 @@ Validates CSRF, revokes the Redis session, and clears the browser cookie.
 - Request body: none
 - Rate-limit headers: no
 
-| Status | Body or stable error codes                                      |
-| ------ | --------------------------------------------------------------- |
-| `200`  | The session was ended.                                          |
-| `400`  | Request failed with bad_request.                                |
-| `401`  | Request failed with unauthorized.                               |
-| `403`  | Request failed with origin_not_allowed, forbidden, csrf_failed. |
-| `405`  | Request failed with method_not_allowed.                         |
-| `408`  | Request failed with request_timeout.                            |
-| `413`  | Request failed with payload_too_large.                          |
-| `500`  | Request failed with internal_error.                             |
-| `503`  | Request failed with service_unavailable.                        |
+| Status | Response contract                                  | Body or stable error codes                                      |
+| ------ | -------------------------------------------------- | --------------------------------------------------------------- |
+| `200`  | [`AuthLogoutResponse`](#schema-authlogoutresponse) | The session was ended.                                          |
+| `400`  | `schema`                                           | Request failed with bad_request.                                |
+| `401`  | `schema`                                           | Request failed with unauthorized.                               |
+| `403`  | `schema`                                           | Request failed with origin_not_allowed, forbidden, csrf_failed. |
+| `405`  | `schema`                                           | Request failed with method_not_allowed.                         |
+| `408`  | `schema`                                           | Request failed with request_timeout.                            |
+| `413`  | `schema`                                           | Request failed with payload_too_large.                          |
+| `500`  | `schema`                                           | Request failed with internal_error.                             |
+| `503`  | `schema`                                           | Request failed with service_unavailable.                        |
 
 ## Integrations
 
@@ -258,21 +258,21 @@ Lists the staff-visible integration registry with safe creator and credential-co
 - Request body: none
 - Rate-limit headers: no
 
-| Parameter         | Location | Required | Contract                                                              |
-| ----------------- | -------- | -------- | --------------------------------------------------------------------- |
-| `includeArchived` | query    | no       | Include archived integrations. Defaults to false. (`IncludeArchived`) |
+| Parameter         | Location | Required | Contract                                                                                         |
+| ----------------- | -------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `includeArchived` | query    | no       | Include archived integrations. Defaults to false. ([`IncludeArchived`](#schema-includearchived)) |
 
-| Status | Body or stable error codes                         |
-| ------ | -------------------------------------------------- |
-| `200`  | The visible integration registry.                  |
-| `400`  | Request failed with bad_request.                   |
-| `401`  | Request failed with unauthorized.                  |
-| `403`  | Request failed with origin_not_allowed, forbidden. |
-| `405`  | Request failed with method_not_allowed.            |
-| `408`  | Request failed with request_timeout.               |
-| `413`  | Request failed with payload_too_large.             |
-| `500`  | Request failed with internal_error.                |
-| `503`  | Request failed with service_unavailable.           |
+| Status | Response contract                                                  | Body or stable error codes                         |
+| ------ | ------------------------------------------------------------------ | -------------------------------------------------- |
+| `200`  | [`ApiIntegrationListResponse`](#schema-apiintegrationlistresponse) | The visible integration registry.                  |
+| `400`  | `schema`                                                           | Request failed with bad_request.                   |
+| `401`  | `schema`                                                           | Request failed with unauthorized.                  |
+| `403`  | `schema`                                                           | Request failed with origin_not_allowed, forbidden. |
+| `405`  | `schema`                                                           | Request failed with method_not_allowed.            |
+| `408`  | `schema`                                                           | Request failed with request_timeout.               |
+| `413`  | `schema`                                                           | Request failed with payload_too_large.             |
+| `500`  | `schema`                                                           | Request failed with internal_error.                |
+| `503`  | `schema`                                                           | Request failed with service_unavailable.           |
 
 ### Create an API integration {#createintegration}
 
@@ -281,21 +281,21 @@ Lists the staff-visible integration registry with safe creator and credential-co
 Registers an integration for the current authenticated staff member.
 
 - Security: Browser session + CSRF
-- Request body: `CreateApiIntegrationRequest`
+- Request body: [`CreateApiIntegrationRequest`](#schema-createapiintegrationrequest)
 - Rate-limit headers: no
 
-| Status | Body or stable error codes                                      |
-| ------ | --------------------------------------------------------------- |
-| `201`  | The integration was created.                                    |
-| `400`  | Request failed with bad_request.                                |
-| `401`  | Request failed with unauthorized.                               |
-| `403`  | Request failed with origin_not_allowed, forbidden, csrf_failed. |
-| `405`  | Request failed with method_not_allowed.                         |
-| `408`  | Request failed with request_timeout.                            |
-| `409`  | Request failed with conflict.                                   |
-| `413`  | Request failed with payload_too_large.                          |
-| `500`  | Request failed with internal_error.                             |
-| `503`  | Request failed with service_unavailable.                        |
+| Status | Response contract                                          | Body or stable error codes                                      |
+| ------ | ---------------------------------------------------------- | --------------------------------------------------------------- |
+| `201`  | [`ApiIntegrationResponse`](#schema-apiintegrationresponse) | The integration was created.                                    |
+| `400`  | `schema`                                                   | Request failed with bad_request.                                |
+| `401`  | `schema`                                                   | Request failed with unauthorized.                               |
+| `403`  | `schema`                                                   | Request failed with origin_not_allowed, forbidden, csrf_failed. |
+| `405`  | `schema`                                                   | Request failed with method_not_allowed.                         |
+| `408`  | `schema`                                                   | Request failed with request_timeout.                            |
+| `409`  | `schema`                                                   | Request failed with conflict.                                   |
+| `413`  | `schema`                                                   | Request failed with payload_too_large.                          |
+| `500`  | `schema`                                                   | Request failed with internal_error.                             |
+| `503`  | `schema`                                                   | Request failed with service_unavailable.                        |
 
 ### Edit an API integration {#editintegration}
 
@@ -304,26 +304,26 @@ Registers an integration for the current authenticated staff member.
 Edits active integration metadata as its creator or an EXEC using optimistic concurrency.
 
 - Security: Browser session + CSRF
-- Request body: `EditApiIntegrationRequest`
+- Request body: [`EditApiIntegrationRequest`](#schema-editapiintegrationrequest)
 - Rate-limit headers: no
 
-| Parameter       | Location | Required | Contract                               |
-| --------------- | -------- | -------- | -------------------------------------- |
-| `integrationId` | path     | yes      | Integration UUID. (`ApiIntegrationId`) |
+| Parameter       | Location | Required | Contract                                                           |
+| --------------- | -------- | -------- | ------------------------------------------------------------------ |
+| `integrationId` | path     | yes      | Integration UUID. ([`ApiIntegrationId`](#schema-apiintegrationid)) |
 
-| Status | Body or stable error codes                                      |
-| ------ | --------------------------------------------------------------- |
-| `200`  | The integration was updated.                                    |
-| `400`  | Request failed with bad_request.                                |
-| `401`  | Request failed with unauthorized.                               |
-| `403`  | Request failed with origin_not_allowed, forbidden, csrf_failed. |
-| `404`  | Request failed with not_found.                                  |
-| `405`  | Request failed with method_not_allowed.                         |
-| `408`  | Request failed with request_timeout.                            |
-| `409`  | Request failed with conflict, stale, integration_archived.      |
-| `413`  | Request failed with payload_too_large.                          |
-| `500`  | Request failed with internal_error.                             |
-| `503`  | Request failed with service_unavailable.                        |
+| Status | Response contract                                          | Body or stable error codes                                      |
+| ------ | ---------------------------------------------------------- | --------------------------------------------------------------- |
+| `200`  | [`ApiIntegrationResponse`](#schema-apiintegrationresponse) | The integration was updated.                                    |
+| `400`  | `schema`                                                   | Request failed with bad_request.                                |
+| `401`  | `schema`                                                   | Request failed with unauthorized.                               |
+| `403`  | `schema`                                                   | Request failed with origin_not_allowed, forbidden, csrf_failed. |
+| `404`  | `schema`                                                   | Request failed with not_found.                                  |
+| `405`  | `schema`                                                   | Request failed with method_not_allowed.                         |
+| `408`  | `schema`                                                   | Request failed with request_timeout.                            |
+| `409`  | `schema`                                                   | Request failed with conflict, stale, integration_archived.      |
+| `413`  | `schema`                                                   | Request failed with payload_too_large.                          |
+| `500`  | `schema`                                                   | Request failed with internal_error.                             |
+| `503`  | `schema`                                                   | Request failed with service_unavailable.                        |
 
 ### Archive an API integration {#archiveintegration}
 
@@ -332,26 +332,26 @@ Edits active integration metadata as its creator or an EXEC using optimistic con
 Idempotently archives an integration as EXEC and invalidates its credentials.
 
 - Security: Browser session + CSRF
-- Request body: `ArchiveApiIntegrationRequest`
+- Request body: [`ArchiveApiIntegrationRequest`](#schema-archiveapiintegrationrequest)
 - Rate-limit headers: no
 
-| Parameter       | Location | Required | Contract                               |
-| --------------- | -------- | -------- | -------------------------------------- |
-| `integrationId` | path     | yes      | Integration UUID. (`ApiIntegrationId`) |
+| Parameter       | Location | Required | Contract                                                           |
+| --------------- | -------- | -------- | ------------------------------------------------------------------ |
+| `integrationId` | path     | yes      | Integration UUID. ([`ApiIntegrationId`](#schema-apiintegrationid)) |
 
-| Status | Body or stable error codes                                      |
-| ------ | --------------------------------------------------------------- |
-| `200`  | The integration is archived.                                    |
-| `400`  | Request failed with bad_request.                                |
-| `401`  | Request failed with unauthorized.                               |
-| `403`  | Request failed with origin_not_allowed, forbidden, csrf_failed. |
-| `404`  | Request failed with not_found.                                  |
-| `405`  | Request failed with method_not_allowed.                         |
-| `408`  | Request failed with request_timeout.                            |
-| `409`  | Request failed with stale.                                      |
-| `413`  | Request failed with payload_too_large.                          |
-| `500`  | Request failed with internal_error.                             |
-| `503`  | Request failed with service_unavailable.                        |
+| Status | Response contract                                          | Body or stable error codes                                      |
+| ------ | ---------------------------------------------------------- | --------------------------------------------------------------- |
+| `200`  | [`ApiIntegrationResponse`](#schema-apiintegrationresponse) | The integration is archived.                                    |
+| `400`  | `schema`                                                   | Request failed with bad_request.                                |
+| `401`  | `schema`                                                   | Request failed with unauthorized.                               |
+| `403`  | `schema`                                                   | Request failed with origin_not_allowed, forbidden, csrf_failed. |
+| `404`  | `schema`                                                   | Request failed with not_found.                                  |
+| `405`  | `schema`                                                   | Request failed with method_not_allowed.                         |
+| `408`  | `schema`                                                   | Request failed with request_timeout.                            |
+| `409`  | `schema`                                                   | Request failed with stale.                                      |
+| `413`  | `schema`                                                   | Request failed with payload_too_large.                          |
+| `500`  | `schema`                                                   | Request failed with internal_error.                             |
+| `503`  | `schema`                                                   | Request failed with service_unavailable.                        |
 
 ### List integration credentials {#listintegrationcredentials}
 
@@ -363,22 +363,22 @@ Lists safe credential metadata without any recoverable secret.
 - Request body: none
 - Rate-limit headers: no
 
-| Parameter       | Location | Required | Contract                               |
-| --------------- | -------- | -------- | -------------------------------------- |
-| `integrationId` | path     | yes      | Integration UUID. (`ApiIntegrationId`) |
+| Parameter       | Location | Required | Contract                                                           |
+| --------------- | -------- | -------- | ------------------------------------------------------------------ |
+| `integrationId` | path     | yes      | Integration UUID. ([`ApiIntegrationId`](#schema-apiintegrationid)) |
 
-| Status | Body or stable error codes                         |
-| ------ | -------------------------------------------------- |
-| `200`  | Safe credential metadata.                          |
-| `400`  | Request failed with bad_request.                   |
-| `401`  | Request failed with unauthorized.                  |
-| `403`  | Request failed with origin_not_allowed, forbidden. |
-| `404`  | Request failed with not_found.                     |
-| `405`  | Request failed with method_not_allowed.            |
-| `408`  | Request failed with request_timeout.               |
-| `413`  | Request failed with payload_too_large.             |
-| `500`  | Request failed with internal_error.                |
-| `503`  | Request failed with service_unavailable.           |
+| Status | Response contract                                                | Body or stable error codes                         |
+| ------ | ---------------------------------------------------------------- | -------------------------------------------------- |
+| `200`  | [`ApiCredentialListResponse`](#schema-apicredentiallistresponse) | Safe credential metadata.                          |
+| `400`  | `schema`                                                         | Request failed with bad_request.                   |
+| `401`  | `schema`                                                         | Request failed with unauthorized.                  |
+| `403`  | `schema`                                                         | Request failed with origin_not_allowed, forbidden. |
+| `404`  | `schema`                                                         | Request failed with not_found.                     |
+| `405`  | `schema`                                                         | Request failed with method_not_allowed.            |
+| `408`  | `schema`                                                         | Request failed with request_timeout.               |
+| `413`  | `schema`                                                         | Request failed with payload_too_large.             |
+| `500`  | `schema`                                                         | Request failed with internal_error.                |
+| `503`  | `schema`                                                         | Request failed with service_unavailable.           |
 
 ### Mint an integration credential {#mintintegrationcredential}
 
@@ -387,26 +387,26 @@ Lists safe credential metadata without any recoverable secret.
 Mints users:read for an active integration. The generated secret appears only in this successful response and cannot be recovered later.
 
 - Security: Browser session + CSRF
-- Request body: `MintApiCredentialRequest`
+- Request body: [`MintApiCredentialRequest`](#schema-mintapicredentialrequest)
 - Rate-limit headers: no
 
-| Parameter       | Location | Required | Contract                               |
-| --------------- | -------- | -------- | -------------------------------------- |
-| `integrationId` | path     | yes      | Integration UUID. (`ApiIntegrationId`) |
+| Parameter       | Location | Required | Contract                                                           |
+| --------------- | -------- | -------- | ------------------------------------------------------------------ |
+| `integrationId` | path     | yes      | Integration UUID. ([`ApiIntegrationId`](#schema-apiintegrationid)) |
 
-| Status | Body or stable error codes                                         |
-| ------ | ------------------------------------------------------------------ |
-| `201`  | The credential was minted and its secret is returned exactly once. |
-| `400`  | Request failed with bad_request.                                   |
-| `401`  | Request failed with unauthorized.                                  |
-| `403`  | Request failed with origin_not_allowed, forbidden, csrf_failed.    |
-| `404`  | Request failed with not_found.                                     |
-| `405`  | Request failed with method_not_allowed.                            |
-| `408`  | Request failed with request_timeout.                               |
-| `409`  | Request failed with integration_archived.                          |
-| `413`  | Request failed with payload_too_large.                             |
-| `500`  | Request failed with internal_error.                                |
-| `503`  | Request failed with service_unavailable.                           |
+| Status | Response contract                                                | Body or stable error codes                                         |
+| ------ | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `201`  | [`MintApiCredentialResponse`](#schema-mintapicredentialresponse) | The credential was minted and its secret is returned exactly once. |
+| `400`  | `schema`                                                         | Request failed with bad_request.                                   |
+| `401`  | `schema`                                                         | Request failed with unauthorized.                                  |
+| `403`  | `schema`                                                         | Request failed with origin_not_allowed, forbidden, csrf_failed.    |
+| `404`  | `schema`                                                         | Request failed with not_found.                                     |
+| `405`  | `schema`                                                         | Request failed with method_not_allowed.                            |
+| `408`  | `schema`                                                         | Request failed with request_timeout.                               |
+| `409`  | `schema`                                                         | Request failed with integration_archived.                          |
+| `413`  | `schema`                                                         | Request failed with payload_too_large.                             |
+| `500`  | `schema`                                                         | Request failed with internal_error.                                |
+| `503`  | `schema`                                                         | Request failed with service_unavailable.                           |
 
 ### Revoke an integration credential {#revokeintegrationcredential}
 
@@ -418,23 +418,23 @@ Idempotently revokes a credential as its creator or an EXEC.
 - Request body: none
 - Rate-limit headers: no
 
-| Parameter       | Location | Required | Contract                               |
-| --------------- | -------- | -------- | -------------------------------------- |
-| `integrationId` | path     | yes      | Integration UUID. (`ApiIntegrationId`) |
-| `credentialId`  | path     | yes      | Credential UUID. (`ApiCredentialId`)   |
+| Parameter       | Location | Required | Contract                                                           |
+| --------------- | -------- | -------- | ------------------------------------------------------------------ |
+| `integrationId` | path     | yes      | Integration UUID. ([`ApiIntegrationId`](#schema-apiintegrationid)) |
+| `credentialId`  | path     | yes      | Credential UUID. ([`ApiCredentialId`](#schema-apicredentialid))    |
 
-| Status | Body or stable error codes                                      |
-| ------ | --------------------------------------------------------------- |
-| `200`  | The credential is revoked.                                      |
-| `400`  | Request failed with bad_request.                                |
-| `401`  | Request failed with unauthorized.                               |
-| `403`  | Request failed with origin_not_allowed, forbidden, csrf_failed. |
-| `404`  | Request failed with not_found.                                  |
-| `405`  | Request failed with method_not_allowed.                         |
-| `408`  | Request failed with request_timeout.                            |
-| `413`  | Request failed with payload_too_large.                          |
-| `500`  | Request failed with internal_error.                             |
-| `503`  | Request failed with service_unavailable.                        |
+| Status | Response contract                                        | Body or stable error codes                                      |
+| ------ | -------------------------------------------------------- | --------------------------------------------------------------- |
+| `200`  | [`ApiCredentialResponse`](#schema-apicredentialresponse) | The credential is revoked.                                      |
+| `400`  | `schema`                                                 | Request failed with bad_request.                                |
+| `401`  | `schema`                                                 | Request failed with unauthorized.                               |
+| `403`  | `schema`                                                 | Request failed with origin_not_allowed, forbidden, csrf_failed. |
+| `404`  | `schema`                                                 | Request failed with not_found.                                  |
+| `405`  | `schema`                                                 | Request failed with method_not_allowed.                         |
+| `408`  | `schema`                                                 | Request failed with request_timeout.                            |
+| `413`  | `schema`                                                 | Request failed with payload_too_large.                          |
+| `500`  | `schema`                                                 | Request failed with internal_error.                             |
+| `503`  | `schema`                                                 | Request failed with service_unavailable.                        |
 
 ## Directory
 
@@ -448,23 +448,23 @@ Returns one canonical user-directory record for a valid Discord snowflake.
 - Request body: none
 - Rate-limit headers: yes, after credential authentication
 
-| Parameter       | Location | Required | Contract                                  |
-| --------------- | -------- | -------- | ----------------------------------------- |
-| `discordUserId` | path     | yes      | Discord user snowflake. (`DiscordUserId`) |
+| Parameter       | Location | Required | Contract                                                           |
+| --------------- | -------- | -------- | ------------------------------------------------------------------ |
+| `discordUserId` | path     | yes      | Discord user snowflake. ([`DiscordUserId`](#schema-discorduserid)) |
 
-| Status | Body or stable error codes                         |
-| ------ | -------------------------------------------------- |
-| `200`  | The directory user.                                |
-| `400`  | Request failed with bad_request.                   |
-| `401`  | Request failed with unauthorized.                  |
-| `403`  | Request failed with origin_not_allowed, forbidden. |
-| `404`  | Request failed with not_found.                     |
-| `405`  | Request failed with method_not_allowed.            |
-| `408`  | Request failed with request_timeout.               |
-| `413`  | Request failed with payload_too_large.             |
-| `429`  | Request failed with rate_limited.                  |
-| `500`  | Request failed with internal_error.                |
-| `503`  | Request failed with service_unavailable.           |
+| Status | Response contract                                              | Body or stable error codes                         |
+| ------ | -------------------------------------------------------------- | -------------------------------------------------- |
+| `200`  | [`ApiDirectoryUserResponse`](#schema-apidirectoryuserresponse) | The directory user.                                |
+| `400`  | `schema`                                                       | Request failed with bad_request.                   |
+| `401`  | `schema`                                                       | Request failed with unauthorized.                  |
+| `403`  | `schema`                                                       | Request failed with origin_not_allowed, forbidden. |
+| `404`  | `schema`                                                       | Request failed with not_found.                     |
+| `405`  | `schema`                                                       | Request failed with method_not_allowed.            |
+| `408`  | `schema`                                                       | Request failed with request_timeout.               |
+| `413`  | `schema`                                                       | Request failed with payload_too_large.             |
+| `429`  | `schema`                                                       | Request failed with rate_limited.                  |
+| `500`  | `schema`                                                       | Request failed with internal_error.                |
+| `503`  | `schema`                                                       | Request failed with service_unavailable.           |
 
 ### Query directory users {#querydirectoryusers}
 
@@ -473,21 +473,21 @@ Returns one canonical user-directory record for a valid Discord snowflake.
 Runs a bounded batch and filter query with opaque cursor pagination. Filter categories intersect; division codes within one filter match any requested code.
 
 - Security: API credential; required scope: `users:read`
-- Request body: `ApiDirectoryQuery` (optional)
+- Request body: [`ApiDirectoryQuery`](#schema-apidirectoryquery) (optional)
 - Rate-limit headers: yes, after credential authentication
 
-| Status | Body or stable error codes                         |
-| ------ | -------------------------------------------------- |
-| `200`  | A bounded page of directory users.                 |
-| `400`  | Request failed with bad_request.                   |
-| `401`  | Request failed with unauthorized.                  |
-| `403`  | Request failed with origin_not_allowed, forbidden. |
-| `405`  | Request failed with method_not_allowed.            |
-| `408`  | Request failed with request_timeout.               |
-| `413`  | Request failed with payload_too_large.             |
-| `429`  | Request failed with rate_limited.                  |
-| `500`  | Request failed with internal_error.                |
-| `503`  | Request failed with service_unavailable.           |
+| Status | Response contract                                              | Body or stable error codes                         |
+| ------ | -------------------------------------------------------------- | -------------------------------------------------- |
+| `200`  | [`ApiDirectoryPageResponse`](#schema-apidirectorypageresponse) | A bounded page of directory users.                 |
+| `400`  | `schema`                                                       | Request failed with bad_request.                   |
+| `401`  | `schema`                                                       | Request failed with unauthorized.                  |
+| `403`  | `schema`                                                       | Request failed with origin_not_allowed, forbidden. |
+| `405`  | `schema`                                                       | Request failed with method_not_allowed.            |
+| `408`  | `schema`                                                       | Request failed with request_timeout.               |
+| `413`  | `schema`                                                       | Request failed with payload_too_large.             |
+| `429`  | `schema`                                                       | Request failed with rate_limited.                  |
+| `500`  | `schema`                                                       | Request failed with internal_error.                |
+| `503`  | `schema`                                                       | Request failed with service_unavailable.           |
 
 ## Shared response headers
 
@@ -499,36 +499,345 @@ The machine-readable artifact defines 9 reusable response-header contracts.
 
 The artifact derives these JSON Schemas mechanically from the Zod contracts, including strict-object rejection, nullability, enums, regexes, defaults, and numeric or collection bounds:
 
-- `ApiCredentialId`
-- `ApiCredentialListResponse`
-- `ApiCredentialResponse`
-- `ApiDirectoryPageResponse`
-- `ApiDirectoryQuery`
-- `ApiDirectoryUserResponse`
-- `ApiErrorEnvelope`
-- `ApiIntegrationId`
-- `ApiIntegrationListResponse`
-- `ApiIntegrationResponse`
-- `ArchiveApiIntegrationRequest`
-- `AuthIdentityResponse`
-- `AuthLogoutResponse`
-- `AuthSessionResponse`
-- `CreateApiIntegrationRequest`
-- `CsrfToken`
-- `DiscordUserId`
-- `EditApiIntegrationRequest`
-- `HealthResponse`
-- `IncludeArchived`
-- `MintApiCredentialRequest`
-- `MintApiCredentialResponse`
-- `OAuthCallbackQuery`
-- `OAuthCode`
-- `OAuthStartRequest`
-- `OAuthStartResponse`
-- `OAuthState`
-- `OpaqueBrowserToken`
-- `ReadinessResponse`
-- `RequestId`
+### ApiCredentialId {#schema-apicredentialid}
+
+| Field     | Required | Type     | Constraints                                                                                                                                                                                         |
+| --------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `(value)` | yes      | `string` | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$` |
+
+### ApiCredentialListResponse {#schema-apicredentiallistresponse}
+
+| Field                                        | Required | Type               | Constraints                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------------- | -------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`                                       | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.credentials`                           | yes      | array of `object`  | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.credentials[].createdAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.credentials[].createdByUserId`         | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.credentials[].creator`                 | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.credentials[].creator.discordNickname` | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.credentials[].creator.discordUsername` | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.credentials[].creator.userId`          | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.credentials[].expiresAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.credentials[].id`                      | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.credentials[].integrationId`           | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.credentials[].label`                   | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.credentials[].lastUsedAt`              | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.credentials[].prefix`                  | yes      | `string`           | pattern: `^[A-Za-z0-9_-]{12}$`                                                                                                                                                                                                                                                                                                                          |
+| `data.credentials[].revokedAt`               | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.credentials[].revokedByUserId`         | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.credentials[].scopes`                  | yes      | array of `string`  | minItems: `1`                                                                                                                                                                                                                                                                                                                                           |
+| `data.credentials[].status`                  | yes      | `string`           | enum: `active`, `expired`, `revoked`, `integration_archived`                                                                                                                                                                                                                                                                                            |
+| `data.credentials[].updatedAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `meta`                                       | yes      | `object`           | none                                                                                                                                                                                                                                                                                                                                                    |
+| `meta.requestId`                             | yes      | `string`           | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128`                                                                                                                                                                                                                                                                                         |
+
+### ApiCredentialResponse {#schema-apicredentialresponse}
+
+| Field                          | Required | Type               | Constraints                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------ | -------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`                         | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.createdAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.createdByUserId`         | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.creator`                 | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.creator.discordNickname` | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.creator.discordUsername` | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.creator.userId`          | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.expiresAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.id`                      | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.integrationId`           | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.label`                   | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.lastUsedAt`              | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.prefix`                  | yes      | `string`           | pattern: `^[A-Za-z0-9_-]{12}$`                                                                                                                                                                                                                                                                                                                          |
+| `data.revokedAt`               | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.revokedByUserId`         | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.scopes`                  | yes      | array of `string`  | minItems: `1`                                                                                                                                                                                                                                                                                                                                           |
+| `data.status`                  | yes      | `string`           | enum: `active`, `expired`, `revoked`, `integration_archived`                                                                                                                                                                                                                                                                                            |
+| `data.updatedAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `meta`                         | yes      | `object`           | none                                                                                                                                                                                                                                                                                                                                                    |
+| `meta.requestId`               | yes      | `string`           | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128`                                                                                                                                                                                                                                                                                         |
+
+### ApiDirectoryPageResponse {#schema-apidirectorypageresponse}
+
+| Field                                     | Required | Type                | Constraints                                                                                                |
+| ----------------------------------------- | -------- | ------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `data`                                    | yes      | `object`            | unknown fields rejected                                                                                    |
+| `data.nextCursor`                         | yes      | `string` or `null`  | none                                                                                                       |
+| `data.users`                              | yes      | array of `object`   | maxItems: `100`                                                                                            |
+| `data.users[].discordUserId`              | yes      | `string`            | pattern: `^\d{17,20}$`                                                                                     |
+| `data.users[].memberships`                | yes      | array of `object`   | none                                                                                                       |
+| `data.users[].memberships[].divisionCode` | yes      | `string`            | pattern: `^[A-Z0-9][A-Z0-9-]{0,31}$`                                                                       |
+| `data.users[].memberships[].divisionKind` | yes      | `string`            | enum: `STAFF`, `SPECIAL`, `LANCEARIUS`, `NAVY`, `MARINES`, `SUPPORT`, `RESERVE`, `LEGIONNAIRE`, `INITIATE` |
+| `data.users[].memberships[].divisionName` | yes      | `string`            | minLength: `1`                                                                                             |
+| `data.users[].rankLevel`                  | yes      | `integer` or `null` | none                                                                                                       |
+| `data.users[].rankSymbol`                 | yes      | `string` or `null`  | none                                                                                                       |
+| `data.users[].totalMerits`                | yes      | `integer`           | minimum: `-9007199254740991`; maximum: `9007199254740991`                                                  |
+| `meta`                                    | yes      | `object`            | none                                                                                                       |
+| `meta.requestId`                          | yes      | `string`            | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128`                                            |
+
+### ApiDirectoryQuery {#schema-apidirectoryquery}
+
+Strict query contract. minimumRank must be less than or equal to maximumRank when both are present.
+
+| Field              | Required | Type              | Constraints                                        |
+| ------------------ | -------- | ----------------- | -------------------------------------------------- |
+| `cursor`           | no       | `string`          | pattern: `^[A-Za-z0-9_-]+$`; maxLength: `512`      |
+| `discordUserIds`   | no       | array of `string` | minItems: `1`; maxItems: `100`                     |
+| `divisionCodesAny` | no       | array of `string` | minItems: `1`; maxItems: `100`                     |
+| `exactRank`        | no       | `integer`         | exclusiveMinimum: `0`; maximum: `9007199254740991` |
+| `limit`            | no       | `integer`         | minimum: `1`; maximum: `100`; default: `100`       |
+| `maximumRank`      | no       | `integer`         | exclusiveMinimum: `0`; maximum: `9007199254740991` |
+| `minimumRank`      | no       | `integer`         | exclusiveMinimum: `0`; maximum: `9007199254740991` |
+
+### ApiDirectoryUserResponse {#schema-apidirectoryuserresponse}
+
+| Field                             | Required | Type                | Constraints                                                                                                |
+| --------------------------------- | -------- | ------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `data`                            | yes      | `object`            | unknown fields rejected                                                                                    |
+| `data.discordUserId`              | yes      | `string`            | pattern: `^\d{17,20}$`                                                                                     |
+| `data.memberships`                | yes      | array of `object`   | none                                                                                                       |
+| `data.memberships[].divisionCode` | yes      | `string`            | pattern: `^[A-Z0-9][A-Z0-9-]{0,31}$`                                                                       |
+| `data.memberships[].divisionKind` | yes      | `string`            | enum: `STAFF`, `SPECIAL`, `LANCEARIUS`, `NAVY`, `MARINES`, `SUPPORT`, `RESERVE`, `LEGIONNAIRE`, `INITIATE` |
+| `data.memberships[].divisionName` | yes      | `string`            | minLength: `1`                                                                                             |
+| `data.rankLevel`                  | yes      | `integer` or `null` | none                                                                                                       |
+| `data.rankSymbol`                 | yes      | `string` or `null`  | none                                                                                                       |
+| `data.totalMerits`                | yes      | `integer`           | minimum: `-9007199254740991`; maximum: `9007199254740991`                                                  |
+| `meta`                            | yes      | `object`            | none                                                                                                       |
+| `meta.requestId`                  | yes      | `string`            | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128`                                            |
+
+### ApiErrorEnvelope {#schema-apierrorenvelope}
+
+| Field             | Required | Type     | Constraints                                                                                                                                                                                                                                                                                                                       |
+| ----------------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `error`           | yes      | `object` | none                                                                                                                                                                                                                                                                                                                              |
+| `error.code`      | yes      | `string` | enum: `bad_request`, `method_not_allowed`, `not_found`, `payload_too_large`, `request_timeout`, `unauthorized`, `forbidden`, `invalid_oauth_state`, `oauth_failed`, `csrf_failed`, `origin_not_allowed`, `invalid_redirect`, `conflict`, `stale`, `integration_archived`, `rate_limited`, `service_unavailable`, `internal_error` |
+| `error.message`   | yes      | `string` | minLength: `1`                                                                                                                                                                                                                                                                                                                    |
+| `error.requestId` | yes      | `string` | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128`                                                                                                                                                                                                                                                                   |
+
+### ApiIntegrationId {#schema-apiintegrationid}
+
+| Field     | Required | Type     | Constraints                                                                                                                                                                                         |
+| --------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `(value)` | yes      | `string` | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$` |
+
+### ApiIntegrationListResponse {#schema-apiintegrationlistresponse}
+
+| Field                                         | Required | Type               | Constraints                                                                                                                                                                                                                                                                                                                                             |
+| --------------------------------------------- | -------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`                                        | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.integrations`                           | yes      | array of `object`  | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.integrations[].archivedAt`              | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.integrations[].archivedByUserId`        | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.integrations[].createdAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.integrations[].createdByUserId`         | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.integrations[].creator`                 | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.integrations[].creator.discordNickname` | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.integrations[].creator.discordUsername` | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.integrations[].creator.userId`          | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.integrations[].credentialCount`         | yes      | `integer`          | minimum: `0`; maximum: `9007199254740991`                                                                                                                                                                                                                                                                                                               |
+| `data.integrations[].id`                      | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.integrations[].name`                    | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.integrations[].purpose`                 | yes      | `string`           | minLength: `1`; maxLength: `500`                                                                                                                                                                                                                                                                                                                        |
+| `data.integrations[].state`                   | yes      | `string`           | enum: `active`, `archived`                                                                                                                                                                                                                                                                                                                              |
+| `data.integrations[].updatedAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.integrations[].updatedByUserId`         | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `meta`                                        | yes      | `object`           | none                                                                                                                                                                                                                                                                                                                                                    |
+| `meta.requestId`                              | yes      | `string`           | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128`                                                                                                                                                                                                                                                                                         |
+
+### ApiIntegrationResponse {#schema-apiintegrationresponse}
+
+| Field                          | Required | Type               | Constraints                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------ | -------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`                         | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.archivedAt`              | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.archivedByUserId`        | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.createdAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.createdByUserId`         | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.creator`                 | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.creator.discordNickname` | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.creator.discordUsername` | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.creator.userId`          | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.credentialCount`         | yes      | `integer`          | minimum: `0`; maximum: `9007199254740991`                                                                                                                                                                                                                                                                                                               |
+| `data.id`                      | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.name`                    | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.purpose`                 | yes      | `string`           | minLength: `1`; maxLength: `500`                                                                                                                                                                                                                                                                                                                        |
+| `data.state`                   | yes      | `string`           | enum: `active`, `archived`                                                                                                                                                                                                                                                                                                                              |
+| `data.updatedAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.updatedByUserId`         | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `meta`                         | yes      | `object`           | none                                                                                                                                                                                                                                                                                                                                                    |
+| `meta.requestId`               | yes      | `string`           | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128`                                                                                                                                                                                                                                                                                         |
+
+### ArchiveApiIntegrationRequest {#schema-archiveapiintegrationrequest}
+
+| Field               | Required | Type     | Constraints                                                                                                                                                                                                                                                                                                                                             |
+| ------------------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `expectedUpdatedAt` | yes      | `string` | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+
+### AuthIdentityResponse {#schema-authidentityresponse}
+
+| Field                   | Required | Type     | Constraints                                                                                                                                                                                         |
+| ----------------------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`                  | yes      | `object` | unknown fields rejected                                                                                                                                                                             |
+| `data.discordAvatarUrl` | yes      | `string` | format: `uri`                                                                                                                                                                                       |
+| `data.discordNickname`  | yes      | `string` | minLength: `1`; maxLength: `100`                                                                                                                                                                    |
+| `data.discordUserId`    | yes      | `string` | pattern: `^\d{17,20}$`                                                                                                                                                                              |
+| `data.discordUsername`  | yes      | `string` | minLength: `1`; maxLength: `100`                                                                                                                                                                    |
+| `data.role`             | yes      | `string` | enum: `STAFF`, `EXEC`                                                                                                                                                                               |
+| `data.userId`           | yes      | `string` | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$` |
+| `meta`                  | yes      | `object` | none                                                                                                                                                                                                |
+| `meta.requestId`        | yes      | `string` | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128`                                                                                                                                     |
+
+### AuthLogoutResponse {#schema-authlogoutresponse}
+
+| Field            | Required | Type      | Constraints                                                     |
+| ---------------- | -------- | --------- | --------------------------------------------------------------- |
+| `data`           | yes      | `object`  | none                                                            |
+| `data.loggedOut` | yes      | `boolean` | none                                                            |
+| `meta`           | yes      | `object`  | none                                                            |
+| `meta.requestId` | yes      | `string`  | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128` |
+
+### AuthSessionResponse {#schema-authsessionresponse}
+
+| Field                    | Required | Type      | Constraints                                                                                                                                                                                                                                                                                                           |
+| ------------------------ | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`                   | yes      | `object`  | none                                                                                                                                                                                                                                                                                                                  |
+| `data.absoluteExpiresAt` | yes      | `string`  | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$` |
+| `data.authenticated`     | yes      | `boolean` | none                                                                                                                                                                                                                                                                                                                  |
+| `data.csrfToken`         | yes      | `string`  | minLength: `32`                                                                                                                                                                                                                                                                                                       |
+| `data.idleExpiresAt`     | yes      | `string`  | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$` |
+| `meta`                   | yes      | `object`  | none                                                                                                                                                                                                                                                                                                                  |
+| `meta.requestId`         | yes      | `string`  | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128`                                                                                                                                                                                                                                                       |
+
+### CreateApiIntegrationRequest {#schema-createapiintegrationrequest}
+
+| Field     | Required | Type     | Constraints                      |
+| --------- | -------- | -------- | -------------------------------- |
+| `name`    | yes      | `string` | minLength: `1`; maxLength: `100` |
+| `purpose` | yes      | `string` | minLength: `1`; maxLength: `500` |
+
+### CsrfToken {#schema-csrftoken}
+
+| Field     | Required | Type     | Constraints     |
+| --------- | -------- | -------- | --------------- |
+| `(value)` | yes      | `string` | minLength: `32` |
+
+### DiscordUserId {#schema-discorduserid}
+
+| Field     | Required | Type     | Constraints            |
+| --------- | -------- | -------- | ---------------------- |
+| `(value)` | yes      | `string` | pattern: `^\d{17,20}$` |
+
+### EditApiIntegrationRequest {#schema-editapiintegrationrequest}
+
+| Field               | Required | Type     | Constraints                                                                                                                                                                                                                                                                                                                                             |
+| ------------------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `expectedUpdatedAt` | yes      | `string` | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `name`              | yes      | `string` | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `purpose`           | yes      | `string` | minLength: `1`; maxLength: `500`                                                                                                                                                                                                                                                                                                                        |
+
+### HealthResponse {#schema-healthresponse}
+
+| Field            | Required | Type     | Constraints                                                     |
+| ---------------- | -------- | -------- | --------------------------------------------------------------- |
+| `data`           | yes      | `object` | none                                                            |
+| `data.status`    | yes      | `string` | none                                                            |
+| `meta`           | yes      | `object` | none                                                            |
+| `meta.requestId` | yes      | `string` | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128` |
+
+### IncludeArchived {#schema-includearchived}
+
+| Field     | Required | Type      | Constraints      |
+| --------- | -------- | --------- | ---------------- |
+| `(value)` | yes      | `boolean` | default: `false` |
+
+### MintApiCredentialRequest {#schema-mintapicredentialrequest}
+
+| Field       | Required | Type     | Constraints                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------- | -------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `expiresAt` | no       | `string` | Optional. Must be later than issuance and no more than one calendar year after issuance; omitted values default to one year after issuance.; format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `label`     | yes      | `string` | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `scopes`    | yes      | `array`  | none                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+
+### MintApiCredentialResponse {#schema-mintapicredentialresponse}
+
+| Field                                     | Required | Type               | Constraints                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------------- | -------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`                                    | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.credential`                         | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.credential.createdAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.credential.createdByUserId`         | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.credential.creator`                 | yes      | `object`           | unknown fields rejected                                                                                                                                                                                                                                                                                                                                 |
+| `data.credential.creator.discordNickname` | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.credential.creator.discordUsername` | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.credential.creator.userId`          | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.credential.expiresAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.credential.id`                      | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.credential.integrationId`           | yes      | `string`           | format: `uuid`; pattern: `^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$`                                                                                                                                                     |
+| `data.credential.label`                   | yes      | `string`           | minLength: `1`; maxLength: `100`                                                                                                                                                                                                                                                                                                                        |
+| `data.credential.lastUsedAt`              | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.credential.prefix`                  | yes      | `string`           | pattern: `^[A-Za-z0-9_-]{12}$`                                                                                                                                                                                                                                                                                                                          |
+| `data.credential.revokedAt`               | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.credential.revokedByUserId`         | yes      | `string` or `null` | none                                                                                                                                                                                                                                                                                                                                                    |
+| `data.credential.scopes`                  | yes      | array of `string`  | minItems: `1`                                                                                                                                                                                                                                                                                                                                           |
+| `data.credential.status`                  | yes      | `string`           | enum: `active`, `expired`, `revoked`, `integration_archived`                                                                                                                                                                                                                                                                                            |
+| `data.credential.updatedAt`               | yes      | `string`           | format: `date-time`; pattern: `^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z\|([+-](?:[01]\d\|2[0-3]):[0-5]\d)))$` |
+| `data.secret`                             | yes      | `string`           | Returned exactly once when a credential is minted; never returned by later reads.; pattern: `^arb_v1_[A-Za-z0-9_-]{12}_[A-Za-z0-9_-]{43}$`; read only; returned once                                                                                                                                                                                    |
+| `meta`                                    | yes      | `object`           | none                                                                                                                                                                                                                                                                                                                                                    |
+| `meta.requestId`                          | yes      | `string`           | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128`                                                                                                                                                                                                                                                                                         |
+
+### OAuthCallbackQuery {#schema-oauthcallbackquery}
+
+| Field   | Required | Type     | Constraints    |
+| ------- | -------- | -------- | -------------- |
+| `code`  | yes      | `string` | minLength: `1` |
+| `state` | yes      | `string` | minLength: `1` |
+
+### OAuthCode {#schema-oauthcode}
+
+| Field     | Required | Type     | Constraints    |
+| --------- | -------- | -------- | -------------- |
+| `(value)` | yes      | `string` | minLength: `1` |
+
+### OAuthStartRequest {#schema-oauthstartrequest}
+
+| Field         | Required | Type     | Constraints   |
+| ------------- | -------- | -------- | ------------- |
+| `redirectUri` | yes      | `string` | format: `uri` |
+
+### OAuthStartResponse {#schema-oauthstartresponse}
+
+| Field                   | Required | Type     | Constraints                                                     |
+| ----------------------- | -------- | -------- | --------------------------------------------------------------- |
+| `data`                  | yes      | `object` | none                                                            |
+| `data.authorizationUrl` | yes      | `string` | format: `uri`                                                   |
+| `meta`                  | yes      | `object` | none                                                            |
+| `meta.requestId`        | yes      | `string` | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128` |
+
+### OAuthState {#schema-oauthstate}
+
+| Field     | Required | Type     | Constraints    |
+| --------- | -------- | -------- | -------------- |
+| `(value)` | yes      | `string` | minLength: `1` |
+
+### OpaqueBrowserToken {#schema-opaquebrowsertoken}
+
+| Field     | Required | Type     | Constraints    |
+| --------- | -------- | -------- | -------------- |
+| `(value)` | yes      | `string` | minLength: `1` |
+
+### ReadinessResponse {#schema-readinessresponse}
+
+| Field            | Required | Type     | Constraints                                                     |
+| ---------------- | -------- | -------- | --------------------------------------------------------------- |
+| `data`           | yes      | `object` | none                                                            |
+| `data.status`    | yes      | `string` | enum: `ready`, `not_ready`                                      |
+| `meta`           | yes      | `object` | none                                                            |
+| `meta.requestId` | yes      | `string` | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128` |
+
+### RequestId {#schema-requestid}
+
+| Field     | Required | Type     | Constraints                                                     |
+| --------- | -------- | -------- | --------------------------------------------------------------- |
+| `(value)` | yes      | `string` | pattern: `^[A-Za-z0-9._:-]+$`; minLength: `1`; maxLength: `128` |
 
 `MintApiCredentialResponse` is the only response that contains a newly generated API secret. It is returned exactly once and the reference deliberately provides no secret example.
 

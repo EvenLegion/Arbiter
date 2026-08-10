@@ -128,6 +128,14 @@ async function assertRuntimeSurfaceMatchesContracts(): Promise<void> {
 	assertIncludes(credentialsWriteBlock, `requireMethod(request, response, ['GET', 'POST']);`, 'credential collection methods');
 	assertIncludes(revokeBlock, `requireMethod(request, response, ['POST']);`, 'credential revoke method');
 	assertIncludes(archiveBlock, `requireMethod(request, response, ['POST']);`, 'integration archive method');
+	assertIncludes(integrations, `segments.length === 1`, 'integration item path shape');
+	assertIncludes(integrations, `segments.length === 2 && segments[1] === 'archive'`, 'integration archive path shape');
+	assertIncludes(integrations, `segments.length === 2 && segments[1] === 'credentials'`, 'credential collection path shape');
+	assertIncludes(
+		integrations,
+		`segments.length === 4 && segments[1] === 'credentials' && segments[3] === 'revoke'`,
+		'credential revoke path shape'
+	);
 	add(runtimeOperations, 'get', API_V1_ROUTES.integrationRegistry, 'browserSession');
 	add(runtimeOperations, 'post', API_V1_ROUTES.integrationRegistry, 'browserSessionCsrf');
 	add(runtimeOperations, 'patch', `${API_V1_ROUTES.integrationRegistry}/{integrationId}`, 'browserSessionCsrf');
@@ -229,9 +237,9 @@ function renderMarkdownReference(document: Record<string, unknown>): string {
 		'',
 		'The artifact derives these JSON Schemas mechanically from the Zod contracts, including strict-object rejection, nullability, enums, regexes, defaults, and numeric or collection bounds:',
 		'',
-		...Object.keys(components.schemas)
-			.sort()
-			.map((name) => `- \`${name}\``),
+		...Object.entries(components.schemas)
+			.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+			.flatMap(([name, schema]) => renderReusableSchema(name, schema as JsonSchemaNode)),
 		'',
 		'`MintApiCredentialResponse` is the only response that contains a newly generated API secret. It is returned exactly once and the reference deliberately provides no secret example.',
 		'',
@@ -250,11 +258,23 @@ function renderMarkdownReference(document: Record<string, unknown>): string {
 }
 
 function renderOperation(operation: ApiV1OperationContract, document: Record<string, unknown>): string[] {
-	const paths = document.paths as Record<string, Record<string, { responses: Record<string, { description: string }> }>>;
+	const paths = document.paths as Record<
+		string,
+		Record<
+			string,
+			{
+				responses: Record<string, { content?: { 'application/json'?: { schema: JsonSchemaNode } }; description: string }>;
+			}
+		>
+	>;
 	const responses = Object.entries(paths[operation.path][operation.method].responses)
-		.map(([status, response]) => ({ status: Number(status), detail: response.description }))
+		.map(([status, response]) => ({
+			contract: response.content?.['application/json']?.schema ? schemaTypeLabel(response.content['application/json'].schema) : 'none',
+			detail: response.description,
+			status: Number(status)
+		}))
 		.sort((left, right) => left.status - right.status)
-		.map(({ status, detail }) => `| \`${status}\` | ${escapeCell(detail)} |`);
+		.map(({ status, detail, contract }) => `| \`${status}\` | ${contract} | ${escapeCell(detail)} |`);
 	const lines = [
 		`### ${operation.summary} {#${operation.operationId.toLowerCase()}}`,
 		'',
@@ -263,19 +283,107 @@ function renderOperation(operation: ApiV1OperationContract, document: Record<str
 		operation.description,
 		'',
 		`- Security: ${securityLabel(operation.security)}${operation.requiredScopes ? `; required scope: \`${operation.requiredScopes.join('`, `')}\`` : ''}`,
-		`- Request body: ${operation.requestSchema ? `\`${operation.requestSchema}\`${operation.requestBodyRequired === false ? ' (optional)' : ''}` : 'none'}`,
+		`- Request body: ${operation.requestSchema ? `${schemaLink(operation.requestSchema)}${operation.requestBodyRequired === false ? ' (optional)' : ''}` : 'none'}`,
 		`- Rate-limit headers: ${operation.rateLimited ? 'yes, after credential authentication' : 'no'}`
 	];
 	if (operation.parameters?.length) {
 		lines.push('', '| Parameter | Location | Required | Contract |', '| --- | --- | --- | --- |');
 		for (const parameter of operation.parameters) {
 			lines.push(
-				`| \`${parameter.name}\` | ${parameter.location} | ${parameter.required ? 'yes' : 'no'} | ${escapeCell(parameter.description)}${parameter.schemaComponent ? ` (\`${parameter.schemaComponent}\`)` : ''} |`
+				`| \`${parameter.name}\` | ${parameter.location} | ${parameter.required ? 'yes' : 'no'} | ${escapeCell(parameter.description)}${parameter.schemaComponent ? ` (${schemaLink(parameter.schemaComponent)})` : ''} |`
 			);
 		}
 	}
-	lines.push('', '| Status | Body or stable error codes |', '| --- | --- |', ...responses);
+	lines.push('', '| Status | Response contract | Body or stable error codes |', '| --- | --- | --- |', ...responses);
 	return lines;
+}
+
+type JsonSchemaNode = {
+	$ref?: string;
+	additionalProperties?: boolean;
+	anyOf?: JsonSchemaNode[];
+	default?: unknown;
+	description?: string;
+	enum?: unknown[];
+	exclusiveMaximum?: number;
+	exclusiveMinimum?: number;
+	format?: string;
+	items?: JsonSchemaNode;
+	maxItems?: number;
+	maxLength?: number;
+	maximum?: number;
+	minItems?: number;
+	minLength?: number;
+	minimum?: number;
+	oneOf?: JsonSchemaNode[];
+	pattern?: string;
+	properties?: Record<string, JsonSchemaNode>;
+	readOnly?: boolean;
+	required?: string[];
+	type?: string | string[];
+	'x-returned-once'?: boolean;
+};
+
+function renderReusableSchema(name: string, schema: JsonSchemaNode): string[] {
+	const rows = collectSchemaRows(schema);
+	return [
+		`### ${name} {#${schemaAnchor(name)}}`,
+		'',
+		...(schema.description ? [schema.description, ''] : []),
+		'| Field | Required | Type | Constraints |',
+		'| --- | --- | --- | --- |',
+		...rows.map(
+			(row) =>
+				`| \`${escapeCell(row.path)}\` | ${row.required ? 'yes' : 'no'} | ${schemaTypeLabel(row.schema)} | ${escapeCell(schemaConstraints(row.schema))} |`
+		),
+		''
+	];
+}
+
+function collectSchemaRows(schema: JsonSchemaNode, path = '(value)', required = true): { path: string; required: boolean; schema: JsonSchemaNode }[] {
+	if (!schema.properties) return [{ path, required, schema }];
+	const requiredFields = new Set(schema.required ?? []);
+	const rows: { path: string; required: boolean; schema: JsonSchemaNode }[] = [];
+	for (const [name, property] of Object.entries(schema.properties).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))) {
+		const propertyPath = path === '(value)' ? name : `${path}.${name}`;
+		rows.push({ path: propertyPath, required: requiredFields.has(name), schema: property });
+		if (property.properties) rows.push(...collectSchemaRows(property, propertyPath, requiredFields.has(name)));
+		if (property.items?.properties) rows.push(...collectSchemaRows(property.items, `${propertyPath}[]`, requiredFields.has(name)));
+	}
+	return rows;
+}
+
+function schemaTypeLabel(schema: JsonSchemaNode): string {
+	if (schema.$ref) return schemaLink(schema.$ref.split('/').at(-1) ?? schema.$ref);
+	const alternatives = schema.anyOf ?? schema.oneOf;
+	if (alternatives) return alternatives.map(schemaTypeLabel).join(' or ');
+	const type = Array.isArray(schema.type) ? schema.type.join(' or ') : (schema.type ?? 'schema');
+	if (type === 'array' && schema.items) return `array of ${schemaTypeLabel(schema.items)}`;
+	return `\`${type}\``;
+}
+
+function schemaConstraints(schema: JsonSchemaNode): string {
+	const constraints: string[] = [];
+	if (schema.description) constraints.push(schema.description);
+	if (schema.enum) constraints.push(`enum: ${schema.enum.map((value) => `\`${String(value)}\``).join(', ')}`);
+	if (schema.format) constraints.push(`format: \`${schema.format}\``);
+	if (schema.pattern) constraints.push(`pattern: \`${schema.pattern}\``);
+	for (const key of ['minimum', 'exclusiveMinimum', 'maximum', 'exclusiveMaximum', 'minLength', 'maxLength', 'minItems', 'maxItems'] as const) {
+		if (schema[key] !== undefined) constraints.push(`${key}: \`${String(schema[key])}\``);
+	}
+	if (schema.default !== undefined) constraints.push(`default: \`${JSON.stringify(schema.default)}\``);
+	if (schema.additionalProperties === false) constraints.push('unknown fields rejected');
+	if (schema.readOnly) constraints.push('read only');
+	if (schema['x-returned-once']) constraints.push('returned once');
+	return constraints.join('; ') || 'none';
+}
+
+function schemaLink(name: string): string {
+	return `[\`${name}\`](#${schemaAnchor(name)})`;
+}
+
+function schemaAnchor(name: string): string {
+	return `schema-${name.toLowerCase()}`;
 }
 
 function securityLabel(security: ApiV1OperationContract['security']): string {
