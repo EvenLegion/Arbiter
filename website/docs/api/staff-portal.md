@@ -54,7 +54,9 @@ Build the Vercel artifact without deploying it:
 VITE_API_BASE_URL=https://api.example.invalid pnpm build:portal
 ```
 
-The output is `apps/portal/dist`. `apps/portal/vercel.json` declares the Vite build, static output directory, and SPA navigation rewrite. Configure the Vercel project root as `apps/portal`; do not add portal-side secrets or server functions.
+The output is `apps/portal/dist`. `apps/portal/vercel.json` declares the Vite build, static output directory, SPA navigation rewrite, and static response headers. The build injects an exact-API-origin Content Security Policy, disables source maps, and fails if the artifact contains server-only configuration markers. Configure the Vercel project root as `apps/portal` and set only `VITE_API_BASE_URL`; do not add portal-side secrets or server functions.
+
+Every API response carries the shared contract version header. The portal checks it before reading either success or error data and fails closed when an independently deployed API is incompatible. See the [deployment-readiness runbook](./deployment-readiness.md) for compatible rollout and rollback order.
 
 ## Safe Browser Harness
 

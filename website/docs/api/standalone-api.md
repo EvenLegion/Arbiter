@@ -7,6 +7,10 @@ sidebar_position: 4
 
 The Arbiter API is an HTTP process that runs independently from the Discord bot. It owns browser authentication for the separately deployed portal while sharing Arbiter's canonical Postgres and Redis authorities without coupling its lifecycle to Discord.
 
+Production requires `API_PUBLIC_URL` to match the exact callback origin and `API_TRUST_PROXY=true`. Public requests must arrive through the approved HTTPS reverse proxy with matching `Host`, `X-Forwarded-Host`, and `X-Forwarded-Proto: https`; production Compose binds the container to loopback by default. Direct public exposure is unsupported. API responses include restrictive browser security headers and the shared `X-Arbiter-Api-Contract-Version` compatibility header.
+
+For production topology, capacity, migration order, rollback, incidents, safe disablement, and the full manual matrix, use the [API and portal deployment-readiness runbook](./deployment-readiness.md).
+
 ## Current Capability
 
 The API exposes infrastructure, browser-authentication, staff integration-registry, and API-credential directory endpoints:
