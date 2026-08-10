@@ -25,7 +25,9 @@ At a high level:
 ### Contributor Expectations
 
 Each working branch owns exactly one release plan by the time it is pushed for
-review. Before every push from a working branch, run:
+review. That plan is a contribution and provenance record; it is not
+automatically a public release bullet. Before every push from a working branch,
+run:
 
 ```bash
 pnpm release:plan:check
@@ -33,11 +35,10 @@ pnpm release:plan:check
 
 The checker reads every JSON file under `.release-plans/` and treats the parsed
 `branch` field as authoritative. It fails when no plan or multiple plans own the
-current branch. It also checks the schema, `origin/dev` base, current merge base,
-semantic bump and target version, and recorded commit ancestry. The check is
-read-only and leaves the worktree unchanged. It deliberately does not judge the
-quality of release-note prose; contributors and reviewers remain responsible
-for the public copy.
+current branch. It also checks schema version 2, explicit public-note
+classification, contribution metadata, the `origin/dev` base, current merge
+base, semantic bump and target version, and recorded commit ancestry. The check
+is read-only and leaves the worktree unchanged.
 
 Reuse the matching plan when it:
 
@@ -45,26 +46,57 @@ Reuse the matching plan when it:
 - records the current branch
 - uses `origin/dev` as its base
 - records the current merge base with `origin/dev`
-- still has the intended semantic bump and release-note scope
+- still has the intended semantic bump, contribution summary, classification,
+  capability group, and public-copy scope
 
 A routine later implementation or review-fix commit does not by itself make a
 valid plan stale. Do not run the planner again merely because the branch moved
 forward.
 
 If no matching plan exists, first commit the scoped work with Conventional
-Commit subjects, then choose the smallest intended semantic bump explicitly:
+Commit subjects, then choose the smallest intended semantic bump and classify
+the contribution explicitly. Internal work records provenance without a public
+note:
 
 ```bash
-pnpm release:plan -- --bump patch
+pnpm release:plan -- --bump patch --mode internal \
+  --summary "Updates repository-owned release validation and preview tooling."
 ```
 
-Use `minor` or `major` instead when the compatibility or member-facing impact
-requires it. The script:
+Use `standalone` for one complete public outcome:
+
+```bash
+pnpm release:plan -- --bump minor --mode standalone --section Features \
+  --description "Members can now see complete event attendance and merit outcomes in one review flow, including the final duration, participant decisions, and awarded totals." \
+  --summary "Completes the event review presentation and final outcome reporting."
+```
+
+Use `contribute` for a staged part of a named capability and `publish` exactly
+once for the plan that supplies the group's final public description:
+
+```bash
+pnpm release:plan -- --bump minor --mode contribute \
+  --group member-directory --section Features \
+  --summary "Adds the canonical member-directory read model."
+
+pnpm release:plan -- --bump minor --mode publish \
+  --group member-directory --section Features \
+  --description "Approved Even Legion tools can read Arbiter's current member directory, including division memberships, merit totals, and ranks, with safe filtering and usage limits." \
+  --summary "Exposes the completed member-directory capability to approved integrations."
+```
+
+Group identifiers use stable lowercase kebab case. Every plan in a group uses
+the same section, and the group must have exactly one publisher before release
+prep. A publish-plan author must inspect every pending plan in the group before
+writing the description.
+
+Use `minor` or `major` instead of `patch` when compatibility or member-facing
+impact requires it. The script:
 
 - compares your branch against `dev`
 - collects Conventional Commit subjects from the branch
-- uses the explicit `patch`, `minor`, or `major` bump (or prompts in an
-  interactive terminal when `--bump` is omitted)
+- uses the explicit `patch`, `minor`, or `major` bump
+- validates the explicit public-note mode and its required fields
 - writes a release-plan file under `.release-plans/`
 - commits that plan file when needed
 
@@ -73,19 +105,22 @@ reusing the plan and performs no writes, staging, or commits.
 
 If the script cannot find meaningful Conventional Commit history, it fails instead of guessing.
 
-Release-plan descriptions are user-facing. They feed the changelog, GitHub
-release notes, and optional Discord release announcement. Each description
-should explain in plain language what changed, why it matters, and what members
-or operators will notice. For maintenance-only work, say clearly that the
-change is behind the scenes and does not alter Discord commands or member
-behavior. Avoid file paths, ticket IDs, and unexplained technical terms.
+Only `standalone` and `publish` descriptions become user-facing changelog,
+GitHub, and optional Discord copy. `contribute` and `internal` plans intentionally
+emit no bullet. Keep `contributionSummary` concise and technical enough for
+maintainers; it is provenance metadata and is never substituted for public copy.
+Public descriptions explain the completed capability in language an average
+Even Legion Discord member can understand, without file paths, ticket IDs, or
+unexplained implementation and web-security terminology.
 
 Regenerate an existing matching plan only when it names the wrong base, records
 an obsolete merge base after a rebase, has the wrong bump, or no longer
 represents the release-note scope. State the reason explicitly:
 
 ```bash
-pnpm release:plan -- --regenerate --bump patch --reason "the branch was rebased onto the current dev history"
+pnpm release:plan -- --regenerate --bump patch --mode internal \
+  --summary "Updates repository-owned release validation and preview tooling." \
+  --reason "the branch was rebased onto the current dev history"
 ```
 
 Regeneration replaces only the plan whose parsed `branch` field owns the
@@ -100,7 +135,59 @@ Good commit subjects look like:
 - `refactor: simplify ...`
 - `docs: update ...`
 
-The planner depends on those subjects for classification and generated release notes.
+The planner depends on those subjects for commit provenance. Public-note
+classification and final public prose always come from explicit plan fields.
+
+### Migrating Legacy Plans
+
+Schema-version 1 plans are rejected with an actionable migration error because
+the tooling must not infer whether old commit descriptions are standalone,
+grouped, or internal. Migrate each file explicitly, for example:
+
+```bash
+pnpm release:plan:migrate -- --file old-plan.json --mode contribute \
+  --group member-directory --section Features \
+  --summary "Adds credential storage for the member-directory capability."
+```
+
+The migration keeps branch, version, and commit provenance, removes the legacy
+per-commit public-label field, and writes schema version 2. Review, stage, and
+commit the migrated plan. Supply `--description` for standalone or publish mode.
+
+### Read-Only Release Preview
+
+Before release preparation, run:
+
+```bash
+pnpm release:preview
+```
+
+The command validates every pending plan and capability group, resolves
+available pull-request and contributor attribution, and prints the exact
+consolidated notes plus provenance manifest. It does not bump a version, write
+output, delete plans, stage, or commit. Missing publishers, duplicate publishers,
+conflicting group sections, invalid public descriptions, and legacy schemas fail
+with the affected group and plan names plus recovery guidance.
+
+An unpushed working-branch commit can appear without GitHub attribution in a
+local preview, with a warning to push and preview again. Release preparation is
+strict: it fails before consuming plans if GitHub metadata cannot be resolved,
+so the committed provenance manifest never silently drops available PR or
+contributor attribution.
+
+Release preparation also holds a repository-local `.release-publish.lock` from
+preview through successful publication or rollback. Concurrent CLI or imported
+callers fail instead of racing snapshots. If a process crashes and leaves the
+lock behind, remove it only after confirming that no release preparation is
+still running, then rerun the read-only preview before retrying publication.
+Repository mutations roll back together if release preparation fails. GitHub
+Actions output metadata is emitted only after those mutations complete, with
+`release_created=true` written last; an output-channel failure therefore cannot
+advertise a rolled-back release as successful.
+
+Review the combined preview as one announcement. The Discord publisher truncates
+the release-note embed at 4,000 characters, so consolidate overlapping outcomes
+before release prep instead of relying on truncation.
 
 ### Release Prep On `dev`
 
@@ -108,9 +195,13 @@ When a `dev` to `main` pull request is opened or updated, the release-prep workf
 
 - reads pending release plans
 - computes the highest required version bump
+- validates and consolidates public notes with the same logic as the read-only
+  preview
 - updates `package.json`
 - updates `CHANGELOG.md`
 - generates release notes into `.release-output/`
+- generates a deterministic provenance manifest in `.release-output/` with
+  every consumed plan, commit, associated pull request, and contributor
 - removes consumed release plans
 - opens or updates a release-prep PR back into `dev`
 
@@ -385,11 +476,15 @@ Release workflow failures:
 
 - the planner ignored commits because the commit subjects were not Conventional Commit subjects
 - `pnpm release:plan:check` found no branch-owned plan; commit the scoped work,
-  then run `pnpm release:plan -- --bump patch` with the intended bump
+  then run `pnpm release:plan` with the intended bump, explicit mode, summary,
+  and required mode-specific fields
 - the checker found duplicate branch owners or unreadable JSON; repair or remove
   the named file and rerun the read-only check
 - the wrong bump or a rewritten merge base invalidated a plan; confirm the cause,
-  then use explicit `--regenerate`, `--bump`, and `--reason` arguments
+  then use explicit `--regenerate`, `--bump`, full classification, and `--reason`
+- release preview found a missing or duplicate group publisher, conflicting
+  group sections, invalid public copy, or a legacy plan; correct the named plans
+  or run the explicit migration command, then preview again
 - the `dev` to `main` PR does not contain prepared release artifacts because the release-prep PR into `dev` was not merged
 - generated release files were edited manually instead of coming from the workflow
 

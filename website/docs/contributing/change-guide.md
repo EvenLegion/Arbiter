@@ -186,15 +186,18 @@ read-only checker finds the plan by its parsed `branch` field and validates its
 schema, `origin/dev` merge base, version intent, and recorded commit ancestry.
 
 - Reuse that plan when it still targets `origin/dev`, records the current merge
-  base, and has the intended version bump and release-note scope.
+  base, and has the intended version bump, contribution summary, public-note
+  mode, group, and public-copy scope.
 - Do not create another plan merely because you added a later implementation or
   review-fix commit.
 - If no matching plan exists, commit the scoped work with Conventional Commit
-  subjects, then run `pnpm release:plan -- --bump patch` once, substituting the
-  intended `minor` or `major` bump when appropriate.
+  subjects, then run `pnpm release:plan` once with the intended bump, explicit
+  `standalone`, `contribute`, `publish`, or `internal` mode, contribution summary,
+  and every field required by that mode.
 - Regenerate a matching plan only when its branch, base, merge base, version
   bump, or release-note scope is no longer valid. Use
-  `pnpm release:plan -- --regenerate --bump patch --reason "why replacement is required"`.
+  `--regenerate`, the full intended classification, and
+  `--reason "why replacement is required"`.
 
 The planner reuses a valid plan without changing the worktree. For a missing
 plan, it writes the branch-owned file under `.release-plans/` and commits it.
@@ -202,10 +205,12 @@ Unreadable or duplicate plans require manual repair before the tool can safely
 identify ownership. The full validity and recovery model is documented in
 [Operations](/operations/release-and-deploy).
 
-The plan descriptions become public release notes and may be posted to the Even
-Legion Discord. Write them for members who do not know the codebase: explain the
-change, why it matters, and whether it changes commands or member behavior. Do
-not use file names, ticket shorthand, or technical jargon without explanation.
+Plans are always provenance records. Only `standalone` and `publish` plans emit
+public notes; `contribute` and `internal` plans do not. A capability group must
+have exactly one publisher. Run `pnpm release:preview` to see the exact
+consolidated public notes and provenance manifest without changing the worktree.
+The full mode, migration, preview, and recovery contract is documented in
+[Operations](/operations/release-and-deploy).
 
 ## A Good Final Smell Test
 

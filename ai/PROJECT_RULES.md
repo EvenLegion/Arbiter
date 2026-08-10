@@ -5,6 +5,8 @@ safety, and domain invariants. Task procedures have one owner:
 
 - branch start, validation, PR/Linear handoff, release planning, and CI
   reporting: `ai/rules/implementation-lifecycle.md`
+- release-plan classification, grouping, migration, preview, and public copy:
+  `ai/rules/release-plans.md`
 - documentation-impact decision: `ai/rules/documentation-impact.md`
 - Architecture Record decision and format: `ai/rules/architecture-records.md`
 - GitHub thread handling and reviewer observation:
@@ -170,23 +172,8 @@ step. Never treat container health alone as proof that the bot, database,
 Redis-backed event tracking, or log shipping is healthy.
 
 Feature branches merge into `dev`; `dev` is promoted to `main` through the
-release workflow. The release-plan script derives notes from Conventional
-Commit subjects and commits one branch-owned `.release-plans` file. Before every
-push, inspect existing plans and reuse the valid plan whose `branch` matches the
-current branch. Do not create a second release-plan commit for routine later
-commits.
-
-Every release-plan description is public copy that can appear in the changelog,
-GitHub release, and Even Legion Discord announcement. It must give a general
-Discord member enough plain-language context to understand the change and its
-practical impact without knowing the repository, ticket, or implementation.
-Lead with the concrete Arbiter capability and domain purpose, including what
-members, staff, or operators will eventually be able to do or learn. Generic
-architecture terms such as "foundation," "infrastructure," "separate process,"
-or "shared package" are insufficient unless the same sentence names the product
-capability they enable. For staged work, distinguish what ships now from what it
-prepares and never imply that a future route or workflow is already available.
-Say explicitly when a behind-the-scenes change does not alter commands or member
-behavior, but make that secondary impact context rather than the main value
-statement. Detailed validity, regeneration, sequencing, copy review, and
-handoff rules live only in `ai/rules/implementation-lifecycle.md`.
+release workflow. Every externally handed-off branch owns one release plan for
+provenance and semantic versioning. Public-note selection is explicit rather
+than inferred from commit subjects. Detailed validity, sequencing, and handoff
+rules live in `ai/rules/implementation-lifecycle.md`; classification, grouping,
+migration, preview, and public-copy rules live in `ai/rules/release-plans.md`.

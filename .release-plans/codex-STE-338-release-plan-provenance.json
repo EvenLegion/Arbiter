@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "codex/STE-338-release-plan-provenance",
+	"baseRef": "origin/dev",
+	"mergeBase": "a37cef067ba308f429540b4aaa584be0a9c5111b",
+	"headRef": "a66850de334e2ec325e6e5d51e84e32402464abf",
+	"generatedAt": "2026-08-10T05:16:32.557Z",
+	"bump": "patch",
+	"targetVersion": "3.4.1",
+	"contributionSummary": "Separates branch provenance from grouped public release notes and adds explicit migration and read-only preview tooling.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "a66850de334e2ec325e6e5d51e84e32402464abf",
+			"subject": "feat(release): consolidate public notes with provenance",
+			"committedAt": "2026-08-09T19:16:17-10:00",
+			"committedAtMs": 1786338977000,
+			"type": "feat",
+			"scope": "release",
+			"description": "consolidate public notes with provenance",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}

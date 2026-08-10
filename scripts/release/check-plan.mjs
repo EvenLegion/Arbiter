@@ -55,6 +55,10 @@ function main() {
 	console.log(`Branch: ${branch}`);
 	console.log(`Base: ${options.baseRef} at ${inspection.currentMergeBase}`);
 	console.log(`Recorded head: ${inspection.entry.plan.headRef}`);
+	console.log(`Public note mode: ${inspection.entry.plan.publicNote.mode}`);
+	if (inspection.entry.plan.publicNote.group) {
+		console.log(`Capability group: ${inspection.entry.plan.publicNote.group}`);
+	}
 	console.log('Later commits are allowed when the recorded head and plan commits remain in the current branch history.');
 }
 

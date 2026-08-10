@@ -11,6 +11,7 @@ Load:
 - `AGENTS.md` (through root `CLAUDE.md`)
 - `ai/PROJECT_RULES.md`
 - `ai/rules/implementation-lifecycle.md`
+- `ai/rules/release-plans.md`
 - `ai/rules/documentation-impact.md`
 - `ai/rules/architecture-records.md`
 
@@ -39,7 +40,9 @@ useful, never merely to re-check your own work.
 Run the request's measurable checks and the narrowest affected checks. Complete
 the applicable local-only or end-to-end branch, release-plan, PR into `dev`,
 Arbiter Linear, documentation, Architecture Record, and CI handoff defined by
-the loaded lifecycle modules.
+the loaded lifecycle modules. Classify the plan before creation. For `publish`
+mode, inspect every pending plan in the same capability group before writing the
+single release-level public description.
 
 Finish outcome-first with the completed scope, validation, handoff state,
 documentation disposition, Architecture Record disposition, and remaining

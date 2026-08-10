@@ -72,8 +72,8 @@ export function readPackageJson({ repoRoot = REPO_ROOT } = {}) {
 	return JSON.parse(readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
 }
 
-export function writePackageJson(packageJson) {
-	writeFileSync(PACKAGE_JSON_PATH, `${JSON.stringify(packageJson, null, '\t')}\n`);
+export function writePackageJson(packageJson, { repoRoot = REPO_ROOT } = {}) {
+	writeFileSync(path.join(repoRoot, 'package.json'), `${JSON.stringify(packageJson, null, '\t')}\n`);
 }
 
 export function bumpVersion(version, bump) {
@@ -232,31 +232,31 @@ export function buildReleaseNotes({ version, entries, releaseDate = new Date() }
 	return `${lines.join('\n')}\n`;
 }
 
-export function updateChangelog({ version, notes }) {
+export function updateChangelog({ version, notes, repoRoot = REPO_ROOT }) {
 	const heading = '# Changelog';
 	const entry = `${notes.trim()}\n\n`;
+	const changelogPath = path.join(repoRoot, 'CHANGELOG.md');
 
-	if (!existsSync(CHANGELOG_PATH)) {
-		writeFileSync(CHANGELOG_PATH, `${heading}\n\n${entry}`);
+	if (!existsSync(changelogPath)) {
+		writeFileSync(changelogPath, `${heading}\n\n${entry}`);
 		return;
 	}
 
-	const existing = readFileSync(CHANGELOG_PATH, 'utf8');
+	const existing = readFileSync(changelogPath, 'utf8');
 	if (existing.startsWith(`${heading}\n`)) {
 		const remainder = existing.slice(heading.length).replace(/^\n+/, '');
-		writeFileSync(CHANGELOG_PATH, `${heading}\n\n${entry}${remainder}`);
+		writeFileSync(changelogPath, `${heading}\n\n${entry}${remainder}`);
 		return;
 	}
 
-	writeFileSync(CHANGELOG_PATH, `${heading}\n\n${entry}${existing}`);
+	writeFileSync(changelogPath, `${heading}\n\n${entry}${existing}`);
 }
 
-export function readReleasePlans() {
-	ensureDirectory(RELEASE_PLANS_DIR);
-
+export function readReleasePlans({ repoRoot = REPO_ROOT } = {}) {
+	const releasePlansDir = path.join(repoRoot, '.release-plans');
 	const entries = [];
-	for (const fileName of getTrackedPlanFileNames()) {
-		const filePath = path.join(RELEASE_PLANS_DIR, fileName);
+	for (const fileName of getTrackedPlanFileNames({ repoRoot })) {
+		const filePath = path.join(releasePlansDir, fileName);
 		const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
 		entries.push({
 			fileName,
@@ -268,12 +268,13 @@ export function readReleasePlans() {
 	return entries;
 }
 
-export function getTrackedPlanFileNames() {
-	if (!existsSync(RELEASE_PLANS_DIR)) {
+export function getTrackedPlanFileNames({ repoRoot = REPO_ROOT } = {}) {
+	const releasePlansDir = path.join(repoRoot, '.release-plans');
+	if (!existsSync(releasePlansDir)) {
 		return [];
 	}
 
-	const entries = readdirSync(RELEASE_PLANS_DIR, { withFileTypes: true });
+	const entries = readdirSync(releasePlansDir, { withFileTypes: true });
 
 	return entries
 		.filter((dirent) => dirent.isFile())
@@ -290,22 +291,32 @@ export function writeReleasePlanFile({ fileName, plan, releasePlansDir = RELEASE
 	renameSync(temporaryPath, filePath);
 }
 
-export function removeReleasePlanFiles(planFiles) {
+export function removeReleasePlanFiles(planFiles, { repoRoot = REPO_ROOT } = {}) {
 	for (const planFile of planFiles) {
 		rmSync(planFile.filePath, { force: true });
 	}
 
-	ensureDirectory(RELEASE_PLANS_DIR);
-	const gitkeepPath = path.join(RELEASE_PLANS_DIR, '.gitkeep');
+	const releasePlansDir = path.join(repoRoot, '.release-plans');
+	ensureDirectory(releasePlansDir);
+	const gitkeepPath = path.join(releasePlansDir, '.gitkeep');
 	if (!existsSync(gitkeepPath)) {
 		writeFileSync(gitkeepPath, '');
 	}
 }
 
-export function writeReleaseNotesOutput({ version, notes }) {
-	ensureDirectory(RELEASE_OUTPUT_DIR);
-	const filePath = path.join(RELEASE_OUTPUT_DIR, `release-notes-v${version}.md`);
+export function writeReleaseNotesOutput({ version, notes, repoRoot = REPO_ROOT }) {
+	const releaseOutputDir = path.join(repoRoot, '.release-output');
+	ensureDirectory(releaseOutputDir);
+	const filePath = path.join(releaseOutputDir, `release-notes-v${version}.md`);
 	writeFileSync(filePath, notes);
+	return filePath;
+}
+
+export function writeReleaseProvenanceOutput({ version, provenance, repoRoot = REPO_ROOT }) {
+	const releaseOutputDir = path.join(repoRoot, '.release-output');
+	ensureDirectory(releaseOutputDir);
+	const filePath = path.join(releaseOutputDir, `release-provenance-v${version}.json`);
+	writeFileSync(filePath, `${JSON.stringify(provenance, null, '\t')}\n`);
 	return filePath;
 }
 
@@ -345,22 +356,31 @@ export function aggregatePlanEntries(plans) {
 	});
 }
 
-export async function aggregateReleaseEntries(plans) {
+export async function aggregateReleaseEntries(plans, { repoRoot = REPO_ROOT, strictAttribution = false } = {}) {
 	const commitEntries = aggregatePlanEntries(plans);
-	const githubContext = resolveGitHubContext();
+	const githubContext = resolveGitHubContext({ repoRoot });
 	if (!githubContext) {
+		if (strictAttribution) {
+			throw new Error('Release preparation requires GitHub repository context before consuming plans.');
+		}
 		return commitEntries;
 	}
 
 	const pullRequestEntries = await resolvePullRequestEntries({
 		entries: commitEntries,
-		githubContext
+		githubContext,
+		strictAttribution
 	});
 	if (pullRequestEntries.length === 0) {
 		return commitEntries;
 	}
 
 	return pullRequestEntries;
+}
+
+export async function resolveReleaseCommitAttributions(plans, { repoRoot = REPO_ROOT, strictAttribution = false } = {}) {
+	const entries = await aggregateReleaseEntries(plans, { repoRoot, strictAttribution });
+	return new Map(entries.map((entry) => [entry.sha.toLowerCase(), entry]));
 }
 
 export function writeGithubOutput(name, value) {
@@ -376,11 +396,19 @@ export function writeGithubOutput(name, value) {
 
 function formatReleaseNoteAttribution(entry) {
 	const parts = [entry.releaseNoteLabel];
-	if (entry.authorLogin) {
+	if (Array.isArray(entry.authorLogins) && entry.authorLogins.length > 0) {
+		parts.push(`by ${entry.authorLogins.map((login) => `@${login}`).join(', ')}`);
+	} else if (entry.authorLogin) {
 		parts.push(`by @${entry.authorLogin}`);
 	}
 
-	if (entry.pullRequestUrl && entry.pullRequestNumber) {
+	if (Array.isArray(entry.pullRequests) && entry.pullRequests.length > 0) {
+		parts.push(
+			`in ${entry.pullRequests
+				.map((pullRequest) => (pullRequest.number ? `[#${pullRequest.number}](${pullRequest.url})` : `[pull request](${pullRequest.url})`))
+				.join(', ')}`
+		);
+	} else if (entry.pullRequestUrl && entry.pullRequestNumber) {
 		parts.push(`in [#${entry.pullRequestNumber}](${entry.pullRequestUrl})`);
 	} else if (entry.pullRequestUrl) {
 		parts.push(`in [pull request](${entry.pullRequestUrl})`);
@@ -389,8 +417,8 @@ function formatReleaseNoteAttribution(entry) {
 	return parts.join(' ');
 }
 
-function resolveGitHubContext() {
-	const repository = process.env.GITHUB_REPOSITORY?.trim() ?? parseGitHubRepositoryFromOrigin();
+function resolveGitHubContext({ repoRoot = REPO_ROOT } = {}) {
+	const repository = process.env.GITHUB_REPOSITORY?.trim() ?? parseGitHubRepositoryFromOrigin({ repoRoot });
 	if (!repository || !repository.includes('/')) {
 		return null;
 	}
@@ -401,10 +429,10 @@ function resolveGitHubContext() {
 	};
 }
 
-function parseGitHubRepositoryFromOrigin() {
+function parseGitHubRepositoryFromOrigin({ repoRoot = REPO_ROOT } = {}) {
 	let remoteUrl = '';
 	try {
-		remoteUrl = git(['config', '--get', 'remote.origin.url']);
+		remoteUrl = git(['config', '--get', 'remote.origin.url'], { repoRoot });
 	} catch {
 		return null;
 	}
@@ -422,19 +450,26 @@ function parseGitHubRepositoryFromOrigin() {
 	return null;
 }
 
-async function resolvePullRequestEntries({ entries, githubContext }) {
+async function resolvePullRequestEntries({ entries, githubContext, strictAttribution }) {
 	const results = await mapWithConcurrencyLimit(entries, 5, async (entry) => {
-		const pullRequest = await fetchAssociatedPullRequest({
-			sha: entry.sha,
-			githubContext
-		}).catch((error) => {
+		let pullRequest;
+		try {
+			pullRequest = await fetchAssociatedPullRequest({
+				sha: entry.sha,
+				githubContext
+			});
+		} catch (error) {
+			const message =
+				`Unable to resolve PR metadata for commit ${entry.sha.slice(0, 7)}. ` +
+				`GitHub reported: ${error instanceof Error ? error.message : String(error)}`;
+			if (strictAttribution) {
+				throw new Error(`${message} Release preparation requires complete attribution before consuming plans.`);
+			}
 			console.warn(
-				`Warning: unable to resolve PR metadata for commit ${entry.sha.slice(0, 7)}: ${
-					error instanceof Error ? error.message : String(error)
-				}`
+				`Warning: ${message} The read-only preview will show available attribution; push the commit and preview again to refresh it.`
 			);
-			return null;
-		});
+			pullRequest = null;
+		}
 
 		return {
 			entry,
