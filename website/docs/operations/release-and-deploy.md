@@ -247,7 +247,7 @@ The production stack expects persistent host directories for:
 - Grafana data
 - Alloy data
 
-The API log uses its own persistent `API_LOGS_DIR` mount. Alloy reads that mount separately from bot logs and labels the stream as `service=arbiter-api`.
+The API log uses its own persistent `API_LOGS_DIR` mount. Alloy reads that mount separately from bot logs and labels the stream as `service=arbiter-api`. Production Compose will not create the API log path: provision it before startup with ownership matching `API_UID` and `API_GID`, following the API deployment-readiness runbook.
 
 If those paths move or change ownership, update the environment configuration to match. The bot and Redis containers may run under explicit numeric users, so host ownership matters.
 

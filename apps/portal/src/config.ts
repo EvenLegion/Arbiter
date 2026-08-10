@@ -32,6 +32,7 @@ export function loadPortalConfig(): PortalConfig {
 export function buildPortalContentSecurityPolicy(apiBaseUrl: unknown, production = true): string {
 	const config = parsePortalConfig(apiBaseUrl, production);
 	const connectSources = production ? config.apiBaseUrl : `${config.apiBaseUrl} ws://127.0.0.1:4173`;
+	const styleSources = production ? "'self'" : "'self' 'unsafe-inline'";
 	return [
 		"default-src 'self'",
 		"base-uri 'none'",
@@ -42,6 +43,6 @@ export function buildPortalContentSecurityPolicy(apiBaseUrl: unknown, production
 		"img-src 'self' data: https://cdn.discordapp.com",
 		"object-src 'none'",
 		"script-src 'self'",
-		"style-src 'self'"
+		`style-src ${styleSources}`
 	].join('; ');
 }

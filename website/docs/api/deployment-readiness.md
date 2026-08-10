@@ -36,6 +36,18 @@ API public configuration:
 - `API_REDIS_NAMESPACE`: keep the dedicated default unless a reviewed namespace migration is planned.
 - `API_DB_POOL_MAX`: default `4`, maximum `10`.
 
+Before rendering or starting production Compose, create the API log directory with ownership matching `API_UID` and `API_GID`. Use the same reviewed values in `.env`; the defaults are shown here:
+
+```bash
+api_logs_dir=/opt/arbiter/api-logs
+api_uid=1000
+api_gid=1000
+sudo install -d -m 0750 -o "$api_uid" -g "$api_gid" "$api_logs_dir"
+test "$(stat -c '%u:%g' "$api_logs_dir")" = "$api_uid:$api_gid"
+```
+
+Production Compose refuses to create this bind-mount path automatically. That fail-closed behavior prevents Docker from creating a root-owned directory that the non-root API cannot write and Alloy therefore cannot ingest.
+
 Vercel receives only `VITE_API_BASE_URL`, set to the exact public HTTPS API origin. Do not configure `DATABASE_URL`, Redis values, Discord secrets, the credential pepper, API cookies, or bot configuration in Vercel. The production portal build fails without a valid HTTPS API origin, generates an exact-origin Content Security Policy, produces no source maps, and scans the artifact for server-only configuration markers.
 
 ## Shared Contract Compatibility

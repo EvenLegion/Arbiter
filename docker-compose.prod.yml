@@ -88,7 +88,11 @@ services:
     ports:
       - '${API_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-3000}:3000'
     volumes:
-      - ${API_LOGS_DIR:-/opt/arbiter/api-logs}:/app/logs
+      - type: bind
+        source: ${API_LOGS_DIR:-/opt/arbiter/api-logs}
+        target: /app/logs
+        bind:
+          create_host_path: false
     depends_on:
       arbiter-redis:
         condition: service_healthy
@@ -156,7 +160,12 @@ services:
     volumes:
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - ${BOT_LOGS_DIR:-/opt/arbiter/bot-logs}:/var/log/arbiter:ro
-      - ${API_LOGS_DIR:-/opt/arbiter/api-logs}:/var/log/arbiter-api:ro
+      - type: bind
+        source: ${API_LOGS_DIR:-/opt/arbiter/api-logs}
+        target: /var/log/arbiter-api
+        read_only: true
+        bind:
+          create_host_path: false
       - ${ALLOY_DATA_DIR:-/opt/arbiter/alloy-data}:/var/lib/alloy
     depends_on:
       arbiter-loki:
