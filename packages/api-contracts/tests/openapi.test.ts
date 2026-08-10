@@ -33,7 +33,17 @@ describe('v1 OpenAPI reference', () => {
 	it('derives strict fields, bounds, nullability, errors, headers, and one-time-secret semantics from contracts', () => {
 		const document = buildApiV1OpenApiDocument() as {
 			components: { schemas: Record<string, Record<string, unknown>> };
-			paths: Record<string, Record<string, { responses: Record<string, unknown> }>>;
+			paths: Record<
+				string,
+				Record<
+					string,
+					{
+						parameters: { name: string; schema: { $ref?: string } }[];
+						requestBody?: { required: boolean };
+						responses: Record<string, { headers: Record<string, unknown> }>;
+					}
+				>
+			>;
 		};
 		const query = document.components.schemas.ApiDirectoryQuery as {
 			additionalProperties: boolean;
@@ -52,8 +62,23 @@ describe('v1 OpenAPI reference', () => {
 			properties: { data: { properties: { secret: Record<string, unknown> } } };
 		};
 		expect(mint.properties.data.properties.secret).toMatchObject({ readOnly: true, 'x-returned-once': true });
-		expect(document.paths['/api/v1/users/{discordUserId}'].get.responses).toHaveProperty('429');
-		expect(document.paths['/api/v1/users/{discordUserId}'].get.responses).toHaveProperty('503');
+		const directory = document.paths['/api/v1/users/{discordUserId}'].get;
+		expect(directory.responses).toHaveProperty('429');
+		expect(directory.responses['400'].headers).toHaveProperty('X-RateLimit-Limit');
+		expect(directory.responses['404'].headers).toHaveProperty('X-RateLimit-Limit');
+		expect(directory.responses['503'].headers).toHaveProperty('X-RateLimit-Limit');
+		expect(directory.responses['401'].headers).toHaveProperty('WWW-Authenticate');
+		expect(document.paths['/api/v1/auth/session'].get.responses['401'].headers).not.toHaveProperty('WWW-Authenticate');
+		expect(document.paths['/api/v1/users/query'].post.requestBody).toMatchObject({ required: false });
+		expect(
+			document.paths['/api/v1/integrations/{integrationId}/credentials/{credentialId}/revoke'].post.parameters.find(
+				(parameter) => parameter.name === 'credentialId'
+			)?.schema.$ref
+		).toBe('#/components/schemas/ApiCredentialId');
+		const mintRequest = document.components.schemas.MintApiCredentialRequest as {
+			properties: { expiresAt: { description: string } };
+		};
+		expect(mintRequest.properties.expiresAt.description).toMatch(/one calendar year/);
 	});
 
 	it('accepts the current artifact and deliberately rejects a controlled mismatch', () => {

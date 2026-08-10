@@ -46,17 +46,17 @@ async function assertRuntimeSurfaceMatchesContracts(): Promise<void> {
 		readFile(resolve(repositoryRoot, 'apps/api/src/integrations/http.ts'), 'utf8'),
 		readFile(resolve(repositoryRoot, 'apps/api/src/directory/http.ts'), 'utf8')
 	]);
-	const runtimeOperations = new Set<string>();
+	const runtimeOperations = new Map<string, RuntimeOperationEvidence>();
 
 	assertIncludes(server, `if (path === API_V1_ROUTES.health)`, 'health route');
 	assertIncludes(server, `if (path === API_V1_ROUTES.readiness)`, 'readiness route');
 	assertIncludes(server, `if (request.method === 'GET' || request.method === 'HEAD') return;`, 'GET and HEAD read methods');
 	assertIncludes(server, `response.setHeader('x-request-id', requestId);`, 'request ID response header');
 	assertIncludes(server, `response.setHeader(API_CONTRACT_VERSION_HEADER, API_CONTRACT_VERSION);`, 'contract version response header');
-	add(runtimeOperations, 'get', API_V1_ROUTES.health);
-	add(runtimeOperations, 'head', API_V1_ROUTES.health);
-	add(runtimeOperations, 'get', API_V1_ROUTES.readiness);
-	add(runtimeOperations, 'head', API_V1_ROUTES.readiness);
+	add(runtimeOperations, 'get', API_V1_ROUTES.health, 'anonymous');
+	add(runtimeOperations, 'head', API_V1_ROUTES.health, 'anonymous');
+	add(runtimeOperations, 'get', API_V1_ROUTES.readiness, 'anonymous');
+	add(runtimeOperations, 'head', API_V1_ROUTES.readiness, 'anonymous');
 
 	for (const [route, method] of [
 		['authDiscordStart', `requireMethod(request, response, ['POST']);`],
@@ -66,55 +66,110 @@ async function assertRuntimeSurfaceMatchesContracts(): Promise<void> {
 	] as const) {
 		assertRouteBlock(auth, route, method);
 	}
+	const authStartBlock = sliceBetween(
+		auth,
+		'if (url.pathname === API_V1_ROUTES.authDiscordStart)',
+		'if (url.pathname === API_V1_ROUTES.authDiscordCallback)'
+	);
+	const authCallbackBlock = sliceBetween(
+		auth,
+		'if (url.pathname === API_V1_ROUTES.authDiscordCallback)',
+		'if (url.pathname === API_V1_ROUTES.authSession)'
+	);
+	const authSessionBlock = sliceBetween(
+		auth,
+		'if (url.pathname === API_V1_ROUTES.authSession)',
+		'if (url.pathname === API_V1_ROUTES.authIdentity)'
+	);
+	const authIdentityBlock = sliceBetween(auth, 'if (url.pathname === API_V1_ROUTES.authIdentity)', "requireMethod(request, response, ['POST']);");
+	assertIncludes(authStartBlock, 'authService.beginOAuth', 'anonymous OAuth start behavior');
+	assertIncludes(authCallbackBlock, 'authService.completeOAuth', 'anonymous OAuth callback behavior');
+	assertIncludes(authSessionBlock, 'authService.requireSession(sessionId, signal)', 'session route browser authorization');
+	assertIncludes(authIdentityBlock, 'authService.requireSession(sessionId, signal)', 'identity route browser authorization');
+	assertExcludes(authStartBlock, 'requireSession', 'OAuth start browser-session guard');
+	assertExcludes(authCallbackBlock, 'requireSession', 'OAuth callback browser-session guard');
 	assertIncludes(auth, `API_V1_ROUTES.authLogout`, 'logout route registration');
-	assertIncludes(auth, 'authService.requireSession(sessionId, signal)', 'browser session read authorization');
-	assertIncludes(auth, 'authService.requireMutationSession(sessionId,', 'browser session CSRF authorization');
 	const logoutIndex = auth.indexOf('await authService.logout');
 	if (logoutIndex < 0 || !auth.slice(Math.max(0, logoutIndex - 120), logoutIndex).includes(`requireMethod(request, response, ['POST']);`)) {
 		throw new Error('Runtime route drift detected: missing logout POST method.');
 	}
-	add(runtimeOperations, 'post', API_V1_ROUTES.authDiscordStart);
-	add(runtimeOperations, 'get', API_V1_ROUTES.authDiscordCallback);
-	add(runtimeOperations, 'get', API_V1_ROUTES.authSession);
-	add(runtimeOperations, 'get', API_V1_ROUTES.authIdentity);
-	add(runtimeOperations, 'post', API_V1_ROUTES.authLogout);
+	assertIncludes(auth.slice(logoutIndex - 240, logoutIndex + 240), "request.headers['x-csrf-token']", 'logout CSRF guard');
+	add(runtimeOperations, 'post', API_V1_ROUTES.authDiscordStart, 'anonymous');
+	add(runtimeOperations, 'get', API_V1_ROUTES.authDiscordCallback, 'anonymous');
+	add(runtimeOperations, 'get', API_V1_ROUTES.authSession, 'browserSession');
+	add(runtimeOperations, 'get', API_V1_ROUTES.authIdentity, 'browserSession');
+	add(runtimeOperations, 'post', API_V1_ROUTES.authLogout, 'browserSessionCsrf');
 
-	assertIncludes(integrations, `route.kind === 'collection' && request.method === 'GET'`, 'integration collection GET method');
-	assertEvidenceNear(integrations, `if (route.kind === 'collection')`, `requireMethod(request, response, ['GET', 'POST']);`, 180);
-	assertEvidenceNear(integrations, `if (route.kind === 'item')`, `requireMethod(request, response, ['PATCH']);`, 180);
-	assertEvidenceNear(integrations, `if (route.kind === 'credentials')`, `request.method === 'GET'`, 180);
-	assertEvidenceNear(integrations, `if (route.kind === 'credentials')`, `requireMethod(request, response, ['GET', 'POST']);`, 1_000);
-	assertEvidenceNear(integrations, `if (route.kind === 'credential-revoke')`, `requireMethod(request, response, ['POST']);`, 180);
-	assertEvidenceNear(integrations, `if (route.kind !== 'archive')`, `requireMethod(request, response, ['POST']);`, 180);
-	assertIncludes(integrations, 'requireCsrf: false', 'browser-session read boundary');
-	assertIncludes(integrations, 'requireCsrf: true', 'browser-session mutation CSRF boundary');
-	add(runtimeOperations, 'get', API_V1_ROUTES.integrationRegistry);
-	add(runtimeOperations, 'post', API_V1_ROUTES.integrationRegistry);
-	add(runtimeOperations, 'patch', `${API_V1_ROUTES.integrationRegistry}/{integrationId}`);
-	add(runtimeOperations, 'post', `${API_V1_ROUTES.integrationRegistry}/{integrationId}/archive`);
-	add(runtimeOperations, 'get', `${API_V1_ROUTES.integrationRegistry}/{integrationId}/credentials`);
-	add(runtimeOperations, 'post', `${API_V1_ROUTES.integrationRegistry}/{integrationId}/credentials`);
-	add(runtimeOperations, 'post', `${API_V1_ROUTES.integrationRegistry}/{integrationId}/credentials/{credentialId}/revoke`);
+	const collectionReadBlock = sliceBetween(
+		integrations,
+		`if (route.kind === 'collection' && request.method === 'GET')`,
+		`if (route.kind === 'collection')`
+	);
+	const collectionWriteBlock = sliceBetween(integrations, `if (route.kind === 'collection')`, `if (route.kind === 'item')`);
+	const itemBlock = sliceBetween(integrations, `if (route.kind === 'item')`, `if (route.kind === 'credentials')`);
+	const credentialsBlock = sliceBetween(integrations, `if (route.kind === 'credentials')`, `if (route.kind === 'credential-revoke')`);
+	const credentialsReadBlock = sliceBetween(
+		credentialsBlock,
+		`if (request.method === 'GET')`,
+		`requireMethod(request, response, ['GET', 'POST']);`
+	);
+	const credentialsWriteBlock = credentialsBlock.slice(credentialsBlock.indexOf(`requireMethod(request, response, ['GET', 'POST']);`));
+	const revokeBlock = sliceBetween(integrations, `if (route.kind === 'credential-revoke')`, `if (route.kind !== 'archive')`);
+	const archiveBlock = integrations.slice(integrations.indexOf(`if (route.kind !== 'archive')`));
+	assertBrowserGuard(collectionReadBlock, false, 'integration collection GET');
+	assertBrowserGuard(collectionWriteBlock, true, 'integration collection POST');
+	assertBrowserGuard(itemBlock, true, 'integration item PATCH');
+	assertBrowserGuard(credentialsReadBlock, false, 'credential collection GET');
+	assertBrowserGuard(credentialsWriteBlock, true, 'credential collection POST');
+	assertBrowserGuard(revokeBlock, true, 'credential revoke POST');
+	assertBrowserGuard(archiveBlock, true, 'integration archive POST');
+	assertIncludes(collectionWriteBlock, `requireMethod(request, response, ['GET', 'POST']);`, 'integration collection methods');
+	assertIncludes(itemBlock, `requireMethod(request, response, ['PATCH']);`, 'integration item method');
+	assertIncludes(credentialsWriteBlock, `requireMethod(request, response, ['GET', 'POST']);`, 'credential collection methods');
+	assertIncludes(revokeBlock, `requireMethod(request, response, ['POST']);`, 'credential revoke method');
+	assertIncludes(archiveBlock, `requireMethod(request, response, ['POST']);`, 'integration archive method');
+	add(runtimeOperations, 'get', API_V1_ROUTES.integrationRegistry, 'browserSession');
+	add(runtimeOperations, 'post', API_V1_ROUTES.integrationRegistry, 'browserSessionCsrf');
+	add(runtimeOperations, 'patch', `${API_V1_ROUTES.integrationRegistry}/{integrationId}`, 'browserSessionCsrf');
+	add(runtimeOperations, 'post', `${API_V1_ROUTES.integrationRegistry}/{integrationId}/archive`, 'browserSessionCsrf');
+	add(runtimeOperations, 'get', `${API_V1_ROUTES.integrationRegistry}/{integrationId}/credentials`, 'browserSession');
+	add(runtimeOperations, 'post', `${API_V1_ROUTES.integrationRegistry}/{integrationId}/credentials`, 'browserSessionCsrf');
+	add(runtimeOperations, 'post', `${API_V1_ROUTES.integrationRegistry}/{integrationId}/credentials/{credentialId}/revoke`, 'browserSessionCsrf');
 
 	assertIncludes(directory, `route.kind === 'direct' ? ['GET'] : ['POST']`, 'directory GET and POST methods');
 	assertIncludes(directory, `API_V1_ROUTES.directoryUsers}/:discordUserId`, 'direct directory route');
 	assertIncludes(directory, `pathname === API_V1_ROUTES.directoryQuery`, 'directory query route');
-	assertIncludes(directory, `parseBearerCredential(request.headers.authorization)`, 'API credential bearer boundary');
-	assertIncludes(directory, `hasScope(authentication.value.scopes, 'users:read')`, 'users:read scope boundary');
-	assertIncludes(directory, `response.setHeader('x-ratelimit-limit'`, 'rate-limit response headers');
-	assertIncludes(directory, `response.setHeader('retry-after'`, 'retry response header');
+	const directoryGuardBlock = sliceBetween(directory, `const secret = parseBearerCredential`, `if (route.kind === 'direct')`);
+	assertIncludes(directoryGuardBlock, `parseBearerCredential(request.headers.authorization)`, 'API credential bearer boundary');
+	assertIncludes(directoryGuardBlock, `hasScope(authentication.value.scopes, 'users:read')`, 'users:read scope boundary');
+	assertIncludes(directoryGuardBlock, `writeRateLimitHeaders(response, rate)`, 'directory rate-limit response headers');
+	assertIncludes(directoryGuardBlock, `response.setHeader('retry-after'`, 'directory retry response header');
 	const cors = await readFile(resolve(repositoryRoot, 'apps/api/src/http/cors.ts'), 'utf8');
 	assertIncludes(cors, 'access-control-expose-headers', 'CORS-visible response headers');
-	add(runtimeOperations, 'get', `${API_V1_ROUTES.directoryUsers}/{discordUserId}`);
-	add(runtimeOperations, 'post', API_V1_ROUTES.directoryQuery);
+	add(runtimeOperations, 'get', `${API_V1_ROUTES.directoryUsers}/{discordUserId}`, 'apiCredential', ['users:read'], true);
+	add(runtimeOperations, 'post', API_V1_ROUTES.directoryQuery, 'apiCredential', ['users:read'], true);
 
-	const documentedOperations = new Set(API_V1_OPERATION_CONTRACTS.map(apiV1OperationKey));
-	const missingFromReference = [...runtimeOperations].filter((key) => !documentedOperations.has(key));
-	const missingFromRuntime = [...documentedOperations].filter((key) => !runtimeOperations.has(key));
+	const documentedOperations = new Map(API_V1_OPERATION_CONTRACTS.map((operation) => [apiV1OperationKey(operation), operation]));
+	const missingFromReference = [...runtimeOperations.keys()].filter((key) => !documentedOperations.has(key));
+	const missingFromRuntime = [...documentedOperations.keys()].filter((key) => !runtimeOperations.has(key));
 	if (missingFromReference.length || missingFromRuntime.length) {
 		throw new Error(
 			`Runtime/reference route drift detected. Missing from reference: ${missingFromReference.join(', ') || 'none'}. Missing from runtime: ${missingFromRuntime.join(', ') || 'none'}.`
 		);
+	}
+	for (const [key, runtime] of runtimeOperations) {
+		const documented = documentedOperations.get(key);
+		if (!documented) continue;
+		const expected: RuntimeOperationEvidence = {
+			security: documented.security,
+			requiredScopes: [...(documented.requiredScopes ?? [])],
+			rateLimited: documented.rateLimited === true
+		};
+		if (JSON.stringify(runtime) !== JSON.stringify(expected)) {
+			throw new Error(
+				`Runtime/reference security drift detected for ${key}: runtime=${JSON.stringify(runtime)} reference=${JSON.stringify(expected)}.`
+			);
+		}
 	}
 }
 
@@ -208,7 +263,7 @@ function renderOperation(operation: ApiV1OperationContract, document: Record<str
 		operation.description,
 		'',
 		`- Security: ${securityLabel(operation.security)}${operation.requiredScopes ? `; required scope: \`${operation.requiredScopes.join('`, `')}\`` : ''}`,
-		`- Request body: ${operation.requestSchema ? `\`${operation.requestSchema}\`` : 'none'}`,
+		`- Request body: ${operation.requestSchema ? `\`${operation.requestSchema}\`${operation.requestBodyRequired === false ? ' (optional)' : ''}` : 'none'}`,
 		`- Rate-limit headers: ${operation.rateLimited ? 'yes, after credential authentication' : 'no'}`
 	];
 	if (operation.parameters?.length) {
@@ -236,11 +291,13 @@ function assertSecretFree(...artifacts: string[]): void {
 	const combined = artifacts.join('\n');
 	const forbidden: readonly [RegExp, string][] = [
 		[/arb_v1_[A-Za-z0-9_-]{12}_[A-Za-z0-9_-]{43}/, 'API credential'],
-		[/-----BEGIN (?:EC |RSA )?PRIVATE KEY-----/, 'private key'],
-		[/https:\/\/(?!api\.example\.invalid)[A-Za-z0-9.-]+\.(?:com|net|org)\/api\/v1/, 'non-placeholder API hostname']
+		[/-----BEGIN (?:EC |RSA )?PRIVATE KEY-----/, 'private key']
 	];
 	for (const [pattern, label] of forbidden) {
 		if (pattern.test(combined)) throw new Error(`Generated API reference contains a forbidden ${label} pattern.`);
+	}
+	for (const match of combined.matchAll(/https?:\/\/([A-Za-z0-9.-]+)(?::\d+)?/g)) {
+		if (match[1] !== 'api.example.invalid') throw new Error('Generated API reference contains a forbidden non-placeholder API hostname pattern.');
 	}
 }
 
@@ -265,15 +322,40 @@ function assertIncludes(source: string, evidence: string, label: string): void {
 	if (!source.includes(evidence)) throw new Error(`Runtime route drift detected: missing ${label}.`);
 }
 
-function assertEvidenceNear(source: string, marker: string, evidence: string, window: number): void {
-	const markerIndex = source.indexOf(marker);
-	if (markerIndex < 0 || !source.slice(markerIndex, markerIndex + window).includes(evidence)) {
-		throw new Error(`Runtime route drift detected: ${marker} no longer proves ${evidence}.`);
-	}
+function assertExcludes(source: string, evidence: string, label: string): void {
+	if (source.includes(evidence)) throw new Error(`Runtime route drift detected: unexpected ${label}.`);
 }
 
-function add(target: Set<string>, method: ApiV1OperationContract['method'], path: string): void {
-	target.add(apiV1OperationKey({ method, path }));
+function assertBrowserGuard(source: string, requireCsrf: boolean, label: string): void {
+	assertIncludes(
+		source,
+		`requireBrowserSession({ request, response, config, authService, requireCsrf: ${String(requireCsrf)}, signal })`,
+		`${label} guard`
+	);
+}
+
+function sliceBetween(source: string, startMarker: string, endMarker: string): string {
+	const start = source.indexOf(startMarker);
+	const end = source.indexOf(endMarker, start + startMarker.length);
+	if (start < 0 || end < 0) throw new Error(`Runtime route drift detected: cannot locate block between ${startMarker} and ${endMarker}.`);
+	return source.slice(start, end);
+}
+
+type RuntimeOperationEvidence = {
+	security: ApiV1OperationContract['security'];
+	requiredScopes: string[];
+	rateLimited: boolean;
+};
+
+function add(
+	target: Map<string, RuntimeOperationEvidence>,
+	method: ApiV1OperationContract['method'],
+	path: string,
+	security: ApiV1OperationContract['security'],
+	requiredScopes: string[] = [],
+	rateLimited = false
+): void {
+	target.set(apiV1OperationKey({ method, path }), { security, requiredScopes, rateLimited });
 }
 
 function escapeCell(value: string): string {

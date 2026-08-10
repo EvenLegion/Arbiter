@@ -6,6 +6,7 @@ import { ApiScopeSchema } from './scopes';
 const IsoDateTimeSchema = z.iso.datetime({ offset: true });
 
 export const ApiIntegrationIdSchema = z.uuid();
+export const ApiCredentialIdSchema = z.uuid();
 export const ApiIntegrationNameSchema = z.string().trim().min(1).max(100);
 export const ApiIntegrationPurposeSchema = z.string().trim().min(1).max(500);
 
@@ -20,7 +21,7 @@ export type ApiIntegrationState = z.infer<typeof ApiIntegrationStateSchema>;
 
 export const ApiIntegrationSchema = z
 	.object({
-		id: z.uuid(),
+		id: ApiIntegrationIdSchema,
 		name: z.string().min(1).max(100),
 		purpose: z.string().min(1).max(500),
 		state: ApiIntegrationStateSchema,
@@ -87,7 +88,14 @@ export const ApiCredentialStatusSchema = z.enum(['active', 'expired', 'revoked',
 export type ApiCredentialStatus = z.infer<typeof ApiCredentialStatusSchema>;
 
 export const ApiCredentialLabelSchema = z.string().trim().min(1).max(100);
-export const ApiCredentialSecretSchema = z.string().regex(/^arb_v1_[A-Za-z0-9_-]{12}_[A-Za-z0-9_-]{43}$/);
+export const ApiCredentialSecretSchema = z
+	.string()
+	.regex(/^arb_v1_[A-Za-z0-9_-]{12}_[A-Za-z0-9_-]{43}$/)
+	.meta({
+		description: 'Returned exactly once when a credential is minted; never returned by later reads.',
+		readOnly: true,
+		'x-returned-once': true
+	});
 
 export const ApiCredentialActorSummarySchema = z
 	.object({
@@ -99,8 +107,8 @@ export const ApiCredentialActorSummarySchema = z
 
 export const ApiCredentialMetadataSchema = z
 	.object({
-		id: z.uuid(),
-		integrationId: z.uuid(),
+		id: ApiCredentialIdSchema,
+		integrationId: ApiIntegrationIdSchema,
 		label: z.string().min(1).max(100),
 		prefix: z.string().regex(/^[A-Za-z0-9_-]{12}$/),
 		scopes: z.array(ApiScopeSchema).min(1),
@@ -121,7 +129,10 @@ export const MintApiCredentialRequestSchema = z
 	.object({
 		label: ApiCredentialLabelSchema,
 		scopes: z.tuple([z.literal('users:read')]),
-		expiresAt: IsoDateTimeSchema.optional()
+		expiresAt: IsoDateTimeSchema.optional().meta({
+			description:
+				'Optional. Must be later than issuance and no more than one calendar year after issuance; omitted values default to one year after issuance.'
+		})
 	})
 	.strict();
 

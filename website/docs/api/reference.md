@@ -421,7 +421,7 @@ Idempotently revokes a credential as its creator or an EXEC.
 | Parameter       | Location | Required | Contract                               |
 | --------------- | -------- | -------- | -------------------------------------- |
 | `integrationId` | path     | yes      | Integration UUID. (`ApiIntegrationId`) |
-| `credentialId`  | path     | yes      | Credential UUID. (`ApiIntegrationId`)  |
+| `credentialId`  | path     | yes      | Credential UUID. (`ApiCredentialId`)   |
 
 | Status | Body or stable error codes                                      |
 | ------ | --------------------------------------------------------------- |
@@ -473,7 +473,7 @@ Returns one canonical user-directory record for a valid Discord snowflake.
 Runs a bounded batch and filter query with opaque cursor pagination. Filter categories intersect; division codes within one filter match any requested code.
 
 - Security: API credential; required scope: `users:read`
-- Request body: `ApiDirectoryQuery`
+- Request body: `ApiDirectoryQuery` (optional)
 - Rate-limit headers: yes, after credential authentication
 
 | Status | Body or stable error codes                         |
@@ -499,6 +499,7 @@ The machine-readable artifact defines 9 reusable response-header contracts.
 
 The artifact derives these JSON Schemas mechanically from the Zod contracts, including strict-object rejection, nullability, enums, regexes, defaults, and numeric or collection bounds:
 
+- `ApiCredentialId`
 - `ApiCredentialListResponse`
 - `ApiCredentialResponse`
 - `ApiDirectoryPageResponse`

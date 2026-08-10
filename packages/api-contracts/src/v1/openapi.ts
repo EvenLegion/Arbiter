@@ -11,6 +11,7 @@ import {
 } from './auth';
 import {
 	ApiCredentialListResponseSchema,
+	ApiCredentialIdSchema,
 	ApiCredentialResponseSchema,
 	ApiIntegrationIdSchema,
 	ApiIntegrationListQuerySchema,
@@ -57,6 +58,7 @@ export type ApiV1OperationContract = {
 		schemaComponent?: string;
 	}[];
 	requestSchema?: string;
+	requestBodyRequired?: boolean;
 	success: readonly {
 		status: number;
 		description: string;
@@ -309,7 +311,7 @@ export const API_V1_OPERATION_CONTRACTS = [
 		summary: 'Revoke an integration credential',
 		description: 'Idempotently revokes a credential as its creator or an EXEC.',
 		security: 'browserSessionCsrf',
-		parameters: [integrationIdParameter(), parameter('credentialId', 'path', true, 'Credential UUID.', 'ApiIntegrationId')],
+		parameters: [integrationIdParameter(), parameter('credentialId', 'path', true, 'Credential UUID.', 'ApiCredentialId')],
 		success: [{ status: 200, description: 'The credential is revoked.', schemaComponent: 'ApiCredentialResponse' }],
 		errors: managementMutationErrors([])
 	}),
@@ -338,6 +340,7 @@ export const API_V1_OPERATION_CONTRACTS = [
 		security: 'apiCredential',
 		requiredScopes: ['users:read'],
 		requestSchema: 'ApiDirectoryQuery',
+		requestBodyRequired: false,
 		success: [{ status: 200, description: 'A bounded page of directory users.', schemaComponent: 'ApiDirectoryPageResponse' }],
 		errors: directoryErrors(false),
 		rateLimited: true
@@ -346,6 +349,7 @@ export const API_V1_OPERATION_CONTRACTS = [
 
 const schemaComponents = {
 	ApiCredentialListResponse: ApiCredentialListResponseSchema,
+	ApiCredentialId: ApiCredentialIdSchema,
 	ApiCredentialResponse: ApiCredentialResponseSchema,
 	ApiDirectoryPageResponse: ApiDirectoryPageResponseSchema,
 	ApiDirectoryQuery: ApiDirectoryQuerySchema,
@@ -466,7 +470,13 @@ function buildOperation(contract: ApiV1OperationContract): Record<string, unknow
 	}
 	for (const [status, codes] of Object.entries(mergeErrors(contract.errors))) {
 		if (responses[status]) continue;
-		responses[status] = errorResponse(Number(status), codes, contract.rateLimited === true, contract.method === 'head');
+		responses[status] = errorResponse(
+			Number(status),
+			codes,
+			contract.rateLimited === true,
+			contract.method === 'head',
+			contract.security === 'apiCredential'
+		);
 	}
 
 	return withoutUndefined({
@@ -479,7 +489,7 @@ function buildOperation(contract: ApiV1OperationContract): Record<string, unknow
 		parameters: buildParameters(contract),
 		requestBody: contract.requestSchema
 			? {
-					required: true,
+					required: contract.requestBodyRequired ?? true,
 					content: { 'application/json': { schema: schemaRef(contract.requestSchema) } }
 				}
 			: undefined,
@@ -531,9 +541,15 @@ function successResponse(success: ApiV1OperationContract['success'][number], rat
 	});
 }
 
-function errorResponse(status: number, codes: readonly ApiErrorCode[], rateLimited: boolean, headOnly: boolean): Record<string, unknown> {
-	const headers = responseHeaders(rateLimited && (status === 429 || status < 400));
-	if (status === 401) {
+function errorResponse(
+	status: number,
+	codes: readonly ApiErrorCode[],
+	rateLimited: boolean,
+	headOnly: boolean,
+	apiCredentialRoute: boolean
+): Record<string, unknown> {
+	const headers = responseHeaders(rateLimited && rateHeadersCanFollowError(status));
+	if (status === 401 && apiCredentialRoute) {
 		headers['WWW-Authenticate'] = { description: 'Bearer challenge for API-credential routes.', schema: { type: 'string' } };
 	}
 	if (status === 405) headers.Allow = { description: 'Methods supported by the matched route.', schema: { type: 'string' } };
@@ -598,18 +614,6 @@ function buildHeaderComponents(): Record<string, unknown> {
 function jsonSchemaFor(name: string, schema: ZodType): Record<string, unknown> {
 	const result = z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>;
 	delete result.$schema;
-	if (name === 'ApiDirectoryQuery') {
-		result.description = 'Strict query contract. minimumRank must be less than or equal to maximumRank when both are present.';
-	}
-	if (name === 'MintApiCredentialResponse') {
-		const properties = result.properties as Record<string, Record<string, unknown>> | undefined;
-		const data = properties?.data?.properties as Record<string, Record<string, unknown>> | undefined;
-		if (data?.secret) {
-			data.secret.description = 'Returned exactly once when a credential is minted; never returned by later reads.';
-			data.secret.readOnly = true;
-			data.secret['x-returned-once'] = true;
-		}
-	}
 	return result;
 }
 
@@ -651,6 +655,10 @@ function parameter(
 
 function integrationIdParameter() {
 	return parameter('integrationId', 'path', true, 'Integration UUID.', 'ApiIntegrationId');
+}
+
+function rateHeadersCanFollowError(status: number): boolean {
+	return [400, 404, 408, 429, 500, 503].includes(status);
 }
 
 function managementMutationErrors(extraConflictCodes: readonly ApiErrorCode[]): Readonly<Record<number, readonly ApiErrorCode[]>> {
@@ -718,7 +726,7 @@ function sortJson(value: unknown): unknown {
 	if (!value || typeof value !== 'object') return value;
 	return Object.fromEntries(
 		Object.entries(value as Record<string, unknown>)
-			.sort(([left], [right]) => left.localeCompare(right))
+			.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
 			.map(([key, item]) => [key, sortJson(item)])
 	);
 }
