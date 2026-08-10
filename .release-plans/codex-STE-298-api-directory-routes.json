@@ -15,7 +15,8 @@
 			"committedAtMs": 1786319586000,
 			"type": "feat",
 			"scope": "api",
-			"description": "Trusted integrations can now read Arbiter's current member directory through versioned API-key routes, including division memberships, raw merit totals, and canonical ranks, with bounded filtering, pagination, rate limits, and safe errors. This adds the protected API capability behind the scenes but does not expose it to production or change Discord commands or member behavior.",
+			"description": "Arbiter now includes a working member-directory API for approved Even Legion tools. It provides current division memberships, merit totals, and merit ranks for individual members or filtered groups, while read-only access controls and usage limits protect Arbiter from unauthorized or excessive use.",
+			"releaseNoteLabel": "Arbiter now includes a working member-directory API for approved Even Legion tools. It provides current division memberships, merit totals, and merit ranks for individual members or filtered groups, while read-only access controls and usage limits protect Arbiter from unauthorized or excessive use.",
 			"breaking": false,
 			"section": "Features"
 		}
