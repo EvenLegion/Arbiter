@@ -258,6 +258,33 @@ describe('consolidated release preview', () => {
 		expect(() => readFileSync(path.join(repository, '.release-plans', 'concurrent.json'))).toThrow();
 		expect(() => readFileSync(path.join(repository, '.release-publish.lock'))).toThrow();
 	});
+
+	it('keeps durable release state and withholds success when GitHub output metadata fails', async () => {
+		const repository = createReleaseRepository();
+		const plans = [makePlan('output-failure.json', { mode: 'internal', bump: 'minor' })];
+		writePlans(repository, plans);
+		const attributions = attributionMap(plans);
+		const outputNames: string[] = [];
+		const writeOutput = vi.fn((name: string) => {
+			outputNames.push(name);
+			if (name === 'release_tag') {
+				throw new Error('simulated GitHub output failure');
+			}
+		});
+
+		await expect(runReleasePublish({ repoRoot: repository, releaseDate, attributions, log: () => undefined, writeOutput })).rejects.toThrow(
+			/simulated GitHub output failure/
+		);
+
+		expect(outputNames).toEqual(['release_version', 'release_tag']);
+		expect(outputNames).not.toContain('release_created');
+		expect(readFileSync(path.join(repository, 'package.json'), 'utf8')).toContain('"version": "3.5.0"');
+		expect(readFileSync(path.join(repository, '.release-output', 'release-provenance-v3.5.0.json'), 'utf8')).toContain(
+			'"releaseVersion": "3.5.0"'
+		);
+		expect(() => readFileSync(path.join(repository, '.release-plans', 'output-failure.json'))).toThrow();
+		expect(() => readFileSync(path.join(repository, '.release-publish.lock'))).toThrow();
+	});
 });
 
 describe('legacy plan migration', () => {

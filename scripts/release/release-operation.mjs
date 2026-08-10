@@ -41,20 +41,26 @@ export async function runReleasePreview({
 	};
 }
 
-export async function runReleasePublish({ repoRoot = REPO_ROOT, releaseDate = new Date(), attributions = null, log = console.log } = {}) {
+export async function runReleasePublish({
+	repoRoot = REPO_ROOT,
+	releaseDate = new Date(),
+	attributions = null,
+	log = console.log,
+	writeOutput = writeGithubOutput
+} = {}) {
 	const releaseLock = acquireReleasePublishLock(repoRoot);
 	try {
-		return await runLockedReleasePublish({ repoRoot, releaseDate, attributions, log });
+		return await runLockedReleasePublish({ repoRoot, releaseDate, attributions, log, writeOutput });
 	} finally {
 		releaseLock.release();
 	}
 }
 
-async function runLockedReleasePublish({ repoRoot, releaseDate, attributions, log }) {
+async function runLockedReleasePublish({ repoRoot, releaseDate, attributions, log, writeOutput }) {
 	const preview = await runReleasePreview({ repoRoot, releaseDate, attributions, requireCompleteAttribution: true });
 	if (preview.status === 'empty') {
 		log('No release plans found. Skipping release.');
-		writeGithubOutput('release_created', 'false');
+		writeOutput('release_created', 'false');
 		return preview;
 	}
 
@@ -77,15 +83,16 @@ async function runLockedReleasePublish({ repoRoot, releaseDate, attributions, lo
 		writeReleaseNotesOutput({ version: preview.version, notes: preview.notes, repoRoot });
 		writeReleaseProvenanceOutput({ version: preview.version, provenance: preview.provenance, repoRoot });
 		removeReleasePlanFiles(preview.plans, { repoRoot });
-		writeGithubOutput('release_created', 'true');
-		writeGithubOutput('release_version', preview.version);
-		writeGithubOutput('release_tag', `v${preview.version}`);
-		writeGithubOutput('release_notes_path', path.relative(repoRoot, releaseNotesPath));
-		writeGithubOutput('release_provenance_path', path.relative(repoRoot, provenancePath));
 	} catch (error) {
 		restoreFiles(snapshot);
 		throw error;
 	}
+
+	writeOutput('release_version', preview.version);
+	writeOutput('release_tag', `v${preview.version}`);
+	writeOutput('release_notes_path', path.relative(repoRoot, releaseNotesPath));
+	writeOutput('release_provenance_path', path.relative(repoRoot, provenancePath));
+	writeOutput('release_created', 'true');
 
 	log(`Prepared release v${preview.version}`);
 	log(`Consumed ${preview.plans.length} release plan(s).`);

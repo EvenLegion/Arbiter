@@ -180,6 +180,10 @@ preview through successful publication or rollback. Concurrent CLI or imported
 callers fail instead of racing snapshots. If a process crashes and leaves the
 lock behind, remove it only after confirming that no release preparation is
 still running, then rerun the read-only preview before retrying publication.
+Repository mutations roll back together if release preparation fails. GitHub
+Actions output metadata is emitted only after those mutations complete, with
+`release_created=true` written last; an output-channel failure therefore cannot
+advertise a rolled-back release as successful.
 
 Review the combined preview as one announcement. The Discord publisher truncates
 the release-note embed at 4,000 characters, so consolidate overlapping outcomes
