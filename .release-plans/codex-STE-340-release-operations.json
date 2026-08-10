@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "codex/STE-340-release-operations",
+	"baseRef": "origin/dev",
+	"mergeBase": "1753a98292430486942fe1d489c211ce89d3696e",
+	"headRef": "f889883e2b5bfc0b97c4f5c47ce1fb4893b11087",
+	"generatedAt": "2026-08-10T06:02:18.445Z",
+	"bump": "patch",
+	"targetVersion": "3.4.1",
+	"contributionSummary": "Separates contributor release guidance from artifact deployment, verification, and recovery runbooks.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "f889883e2b5bfc0b97c4f5c47ce1fb4893b11087",
+			"subject": "docs: split release and operations runbooks",
+			"committedAt": "2026-08-09T20:02:02-10:00",
+			"committedAtMs": 1786341722000,
+			"type": "docs",
+			"scope": null,
+			"description": "split release and operations runbooks",
+			"breaking": false,
+			"section": "Maintenance"
+		}
+	]
+}

@@ -91,7 +91,11 @@ const config: Config = {
 							to: '/contributing/change-guide'
 						},
 						{
-							label: 'Operations',
+							label: 'Release Workflow',
+							to: '/contributing/release-process'
+						},
+						{
+							label: 'Deploy And Recover',
 							to: '/operations/release-and-deploy'
 						}
 					]
