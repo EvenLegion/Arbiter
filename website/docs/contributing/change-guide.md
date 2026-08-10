@@ -202,15 +202,15 @@ schema, `origin/dev` merge base, version intent, and recorded commit ancestry.
 The planner reuses a valid plan without changing the worktree. For a missing
 plan, it writes the branch-owned file under `.release-plans/` and commits it.
 Unreadable or duplicate plans require manual repair before the tool can safely
-identify ownership. The full validity and recovery model is documented in
-[Operations](/operations/release-and-deploy).
+	identify ownership. The full validity and repair model is documented in
+	[Release contributions and source publication](/contributing/release-process).
 
 Plans are always provenance records. Only `standalone` and `publish` plans emit
 public notes; `contribute` and `internal` plans do not. A capability group must
 have exactly one publisher. Run `pnpm release:preview` to see the exact
 consolidated public notes and provenance manifest without changing the worktree.
-The full mode, migration, preview, and recovery contract is documented in
-[Operations](/operations/release-and-deploy).
+	The full mode, migration, preview, and source-publication contract is documented
+	in [Release contributions and source publication](/contributing/release-process).
 
 ## A Good Final Smell Test
 

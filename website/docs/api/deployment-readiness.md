@@ -62,28 +62,33 @@ The API opens its own bounded Postgres pool and sets `application_name=arbiter-a
 
 Redis keys remain under the API namespace and have bounded TTLs. Do not share the namespace with BullMQ or bot tracking keys, change it during an incident without accepting session invalidation, or use `FLUSHDB`/`FLUSHALL` as API rollback.
 
-## Approved Deployment Order
+## Security Readiness Before Rollout
 
-After separate operational approval:
+The full artifact and migration order is owned by
+[Production deployment](../operations/production-deployment.md). Before its API
+and portal stages, and only after separate operational approval:
 
-1. Record immutable bot, API, and portal artifact identifiers; verify a current Postgres backup and the existing Redis persistence path.
-2. Configure the exact domains, certificate, private API bind, reverse-proxy headers, Discord callback, API-only secrets, and Vercel public value.
-3. Build the bot migration target and API image from the same reviewed revision. Build the portal with its production API origin and retain its artifact evidence.
-4. Run the canonical `arbiter-migrate` step once against the existing database. Never run a portal or API-specific migration command.
-5. Start or update `arbiter-api`; verify `/api/v1/health`, then `/api/v1/readiness`, proxy-host rejection, security headers, contract header, structured logs, and bounded dependency failures.
-6. Run non-production or explicitly approved production API checks before making the portal generally available.
-7. Deploy the compatible portal artifact to Vercel. Verify its response headers, generated Content Security Policy, exact API requests, session recovery, and direct navigation.
-8. Verify the bot independently. API startup or rollback must not restart the bot unless a separately approved operational reason exists.
+1. Configure the exact domains, certificate, private API bind, reverse-proxy
+   headers, Discord callback, API-only secrets, and Vercel public value.
+2. Verify `/api/v1/health`, then `/api/v1/readiness`, proxy-host rejection,
+   security headers, contract header, structured logs, and bounded dependency
+   failures before making the portal generally available.
+3. Run non-production or explicitly approved production API security checks.
+4. Verify the compatible portal's response headers, generated Content Security
+   Policy, exact API requests, session recovery, and direct navigation.
 
-## Rollback And Safe Disablement
+API startup or rollback must not restart the bot unless a separately approved
+operational reason exists. The portal remains disabled until these checks pass.
 
-- Portal-only failure: roll Vercel back to a compatible artifact or disable portal access. The API and bot can remain running.
-- API code failure before migration: restore the prior API image. The bot and portal are separate processes.
-- API failure after the additive credential migration: restore a compatible API image and leave the unused additive tables in place. Dropping tables, credentials, or enums is destructive and needs separate approval.
+## Authentication And Credential Incidents
+
 - Authentication incident: immediately block the API at the proxy and stop only `arbiter-api`; rotate the Discord client secret if it may be compromised. Before restoring access, invalidate every active API session. V1 has no operator-wide session-revocation endpoint, so obtain explicit operational approval to change `API_REDIS_NAMESPACE` to a fresh reviewed value and restart only the API. The new namespace makes all prior OAuth state, sessions, CSRF state, and rate-limit counters unreachable, forces every staff user to sign in again, and resets API rate-limit windows; old namespaced keys remain isolated until their bounded TTLs expire. Verify health, readiness, and a fresh authorized sign-in before unblocking proxy traffic.
 - Credential incident: revoke affected credentials through the authoritative API workflow. Pepper rotation is a last-resort global invalidation requiring a remint and cutover plan.
 
 A disabled API does not stop the bot and does not alter durable Arbiter data. A disabled portal does not revoke sessions or credentials by itself.
+
+For portal-only, API-only, bot-only, database, Redis, and logging recovery, use
+[Recovery and incidents](../operations/recovery.md).
 
 ## Health, Logging, Backups, And Incidents
 
