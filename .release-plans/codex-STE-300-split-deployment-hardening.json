@@ -15,7 +15,7 @@
 			"committedAtMs": 1786333303000,
 			"type": "feat",
 			"scope": "api",
-			"description": "harden split deployment boundary",
+			"description": "Operators can now prepare Arbiter's member-directory API and staff portal for separate approved deployment with exact HTTPS host checks, compatible portal and API contracts, bounded reuse of the existing Postgres and Redis services, and artifact safeguards that keep server secrets out of Vercel. This adds deployment-ready configuration and verification only; it does not deploy a production service or change Discord commands or member behavior.",
 			"breaking": false,
 			"section": "Features"
 		},
@@ -26,7 +26,7 @@
 			"committedAtMs": 1786333329000,
 			"type": "docs",
 			"scope": "api",
-			"description": "publish split deployment runbook",
+			"description": "Operators and contributors now have a complete runbook for domain topology, proxy and TLS inputs, API-only secrets, migrations, connection capacity, health and readiness, incident response, backups, safe disablement, independent rollback, and non-production validation before any live rollout.",
 			"breaking": false,
 			"section": "Maintenance"
 		}
