@@ -5,8 +5,15 @@ import { ApiScopeSchema } from './scopes';
 
 const IsoDateTimeSchema = z.iso.datetime({ offset: true });
 
+export const ApiIntegrationIdSchema = z.uuid();
 export const ApiIntegrationNameSchema = z.string().trim().min(1).max(100);
 export const ApiIntegrationPurposeSchema = z.string().trim().min(1).max(500);
+
+export const ApiIntegrationListQuerySchema = z
+	.object({
+		includeArchived: z.boolean().default(false)
+	})
+	.strict();
 
 export const ApiIntegrationStateSchema = z.enum(['active', 'archived']);
 export type ApiIntegrationState = z.infer<typeof ApiIntegrationStateSchema>;
@@ -80,6 +87,7 @@ export const ApiCredentialStatusSchema = z.enum(['active', 'expired', 'revoked',
 export type ApiCredentialStatus = z.infer<typeof ApiCredentialStatusSchema>;
 
 export const ApiCredentialLabelSchema = z.string().trim().min(1).max(100);
+export const ApiCredentialSecretSchema = z.string().regex(/^arb_v1_[A-Za-z0-9_-]{12}_[A-Za-z0-9_-]{43}$/);
 
 export const ApiCredentialActorSummarySchema = z
 	.object({
@@ -136,7 +144,7 @@ export const MintApiCredentialResponseSchema = z
 		data: z
 			.object({
 				credential: ApiCredentialMetadataSchema,
-				secret: z.string().regex(/^arb_v1_[A-Za-z0-9_-]{12}_[A-Za-z0-9_-]{43}$/)
+				secret: ApiCredentialSecretSchema
 			})
 			.strict(),
 		meta: ApiResponseMetaSchema
@@ -144,6 +152,7 @@ export const MintApiCredentialResponseSchema = z
 	.strict();
 
 export type MintApiCredentialRequest = z.infer<typeof MintApiCredentialRequestSchema>;
+export type ApiIntegrationListQuery = z.infer<typeof ApiIntegrationListQuerySchema>;
 export type ApiCredentialResponse = z.infer<typeof ApiCredentialResponseSchema>;
 export type ApiCredentialListResponse = z.infer<typeof ApiCredentialListResponseSchema>;
 export type MintApiCredentialResponse = z.infer<typeof MintApiCredentialResponseSchema>;

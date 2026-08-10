@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ApiResponseMetaSchema } from './http';
 
 export const ApiAuthRoleSchema = z.enum(['STAFF', 'EXEC']);
+export const CsrfTokenSchema = z.string().min(32);
 
 export const ApiAuthIdentitySchema = z
 	.object({
@@ -21,6 +22,13 @@ export const OAuthStartRequestSchema = z
 	})
 	.strict();
 
+export const OAuthCallbackQuerySchema = z
+	.object({
+		code: z.string().min(1),
+		state: z.string().min(1)
+	})
+	.strict();
+
 export const OAuthStartResponseSchema = z.object({
 	data: z.object({ authorizationUrl: z.url() }),
 	meta: ApiResponseMetaSchema
@@ -29,7 +37,7 @@ export const OAuthStartResponseSchema = z.object({
 export const AuthSessionResponseSchema = z.object({
 	data: z.object({
 		authenticated: z.literal(true),
-		csrfToken: z.string().min(32),
+		csrfToken: CsrfTokenSchema,
 		idleExpiresAt: z.iso.datetime(),
 		absoluteExpiresAt: z.iso.datetime()
 	}),
@@ -49,4 +57,5 @@ export const AuthLogoutResponseSchema = z.object({
 export type ApiAuthRole = z.infer<typeof ApiAuthRoleSchema>;
 export type ApiAuthIdentity = z.infer<typeof ApiAuthIdentitySchema>;
 export type OAuthStartRequest = z.infer<typeof OAuthStartRequestSchema>;
+export type OAuthCallbackQuery = z.infer<typeof OAuthCallbackQuerySchema>;
 export type AuthSessionResponse = z.infer<typeof AuthSessionResponseSchema>;

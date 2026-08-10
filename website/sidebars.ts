@@ -6,6 +6,7 @@ const sidebars: SidebarsConfig = {
 		'onboarding/getting-started',
 		'architecture/system-guide',
 		'api/standalone-api',
+		'api/reference',
 		'api/staff-portal',
 		'features/event-system',
 		'features/division-and-membership',
