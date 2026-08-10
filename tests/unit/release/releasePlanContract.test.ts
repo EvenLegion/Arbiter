@@ -12,9 +12,14 @@ import {
 import { runReleasePlan } from '../../../scripts/release/plan-operation.mjs';
 import { parsePlanArguments } from '../../../scripts/release/plan.mjs';
 import { parseCheckArguments } from '../../../scripts/release/check-plan.mjs';
+import { parseMigrationArguments } from '../../../scripts/release/migrate-plan.mjs';
 
 const repositories: string[] = [];
 const branch = 'codex/STE-263-release-plan-contract';
+const internalClassification = {
+	mode: 'internal',
+	contributionSummary: 'Exercises deterministic branch-owned release-plan validation.'
+};
 
 afterEach(() => {
 	for (const repository of repositories.splice(0)) {
@@ -57,7 +62,7 @@ describe('branch-owned release-plan contract', () => {
 		const repository = createRepository();
 		const entry = writeValidPlan(repository);
 		const plan = readPlan(entry.filePath);
-		plan.schemaVersion = 2;
+		plan.schemaVersion = 1;
 		plan.baseRef = 'dev';
 		plan.mergeBase = '0000000000000000000000000000000000000000';
 		plan.bump = 'calendar';
@@ -69,7 +74,8 @@ describe('branch-owned release-plan contract', () => {
 		const inspection = inspectBranchReleasePlan({ branch, repoRoot: repository });
 		expect(inspection.status).toBe('invalid');
 		if (inspection.status !== 'invalid') throw new Error('Expected invalid inspection.');
-		expect(inspection.issues.join('\n')).toMatch(/schemaVersion must be 1/);
+		expect(inspection.issues.join('\n')).toMatch(/schemaVersion must be 2/);
+		expect(inspection.issues.join('\n')).toMatch(/release:plan:migrate/);
 		expect(inspection.issues.join('\n')).toMatch(/baseRef must be origin\/dev/);
 		expect(inspection.issues.join('\n')).toMatch(/mergeBase is stale/);
 		expect(inspection.issues.join('\n')).toMatch(/bump must be one of patch, minor, major/);
@@ -170,6 +176,11 @@ describe('release-plan operation', () => {
 	it('accepts the pnpm argument separator for documented noninteractive commands', () => {
 		expect(parsePlanArguments(['--', '--bump', 'patch'])).toEqual({
 			bump: 'patch',
+			mode: null,
+			group: null,
+			description: null,
+			section: null,
+			contributionSummary: null,
 			regenerate: false,
 			reason: null
 		});
@@ -178,16 +189,47 @@ describe('release-plan operation', () => {
 			baseRef: 'origin/dev',
 			headRef: 'HEAD'
 		});
+		expect(
+			parsePlanArguments([
+				'--',
+				'--bump',
+				'minor',
+				'--mode',
+				'publish',
+				'--group',
+				'member-directory',
+				'--section',
+				'Features',
+				'--description',
+				'Approved tools can read the member directory.',
+				'--summary',
+				'Publishes the completed member directory.'
+			])
+		).toMatchObject({
+			bump: 'minor',
+			mode: 'publish',
+			group: 'member-directory',
+			section: 'Features',
+			description: 'Approved tools can read the member directory.',
+			contributionSummary: 'Publishes the completed member directory.'
+		});
+		expect(
+			parseMigrationArguments(['--', '--file', 'legacy.json', '--mode', 'internal', '--summary', 'Preserves an internal contribution.'])
+		).toMatchObject({
+			fileName: 'legacy.json',
+			mode: 'internal',
+			contributionSummary: 'Preserves an internal contribution.'
+		});
 	});
 
 	it('creates once with an explicit bump and then reuses without mutation', async () => {
 		const repository = createRepository();
-		const created = await runReleasePlan({ repoRoot: repository, bump: 'patch', log: () => undefined });
+		const created = await runReleasePlan({ repoRoot: repository, bump: 'patch', ...internalClassification, log: () => undefined });
 		const headAfterCreate = git(repository, 'rev-parse', 'HEAD');
 		const filePath = path.join(repository, '.release-plans', created.fileName);
 		const contentAfterCreate = readFileSync(filePath, 'utf8');
 
-		const reused = await runReleasePlan({ repoRoot: repository, bump: 'patch', log: () => undefined });
+		const reused = await runReleasePlan({ repoRoot: repository, bump: 'patch', ...internalClassification, log: () => undefined });
 
 		expect(created.status).toBe('created');
 		expect(reused.status).toBe('reused');
@@ -206,7 +248,7 @@ describe('release-plan operation', () => {
 
 	it('requires a reason and replaces only the invalid matching plan during regeneration', async () => {
 		const repository = createRepository();
-		const created = await runReleasePlan({ repoRoot: repository, bump: 'patch', log: () => undefined });
+		const created = await runReleasePlan({ repoRoot: repository, bump: 'patch', ...internalClassification, log: () => undefined });
 		const filePath = path.join(repository, '.release-plans', created.fileName);
 		const plan = readPlan(filePath);
 		plan.targetVersion = '99.0.0';
@@ -221,6 +263,7 @@ describe('release-plan operation', () => {
 		const regenerated = await runReleasePlan({
 			repoRoot: repository,
 			bump: 'patch',
+			...internalClassification,
 			regenerate: true,
 			reason: 'the target version was corrupted in the plan fixture',
 			log: () => undefined
@@ -240,7 +283,7 @@ describe('release-plan operation', () => {
 		plan.branch = 'codex/someone-else';
 		writeFileSync(entry.filePath, `${JSON.stringify(plan, null, '\t')}\n`);
 
-		await expect(runReleasePlan({ repoRoot: repository, bump: 'patch', log: () => undefined })).rejects.toThrowError(
+		await expect(runReleasePlan({ repoRoot: repository, bump: 'patch', ...internalClassification, log: () => undefined })).rejects.toThrowError(
 			/expected filename .* already records branch codex\/someone-else/
 		);
 	});
@@ -278,7 +321,7 @@ function writeValidPlan(repository: string, fileName = 'branch-plan.json') {
 	const headRef = git(repository, 'rev-parse', 'HEAD');
 	const mergeBase = git(repository, 'merge-base', 'origin/dev', 'HEAD');
 	const plan = {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		branch,
 		baseRef: 'origin/dev',
 		mergeBase,
@@ -286,6 +329,10 @@ function writeValidPlan(repository: string, fileName = 'branch-plan.json') {
 		generatedAt: new Date().toISOString(),
 		bump: 'patch',
 		targetVersion: '3.3.1',
+		contributionSummary: internalClassification.contributionSummary,
+		publicNote: {
+			mode: 'internal'
+		},
 		commits: [
 			{
 				sha: headRef,

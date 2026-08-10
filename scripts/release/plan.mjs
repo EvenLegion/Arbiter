@@ -8,9 +8,23 @@ import { runReleasePlan } from './plan-operation.mjs';
 export function parsePlanArguments(args) {
 	const options = {
 		bump: null,
+		mode: null,
+		group: null,
+		description: null,
+		section: null,
+		contributionSummary: null,
 		regenerate: false,
 		reason: null
 	};
+	const valueOptions = new Map([
+		['--bump', 'bump'],
+		['--mode', 'mode'],
+		['--group', 'group'],
+		['--description', 'description'],
+		['--section', 'section'],
+		['--summary', 'contributionSummary'],
+		['--reason', 'reason']
+	]);
 
 	for (let index = 0; index < args.length; index += 1) {
 		const argument = args[index];
@@ -26,13 +40,13 @@ export function parsePlanArguments(args) {
 			continue;
 		}
 
-		if (argument === '--bump' || argument === '--reason') {
+		const key = valueOptions.get(argument);
+		if (key) {
 			const value = args[index + 1];
 			if (!value || value.startsWith('--')) {
 				throw new Error(`${argument} requires a value.`);
 			}
 
-			const key = argument === '--bump' ? 'bump' : 'reason';
 			if (options[key] !== null) {
 				throw new Error(`${argument} may only be provided once.`);
 			}

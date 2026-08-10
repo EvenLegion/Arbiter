@@ -1,5 +1,5 @@
 {
-	"schemaVersion": 1,
+	"schemaVersion": 2,
 	"branch": "codex/STE-298-api-directory-routes",
 	"baseRef": "origin/dev",
 	"mergeBase": "ac748d61b86328bcf0e93df260c283a03191e8ef",
@@ -7,6 +7,12 @@
 	"generatedAt": "2026-08-09T23:53:21.635Z",
 	"bump": "minor",
 	"targetVersion": "3.5.0",
+	"contributionSummary": "Exposes credential-authenticated member-directory routes with bounded filtering, pagination, rate limiting, and safe errors.",
+	"publicNote": {
+		"mode": "standalone",
+		"description": "Arbiter now includes a working member-directory API for approved Even Legion tools. It provides current division memberships, merit totals, and merit ranks for individual members or filtered groups, while read-only access controls and usage limits protect Arbiter from unauthorized or excessive use.",
+		"section": "Features"
+	},
 	"commits": [
 		{
 			"sha": "ad7b408efcb9768d2d739a5974bbeea8794fff3d",
@@ -16,7 +22,6 @@
 			"type": "feat",
 			"scope": "api",
 			"description": "Arbiter now includes a working member-directory API for approved Even Legion tools. It provides current division memberships, merit totals, and merit ranks for individual members or filtered groups, while read-only access controls and usage limits protect Arbiter from unauthorized or excessive use.",
-			"releaseNoteLabel": "Arbiter now includes a working member-directory API for approved Even Legion tools. It provides current division memberships, merit totals, and merit ranks for individual members or filtered groups, while read-only access controls and usage limits protect Arbiter from unauthorized or excessive use.",
 			"breaking": false,
 			"section": "Features"
 		}

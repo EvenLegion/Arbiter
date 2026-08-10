@@ -64,30 +64,16 @@ instructions.
 Before high-risk implementation, apply the approval gate in
 `ai/PROJECT_RULES.md`. Before implementation handoff, apply
 `ai/rules/documentation-impact.md`, `ai/rules/architecture-records.md`, and the
-completion rules in `ai/rules/implementation-lifecycle.md`.
+completion rules in `ai/rules/implementation-lifecycle.md`. Load
+`ai/rules/release-plans.md` before creating, regenerating, or reviewing a release
+plan.
 
 Before every push from a working branch, inspect `.release-plans` for a plan
 whose recorded `branch` matches the current branch, then run
 `pnpm release:plan:check`. Reuse a valid existing plan; do not run
-`pnpm release:plan` merely because another commit was added. Create a plan only
-when none exists with `pnpm release:plan -- --bump patch` (or the intended
-semantic bump), and regenerate it only when the existing plan is invalid or
-materially stale under `ai/rules/implementation-lifecycle.md`. Regeneration must
-be explicit and explain why with `--regenerate --reason`.
-
-Release-plan descriptions are public-facing release notes and may be posted to
-the general Even Legion Discord audience. Write them in detailed, plain language
-that explains what changed, why it matters, and whether member-facing behavior
-changes. Avoid repository jargon, file names, ticket shorthand, and unexplained
-technical terms. Lead with the concrete Arbiter capability and domain purpose:
-name what members, staff, or operators will eventually be able to do or learn.
-Do not use generic architecture language such as "foundation," "infrastructure,"
-"separate process," or "shared package" unless the same sentence explains the
-specific product capability it enables. For staged work, distinguish honestly
-between what ships now and what it prepares; do not imply that a future route or
-workflow is already available. Put "behind the scenes" and "no current behavior
-change" after the purpose statement as impact context, never as the main
-description.
+`pnpm release:plan` merely because another commit was added. Create or regenerate
+plans only with the explicit bump, public-note classification, contribution
+summary, and other mode-specific fields required by `ai/rules/release-plans.md`.
 
 ## Code Review Rules
 

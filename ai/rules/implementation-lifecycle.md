@@ -123,38 +123,30 @@ When the requested scope and required local validation are complete:
    may be older than the current branch head; a later routine implementation or
    review-fix commit does not by itself make the plan stale.
 6. If no matching plan exists, run
-   `pnpm release:plan -- --bump patch` exactly once after the scoped Conventional
-   Commit history exists, substituting `minor` or `major` when that is the
-   smallest bump compatible with user-visible and compatibility impact or when
-   the ticket or user locks another bump. Inspect the generated plan and its
-   automatic commit. Running the same command again reuses a valid plan without
-   writing or committing anything.
+   `pnpm release:plan` exactly once after the scoped Conventional Commit history
+   exists, supplying the intended bump, explicit public-note mode, contribution
+   summary, and every mode-specific field required by
+   `ai/rules/release-plans.md`. Use the smallest semantic bump compatible with
+   user-visible and compatibility impact unless the ticket or user locks another
+   bump. Inspect the generated plan and its automatic commit. Running the same
+   classification again reuses a valid plan without writing or committing
+   anything.
 7. Repair an unreadable plan manually before rerunning the workflow because its
    branch ownership cannot be determined safely. Regenerate a matching parsed
    plan only when it records another branch or base, its merge base no longer
    matches current `origin/dev`, its bump is wrong, or later work materially
-   changes release-note content. Explain the reason with
-   `pnpm release:plan -- --regenerate --bump patch --reason "why replacement is required"`.
+   changes release-note classification, grouping, contribution summary, or
+   public copy. Regeneration must repeat the full intended classification and
+   explain the reason with `--regenerate --reason` as defined by
+   `ai/rules/release-plans.md`.
    Do not create a second plan for the same branch/worktree merely because a
    push is imminent. Do not create or update a plan for local-only work.
-8. Review every release-plan description as public-facing copy for the general
-   Even Legion Discord audience. Use detailed, plain language to explain what
-   changed, why it matters, and the practical member or operator impact. Lead
-   with the concrete Arbiter capability and domain purpose: name what members,
-   staff, or operators will eventually be able to do or learn. Do not accept
-   vague architecture copy such as "add a foundation," "add infrastructure,"
-   "use a separate process," or "create shared packages" unless the same
-   sentence says which product capability that work enables. For staged work,
-   distinguish honestly between the capability prepared now and behavior that
-   will arrive in later tickets; never imply that a future route or workflow is
-   already available. Avoid repository jargon, file paths, ticket shorthand,
-   and unexplained technical terms. State clearly when the change is behind the
-   scenes and does not alter Discord commands or member behavior, but put that
-   sentence after the purpose statement. If generated copy is too technical or
-   too generic, improve the existing plan entry without creating a second
-   branch plan.
-   After editing a plan, rerun `pnpm release:plan:check` and commit the updated
-   plan file before continuing to step 9.
+8. Review the classification, contribution summary, grouping, and any public
+   description against `ai/rules/release-plans.md`. A `publish` plan must account
+   for every pending contribution in its group. If the plan is inaccurate,
+   correct the existing branch-owned plan without creating a second one. After
+   editing it, rerun `pnpm release:plan:check` and commit the updated plan file
+   before continuing to step 9.
 9. Push the branch and open a ready-for-review PR against `dev`. Use a draft only
    when an unresolved decision prevents completion. Never open an ordinary
    feature PR directly against `main`.

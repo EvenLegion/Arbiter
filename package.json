@@ -108,6 +108,8 @@
 		"db:migrate:users": "pnpm db:fetch:guild-members && pnpm db:seed:guild-members",
 		"release:plan": "node scripts/release/plan.mjs",
 		"release:plan:check": "node scripts/release/check-plan.mjs",
+		"release:plan:migrate": "node scripts/release/migrate-plan.mjs",
+		"release:preview": "node scripts/release/preview.mjs",
 		"release:publish": "node scripts/release/publish.mjs",
 		"db:up": "docker compose -f docker-compose.db.yml up -d",
 		"db:down": "docker compose -f docker-compose.db.yml down",

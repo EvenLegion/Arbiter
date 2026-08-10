@@ -16,6 +16,7 @@ import {
 	RELEASE_PLAN_BASE_REF,
 	RELEASE_PLAN_SCHEMA_VERSION,
 	ReleasePlanContractError,
+	buildPublicNote,
 	collectReleasePlanIssues,
 	formatInvalidPlanMessage,
 	getReleasePlansDirectory,
@@ -27,6 +28,11 @@ const RELEASE_PLAN_COMMIT_PREFIX = 'Release plan';
 export async function runReleasePlan({
 	repoRoot = REPO_ROOT,
 	bump = null,
+	mode = null,
+	group = null,
+	description = null,
+	section = null,
+	contributionSummary = null,
 	regenerate = false,
 	reason = null,
 	promptForBump = null,
@@ -58,6 +64,15 @@ export async function runReleasePlan({
 					'Use explicit regeneration with a reason if the intended release impact changed.'
 			);
 		}
+
+		assertClassificationMatchesExistingPlan({
+			plan: inspection.entry.plan,
+			mode,
+			group,
+			description,
+			section,
+			contributionSummary
+		});
 
 		log(`Reusing valid release plan .release-plans/${inspection.entry.fileName} for ${currentBranch}.`);
 		log('No files were written, staged, or committed.');
@@ -107,6 +122,17 @@ export async function runReleasePlan({
 		throw new Error(`Unsupported bump type: ${String(selectedBump)}. Expected one of: ${BUMP_ORDER.join(', ')}`);
 	}
 
+	if (typeof contributionSummary !== 'string' || !contributionSummary.trim()) {
+		throw new Error('Release-plan creation requires --summary with a concise implementation and provenance summary.');
+	}
+
+	const publicNote = buildPublicNote({
+		mode,
+		group,
+		description,
+		section
+	});
+
 	ensureCleanWorktree(repoRoot);
 
 	const { mergeBase, commits } = getBranchCommits({
@@ -132,6 +158,8 @@ export async function runReleasePlan({
 		generatedAt: new Date().toISOString(),
 		bump: selectedBump,
 		targetVersion: bumpVersion(packageJson.version, selectedBump),
+		contributionSummary: contributionSummary.trim(),
+		publicNote,
 		commits: planCommits
 	};
 	const candidateIssues = collectReleasePlanIssues({
@@ -175,6 +203,10 @@ export async function runReleasePlan({
 	log(`Current version: v${packageJson.version}`);
 	log(`Selected bump: ${selectedBump}`);
 	log(`Planned version: v${plan.targetVersion}`);
+	log(`Public note mode: ${plan.publicNote.mode}`);
+	if (plan.publicNote.group) {
+		log(`Capability group: ${plan.publicNote.group}`);
+	}
 	log(`Release plan written: .release-plans/${fileName}`);
 	log(`Release plan committed: ${buildReleasePlanCommitMessage(currentBranch)}`);
 	log('');
@@ -188,6 +220,36 @@ export async function runReleasePlan({
 		fileName,
 		plan
 	};
+}
+
+function assertClassificationMatchesExistingPlan({ plan, mode, group, description, section, contributionSummary }) {
+	const expected = {
+		mode,
+		group,
+		description,
+		section,
+		contributionSummary
+	};
+	const supplied = Object.values(expected).some((value) => value !== null && value !== undefined);
+	if (!supplied) {
+		return;
+	}
+
+	const actual = {
+		mode: plan.publicNote?.mode ?? null,
+		group: plan.publicNote?.group ?? null,
+		description: plan.publicNote?.description ?? null,
+		section: plan.publicNote?.section ?? null,
+		contributionSummary: plan.contributionSummary ?? null
+	};
+	for (const [field, expectedValue] of Object.entries(expected)) {
+		if (expectedValue !== null && expectedValue !== undefined && actual[field] !== expectedValue) {
+			throw new Error(
+				`The valid existing plan records ${field}=${String(actual[field])}, not ${String(expectedValue)}. ` +
+					'Use explicit regeneration with a reason if its classification or contribution summary must change.'
+			);
+		}
+	}
 }
 
 function ensureCleanWorktree(repoRoot) {
