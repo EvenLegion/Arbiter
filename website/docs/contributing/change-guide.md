@@ -33,6 +33,7 @@ If you start deep in a query module before you understand the workflow, you will
 | Event, tracking, review, or merit behavior                     | Event/merit feature and service directories                              | Redis, Postgres, presentation, scheduled tasks            |
 | Divisions, nicknames, name changes, or guild-member automation | Membership/identity feature and service directories                      | Cache, Discord roles, listeners, presentation             |
 | Logging or observability                                       | Execution context creators, ingress logging, and observability config    | User-visible failure paths, log bindings                  |
+| An API route or transport contract                             | Shared Zod contract and v1 operation catalog                             | API handler, generated reference, contract/API tests      |
 | A listener or scheduled task                                   | Listener or task shell                                                   | Shared service code, logging, tests                       |
 | Docs                                                           | The page that owns the stable concept                                    | Any neighboring page that now duplicates it               |
 | Release or deploy behavior                                     | Release tooling or production stack docs                                 | GitHub workflows, Docker config, operations docs          |
@@ -127,6 +128,22 @@ Expected work:
 - keep collaborators explicit
 - return typed outcomes
 - map those outcomes to Discord copy in a presenter if the branching is meaningful
+
+### Extend The Standalone API
+
+Treat `packages/api-contracts` as the transport authority. Add or update the Zod request and response schemas plus the v1 operation catalog, then make the runtime handler consume those shared contracts. Do not hand-maintain a second schema in Docusaurus.
+
+Regenerate and validate the published reference in the same change:
+
+```bash
+pnpm api:reference:generate
+pnpm api:reference:check
+pnpm --filter @arbiter/api-contracts test
+pnpm --filter @arbiter/api test
+pnpm docs:build
+```
+
+Review the generated [API reference](/api/reference) and OpenAPI artifact. New routes must declare every supported method, the browser-session or API-credential boundary, CSRF for browser mutations, required scopes, stable error codes and statuses, bounds, pagination, and relevant response headers. Examples remain placeholder-only and must never contain live credentials, cookies, OAuth values, environment values, or production hostnames.
 
 ## Validation Checklist
 

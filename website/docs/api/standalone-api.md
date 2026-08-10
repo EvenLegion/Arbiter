@@ -13,26 +13,7 @@ For the artifact and migration order, use [Production deployment](../operations/
 
 ## Current Capability
 
-The API exposes infrastructure, browser-authentication, staff integration-registry, and API-credential directory endpoints:
-
-| Method      | Route                                                       | Purpose                                                                                                                  |
-| ----------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `GET, HEAD` | `/api/v1/health`                                            | Process liveness. Returns `200` without checking external dependencies.                                                  |
-| `GET, HEAD` | `/api/v1/readiness`                                         | Checks the API-owned Postgres pool and Redis client.                                                                     |
-| `POST`      | `/api/v1/auth/discord/start`                                | Creates browser-bound OAuth state and returns the Discord authorization URL.                                             |
-| `GET`       | `/api/v1/auth/discord/callback`                             | Consumes the one-use state, resolves Discord identity, creates a staff session, and redirects to an approved portal URL. |
-| `GET`       | `/api/v1/auth/session`                                      | Returns session expiry and a CSRF token for an authorized current staff session.                                         |
-| `GET`       | `/api/v1/auth/me`                                           | Returns the safe canonical identity and current `STAFF` or `EXEC` role.                                                  |
-| `POST`      | `/api/v1/auth/logout`                                       | Validates CSRF, revokes the Redis session, and clears the browser cookie.                                                |
-| `GET`       | `/api/v1/integrations`                                      | Lists the staff-visible shared registry with safe creator and credential-count metadata.                                 |
-| `POST`      | `/api/v1/integrations`                                      | Registers an integration for any authenticated staff member; requires session CSRF.                                      |
-| `PATCH`     | `/api/v1/integrations/:id`                                  | Edits active metadata as the creator or `EXEC`; requires session CSRF and the observed update timestamp.                 |
-| `POST`      | `/api/v1/integrations/:id/archive`                          | Idempotently archives as `EXEC`, invalidates credentials, and never mutates on `GET`.                                    |
-| `GET`       | `/api/v1/integrations/:id/credentials`                      | Lists safe credential metadata for any current staff session.                                                            |
-| `POST`      | `/api/v1/integrations/:id/credentials`                      | Mints `users:read` for an active integration and returns the generated secret exactly once; requires session CSRF.       |
-| `POST`      | `/api/v1/integrations/:id/credentials/:credentialId/revoke` | Idempotently revokes as the credential creator or `EXEC`; requires session CSRF.                                         |
-| `GET`       | `/api/v1/users/:discordUserId`                              | Returns one canonical user-directory record for a valid Discord snowflake; a missing user returns `404`.                 |
-| `POST`      | `/api/v1/users/query`                                       | Runs a bounded directory batch/filter query; no matches return an empty `users` array.                                   |
+The API exposes infrastructure, browser-authentication, staff integration-registry, and API-credential directory operations. Use the contract-derived [Arbiter v1 API reference](./reference.md) for the complete method/path inventory, security requirements, schemas, stable errors, bounds, response headers, and downloadable OpenAPI artifact. This page owns the conceptual and operational boundaries instead of duplicating the route contract.
 
 Integration management routes resolve the API-owned browser session, re-read the current staff identity, validate CSRF for every mutation, and then invoke the transport-independent integration service. Names are unique after trimming, collapsing internal whitespace, and lowercasing. Edit and archive requests carry the last observed update timestamp so a concurrent change returns `stale` rather than overwriting newer intent. Repository failures collapse to `service_unavailable`, and raw dependency errors are never returned.
 

@@ -16,6 +16,7 @@ const sidebars: SidebarsConfig = {
 		},
 		'architecture/system-guide',
 		'api/standalone-api',
+		'api/reference',
 		'api/staff-portal',
 		'api/deployment-readiness',
 		'features/event-system',

@@ -32,7 +32,8 @@ export const ApiDirectoryQuerySchema = z
 				path: ['minimumRank']
 			});
 		}
-	});
+	})
+	.meta({ description: 'Strict query contract. minimumRank must be less than or equal to maximumRank when both are present.' });
 
 export const ApiDirectoryMembershipSchema = z
 	.object({
