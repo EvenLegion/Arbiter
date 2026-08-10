@@ -7,6 +7,7 @@ import {
 	ReleasePlanContractError,
 	assertValidBranchReleasePlan,
 	discoverBranchReleasePlan,
+	formatInvalidPlanMessage,
 	inspectBranchReleasePlan
 } from '../../../scripts/release/plan-contract.mjs';
 import { runReleasePlan } from '../../../scripts/release/plan-operation.mjs';
@@ -56,6 +57,19 @@ describe('branch-owned release-plan contract', () => {
 		rmSync(path.join(repository, '.release-plans', 'second.json'));
 		writeFileSync(path.join(repository, '.release-plans', 'broken.json'), '{not-json\n');
 		expect(() => discoverBranchReleasePlan({ branch, repoRoot: repository })).toThrowError(/Unable to parse release plan broken.json/);
+	});
+
+	it('requires complete v2 classification in invalid-plan regeneration guidance', () => {
+		const message = formatInvalidPlanMessage({
+			branch,
+			entry: { fileName: 'invalid.json' },
+			issues: ['targetVersion is stale']
+		});
+
+		expect(message).toContain('preserving the intended v2 classification');
+		expect(message).toContain('--regenerate, --reason, --bump, --mode, --summary');
+		expect(message).toContain('--group, --section, or --description');
+		expect(message).toContain('ai/rules/release-plans.md');
 	});
 
 	it('returns specific schema, ref, bump, version, and history failures', () => {

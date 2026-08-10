@@ -306,7 +306,9 @@ export function formatInvalidPlanMessage({ branch, entry, issues }) {
 	return [
 		`Release plan ${entry.fileName} for branch ${branch} is invalid:`,
 		...issues.map((issue) => `- ${issue}`),
-		'Regenerate only after confirming the reason: pnpm release:plan -- --regenerate --bump patch --reason "describe why regeneration is required"'
+		'Regenerate only after confirming the reason and preserving the intended v2 classification. ' +
+			'Run pnpm release:plan with --regenerate, --reason, --bump, --mode, --summary, and every mode-specific ' +
+			'--group, --section, or --description flag. See ai/rules/release-plans.md for complete commands.'
 	].join('\n');
 }
 
