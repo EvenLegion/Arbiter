@@ -15,9 +15,10 @@ This site is written for contributors. The goal is to get a new developer from z
 If you are new to the repo, read in this order:
 
 1. [Getting Started](/onboarding/getting-started)
-2. [System Guide](/architecture/system-guide)
-3. the workflow page closest to what you are changing
-4. [Contributor Guide](/contributing/change-guide)
+2. the focused [Local Development](/local-development/environment-and-services) page for your lane
+3. [System Guide](/architecture/system-guide)
+4. the workflow page closest to what you are changing
+5. [Contributor Guide](/contributing/change-guide)
 
 Read [Operations](/operations/release-and-deploy) only when you are preparing a release or touching deployment.
 
@@ -52,6 +53,8 @@ That tradeoff is intentional. The code can move. The responsibilities are much m
 
 - Need local setup and repo orientation:
   [Getting Started](/onboarding/getting-started)
+- Need runtime controls, data guidance, tests, or local diagnosis:
+  [Local Development](/local-development/environment-and-services)
 - Need the architecture, storage, and observability model:
   [System Guide](/architecture/system-guide)
 - Changing event, tracking, review, or merit behavior:

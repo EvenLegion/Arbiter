@@ -40,6 +40,8 @@ For the intended cookie policy, production should place portal and API custom ho
 
 ## Local Development And Build
 
+For the no-infrastructure browser-harness lane, real-API lane, and proportional validation commands, begin with [Environments And Services](../local-development/environment-and-services.md) and [Testing And Validation](../local-development/testing-and-validation.md).
+
 Copy the public example and start the API and portal separately:
 
 ```bash
