@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "codex/STE-341-local-development-runbooks",
+	"baseRef": "origin/dev",
+	"mergeBase": "1753a98292430486942fe1d489c211ce89d3696e",
+	"headRef": "d7b104f2db0b2141d364a6b6374a75c55ab70d17",
+	"generatedAt": "2026-08-10T06:04:30.405Z",
+	"bump": "patch",
+	"targetVersion": "3.4.1",
+	"contributionSummary": "Adds concise local development, data, testing, and troubleshooting runbooks.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "d7b104f2db0b2141d364a6b6374a75c55ab70d17",
+			"subject": "docs: add local development runbooks",
+			"committedAt": "2026-08-09T20:04:10-10:00",
+			"committedAtMs": 1786341850000,
+			"type": "docs",
+			"scope": null,
+			"description": "add local development runbooks",
+			"breaking": false,
+			"section": "Maintenance"
+		}
+	]
+}
