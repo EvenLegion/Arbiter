@@ -360,6 +360,9 @@ export async function aggregateReleaseEntries(plans, { repoRoot = REPO_ROOT, str
 	const commitEntries = aggregatePlanEntries(plans);
 	const githubContext = resolveGitHubContext({ repoRoot });
 	if (!githubContext) {
+		if (strictAttribution) {
+			throw new Error('Release preparation requires GitHub repository context before consuming plans.');
+		}
 		return commitEntries;
 	}
 

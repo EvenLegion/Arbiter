@@ -214,6 +214,50 @@ describe('consolidated release preview', () => {
 			}
 		}
 	});
+
+	it('fails strict publication without GitHub repository context and leaves release state untouched', async () => {
+		const repository = createReleaseRepository();
+		const plans = [makePlan('strict.json', { mode: 'internal', bump: 'minor' })];
+		writePlans(repository, plans);
+		const previousRepository = process.env.GITHUB_REPOSITORY;
+		delete process.env.GITHUB_REPOSITORY;
+
+		try {
+			await expect(runReleasePublish({ repoRoot: repository, releaseDate, log: () => undefined })).rejects.toThrow(
+				/Release preparation requires GitHub repository context/
+			);
+		} finally {
+			if (previousRepository !== undefined) {
+				process.env.GITHUB_REPOSITORY = previousRepository;
+			}
+		}
+
+		expect(readFileSync(path.join(repository, 'package.json'), 'utf8')).toContain('"version":"3.4.0"');
+		expect(readFileSync(path.join(repository, '.release-plans', 'strict.json'), 'utf8')).toContain('"schemaVersion": 2');
+		expect(() => readFileSync(path.join(repository, '.release-publish.lock'))).toThrow();
+	});
+
+	it('serializes direct publication calls so a losing invocation cannot restore stale release state', async () => {
+		const repository = createReleaseRepository();
+		const plans = [makePlan('concurrent.json', { mode: 'internal', bump: 'minor' })];
+		writePlans(repository, plans);
+		const attributions = attributionMap(plans);
+
+		const outcomes = await Promise.allSettled([
+			runReleasePublish({ repoRoot: repository, releaseDate, attributions, log: () => undefined }),
+			runReleasePublish({ repoRoot: repository, releaseDate, attributions, log: () => undefined })
+		]);
+
+		expect(outcomes.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
+		expect(outcomes.filter(({ status }) => status === 'rejected')).toHaveLength(1);
+		expect(outcomes.find(({ status }) => status === 'rejected')).toMatchObject({
+			status: 'rejected',
+			reason: expect.objectContaining({ message: expect.stringMatching(/Another release preparation owns/) })
+		});
+		expect(readFileSync(path.join(repository, 'package.json'), 'utf8')).toContain('"version": "3.5.0"');
+		expect(() => readFileSync(path.join(repository, '.release-plans', 'concurrent.json'))).toThrow();
+		expect(() => readFileSync(path.join(repository, '.release-publish.lock'))).toThrow();
+	});
 });
 
 describe('legacy plan migration', () => {

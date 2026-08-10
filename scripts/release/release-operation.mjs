@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
 	REPO_ROOT,
@@ -42,6 +42,15 @@ export async function runReleasePreview({
 }
 
 export async function runReleasePublish({ repoRoot = REPO_ROOT, releaseDate = new Date(), attributions = null, log = console.log } = {}) {
+	const releaseLock = acquireReleasePublishLock(repoRoot);
+	try {
+		return await runLockedReleasePublish({ repoRoot, releaseDate, attributions, log });
+	} finally {
+		releaseLock.release();
+	}
+}
+
+async function runLockedReleasePublish({ repoRoot, releaseDate, attributions, log }) {
 	const preview = await runReleasePreview({ repoRoot, releaseDate, attributions, requireCompleteAttribution: true });
 	if (preview.status === 'empty') {
 		log('No release plans found. Skipping release.');
@@ -89,6 +98,34 @@ export async function runReleasePublish({ repoRoot = REPO_ROOT, releaseDate = ne
 		status: 'published',
 		releaseNotesPath,
 		provenancePath
+	};
+}
+
+function acquireReleasePublishLock(repoRoot) {
+	const lockPath = path.join(repoRoot, '.release-publish.lock');
+	let lockHandle;
+	try {
+		lockHandle = openSync(lockPath, 'wx');
+		writeFileSync(lockHandle, `${JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })}\n`);
+	} catch (error) {
+		if (lockHandle !== undefined) {
+			closeSync(lockHandle);
+			rmSync(lockPath, { force: true });
+		}
+		if (error && typeof error === 'object' && error.code === 'EEXIST') {
+			throw new Error(
+				`Another release preparation owns ${path.basename(lockPath)}. ` +
+					'Wait for it to finish, or remove the stale lock only after confirming no release publish is running.'
+			);
+		}
+		throw error;
+	}
+	closeSync(lockHandle);
+
+	return {
+		release() {
+			rmSync(lockPath, { force: true });
+		}
 	};
 }
 

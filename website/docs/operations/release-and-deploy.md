@@ -175,6 +175,12 @@ strict: it fails before consuming plans if GitHub metadata cannot be resolved,
 so the committed provenance manifest never silently drops available PR or
 contributor attribution.
 
+Release preparation also holds a repository-local `.release-publish.lock` from
+preview through successful publication or rollback. Concurrent CLI or imported
+callers fail instead of racing snapshots. If a process crashes and leaves the
+lock behind, remove it only after confirming that no release preparation is
+still running, then rerun the read-only preview before retrying publication.
+
 Review the combined preview as one announcement. The Discord publisher truncates
 the release-note embed at 4,000 characters, so consolidate overlapping outcomes
 before release prep instead of relying on truncation.
