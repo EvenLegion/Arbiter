@@ -1,0 +1,29 @@
+{
+	"schemaVersion": 2,
+	"branch": "codex/STE-336-openapi-reference",
+	"baseRef": "origin/dev",
+	"mergeBase": "1753a98292430486942fe1d489c211ce89d3696e",
+	"headRef": "80550cb448da21636cd5c8059bbafdbe408f0f24",
+	"generatedAt": "2026-08-10T06:28:37.111Z",
+	"bump": "minor",
+	"targetVersion": "3.5.0",
+	"contributionSummary": "Generates OpenAPI 3.1 and Docusaurus references from API contract schemas and validates runtime route and method drift.",
+	"publicNote": {
+		"mode": "standalone",
+		"description": "Integrators can now browse and download a complete reference for Arbiter's supported v1 API, including sign-in and credential requirements, request and response shapes, stable errors, pagination, and rate limits. The published reference stays aligned with supported API behavior as Arbiter adds new capabilities.",
+		"section": "Features"
+	},
+	"commits": [
+		{
+			"sha": "80550cb448da21636cd5c8059bbafdbe408f0f24",
+			"subject": "feat(api): publish contract-derived OpenAPI reference",
+			"committedAt": "2026-08-09T20:28:23-10:00",
+			"committedAtMs": 1786343303000,
+			"type": "feat",
+			"scope": "api",
+			"description": "publish contract-derived OpenAPI reference",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
