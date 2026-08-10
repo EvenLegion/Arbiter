@@ -1,0 +1,34 @@
+{
+	"schemaVersion": 1,
+	"branch": "codex/STE-300-split-deployment-hardening",
+	"baseRef": "origin/dev",
+	"mergeBase": "0bd3a9537c1474df61696632c8810598c0437927",
+	"headRef": "4d10b46bbe88557719d41f638aa9bf0f0f1857da",
+	"generatedAt": "2026-08-10T03:45:25.821Z",
+	"bump": "patch",
+	"targetVersion": "3.4.1",
+	"commits": [
+		{
+			"sha": "6717b7d9b8e74f2f33b052c62165acdbb8d3372b",
+			"subject": "feat(api): harden split deployment boundary",
+			"committedAt": "2026-08-09T17:41:43-10:00",
+			"committedAtMs": 1786333303000,
+			"type": "feat",
+			"scope": "api",
+			"description": "Operators can now prepare Arbiter's member-directory API and staff portal for separate approved deployment with exact HTTPS host checks, compatible portal and API contracts, bounded reuse of the existing Postgres and Redis services, and artifact safeguards that keep server secrets out of Vercel. This adds deployment-ready configuration and verification only; it does not deploy a production service or change Discord commands or member behavior.",
+			"breaking": false,
+			"section": "Features"
+		},
+		{
+			"sha": "4d10b46bbe88557719d41f638aa9bf0f0f1857da",
+			"subject": "docs(api): publish split deployment runbook",
+			"committedAt": "2026-08-09T17:42:09-10:00",
+			"committedAtMs": 1786333329000,
+			"type": "docs",
+			"scope": "api",
+			"description": "Operators and contributors now have a complete runbook for domain topology, proxy and TLS inputs, API-only secrets, migrations, connection capacity, health and readiness, incident response, backups, safe disablement, independent rollback, and non-production validation before any live rollout.",
+			"breaking": false,
+			"section": "Maintenance"
+		}
+	]
+}

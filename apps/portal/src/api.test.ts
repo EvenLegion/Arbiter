@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createPortalApi, PortalApiError } from './api';
 
+const CONTRACT_HEADERS = { 'x-arbiter-api-contract-version': '1' };
+
 const REQUEST_ID = 'portal-request-1';
 
 describe('portal API mapping', () => {
@@ -28,7 +30,8 @@ describe('portal API mapping', () => {
 						credentialCount: 0
 					},
 					meta: { requestId: REQUEST_ID }
-				})
+				}),
+				{ headers: CONTRACT_HEADERS }
 			)
 		);
 		const api = createPortalApi({ apiBaseUrl: 'https://api.example' }, fetchImpl);
@@ -71,14 +74,19 @@ describe('portal API mapping', () => {
 		};
 		const fetchImpl = vi
 			.fn<typeof fetch>()
-			.mockResolvedValueOnce(new Response(JSON.stringify({ data: { credentials: [credential] }, meta: { requestId: REQUEST_ID } })))
-			.mockResolvedValueOnce(new Response(JSON.stringify({ data: { credential, secret }, meta: { requestId: REQUEST_ID } })))
+			.mockResolvedValueOnce(
+				new Response(JSON.stringify({ data: { credentials: [credential] }, meta: { requestId: REQUEST_ID } }), { headers: CONTRACT_HEADERS })
+			)
+			.mockResolvedValueOnce(
+				new Response(JSON.stringify({ data: { credential, secret }, meta: { requestId: REQUEST_ID } }), { headers: CONTRACT_HEADERS })
+			)
 			.mockResolvedValueOnce(
 				new Response(
 					JSON.stringify({
 						data: { ...credential, status: 'revoked', revokedAt: '2026-08-10T08:00:00.000Z' },
 						meta: { requestId: REQUEST_ID }
-					})
+					}),
+					{ headers: CONTRACT_HEADERS }
 				)
 			);
 		const api = createPortalApi({ apiBaseUrl: 'https://api.example' }, fetchImpl);
@@ -100,13 +108,27 @@ describe('portal API mapping', () => {
 	it('maps typed API errors without exposing raw response data', async () => {
 		const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
 			new Response(JSON.stringify({ error: { code: 'stale', message: 'Refresh first', requestId: REQUEST_ID } }), {
-				status: 409
+				status: 409,
+				headers: CONTRACT_HEADERS
 			})
 		);
 		const api = createPortalApi({ apiBaseUrl: 'https://api.example' }, fetchImpl);
 
 		await expect(api.archiveIntegration('csrf-token', 'd3234d29-3990-412c-a8d3-10db55d9e49f', '2026-08-09T08:00:00.000Z')).rejects.toEqual(
 			expect.objectContaining<Partial<PortalApiError>>({ code: 'stale', status: 409, requestId: REQUEST_ID })
+		);
+	});
+
+	it('fails closed when the API and portal contract builds are incompatible', async () => {
+		const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+			new Response(JSON.stringify({ data: { status: 'ok' }, meta: { requestId: REQUEST_ID } }), {
+				headers: { 'x-arbiter-api-contract-version': '2', 'x-request-id': REQUEST_ID }
+			})
+		);
+		const api = createPortalApi({ apiBaseUrl: 'https://api.example' }, fetchImpl);
+
+		await expect(api.recoverSession()).rejects.toEqual(
+			expect.objectContaining<Partial<PortalApiError>>({ code: 'invalid_response', status: 200, requestId: REQUEST_ID })
 		);
 	});
 });

@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const API_V1_PREFIX = '/api/v1' as const;
+export const API_CONTRACT_VERSION = '1' as const;
+export const API_CONTRACT_VERSION_HEADER = 'x-arbiter-api-contract-version' as const;
 export const API_V1_ROUTES = {
 	health: `${API_V1_PREFIX}/health`,
 	readiness: `${API_V1_PREFIX}/readiness`,

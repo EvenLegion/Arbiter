@@ -130,18 +130,19 @@ The publish job expects the release notes to already exist. It is a publish step
 
 ## Production Model
 
-The production Docker stack currently runs:
+The production Docker stack defines:
 
 - a migration container
 - the bot runtime container
+- the standalone API runtime container
 - Redis
 - Loki
 - Alloy
 - Grafana
 
-The repository also contains an independently buildable `Dockerfile.api` and local-only `docker-compose.api.yml`. That compose file is a development foundation and is not wired into the production stack by this change. Production API service configuration, network exposure, proxy/TLS, resource sizing, and deployment remain a separately approved deployment-readiness task.
+The independently buildable `Dockerfile.api` is used by both the local-only `docker-compose.api.yml` and the production stack. Production Compose prepares the API beside the bot, reusing the existing external Postgres database and Redis service. It binds to loopback by default and does not create or configure the required HTTPS reverse proxy, DNS, certificates, firewall rules, secrets, migration execution, or deployment. Those remain explicit operator actions requiring separate approval. Follow the [API and portal deployment-readiness runbook](../api/deployment-readiness.md).
 
-The API already follows the production observability contract: it writes structured JSON to `API_LOG_FILE_PATH`, defaults to `logs/api.log`, and the existing Alloy configuration assigns that file `service=arbiter-api` before shipping it to Loki. Local source and API-container runs share `./logs` with the observability stack. A future production API service must mount its log directory into the existing Alloy container at `/var/log/arbiter/api.log` (or set `ARBITER_API_LOG_GLOB` to the matching mounted path); it must not bypass the redaction and request-ID fields already established here.
+The API follows the production observability contract: it writes structured JSON to `API_LOG_FILE_PATH`, defaults to `logs/api.log`, and Alloy assigns that file `service=arbiter-api` before shipping it to Loki. Local source and API-container runs share `./logs` with the observability stack. Production Compose mounts `API_LOGS_DIR` into the API and read-only into Alloy; the service must not bypass the redaction and request-ID fields already established here.
 
 Postgres is not part of the production compose stack. Production expects an external database reachable through `DATABASE_URL`.
 
@@ -240,12 +241,13 @@ and review truth; Redis remains transient scheduling and tracking state.
 The production stack expects persistent host directories for:
 
 - bot logs
+- API logs
 - Redis data
 - Loki data
 - Grafana data
 - Alloy data
 
-When the API is added to the production stack in a separately approved change, its `API_LOG_FILE_PATH` must also use a persistent host-mounted log directory visible to Alloy. The current production Compose does not yet run the API and therefore does not create that mount.
+The API log uses its own persistent `API_LOGS_DIR` mount. Alloy reads that mount separately from bot logs and labels the stream as `service=arbiter-api`. Production Compose will not create the API log path: provision it before startup with ownership matching `API_UID` and `API_GID`, following the API deployment-readiness runbook.
 
 If those paths move or change ownership, update the environment configuration to match. The bot and Redis containers may run under explicit numeric users, so host ownership matters.
 

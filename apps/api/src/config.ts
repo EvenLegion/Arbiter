@@ -12,6 +12,8 @@ const ApiConfigSchema = z.object({
 	API_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(10_000),
 	API_HEADERS_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(10_000),
 	API_KEEP_ALIVE_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(5_000),
+	API_PUBLIC_URL: z.preprocess((value) => (value === '' ? undefined : value), z.string().optional()),
+	API_TRUST_PROXY: z.enum(['true', 'false']).default('false'),
 	API_READINESS_TIMEOUT_MS: z.coerce.number().int().min(100).max(10_000).default(2_000),
 	API_DB_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(5_000),
 	API_REDIS_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(5_000),
@@ -53,6 +55,8 @@ export type ApiConfig = {
 	requestTimeoutMs: number;
 	headersTimeoutMs: number;
 	keepAliveTimeoutMs: number;
+	publicUrl?: string;
+	trustProxy: boolean;
 	readinessTimeoutMs: number;
 	databaseConnectTimeoutMs: number;
 	redisConnectTimeoutMs: number;
@@ -95,6 +99,16 @@ export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfi
 	const allowedOrigins = parseUrlList('API_ALLOWED_ORIGINS', value.API_ALLOWED_ORIGINS, true, value.NODE_ENV);
 	const allowedRedirectUrls = parseUrlList('API_AUTH_REDIRECT_URLS', value.API_AUTH_REDIRECT_URLS, false, value.NODE_ENV);
 	const callbackUrl = parseExactUrl('API_DISCORD_CALLBACK_URL', value.API_DISCORD_CALLBACK_URL, value.NODE_ENV);
+	const publicUrl = value.API_PUBLIC_URL ? parseExactUrl('API_PUBLIC_URL', value.API_PUBLIC_URL, value.NODE_ENV) : undefined;
+	if (publicUrl && (publicUrl.pathname !== '/' || publicUrl.search || publicUrl.hash)) {
+		throw new Error('Invalid API environment configuration: API_PUBLIC_URL must be an origin without a path, query, or fragment');
+	}
+	if (value.NODE_ENV === 'production' && (!publicUrl || value.API_TRUST_PROXY !== 'true')) {
+		throw new Error('Invalid API environment configuration: production requires API_PUBLIC_URL and API_TRUST_PROXY=true');
+	}
+	if (publicUrl && callbackUrl.origin !== publicUrl.origin) {
+		throw new Error('Invalid API environment configuration: API_DISCORD_CALLBACK_URL must use the API_PUBLIC_URL origin');
+	}
 	if (callbackUrl.search || callbackUrl.hash)
 		throw new Error('Invalid API environment configuration: API_DISCORD_CALLBACK_URL must not contain query or fragment');
 	if (callbackUrl.pathname !== API_V1_ROUTES.authDiscordCallback) {
@@ -123,6 +137,8 @@ export function parseApiConfig(input: NodeJS.ProcessEnv = process.env): ApiConfi
 		requestTimeoutMs: value.API_REQUEST_TIMEOUT_MS,
 		headersTimeoutMs: value.API_HEADERS_TIMEOUT_MS,
 		keepAliveTimeoutMs: value.API_KEEP_ALIVE_TIMEOUT_MS,
+		publicUrl: publicUrl?.origin,
+		trustProxy: value.API_TRUST_PROXY === 'true',
 		readinessTimeoutMs: value.API_READINESS_TIMEOUT_MS,
 		databaseConnectTimeoutMs: value.API_DB_CONNECT_TIMEOUT_MS,
 		redisConnectTimeoutMs: value.API_REDIS_CONNECT_TIMEOUT_MS,

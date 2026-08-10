@@ -21,6 +21,7 @@ const config: ApiConfig = {
 	requestTimeoutMs: 2_000,
 	headersTimeoutMs: 2_000,
 	keepAliveTimeoutMs: 1_000,
+	trustProxy: false,
 	readinessTimeoutMs: 100,
 	databaseConnectTimeoutMs: 1_000,
 	redisConnectTimeoutMs: 1_000,
@@ -60,6 +61,9 @@ describe('API HTTP runtime', () => {
 		expect(health.headers.get('x-request-id')).toBe('test-request-1');
 		expect(health.headers.get('referrer-policy')).toBe('no-referrer');
 		expect(health.headers.get('x-content-type-options')).toBe('nosniff');
+		expect(health.headers.get('x-frame-options')).toBe('DENY');
+		expect(health.headers.get('content-security-policy')).toContain("default-src 'none'");
+		expect(health.headers.get('x-arbiter-api-contract-version')).toBe('1');
 		expect(await health.json()).toEqual({ data: { status: 'ok' }, meta: { requestId: 'test-request-1' } });
 
 		const readiness = await fetch(`${baseUrl}/api/v1/readiness`);
@@ -237,6 +241,7 @@ describe('API HTTP runtime', () => {
 		expect(preflight.status).toBe(204);
 		expect(preflight.headers.get('access-control-allow-origin')).toBe(origin);
 		expect(preflight.headers.get('access-control-allow-credentials')).toBe('true');
+		expect(preflight.headers.get('access-control-expose-headers')).toContain('x-arbiter-api-contract-version');
 
 		const denied = await fetch(`${baseUrl}/api/v1/auth/discord/start`, {
 			method: 'POST',
@@ -297,6 +302,43 @@ describe('API HTTP runtime', () => {
 		expect(logout.status).toBe(200);
 		expect(authService.logout).toHaveBeenCalledWith('S'.repeat(43), 'C'.repeat(43), expect.anything());
 		expect(logout.headers.get('set-cookie')).toContain('Max-Age=0');
+	});
+
+	it('fails closed when production requests bypass the configured HTTPS proxy host', async () => {
+		runtime = createApiRuntime({
+			config: { ...config, nodeEnv: 'production', publicUrl: 'https://api.arbiter.example', trustProxy: true },
+			dependencies: createDependencies(true),
+			logger: pino({ level: 'silent' })
+		});
+		const address = await runtime.start();
+		const url = `http://127.0.0.1:${address.port}/api/v1/unknown`;
+
+		const direct = await fetch(url);
+		expect(direct.status).toBe(403);
+		expect(await direct.json()).toMatchObject({ error: { code: 'origin_not_allowed' } });
+
+		const proxied = await new Promise<{ statusCode: number; hsts: string | undefined }>((resolve, reject) => {
+			const request = httpRequest(
+				{
+					host: '127.0.0.1',
+					port: address.port,
+					path: '/api/v1/unknown',
+					headers: {
+						host: 'api.arbiter.example',
+						'x-forwarded-host': 'api.arbiter.example',
+						'x-forwarded-proto': 'https'
+					}
+				},
+				(response) => {
+					response.resume();
+					resolve({ statusCode: response.statusCode ?? 0, hsts: response.headers['strict-transport-security'] });
+				}
+			);
+			request.on('error', reject);
+			request.end();
+		});
+		expect(proxied.statusCode).toBe(404);
+		expect(proxied.hsts).toContain('max-age=31536000');
 	});
 });
 

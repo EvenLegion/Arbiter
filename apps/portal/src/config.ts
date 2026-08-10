@@ -28,3 +28,21 @@ export function parsePortalConfig(value: unknown, production = false): PortalCon
 export function loadPortalConfig(): PortalConfig {
 	return parsePortalConfig(import.meta.env.VITE_API_BASE_URL, import.meta.env.PROD);
 }
+
+export function buildPortalContentSecurityPolicy(apiBaseUrl: unknown, production = true): string {
+	const config = parsePortalConfig(apiBaseUrl, production);
+	const connectSources = production ? config.apiBaseUrl : `${config.apiBaseUrl} ws://127.0.0.1:4173`;
+	const styleSources = production ? "'self'" : "'self' 'unsafe-inline'";
+	return [
+		"default-src 'self'",
+		"base-uri 'none'",
+		`connect-src ${connectSources}`,
+		"font-src 'self'",
+		"form-action 'none'",
+		"frame-ancestors 'none'",
+		"img-src 'self' data: https://cdn.discordapp.com",
+		"object-src 'none'",
+		"script-src 'self'",
+		`style-src ${styleSources}`
+	].join('; ');
+}

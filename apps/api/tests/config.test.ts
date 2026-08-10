@@ -127,4 +127,25 @@ describe('parseApiConfig', () => {
 			})
 		).toThrowError(/HTTPS/);
 	});
+
+	it('requires an exact public HTTPS origin and explicit proxy trust in production', () => {
+		const productionEnv = {
+			...authEnv,
+			NODE_ENV: 'production',
+			API_DISCORD_CALLBACK_URL: 'https://api.arbiter.example/api/v1/auth/discord/callback',
+			API_ALLOWED_ORIGINS: 'https://portal.arbiter.example',
+			API_AUTH_REDIRECT_URLS: 'https://portal.arbiter.example/auth/callback',
+			DATABASE_URL: 'postgresql://arbiter@database.example/arbiter',
+			API_CREDENTIAL_PEPPER: 'test-credential-pepper-at-least-32-characters'
+		};
+		expect(() => parseApiConfig(productionEnv)).toThrowError(/API_PUBLIC_URL/);
+		expect(() => parseApiConfig({ ...productionEnv, API_PUBLIC_URL: 'https://api.arbiter.example' })).toThrowError(/API_TRUST_PROXY/);
+		expect(parseApiConfig({ ...productionEnv, API_PUBLIC_URL: 'https://api.arbiter.example', API_TRUST_PROXY: 'true' })).toMatchObject({
+			publicUrl: 'https://api.arbiter.example',
+			trustProxy: true
+		});
+		expect(() => parseApiConfig({ ...productionEnv, API_PUBLIC_URL: 'https://other.arbiter.example', API_TRUST_PROXY: 'true' })).toThrowError(
+			/API_DISCORD_CALLBACK_URL/
+		);
+	});
 });

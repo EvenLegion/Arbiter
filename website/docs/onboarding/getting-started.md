@@ -78,13 +78,13 @@ pnpm dev
 
 Development mode also enables the `dev` command group for repair and migration-style helpers.
 
-7. Start the standalone API independently when working on health, browser authentication, or later API surfaces.
+7. Start the standalone API independently when working on health, browser authentication, staff integration management, or credential-authenticated directory reads.
 
 ```bash
 pnpm dev:api
 ```
 
-The API exposes `GET /api/v1/health` for liveness and `GET /api/v1/readiness` for Postgres-and-Redis readiness. It does not expose a business route yet. Stopping the API closes only its own bounded Postgres pool and Redis client; it does not control the bot process or the shared services.
+The API exposes liveness/readiness, Discord OAuth staff sessions, integration and credential management, and bounded `users:read` directory routes. Stopping the API closes only its own bounded Postgres pool and Redis clients; it does not control the bot process or the shared services.
 
 See [Standalone API](../api/standalone-api.md) for its current purpose, complete configuration, response contract, Docker workflow, and observability path.
 

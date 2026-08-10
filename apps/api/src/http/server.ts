@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-import { API_V1_ROUTES, RequestIdSchema } from '@arbiter/api-contracts';
+import { API_CONTRACT_VERSION, API_CONTRACT_VERSION_HEADER, API_V1_ROUTES, RequestIdSchema } from '@arbiter/api-contracts';
 import type { Logger } from 'pino';
 
 import type { ApiConfig } from '../config';
@@ -81,6 +81,11 @@ async function handleRequest({
 	response.setHeader('cache-control', 'no-store');
 	response.setHeader('referrer-policy', 'no-referrer');
 	response.setHeader('x-content-type-options', 'nosniff');
+	response.setHeader('x-frame-options', 'DENY');
+	response.setHeader('content-security-policy', "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'");
+	response.setHeader('permissions-policy', 'camera=(), geolocation=(), microphone=()');
+	response.setHeader(API_CONTRACT_VERSION_HEADER, API_CONTRACT_VERSION);
+	if (config.nodeEnv === 'production') response.setHeader('strict-transport-security', 'max-age=31536000; includeSubDomains');
 	let requestTimedOut = false;
 	let clientDisconnected = false;
 	const requestAbortController = new AbortController();
@@ -109,6 +114,7 @@ async function handleRequest({
 	try {
 		const url = new URL(request.url ?? '/', 'http://arbiter-api.local');
 		path = url.pathname;
+		verifyProductionProxyRequest(request, path, config);
 		applyExactOriginCors(request, response, config.auth.allowedOrigins);
 		if (request.method === 'OPTIONS') {
 			writeCorsPreflight(response);
@@ -203,6 +209,22 @@ async function handleRequest({
 			'API request completed'
 		);
 	}
+}
+
+function verifyProductionProxyRequest(request: IncomingMessage, path: string, config: ApiConfig): void {
+	if (config.nodeEnv !== 'production' || !config.publicUrl) return;
+	if (path === API_V1_ROUTES.health || path === API_V1_ROUTES.readiness) return;
+	const expectedHost = new URL(config.publicUrl).host;
+	const host = singleHeader(request.headers.host);
+	const forwardedHost = singleHeader(request.headers['x-forwarded-host']);
+	const forwardedProto = singleHeader(request.headers['x-forwarded-proto']);
+	if (!config.trustProxy || host !== expectedHost || forwardedHost !== expectedHost || forwardedProto !== 'https') {
+		throw new ApiHttpError(403, 'origin_not_allowed', 'Request host is not allowed');
+	}
+}
+
+function singleHeader(value: string | string[] | undefined): string | undefined {
+	return typeof value === 'string' && !value.includes(',') ? value : undefined;
 }
 
 function requireReadMethod(request: IncomingMessage, response: ServerResponse): void {
