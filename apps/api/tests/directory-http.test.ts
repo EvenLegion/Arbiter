@@ -177,6 +177,14 @@ describe('credential-authenticated directory HTTP routes', () => {
 		expect(oversizedBatch.status).toBe(400);
 		expect(await oversizedBatch.json()).toMatchObject({ error: { code: 'bad_request' } });
 
+		const nullBody = await fetch(`${baseUrl}/api/v1/users/query`, {
+			method: 'POST',
+			headers: { authorization: 'Bearer synthetic-secret', 'content-type': 'application/json' },
+			body: 'null'
+		});
+		expect(nullBody.status).toBe(400);
+		expect(await nullBody.json()).toMatchObject({ error: { code: 'bad_request' } });
+
 		const malformedSnowflake = await fetch(`${baseUrl}/api/v1/users/not-a-snowflake`, {
 			headers: { authorization: 'Bearer synthetic-secret' }
 		});

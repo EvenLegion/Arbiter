@@ -77,7 +77,7 @@ export async function handleDirectoryHttpRequest({
 		return true;
 	}
 
-	const input = ApiDirectoryQuerySchema.safeParse(body ?? {});
+	const input = ApiDirectoryQuerySchema.safeParse(body === undefined ? {} : body);
 	if (!input.success) throw new ApiHttpError(400, 'bad_request', 'Directory query is invalid');
 	const result = await callDirectory(() => directoryService.query(input.data, signal, deadlineAtMs), signal, deadlineAtMs);
 	if (!result.ok) throw toDirectoryHttpError(result);
