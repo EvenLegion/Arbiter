@@ -1,19 +1,19 @@
 # Codex Review Prompt
 
-Use this prompt to review a diff or PR against its user request and live Linear
-ticket.
+Use this route to review a diff or PR against its user request and, when present,
+live Linear ticket. Agent review uses Astra as specified in `AGENTS.md`.
 
 ```text
 Mode: <REVIEW_ONLY | ADDRESS_REVIEW_COMMENTS>
 
-Ticket: <ticket link or body>
+Ticket: <ticket link or body, only when one exists>
 Diff or PR: <diff, branch, or PR>
 
 Load:
 - `AGENTS.md`
 - `ai/PROJECT_RULES.md`
-- `ai/rules/documentation-impact.md`
-- `ai/rules/architecture-records.md`
+- `ai/rules/documentation-impact.md` and `ai/rules/architecture-records.md`
+  when assessing those impacts or completing a change handoff
 - `ai/rules/github-review-lifecycle.md` for GitHub feedback or reviewer state
 - `ai/rules/implementation-lifecycle.md` for review-fix mutation and handoff
 
@@ -28,6 +28,8 @@ Inspect the exact revision, ticket and accepted decisions, changed files,
 direct callers/imports, analogous implementations, relevant tests/contracts,
 installed versions, existing review feedback, and required documentation or
 Architecture Record disposition.
+Record the reviewed SHA and uncommitted diff, if any. Load only context needed
+for affected paths; a missing ticket does not block standalone review.
 
 Apply the evidence threshold and repository review rules in `AGENTS.md`.
 Historically high-value traces include:
@@ -38,7 +40,10 @@ Historically high-value traces include:
 - event start/tick/end/review/finalize transitions, attendance snapshotting,
   merit award idempotency, and stale Redis cleanup;
 - division cache, role reconciliation, computed nickname, and name-change
-  review paths; and
+  review paths;
+- API browser-session and Bearer-credential authorization, canonical staff
+  membership, mutation CSRF, portal secret handling, shared contracts, and
+  API-owned storage connections when those surfaces are affected; and
 - interaction defer/reply/follow-up settlement, partial success, raw-error
   leakage, and secret-safe structured logs.
 
@@ -63,11 +68,11 @@ review lifecycle. Produce a decision ledger for every unresolved actionable
 thread: `Accepted`, `Rejected`, `Declined`, or `Deferred/blocked`, with concise
 evidence and the proportionality decision defined by the lifecycle.
 
-Patch accepted safe in-scope feedback, run proportionate checks, commit, push,
-check for and reuse the branch's valid existing release plan, reply/resolve
-decided threads, and re-fetch authoritative state. Do not regenerate the plan
-for routine review-fix commits. Stop for any required approval or material
-scope/product/architecture decision.
+Patch accepted safe in-scope feedback and run proportionate checks. Follow the
+implementation lifecycle's scoped commit and release-plan check/reuse sequence
+BEFORE every push, then reply/resolve decided threads and re-fetch authoritative
+state. Do not regenerate the plan for routine review-fix commits. Stop at any
+required approval or material scope/product/architecture decision.
 
 Report the decision ledger, new head, validation, current checks, expected
 reviewer state, review-budget disposition, and any remaining actionable or
