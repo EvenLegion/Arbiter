@@ -11,6 +11,7 @@ safety, and domain invariants. Task procedures have one owner:
 - Architecture Record decision and format: `ai/rules/architecture-records.md`
 - GitHub thread handling and reviewer observation:
   `ai/rules/github-review-lifecycle.md`
+- instruction ownership and validation: `ai/rules/instruction-authoring.md`
 - mode-specific implementation, review, audit, planning, and ticket outputs:
   the selected file under `ai/prompts` or `ai/templates`
 
@@ -57,6 +58,13 @@ or product decisions. Cross-layer changes require a direct dependency through
 an ingress, handler, service, presenter, repository, gateway, schema, migration,
 scheduled task, or public runtime boundary.
 
+Choose the smallest understandable complete solution with existing capabilities.
+Add abstractions, dependencies, configuration, compatibility paths, retries,
+caches, or state machines only for a current requirement, supported consumer,
+trust boundary, persistence need, or demonstrated failure. Existing complexity
+is evidence to inspect, not a pattern to repeat. This rule does not relax the
+layer ownership or safety invariants below.
+
 When a ticket explicitly replaces a command, interaction protocol, service,
 repository surface, schema contract, or operational path, directly superseded
 wiring, callers, exports, tests, docs, flags, and compatibility code are part of
@@ -90,6 +98,38 @@ inspection is allowed. Stop at the exact gated mutation or decision and report
 the approval needed. Never run destructive reset scripts, production commands,
 repair utilities, live Discord operations, credential changes, or secret-bearing
 commands without explicit current authority.
+
+Reuse explicit authorization for the same scoped action; do not ask again solely
+because a workflow reaches it later. When authority is missing, finish independent
+safe preparation, identify the exact gated action and consequence, and pause
+only the dependent work. A runbook command or another project's standing approval
+does not grant permission here. Dependency installation remains gated, including
+offline restores; do not import an exception from a reference project.
+
+## Current surfaces and local guidance
+
+Confirm commands and installed versions in `package.json` and affected package
+scripts. The workspace uses Node 22 (the root engine range), pnpm, TypeScript,
+Sapphire/discord.js, Prisma/Postgres, and Redis; the portal uses React/Vite.
+
+- Start with [onboarding](../website/docs/onboarding/getting-started.md) and the
+  [environment lanes](../website/docs/local-development/environment-and-services.md)
+  only when setup is needed. Docs-only work requires no runtime credentials,
+  database, Redis, or Discord client. Never overwrite an existing environment file.
+- For bot ownership and synchronization, use the
+  [system guide](../website/docs/architecture/system-guide.md) and affected
+  [event](../website/docs/features/event-system.md) or
+  [division/membership](../website/docs/features/division-and-membership.md) guide.
+- For `apps/api` or `packages/api-contracts`, read the relevant
+  [API boundary](../website/docs/api/standalone-api.md) and contract sources.
+  For `apps/portal`, read the [staff portal](../website/docs/api/staff-portal.md).
+  Browser sessions and scoped Bearer credentials are separate authorization
+  paths. The API re-reads canonical staff membership for protected browser
+  requests and enforces mutation CSRF; portal state never grants authority.
+  Keep server secrets out of the browser and preserve one-time secret handling.
+- Select checks from [testing and validation](../website/docs/local-development/testing-and-validation.md).
+  The portal fixture harness proves UI behavior, not real OAuth or API authorization.
+  Shared domain and transport changes require checking their affected consumers.
 
 ## Runtime and layer boundaries
 

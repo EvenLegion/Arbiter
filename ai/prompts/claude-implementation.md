@@ -1,50 +1,21 @@
-# Claude Implementation Prompt
+# Implementation Route
 
-Use this prompt for a bounded ticket-backed or standalone implementation.
+Use for a bounded ticket-backed or standalone repository change, regardless of
+the implementing model. The filename is retained for existing callers.
 
-```text
-Implement this request as one bounded contract:
+Read [AGENTS.md](../../AGENTS.md), [Project Rules](../PROJECT_RULES.md), and the
+[implementation lifecycle](../rules/implementation-lifecycle.md). Extract the
+goal, scope, non-goals, accepted decisions, measurable acceptance, affected
+boundaries, and approval state without requiring a visible restatement for a
+well-specified task. Load live Linear state only when the request identifies a
+ticket; never invent one for standalone work.
 
-<ticket link/body or standalone user request>
+Follow the lifecycle through the requested local-only or external handoff.
+Load documentation-impact and Architecture Record rules for their completion
+decisions; load release-plan policy only for release-plan work or authorized
+external handoff. For instruction edits also load instruction-authoring rules.
 
-Load:
-- `AGENTS.md` (through root `CLAUDE.md`)
-- `ai/PROJECT_RULES.md`
-- `ai/rules/implementation-lifecycle.md`
-- `ai/rules/release-plans.md`
-- `ai/rules/documentation-impact.md`
-- `ai/rules/architecture-records.md`
-
-Extract the goal, scope, non-goals, locked decisions, acceptance criteria,
-validation, layer boundaries, and approval state silently. Load Linear state
-only when the request identifies a ticket; never invent a ticket for a
-standalone change. Surface only a material assumption, conflict, blocker, or
-approval need.
-
-Before the first tool call, give one short preamble. During work, update the
-user only for a material finding, direction change, approval gate, or
-long-running milestone.
-
-Deliver only the requested scope. Reuse the runtime shell -> handler -> service
--> repository/gateway -> presenter pattern and current public boundaries. Do not
-add unrelated refactors, abstractions, features, docs, or cleanup.
-
-Make reversible routine decisions without asking. Stop at high-risk mutations
-identified by the project rules unless explicit current approval exists. If an
-approach fails, change tactics and use available fallbacks; ask only when
-progress requires user-only information, new authority, or a gated decision.
-
-Use subagents only for substantial independent parallel work when available and
-useful, never merely to re-check your own work.
-
-Run the request's measurable checks and the narrowest affected checks. Complete
-the applicable local-only or end-to-end branch, release-plan, PR into `dev`,
-Arbiter Linear, documentation, Architecture Record, and CI handoff defined by
-the loaded lifecycle modules. Classify the plan before creation. For `publish`
-mode, inspect every pending plan in the same capability group before writing the
-single release-level public description.
-
-Finish outcome-first with the completed scope, validation, handoff state,
-documentation disposition, Architecture Record disposition, and remaining
-material risk.
-```
+Delegate only when the user, task, and host permit it and an independent slice
+justifies the coordination. Agent review follows the Astra routing in AGENTS.md.
+Surface material assumptions, conflicts, approval needs, and progress; finish
+with the outcome, actual validation, handoff state, dispositions, and limits.
