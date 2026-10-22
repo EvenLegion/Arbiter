@@ -10,7 +10,7 @@
 	"contributionSummary": "Adds required expected_event_duration choices, nullable whole-minute persistence, and capped-duration review defaults with legacy fallback and regression coverage.",
 	"publicNote": {
 		"mode": "standalone",
-		"description": "Event organizers now choose an expected duration when creating an event, from one to three hours in half-hour steps. Arbiter preselects merit for members who attend at least half of the shorter of the event's actual and expected durations, combining attendance across its voice channels; organizers can still adjust selections before confirming, and existing events keep their previous calculation.",
+		"description": "Event organizers now choose an expected duration when creating an event, from one to three hours in half-hour steps. Arbiter preselects merit for members who attend at least half of the event's actual duration when less than expected duration, or half of the expected duration when longer than expected. Event runners can still adjust merit selections before submitting.",
 		"section": "Features"
 	},
 	"commits": [
