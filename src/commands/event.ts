@@ -47,7 +47,7 @@ export class EventCommand extends Subcommand {
 							.addIntegerOption((option) =>
 								option
 									.setName('expected_event_duration')
-									.setDescription('Expected event duration used for the default merit selection.')
+									.setDescription('Duration used to calculate 50% attendance threshold to determine automatic merit award.')
 									.setRequired(true)
 									.addChoices(...EXPECTED_EVENT_DURATION_CHOICES)
 							)
