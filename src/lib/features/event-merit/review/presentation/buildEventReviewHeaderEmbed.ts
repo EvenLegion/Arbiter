@@ -30,7 +30,7 @@ export function buildEventReviewHeaderEmbed({
 		.setDescription(
 			expectedEventDuration == null
 				? null
-				: `Expected duration: ${formatDuration(expectedEventDuration * 60)}. Default merit selection requires at least 50% of ${formatDuration(meritDurationSeconds)}, the shorter of actual and expected duration. You can change selections before submitting.`
+				: `Expected duration: ${formatDuration(expectedEventDuration * 60)}.`
 		)
 		.addFields(
 			{
