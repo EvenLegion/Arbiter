@@ -45,6 +45,7 @@ export async function syncEventReviewPresentation({
 		eventSessionId: reviewPage.eventSession.id,
 		state: reviewPage.eventSession.state,
 		durationSeconds,
+		expectedEventDuration: reviewPage.eventSession.expectedEventDuration,
 		attendeeCount: reviewPage.attendeeCount,
 		page: reviewPage.page,
 		totalPages: reviewPage.totalPages,

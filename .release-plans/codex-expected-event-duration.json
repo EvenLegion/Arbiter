@@ -1,0 +1,29 @@
+{
+	"schemaVersion": 2,
+	"branch": "codex/expected-event-duration",
+	"baseRef": "origin/dev",
+	"mergeBase": "37181223f4b017d3d05155003038193e3ea77c30",
+	"headRef": "6ab56cff1c077c58f042f2b4346279f0daf5fdbd",
+	"generatedAt": "2026-10-22T01:07:34.379Z",
+	"bump": "minor",
+	"targetVersion": "3.5.0",
+	"contributionSummary": "Adds required expected_event_duration choices, nullable whole-minute persistence, and capped-duration review defaults with legacy fallback and regression coverage.",
+	"publicNote": {
+		"mode": "standalone",
+		"description": "Event organizers now choose an expected duration when creating an event, from one to three hours in half-hour steps. Arbiter preselects merit for members who attend at least half of the event's actual duration when less than expected duration, or half of the expected duration when longer than expected. Event runners can still adjust merit selections before submitting.",
+		"section": "Features"
+	},
+	"commits": [
+		{
+			"sha": "6ab56cff1c077c58f042f2b4346279f0daf5fdbd",
+			"subject": "feat(event): select merit defaults using expected duration",
+			"committedAt": "2026-10-21T15:07:01-10:00",
+			"committedAtMs": 1792631221000,
+			"type": "feat",
+			"scope": "event",
+			"description": "select merit defaults using expected duration",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}

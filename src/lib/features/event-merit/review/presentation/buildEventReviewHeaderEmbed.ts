@@ -7,6 +7,8 @@ export function buildEventReviewHeaderEmbed({
 	eventSessionId,
 	state,
 	durationSeconds,
+	expectedEventDuration,
+	meritDurationSeconds,
 	attendeeCount,
 	page,
 	totalPages,
@@ -15,6 +17,8 @@ export function buildEventReviewHeaderEmbed({
 	eventSessionId: number;
 	state: EventSessionState;
 	durationSeconds: number;
+	expectedEventDuration?: number | null;
+	meritDurationSeconds: number;
 	attendeeCount: number;
 	page: number;
 	totalPages: number;
@@ -23,6 +27,11 @@ export function buildEventReviewHeaderEmbed({
 	return new EmbedBuilder()
 		.setTitle('Event Merit Review')
 		.setColor(0xf59e0b)
+		.setDescription(
+			expectedEventDuration == null
+				? null
+				: `Expected duration: ${formatDuration(expectedEventDuration * 60)}.`
+		)
 		.addFields(
 			{
 				name: 'Duration',

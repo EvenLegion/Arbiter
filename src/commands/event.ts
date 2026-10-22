@@ -2,6 +2,7 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 
 import { ENV_DISCORD } from '../config/env';
+import { EXPECTED_EVENT_DURATION_CHOICES } from '../lib/constants';
 import { handleEventAutocomplete } from '../lib/features/event-merit/session/autocomplete/eventAutocompleteProvider';
 import { handleEventAddVc } from '../lib/features/event-merit/session/add-vc/handleEventAddVc';
 import { handleEventStart } from '../lib/features/event-merit/session/draft/handleEventStart';
@@ -42,6 +43,13 @@ export class EventCommand extends Subcommand {
 									.setRequired(true)
 									.setMinLength(3)
 									.setMaxLength(100)
+							)
+							.addIntegerOption((option) =>
+								option
+									.setName('expected_event_duration')
+									.setDescription('Duration used to calculate 50% attendance threshold to determine automatic merit award.')
+									.setRequired(true)
+									.addChoices(...EXPECTED_EVENT_DURATION_CHOICES)
 							)
 					)
 					.addSubcommand((subcommand) =>

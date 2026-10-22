@@ -252,7 +252,8 @@ describe('event review decision integration', () => {
 				state: EventSessionState.ENDED_PENDING_REVIEW,
 				threadId: 'thread-4306',
 				startedAt: new Date('2026-03-14T10:00:00.000Z'),
-				endedAt: new Date('2026-03-14T11:00:00.000Z')
+				endedAt: new Date('2026-03-14T11:00:00.000Z'),
+				expectedEventDuration: null
 			},
 			attendeeCount: 3,
 			page: 1,

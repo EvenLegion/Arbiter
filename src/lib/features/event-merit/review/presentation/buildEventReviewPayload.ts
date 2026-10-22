@@ -11,6 +11,7 @@ type BuildEventReviewPayloadParams = {
 	eventSessionId: number;
 	state: EventSessionState;
 	durationSeconds: number;
+	expectedEventDuration?: number | null;
 	attendeeCount: number;
 	page: number;
 	totalPages: number;
@@ -22,6 +23,7 @@ export function buildEventReviewPayload({
 	eventSessionId,
 	state,
 	durationSeconds,
+	expectedEventDuration,
 	attendeeCount,
 	page,
 	totalPages,
@@ -31,6 +33,7 @@ export function buildEventReviewPayload({
 	const presentationModel = buildEventReviewPresentationModel({
 		state,
 		durationSeconds,
+		expectedEventDuration,
 		page,
 		attendees,
 		pageSize,
@@ -42,6 +45,8 @@ export function buildEventReviewPayload({
 		eventSessionId,
 		state,
 		durationSeconds,
+		expectedEventDuration,
+		meritDurationSeconds: presentationModel.attendanceDurationSeconds,
 		attendeeCount,
 		page,
 		totalPages,

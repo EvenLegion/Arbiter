@@ -4,6 +4,24 @@ import { describe, expect, it } from 'vitest';
 import { buildEventReviewPayload } from '../../../../../../src/lib/features/event-merit/review/presentation/buildEventReviewPayload';
 
 describe('buildEventReviewPayload', () => {
+	it('explains the merit basis while retaining the actual duration and editable selections', () => {
+		const payload = buildEventReviewPayload({
+			eventSessionId: 45,
+			state: EventSessionState.ENDED_PENDING_REVIEW,
+			durationSeconds: 7200,
+			expectedEventDuration: 60,
+			attendeeCount: 1,
+			page: 1,
+			totalPages: 1,
+			pageSize: 10,
+			attendees: [{ dbUserId: 'a', discordUserId: 'a', discordUsername: 'a', discordNickname: 'a', attendedSeconds: 1800, decision: null }]
+		});
+		expect(payload.embeds[0].data.description).toContain('50% of 1h 0m');
+		expect(payload.embeds[0].data.fields?.find((field) => field.name === 'Duration')?.value).toBe('2h 0m');
+		expect(payload.embeds[0].data.fields?.find((field) => field.name === 'Attendees')?.value).toContain('(50%)');
+		expect(payload.components[1]?.components[0]?.data.style).toBe(3);
+	});
+
 	it('builds submit controls and attendee decision rows while review is open', () => {
 		const payload = buildEventReviewPayload({
 			eventSessionId: 44,
