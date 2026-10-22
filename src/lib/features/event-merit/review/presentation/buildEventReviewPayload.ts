@@ -46,7 +46,6 @@ export function buildEventReviewPayload({
 		state,
 		durationSeconds,
 		expectedEventDuration,
-		meritDurationSeconds: presentationModel.attendanceDurationSeconds,
 		attendeeCount,
 		page,
 		totalPages,

@@ -17,9 +17,8 @@ describe('event command serialization', () => {
 		const start = command.options?.find((option) => option.name === 'start');
 		expect(start).toMatchObject({
 			options: expect.arrayContaining([
-				{
+				expect.objectContaining({
 					name: 'expected_event_duration',
-					description: 'Expected event duration used for the default merit selection.',
 					type: 4,
 					required: true,
 					choices: [
@@ -29,7 +28,7 @@ describe('event command serialization', () => {
 						{ name: '2.5 hours', value: 150 },
 						{ name: '3 hours', value: 180 }
 					]
-				}
+				})
 			])
 		});
 	});

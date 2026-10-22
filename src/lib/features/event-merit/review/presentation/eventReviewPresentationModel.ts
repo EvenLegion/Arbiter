@@ -69,7 +69,6 @@ export function buildEventReviewPresentationModel({
 	});
 
 	return {
-		attendanceDurationSeconds: attendancePolicy.durationSeconds,
 		reviewIsOpen: state === EventSessionState.ENDED_PENDING_REVIEW,
 		attendeesFieldValue:
 			presentationAttendees.length === 0

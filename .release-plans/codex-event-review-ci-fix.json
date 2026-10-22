@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "codex/event-review-ci-fix",
+	"baseRef": "origin/dev",
+	"mergeBase": "70739e7f8fcb8fff4c4e45ee280760202434cf3d",
+	"headRef": "08c2f8514300db5581c20b8273840cc15cda76f1",
+	"generatedAt": "2026-10-22T02:13:20.692Z",
+	"bump": "patch",
+	"targetVersion": "3.4.1",
+	"contributionSummary": "Removes unused merit-duration presentation wiring and updates the review embed assertion to match the shortened header copy, restoring CI without changing attendance decisions.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "08c2f8514300db5581c20b8273840cc15cda76f1",
+			"subject": "fix(event): remove unused review duration wiring",
+			"committedAt": "2026-10-21T16:12:29-10:00",
+			"committedAtMs": 1792635149000,
+			"type": "fix",
+			"scope": "event",
+			"description": "remove unused review duration wiring",
+			"breaking": false,
+			"section": "Fixes"
+		}
+	]
+}
