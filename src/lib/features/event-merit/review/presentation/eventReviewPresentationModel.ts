@@ -2,6 +2,7 @@ import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 import type { EventReviewPageAttendee } from '../../../../../integrations/prisma/repositories';
 import { stripLeadingPrefixSegments } from '../../../../services/bulk-nickname/nicknameTransform';
 import { stripTrailingMeritRankSuffix } from '../../../../services/nickname/buildUserNickname';
+import { resolveEventAttendancePolicy } from '../../../../services/event-review/eventAttendancePolicy';
 
 export type EventReviewPresentationAttendee = {
 	dbUserId: string;
@@ -16,6 +17,7 @@ export type EventReviewPresentationAttendee = {
 export function buildEventReviewPresentationModel({
 	state,
 	durationSeconds,
+	expectedEventDuration,
 	page,
 	attendees,
 	pageSize,
@@ -24,22 +26,29 @@ export function buildEventReviewPresentationModel({
 }: {
 	state: EventSessionState;
 	durationSeconds: number;
+	expectedEventDuration?: number | null;
 	page: number;
 	attendees: EventReviewPageAttendee[];
 	pageSize: number;
 	defaultMinAttendancePct?: number;
 	fullAttendanceGraceSeconds?: number;
 }) {
+	const attendancePolicy = resolveEventAttendancePolicy({
+		durationSeconds,
+		expectedEventDuration,
+		defaultMinAttendancePct,
+		fullAttendanceGraceSeconds
+	});
 	const presentationAttendees = attendees.map((attendee, index) => {
 		const attendancePercent = computeEventReviewAttendancePercent({
 			attendedSeconds: attendee.attendedSeconds,
-			durationSeconds,
-			fullAttendanceGraceSeconds
+			...attendancePolicy
 		});
 		const selectedDecision = resolveEventReviewDecision({
 			decision: attendee.decision,
 			attendedSeconds: attendee.attendedSeconds,
 			durationSeconds,
+			expectedEventDuration,
 			defaultMinAttendancePct,
 			fullAttendanceGraceSeconds
 		});
@@ -60,6 +69,7 @@ export function buildEventReviewPresentationModel({
 	});
 
 	return {
+		attendanceDurationSeconds: attendancePolicy.durationSeconds,
 		reviewIsOpen: state === EventSessionState.ENDED_PENDING_REVIEW,
 		attendeesFieldValue:
 			presentationAttendees.length === 0
@@ -100,12 +110,14 @@ export function resolveEventReviewDecision({
 	decision,
 	attendedSeconds,
 	durationSeconds,
+	expectedEventDuration,
 	defaultMinAttendancePct,
 	fullAttendanceGraceSeconds = 0
 }: {
 	decision: EventReviewPageAttendee['decision'];
 	attendedSeconds: number;
 	durationSeconds: number;
+	expectedEventDuration?: number | null;
 	defaultMinAttendancePct: number;
 	fullAttendanceGraceSeconds?: number;
 }) {
@@ -116,12 +128,17 @@ export function resolveEventReviewDecision({
 	if (durationSeconds <= 0) {
 		return EventReviewDecisionKind.NO_MERIT;
 	}
+	const attendancePolicy = resolveEventAttendancePolicy({
+		durationSeconds,
+		expectedEventDuration,
+		defaultMinAttendancePct,
+		fullAttendanceGraceSeconds
+	});
 
 	return computeEventReviewAttendancePercent({
 		attendedSeconds,
-		durationSeconds,
-		fullAttendanceGraceSeconds
-	}) >= defaultMinAttendancePct
+		...attendancePolicy
+	}) >= attendancePolicy.defaultMinAttendancePct
 		? EventReviewDecisionKind.MERIT
 		: EventReviewDecisionKind.NO_MERIT;
 }

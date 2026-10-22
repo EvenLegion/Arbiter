@@ -1,7 +1,7 @@
-import { EventReviewDecisionKind, EventSessionState, MeritTypeCode } from '@prisma/client';
+import { EventReviewDecisionKind, EventSessionChannelKind, EventSessionState, MeritTypeCode } from '@prisma/client';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createStandalonePrisma, pushPrismaSchema, resetDatabase, seedReferenceData, type StandalonePrisma } from '../setup/database';
+import { createStandalonePrisma, deployPrismaMigrations, resetDatabase, seedReferenceData, type StandalonePrisma } from '../setup/database';
 import { createEventSession, createUser } from '../setup/fixtures';
 import { flushRedisDatabase } from '../setup/redis';
 import {
@@ -12,6 +12,9 @@ import {
 	type IntegrationContainers
 } from '../setup/testcontainers';
 import { createMockExecutionContext } from '../../support/logger';
+import { tickTrackedEventSession } from '../../../src/lib/services/event-tracking/eventTrackingService';
+import { MissingTrackedChannelWarningStore } from '../../../src/lib/services/event-tracking/missingTrackedChannelWarningStore';
+import { recordEventReviewDecision } from '../../../src/lib/services/event-review/eventReviewService';
 
 describe('initializeEventReview integration', () => {
 	let containers: IntegrationContainers;
@@ -20,6 +23,9 @@ describe('initializeEventReview integration', () => {
 	let startTrackingSession: typeof import('../../../src/integrations/redis/eventTracking').startTrackingSession;
 	let applyTrackingTick: typeof import('../../../src/integrations/redis/eventTracking').applyTrackingTick;
 	let getTrackingParticipantsSnapshot: typeof import('../../../src/integrations/redis/eventTracking').getTrackingParticipantsSnapshot;
+	let stopTrackingSession: typeof import('../../../src/integrations/redis/eventTracking').stopTrackingSession;
+	let eventRepository: typeof import('../../../src/integrations/prisma/repositories').eventRepository;
+	let eventReviewRepository: typeof import('../../../src/integrations/prisma/repositories').eventReviewRepository;
 	let closeDb: typeof import('../../../src/integrations/prisma').closeDb;
 	let closeRedisClient: typeof import('../../../src/integrations/redis/client').closeRedisClient;
 	const syncEventReviewPresentation = vi.fn();
@@ -30,16 +36,17 @@ describe('initializeEventReview integration', () => {
 		applyDiscordTestEnv({
 			EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT: '60'
 		});
-		pushPrismaSchema(containers.databaseUrl);
+		deployPrismaMigrations(containers.databaseUrl);
 		standalone = createStandalonePrisma(containers.databaseUrl);
 		vi.resetModules();
 		vi.doMock('../../../src/lib/features/event-merit/presentation/syncEventReviewPresentation', () => ({
 			syncEventReviewPresentation
 		}));
 		({ initializeEventReview } = await import('../../../src/lib/features/event-merit/review/initialization/initializeEventReview'));
-		({ startTrackingSession, applyTrackingTick, getTrackingParticipantsSnapshot } =
+		({ startTrackingSession, applyTrackingTick, getTrackingParticipantsSnapshot, stopTrackingSession } =
 			await import('../../../src/integrations/redis/eventTracking'));
 		({ closeDb } = await import('../../../src/integrations/prisma'));
+		({ eventRepository, eventReviewRepository } = await import('../../../src/integrations/prisma/repositories'));
 		({ closeRedisClient } = await import('../../../src/integrations/redis/client'));
 	});
 
@@ -63,6 +70,148 @@ describe('initializeEventReview integration', () => {
 		if (containers) {
 			await stopIntegrationContainers(containers);
 		}
+	});
+
+	it.each([60, 90, 120, 150, 180])('persists %i minutes through draft, activation, end, and fresh review reads', async (expectedEventDuration) => {
+		const host = await createUser(standalone.prisma, { discordUserId: 'duration-host' });
+		const tier = await standalone.prisma.eventTier.findUniqueOrThrow({ where: { code: MeritTypeCode.TIER_1 } });
+		const draft = await eventRepository.createDraftSession({
+			hostDbUserId: host.id,
+			eventTierId: tier.id,
+			threadId: 'duration-thread',
+			name: 'Persisted Duration',
+			expectedEventDuration,
+			primaryChannelId: 'parent-vc',
+			addedByDbUserId: host.id
+		});
+		expect(draft.expectedEventDuration).toBe(expectedEventDuration);
+		await eventRepository.updateSessionState({
+			eventSessionId: draft.id,
+			fromState: EventSessionState.DRAFT,
+			toState: EventSessionState.ACTIVE,
+			data: { startedAt: new Date(0) }
+		});
+		await eventRepository.updateSessionState({
+			eventSessionId: draft.id,
+			fromState: EventSessionState.ACTIVE,
+			toState: EventSessionState.ENDED_PENDING_REVIEW,
+			data: { endedAt: new Date(7_200_000) }
+		});
+		// A separate Prisma connection reads the durable value, independent of draft/runtime objects.
+		await expect(standalone.prisma.event.findUniqueOrThrow({ where: { id: draft.id } })).resolves.toMatchObject({ expectedEventDuration });
+		await expect(eventReviewRepository.getReviewPage({ eventSessionId: draft.id })).resolves.toMatchObject({
+			eventSession: { expectedEventDuration }
+		});
+	});
+
+	it('aggregates reconnects and child VCs once, preserves overrides on retry, and finalizes only once', async () => {
+		const host = await createUser(standalone.prisma, { discordUserId: 'tracking-host' });
+		const atHalf = await createUser(standalone.prisma, { discordUserId: 'at-half' });
+		const underHalf = await createUser(standalone.prisma, { discordUserId: 'under-half' });
+		const event = await createEventSession(standalone.prisma, {
+			hostUserId: host.id,
+			threadId: 'tracking-thread',
+			name: 'Tracked Duration',
+			expectedEventDuration: 60
+		});
+		for (const [channelId, kind] of [
+			['parent-vc', EventSessionChannelKind.PARENT_VC],
+			['child-vc', EventSessionChannelKind.CHILD_VC]
+		] as const) {
+			await eventRepository.upsertSessionChannel({ eventSessionId: event.id, channelId, kind, addedByDbUserId: host.id });
+		}
+		const channelMembers = new Map<string, string[]>();
+		const trackingDeps = {
+			resolveVoiceChannel: async ({ channelId }: { channelId: string }) => ({
+				members: new Map((channelMembers.get(channelId) ?? []).map((id) => [id, { id, user: { bot: false } }]))
+			}),
+			applyTrackingTick,
+			tickDurationSeconds: 600,
+			warningStore: new MissingTrackedChannelWarningStore()
+		};
+		const tick = async () => {
+			const session = await eventRepository.getSession({ eventSessionId: event.id, include: { channels: true } });
+			if (!session) throw new Error('Missing fixture event');
+			return tickTrackedEventSession(trackingDeps, { guild: {} as never, session, context: createMockExecutionContext() });
+		};
+		channelMembers.set('parent-vc', [atHalf.discordUserId]);
+		expect((await tick()).applied).toBe(false);
+		await eventRepository.updateSessionState({
+			eventSessionId: event.id,
+			fromState: EventSessionState.DRAFT,
+			toState: EventSessionState.ACTIVE,
+			data: { startedAt: new Date(0) }
+		});
+		await startTrackingSession({ eventSessionId: event.id, guildId: 'guild', startedAtMs: 0 });
+		await tick();
+		channelMembers.clear(); // Disconnect: no credit while absent.
+		await tick();
+		channelMembers.set('child-vc', [atHalf.discordUserId]);
+		await tick(); // Reconnect in the child VC.
+		channelMembers.set('parent-vc', [atHalf.discordUserId]);
+		await tick(); // Same member in both snapshots still receives just one tick.
+		channelMembers.clear();
+		channelMembers.set('child-vc', [underHalf.discordUserId]);
+		trackingDeps.tickDurationSeconds = 1799;
+		await tick();
+		await eventRepository.updateSessionState({
+			eventSessionId: event.id,
+			fromState: EventSessionState.ACTIVE,
+			toState: EventSessionState.ENDED_PENDING_REVIEW,
+			data: { endedAt: new Date(7_200_000) }
+		});
+		expect((await tick()).applied).toBe(false);
+		await stopTrackingSession({ eventSessionId: event.id });
+		expect(
+			(await applyTrackingTick({ eventSessionId: event.id, attendeeDiscordUserIds: [underHalf.discordUserId], tickDurationSeconds: 600 }))
+				.applied
+		).toBe(false);
+
+		const initialize = () =>
+			initializeEventReview({ guild: { id: 'guild' } as never, eventSessionId: event.id, context: createMockExecutionContext() });
+		await initialize();
+		const page = await eventReviewRepository.getReviewPage({ eventSessionId: event.id });
+		expect(page?.attendees).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ dbUserId: atHalf.id, attendedSeconds: 1800, decision: EventReviewDecisionKind.MERIT }),
+				expect.objectContaining({ dbUserId: underHalf.id, attendedSeconds: 1799, decision: EventReviewDecisionKind.NO_MERIT })
+			])
+		);
+		expect(await standalone.prisma.merit.count()).toBe(0);
+		for (const [targetDbUserId, decision] of [
+			[atHalf.id, EventReviewDecisionKind.NO_MERIT],
+			[underHalf.id, EventReviewDecisionKind.MERIT]
+		] as const) {
+			await recordEventReviewDecision(
+				{
+					findEventSession: (eventSessionId) => eventRepository.getSession({ eventSessionId }),
+					saveDecision: async (params) => {
+						await eventReviewRepository.upsertDecision(params);
+					},
+					syncReviewMessage: async () => true
+				},
+				{
+					actor: {
+						discordUserId: host.discordUserId,
+						dbUserId: host.id,
+						capabilities: { isStaff: true, isCenturion: false, isOptio: false }
+					},
+					eventSessionId: event.id,
+					targetDbUserId,
+					decision,
+					page: 1
+				}
+			);
+		}
+		await initialize(); // Empty Redis after initialization must not reset saved decisions.
+		const results = await Promise.all(
+			[1, 2].map(() => eventReviewRepository.finalizeReview({ eventSessionId: event.id, reviewerDbUserId: host.id, mode: 'with' }))
+		);
+		expect(results.filter((result) => result.finalized)).toHaveLength(1);
+		const merits = await standalone.prisma.merit.findMany({ where: { eventSessionId: event.id } });
+		expect(merits.map((merit) => merit.userId).sort()).toEqual([host.id, underHalf.id].sort());
+		await initialize(); // Finalized events cannot recalculate history.
+		expect(await standalone.prisma.merit.count({ where: { eventSessionId: event.id } })).toBe(2);
 	});
 
 	it('persists participant stats and default review decisions from Redis snapshots', async () => {

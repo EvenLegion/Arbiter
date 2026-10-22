@@ -70,9 +70,34 @@ describe('resolveEventStartCommand', () => {
 				issuerTag: 'issuer#0001',
 				eventTierId: 3,
 				eventName: 'Friday Op',
+				expectedEventDuration: 120,
 				primaryVoiceChannelId: 'voice-1'
 			}
 		});
+	});
+
+	it.each([60, 90, 120, 150, 180])('passes the selected %i minutes into draft creation', async (expectedEventDuration) => {
+		mocks.getDbUserOrThrow.mockResolvedValue({ id: 'db-user-1' });
+		mocks.listEventTiers.mockResolvedValue(createEventTiers());
+		const result = await resolveEventStartCommand({
+			interaction: createInteraction({ expectedEventDuration }),
+			guild: createGuild({ id: 'tracking-channel', type: ChannelType.GuildText }),
+			issuer: createIssuer('voice-1'),
+			logger: { error: vi.fn() }
+		});
+		expect(result).toMatchObject({ kind: 'ready', createDraftInput: { expectedEventDuration } });
+	});
+
+	it.each([null, 0, 1.5, 61, 181])('rejects missing or invalid duration %s before creating a draft', async (expectedEventDuration) => {
+		mocks.listEventTiers.mockResolvedValue(createEventTiers());
+		const result = await resolveEventStartCommand({
+			interaction: createInteraction({ expectedEventDuration }),
+			guild: createGuild({ id: 'tracking-channel', type: ChannelType.GuildText }),
+			issuer: createIssuer('voice-1'),
+			logger: { error: vi.fn() }
+		});
+		expect(result).toMatchObject({ kind: 'fail', delivery: 'editReply' });
+		expect(mocks.getDbUserOrThrow).not.toHaveBeenCalled();
 	});
 
 	it('maps a typed numeric tier level to the tier display order instead of the raw database id', async () => {
@@ -136,9 +161,10 @@ describe('resolveEventStartCommand', () => {
 	});
 });
 
-function createInteraction({ tierLevel = '2' }: { tierLevel?: string } = {}) {
+function createInteraction({ tierLevel = '2', expectedEventDuration = 120 }: { tierLevel?: string; expectedEventDuration?: number | null } = {}) {
 	return {
 		options: {
+			getInteger: vi.fn(() => expectedEventDuration),
 			getString: vi.fn((name: string) => {
 				if (name === 'tier_level') {
 					return tierLevel;

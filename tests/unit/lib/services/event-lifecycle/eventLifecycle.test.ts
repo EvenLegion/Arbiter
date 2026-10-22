@@ -48,6 +48,7 @@ describe('eventLifecycle', () => {
 			issuerTag: 'Host#1234',
 			eventTierId: 7,
 			eventName: 'Friday Op',
+			expectedEventDuration: 90,
 			primaryVoiceChannelId: 'voice-1'
 		});
 
@@ -56,6 +57,7 @@ describe('eventLifecycle', () => {
 			eventSessionId: 11,
 			trackingThreadId: 'thread-7'
 		});
+		expect(deps.createDraftEventSession).toHaveBeenCalledWith(expect.objectContaining({ expectedEventDuration: 90 }));
 		expect(deps.renamePrimaryVoiceChannel).toHaveBeenCalled();
 		expect(deps.saveTrackingMessageRef).toHaveBeenCalledWith({
 			eventSessionId: 11,

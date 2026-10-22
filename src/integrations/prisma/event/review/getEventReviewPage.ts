@@ -27,6 +27,7 @@ export type EventReviewPage = {
 		threadId: string;
 		startedAt: Date | null;
 		endedAt: Date | null;
+		expectedEventDuration: number | null;
 	};
 	attendeeCount: number;
 	page: number;
@@ -58,7 +59,8 @@ export async function getEventReviewPage({ eventSessionId, page = 1, pageSize }:
 			state: true,
 			threadId: true,
 			startedAt: true,
-			endedAt: true
+			endedAt: true,
+			expectedEventDuration: true
 		}
 	});
 	if (!eventSession) {

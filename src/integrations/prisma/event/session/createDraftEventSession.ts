@@ -1,12 +1,15 @@
 import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../../prisma';
+import { isExpectedEventDurationMinutes } from '../../../../lib/constants';
 
 type CreateDraftEventSessionParams = {
 	hostDbUserId: string;
 	eventTierId: number;
 	threadId: string;
 	name: string;
+	/** Whole minutes; omitted only by legacy/internal callers. */
+	expectedEventDuration?: number;
 	primaryChannelId: string;
 	addedByDbUserId: string;
 };
@@ -16,6 +19,7 @@ const CREATE_DRAFT_EVENT_SESSION_SCHEMA = z.object({
 	eventTierId: z.number().int().positive(),
 	threadId: z.string().min(1),
 	name: z.string().min(1),
+	expectedEventDuration: z.number().int().refine(isExpectedEventDurationMinutes).optional(),
 	primaryChannelId: z.string().min(1),
 	addedByDbUserId: z.string().min(1)
 });
@@ -25,6 +29,7 @@ export async function createDraftEventSession({
 	eventTierId,
 	threadId,
 	name,
+	expectedEventDuration,
 	primaryChannelId,
 	addedByDbUserId
 }: CreateDraftEventSessionParams) {
@@ -33,6 +38,7 @@ export async function createDraftEventSession({
 		eventTierId,
 		threadId,
 		name,
+		expectedEventDuration,
 		primaryChannelId,
 		addedByDbUserId
 	});
@@ -43,6 +49,7 @@ export async function createDraftEventSession({
 			eventTierId: parsed.eventTierId,
 			threadId: parsed.threadId,
 			name: parsed.name,
+			expectedEventDuration: parsed.expectedEventDuration,
 			state: EventSessionState.DRAFT,
 			channels: {
 				create: {

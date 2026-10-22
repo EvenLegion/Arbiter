@@ -21,6 +21,7 @@ type CreateEventSessionParams = {
 	threadId: string;
 	name: string;
 	state?: EventSessionState;
+	expectedEventDuration?: number | null;
 	eventTierCode?: MeritTypeCode;
 	startedAt?: Date | null;
 	endedAt?: Date | null;
@@ -72,6 +73,7 @@ export async function createEventSession(
 		threadId,
 		name,
 		state = EventSessionState.DRAFT,
+		expectedEventDuration,
 		eventTierCode = MeritTypeCode.TIER_1,
 		startedAt,
 		endedAt,
@@ -92,6 +94,7 @@ export async function createEventSession(
 			threadId,
 			name,
 			state,
+			expectedEventDuration,
 			startedAt: startedAt ?? undefined,
 			endedAt: endedAt ?? undefined,
 			reviewFinalizedAt: reviewFinalizedAt ?? undefined,

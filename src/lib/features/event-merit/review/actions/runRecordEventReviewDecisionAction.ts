@@ -54,6 +54,7 @@ export async function runRecordEventReviewDecisionAction({
 	const currentDecision = resolveEventReviewDecision({
 		decision: currentAttendee.decision,
 		attendedSeconds: currentAttendee.attendedSeconds,
+		expectedEventDuration: eventSession.expectedEventDuration,
 		durationSeconds: computeEventDurationSeconds({
 			startedAt: eventSession.startedAt,
 			endedAt: eventSession.endedAt
