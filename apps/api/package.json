@@ -15,18 +15,18 @@
 	"dependencies": {
 		"@arbiter/api-contracts": "workspace:*",
 		"@arbiter/domain": "workspace:*",
-		"@prisma/adapter-pg": "^7.9.1",
-		"@prisma/client": "^7.9.1",
-		"ioredis": "^5.9.3",
-		"pg": "^8.22.0",
-		"pino": "^10.1.0",
-		"zod": "^4.3.6"
+		"@prisma/adapter-pg": "^7.10.1",
+		"@prisma/client": "^7.10.1",
+		"ioredis": "^5.11.1",
+		"pg": "^8.23.1",
+		"pino": "^10.4.0",
+		"zod": "~4.4.3"
 	},
 	"devDependencies": {
-		"@types/node": "^22.10.7",
-		"@types/pg": "^8.16.0",
-		"tsx": "^4.21.0",
+		"@types/node": "^22.20.5",
+		"@types/pg": "^8.23.1",
+		"tsx": "^4.23.15",
 		"typescript": "~5.4.5",
-		"vitest": "^4.1.0"
+		"vitest": "^4.1.12"
 	}
 }
