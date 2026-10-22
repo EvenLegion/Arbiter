@@ -45,6 +45,17 @@ That sequence is why the code is split into lifecycle, tracking, review, and pre
 
 ## Draft Creation
 
+`/event start` requires `tier_level`, `event_name`, and `expected_event_duration`.
+The duration choices are **1 hour**, **1.5 hours**, **2 hours**, **2.5 hours**, and
+**3 hours**. Creating the draft does not start attendance tracking; the existing
+Start Event button still records the actual start time.
+
+The selected `expectedEventDuration` is stored on the event in whole minutes
+(60, 90, 120, 150, or 180), so it survives restarts and remains available during
+review. The additive migration must be applied before running the updated bot.
+Existing events have no selected duration and keep their previous calculation;
+there is no historical backfill or change to awarded merits.
+
 At draft creation time, Arbiter does more than insert a row:
 
 - validates the selected event tier
@@ -130,10 +141,24 @@ When an active event ends, Arbiter:
 - records the end timestamp
 - stops live tracking
 - snapshots tracked attendance into durable participant stats
-- seeds review decisions based on the configured minimum attendance threshold
+- seeds default merit selections at **at least 50% of the shorter of the actual event duration and selected expected duration**; events without a selection retain the configured legacy threshold
 - synchronizes the review message
 
-That split gives staff a chance to inspect and adjust the review before merits are awarded.
+An event expected to last two hours but ending after one hour defaults to merit
+at 30 minutes attended. If it runs for three hours, it defaults to merit at 60
+minutes attended. Exactly half qualifies; one second below half does not. The
+existing whole-second actual-duration calculation and active tracking interval
+remain unchanged.
+
+Attendance accumulates across separate visits to the parent and child voice
+channels. Each tracking tick counts a member once across those channels, and
+only active events receive ticks. Stored attendance remains capped by actual
+event duration, rather than the selected expected duration. Review percentages
+for new events use the same shorter duration as merit selection and cap at 100%.
+
+That split gives staff a chance to check or uncheck any attendee before
+confirming. Default selection never awards merits by itself. Existing saved
+review decisions take precedence, including after a review refresh or restart.
 
 ## Review And Finalization
 

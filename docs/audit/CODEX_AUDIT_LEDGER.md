@@ -5,16 +5,16 @@ application-behavior specification.
 
 ## Current snapshot
 
-- Date: 2026-08-08
-- Audited commit: `f2b503bee19870a6e1122d27a035dc3ef153aa6b`
-- Branch: `codex/STE-265-event-ping`
+- Date: 2026-08-09
+- Audited commit: `0bd3a9537c1474df61696632c8810598c0437927`
+- Branch: `codex/STE-300-split-deployment-hardening`
 - Base: `origin/dev`
-- Working tree: the pass began at `ed7f085` with the prior ledger update plus
-  user-owned `prisma.config.ts` and Prisma-config test changes uncommitted. Those
-  two user changes were committed externally as `f2b503b` during the pass; no
-  audited event-review file changed. The branch matches its remote, is 12 commits
-  ahead of `origin/dev`, and only this ledger remains modified. The division and
-  membership files reviewed in the latest pass are unchanged from `origin/dev`.
+- Working tree: the branch and `origin/dev` point at the same commit. An active
+  STE-300 worker owns 23 modified and two untracked files, including all three API
+  runbooks reviewed here. `apps/portal/scripts/browser-api-harness.mjs` became
+  modified during the pass without changing the audited commit or documentation
+  paths. This pass inspected that unstable working snapshot plus the deployed site
+  but did not modify those files. Only this ledger was changed by the audit.
 
 ## Subsystem coverage
 
@@ -24,6 +24,7 @@ application-behavior specification.
 | BullMQ and Redis operations                            | High   | Reviewed                    | 2026-08-08 modernization | After STE-260 or scheduler changes      |
 | Production observability deployment                    | High   | Reviewed                    | 2026-08-08 modernization | After STE-261 or topology changes       |
 | Agent, CI, release, and repository setup               | Medium | Reviewed for modernization  | 2026-08-08 modernization | After workflow/security-setting changes |
+| Documentation site and API integrator surface          | Medium | Partial: v1 API and portal  | 2026-08-09 API docs      | Recheck final STE-300 head              |
 | Discord authorization and custom IDs                   | High   | Partial: event + membership | 2026-08-08 membership    | Review remaining privileged flows       |
 | Event attendance/review state transitions              | High   | Reviewed through finalize   | 2026-08-08 review        | After event-integrity fixes             |
 | Membership, identity, merits, and Discord side effects | High   | Partial: division flows     | 2026-08-08 membership    | Review manual merit and rank effects    |
@@ -54,12 +55,71 @@ application-behavior specification.
 
 ## Next recommended bounded pass
 
-Trace manual merit award and merit-rank effects: command/autocomplete eligibility
--> configured-guild actor policy -> Postgres merit creation and event linkage ->
-Discord medal/nickname/rank side effects -> partial-success, idempotency, error,
-and logging coverage.
+After STE-300 reaches its final head, recheck the published API route/schema/error
+reference, navigation, and credential-handling guidance against the shared
+contracts and deployed site. Then resume the deferred manual merit award and
+merit-rank side-effect pass.
 
 ## Pass history
+
+### 2026-08-09 — API documentation site and integrator experience
+
+- Objective: audit the contributor documentation site for the standalone API,
+  staff portal, integrator guidance, deployment readiness, and a possible
+  portal-hosted documentation/playground surface without colliding with the active
+  STE-300 implementation.
+- Trust boundary: published prose and examples are untrusted descriptions of the
+  versioned contracts and HTTP handlers; API credentials and staff browser sessions
+  must remain separate authorization mechanisms; a browser playground must not
+  persist, log, prefill, or transmit a credential anywhere except the configured
+  API origin.
+- Exclusions: no API, portal, documentation-source, configuration, dependency,
+  runtime, production, branch, commit, push, or PR mutation. The audit did not use
+  live credentials or data. The worker-owned STE-300 working tree remained intact.
+- Evidence:
+    - Read live STE-300 (In Progress), its completed STE-293/298/299 predecessors,
+      post-MVP STE-320/321, the Arbiter project, and current project resources. No
+      accepted Architecture Record is attached as a project resource, and STE-300
+      already owns the API/portal documentation and deployment-readiness outcome.
+    - Compared `packages/api-contracts` route, scope, request, response, and error
+      schemas with the API handlers and current `website/docs/api` pages. The
+      endpoint table covers every current static and dynamic HTTP route; the sole
+      `users:read` scope, directory fields, filter semantics, null-rank behavior,
+      bounds, pagination, authentication split, and rate-limit policy agree with
+      current code.
+    - The deployed Standalone API and Staff Portal pages return 200, while the new
+      worker-owned deployment-readiness page is not deployed yet. The deployed and
+      source Getting Started page still says the API has no business route even
+      though directory and management routes are current behavior.
+    - The explicit sidebar omits the new deployment-readiness page, so the built
+      page is reachable only through inline links. The committed local Postman
+      directory collection is not linked from the documentation site. API route
+      and schema prose is manually maintained; there is no checked-in OpenAPI
+      description or contract-derived interactive reference.
+- Checks:
+    - `pnpm docs:build`: passed and generated all ten pages, including deployment
+      readiness; emitted the existing non-fatal dynamic-require warning.
+    - A read-only route extraction compared the contract constants with the
+      Markdown inventory; all ten static contract paths plus four dynamic
+      integration/credential paths are represented.
+    - A targeted credential-pattern scan found no credential secret or populated
+      API-only secret in `website/docs` or `postman`.
+- Ticket disposition: no new issue. STE-300 already owns the confirmed stale
+  onboarding statement and final v1 guidance. Navigation, Postman discoverability,
+  a machine-readable reference, and a portal playground are product/documentation
+  enhancements without a separately proven correctness or security failure. Audit
+  evidence was added to STE-300 instead of widening or duplicating its scope.
+- Meaningful no-finding conclusions: the current API route inventory and public
+  directory contract are accurate; the docs preserve browser-session versus API-key
+  authorization, Postgres/Redis authority, one-time credential delivery, exact
+  origins, redaction, bounded reads, and no-live-deployment limits; the site build
+  catches broken Markdown links.
+- Remaining coverage: final STE-300 edits may change every audited API runbook. A
+  portal playground still needs an explicit product and security contract before
+  implementation, especially spec authority, credential memory lifetime, allowed
+  routes, request destination, cookie separation, telemetry, and future mutations.
+- Next: re-audit the final STE-300 head and deployed site, then return to manual
+  merit award and rank side effects.
 
 ### 2026-08-08 — Division membership and Discord reconciliation
 

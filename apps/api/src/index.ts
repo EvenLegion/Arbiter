@@ -6,6 +6,10 @@ import { createApiRuntime, type ApiRuntime } from './http/server';
 import { createApiLogger } from './logger';
 import { createApiDependencies } from './runtime/dependencies';
 
+export * from './auth';
+export * from './credentials';
+export * from './directory';
+
 export async function runApi(): Promise<ApiRuntime> {
 	loadApiEnvironment();
 	const config = parseApiConfig();

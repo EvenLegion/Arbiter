@@ -60,6 +60,7 @@ function createEventDraftPersistence() {
 			eventTierId: number;
 			threadId: string;
 			name: string;
+			expectedEventDuration: number;
 			primaryChannelId: string;
 			addedByDbUserId: string;
 		}) => eventRepository.createDraftSession(params),

@@ -121,6 +121,7 @@ describe('eventLifecycle integration', () => {
 				issuerTag: 'Host#5401',
 				eventTierId: eventTier.id,
 				eventName: 'Draft Service Event',
+				expectedEventDuration: 90,
 				primaryVoiceChannelId: 'parent-vc-5401'
 			}
 		);
@@ -142,6 +143,7 @@ describe('eventLifecycle integration', () => {
 			})
 		).resolves.toMatchObject({
 			name: 'Draft Service Event',
+			expectedEventDuration: 90,
 			state: EventSessionState.DRAFT,
 			channels: expect.arrayContaining([
 				expect.objectContaining({

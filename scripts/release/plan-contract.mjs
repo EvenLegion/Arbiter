@@ -3,8 +3,10 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { BUMP_ORDER, REPO_ROOT, SECTION_ORDER, bumpVersion, readPackageJson, sanitizeBranchName } from './lib.mjs';
 
-export const RELEASE_PLAN_SCHEMA_VERSION = 1;
+export const RELEASE_PLAN_SCHEMA_VERSION = 2;
 export const RELEASE_PLAN_BASE_REF = 'origin/dev';
+export const PUBLIC_NOTE_MODES = ['standalone', 'contribute', 'publish', 'internal'];
+export const PUBLIC_NOTE_GROUP_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const FULL_COMMIT_SHA = /^[0-9a-f]{40}$/i;
 
@@ -128,7 +130,7 @@ export function assertValidBranchReleasePlan(options = {}) {
 			: '';
 		throw new ReleasePlanContractError(
 			`No release plan found whose parsed branch field equals ${branch}.${wrongBranchMessage} ` +
-				'Commit the scoped work, then create one with pnpm release:plan -- --bump patch.',
+				'Commit the scoped work, then create one with pnpm release:plan and the intended --bump, --mode, --summary, and mode-specific fields.',
 			'MISSING_BRANCH_PLAN'
 		);
 	}
@@ -145,11 +147,7 @@ export function assertValidBranchReleasePlan(options = {}) {
 
 export function collectReleasePlanIssues({ entry, branch, baseRef, headRef, packageVersion, currentMergeBase, repoRoot = REPO_ROOT }) {
 	const plan = entry.plan;
-	const issues = [];
-
-	if (plan?.schemaVersion !== RELEASE_PLAN_SCHEMA_VERSION) {
-		issues.push(`schemaVersion must be ${RELEASE_PLAN_SCHEMA_VERSION}; received ${String(plan?.schemaVersion)}`);
-	}
+	const issues = collectReleasePlanStructureIssues({ plan, fileName: entry.fileName });
 
 	if (plan?.branch !== branch) {
 		issues.push(`branch must be ${branch}; received ${String(plan?.branch)}`);
@@ -201,30 +199,16 @@ export function collectReleasePlanIssues({ entry, branch, baseRef, headRef, pack
 		}
 	}
 
-	if (!Array.isArray(plan?.commits) || plan.commits.length === 0) {
-		issues.push('commits must contain at least one release-bearing commit');
-	} else {
-		const seenShas = new Set();
+	if (Array.isArray(plan?.commits)) {
 		for (const [index, commit] of plan.commits.entries()) {
-			validateReleasePlanEntry(commit, index, issues);
-
 			const sha = typeof commit?.sha === 'string' ? commit.sha : '';
 			if (!sha) {
-				issues.push(`commits[${index}].sha must be a commit SHA`);
 				continue;
 			}
 
 			if (!FULL_COMMIT_SHA.test(sha)) {
-				issues.push(`commits[${index}].sha must be a full 40-character commit SHA; received ${sha}`);
 				continue;
 			}
-
-			const canonicalSha = sha.toLowerCase();
-			if (seenShas.has(canonicalSha)) {
-				issues.push(`commits contains duplicate SHA ${sha}`);
-				continue;
-			}
-			seenShas.add(canonicalSha);
 
 			if (!gitCommitExists(sha, { repoRoot })) {
 				issues.push(`commits[${index}].sha ${sha} is not a reachable commit`);
@@ -248,11 +232,83 @@ export function collectReleasePlanIssues({ entry, branch, baseRef, headRef, pack
 	return issues;
 }
 
+export function collectReleasePlanStructureIssues({ plan, fileName = 'release plan' } = {}) {
+	const issues = [];
+	if (plan?.schemaVersion !== RELEASE_PLAN_SCHEMA_VERSION) {
+		const migrationHint =
+			plan?.schemaVersion === 1
+				? ` Migrate ${fileName} explicitly with pnpm release:plan:migrate; public-note classification is never inferred.`
+				: '';
+		issues.push(`schemaVersion must be ${RELEASE_PLAN_SCHEMA_VERSION}; received ${String(plan?.schemaVersion)}.${migrationHint}`);
+	}
+
+	if (typeof plan?.contributionSummary !== 'string' || !plan.contributionSummary.trim()) {
+		issues.push('contributionSummary must be a non-empty implementation and provenance summary');
+	}
+
+	validatePublicNote(plan?.publicNote, issues);
+
+	if (!Array.isArray(plan?.commits) || plan.commits.length === 0) {
+		issues.push('commits must contain at least one release-bearing commit');
+		return issues;
+	}
+
+	const seenShas = new Set();
+	for (const [index, commit] of plan.commits.entries()) {
+		validateReleasePlanEntry(commit, index, issues);
+		const sha = typeof commit?.sha === 'string' ? commit.sha : '';
+		if (!sha) {
+			issues.push(`commits[${index}].sha must be a commit SHA`);
+			continue;
+		}
+
+		if (!FULL_COMMIT_SHA.test(sha)) {
+			issues.push(`commits[${index}].sha must be a full 40-character commit SHA; received ${sha}`);
+			continue;
+		}
+
+		const canonicalSha = sha.toLowerCase();
+		if (seenShas.has(canonicalSha)) {
+			issues.push(`commits contains duplicate SHA ${sha}`);
+			continue;
+		}
+		seenShas.add(canonicalSha);
+	}
+
+	return issues;
+}
+
+export function buildPublicNote({ mode, group = null, description = null, section = null } = {}) {
+	const publicNote = { mode };
+	if (group !== null && group !== undefined) {
+		publicNote.group = group;
+	}
+	if (description !== null && description !== undefined) {
+		publicNote.description = description;
+	}
+	if (section !== null && section !== undefined) {
+		publicNote.section = section;
+	}
+
+	const issues = [];
+	validatePublicNote(publicNote, issues);
+	if (issues.length > 0) {
+		throw new ReleasePlanContractError(
+			`Invalid public-note classification:\n${issues.map((issue) => `- ${issue}`).join('\n')}`,
+			'INVALID_PUBLIC_NOTE'
+		);
+	}
+
+	return publicNote;
+}
+
 export function formatInvalidPlanMessage({ branch, entry, issues }) {
 	return [
 		`Release plan ${entry.fileName} for branch ${branch} is invalid:`,
 		...issues.map((issue) => `- ${issue}`),
-		'Regenerate only after confirming the reason: pnpm release:plan -- --regenerate --bump patch --reason "describe why regeneration is required"'
+		'Regenerate only after confirming the reason and preserving the intended v2 classification. ' +
+			'Run pnpm release:plan with --regenerate, --reason, --bump, --mode, --summary, and every mode-specific ' +
+			'--group, --section, or --description flag. See ai/rules/release-plans.md for complete commands.'
 	].join('\n');
 }
 
@@ -314,8 +370,58 @@ function validateReleasePlanEntry(entry, index, issues) {
 		issues.push(`${prefix}.section must be one of ${SECTION_ORDER.join(', ')}; received ${String(entry?.section)}`);
 	}
 
-	if (entry?.releaseNoteLabel !== undefined && (typeof entry.releaseNoteLabel !== 'string' || !entry.releaseNoteLabel.trim())) {
-		issues.push(`${prefix}.releaseNoteLabel must be a non-empty string when provided`);
+	if (entry?.releaseNoteLabel !== undefined) {
+		issues.push(
+			`${prefix}.releaseNoteLabel is a legacy public-copy field; move final copy to plan.publicNote.description or remove it for contribute/internal mode`
+		);
+	}
+}
+
+function validatePublicNote(publicNote, issues) {
+	if (!publicNote || typeof publicNote !== 'object' || Array.isArray(publicNote)) {
+		issues.push('publicNote must be an object with an explicit mode');
+		return;
+	}
+
+	const allowedFields = new Set(['mode', 'group', 'description', 'section']);
+	for (const field of Object.keys(publicNote)) {
+		if (!allowedFields.has(field)) {
+			issues.push(`publicNote.${field} is not supported`);
+		}
+	}
+
+	const { mode } = publicNote;
+	if (!PUBLIC_NOTE_MODES.includes(mode)) {
+		issues.push(`publicNote.mode must be one of ${PUBLIC_NOTE_MODES.join(', ')}; received ${String(mode)}`);
+		return;
+	}
+
+	const hasGroup = publicNote.group !== undefined && publicNote.group !== null;
+	const hasDescription = publicNote.description !== undefined && publicNote.description !== null;
+	const hasSection = publicNote.section !== undefined && publicNote.section !== null;
+
+	if (mode === 'contribute' || mode === 'publish') {
+		if (typeof publicNote.group !== 'string' || !PUBLIC_NOTE_GROUP_PATTERN.test(publicNote.group)) {
+			issues.push('publicNote.group must be a stable lowercase kebab-case identifier for contribute and publish modes');
+		}
+	} else if (hasGroup) {
+		issues.push(`publicNote.group must be absent for ${mode} mode`);
+	}
+
+	if (mode === 'standalone' || mode === 'publish') {
+		if (typeof publicNote.description !== 'string' || !publicNote.description.trim()) {
+			issues.push(`publicNote.description must be a non-empty public description for ${mode} mode`);
+		}
+	} else if (hasDescription) {
+		issues.push(`publicNote.description must be absent for ${mode} mode`);
+	}
+
+	if (mode === 'internal') {
+		if (hasSection) {
+			issues.push('publicNote.section must be absent for internal mode');
+		}
+	} else if (!SECTION_ORDER.includes(publicNote.section)) {
+		issues.push(`publicNote.section must be one of ${SECTION_ORDER.join(', ')} for ${mode} mode; received ${String(publicNote.section)}`);
 	}
 }
 

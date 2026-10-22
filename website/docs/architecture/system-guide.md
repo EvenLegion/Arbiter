@@ -46,13 +46,13 @@ Today the bot exposes a small number of ingress families:
 - gateway listeners for startup and guild-member lifecycle events
 - scheduled tasks for refreshing the division cache and ticking active event tracking sessions
 
-The API is deliberately smaller at this stage. It is a separate package, Node.js process, image, and local container with only versioned health and readiness routes. Its runtime shell owns HTTP request IDs, validation, size and time limits, sanitized JSON errors, structured logs, dependency readiness, and graceful shutdown. Business routes, OAuth, sessions, credentials, and directory reads are introduced by later tickets.
+The API is a separate package, Node.js process, image, and local container with versioned health, readiness, browser-authentication, and staff integration-registry routes. Its runtime shell owns HTTP request IDs, exact-origin credentialed CORS, validation, size and time limits, sanitized JSON errors, structured logs, dependency readiness, and graceful shutdown. The auth service owns Discord OAuth state and session transitions; Postgres repositories own current membership reads; Redis owns only transient, TTL-bounded coordination. Transport-independent integration and credential services persist in the canonical database. The static portal consumes their safe shared contracts but owns no server state or authorization decision.
 
 ## Package And Process Boundaries
 
 ```mermaid
 flowchart LR
-    P["Future portal on Vercel"] -->|"versioned HTTPS REST"| A["apps/api process"]
+    P["apps/portal static Vercel artifact"] -->|"versioned credentialed HTTPS REST"| A["apps/api process"]
     D["Discord"] --> B["root bot process"]
     A --> C["Canonical Prisma client and schema"]
     B --> C
@@ -64,9 +64,9 @@ flowchart LR
     B --> DOM
 ```
 
-The root package remains the bot; it is not hidden inside `apps/bot`. `packages/api-contracts` is transport-only authority and may be consumed by a future portal without importing Prisma, Redis, secrets, or server lifecycle code. The initial permission catalog contains only `users:read`. `packages/domain` owns pure reusable rules. Merit-rank thresholds moved there once, while the bot's previous module path re-exports the package to preserve existing callers.
+The root package remains the bot; it is not hidden inside `apps/bot`. `apps/portal` is a React/Vite static build with one public API-origin setting and no backend. `packages/api-contracts` is transport-only authority shared by API and portal without importing Prisma, Redis, secrets, or server lifecycle code. The initial permission catalog contains only `users:read`. `packages/domain` owns pure reusable rules. Merit-rank thresholds moved there once, while the bot's previous module path re-exports the package to preserve existing callers.
 
-The API opens its own small Postgres pool and Redis client because process-local connections cannot be shared safely. Those connections point to the same database, schema authority, migration history, and Redis service used by the bot. Stopping either process closes only its own clients. Neither runtime starts, stops, reconnects, or terminates the other.
+The API opens its own small Postgres pool and Redis connections because process-local connections cannot be shared safely. Those connections point to the same database, schema authority, migration history, and Redis service used by the bot. Credential authentication, last-use tracking, and directory reads tighten Postgres acquisition, transaction, and statement limits to the current request deadline. A dedicated directory-rate-limit connection bounds each command without interrupting browser-session operations or concurrent rate-limit requests. Discord OAuth establishes browser-session identity. Credential-authenticated API routes authorize requests from the current API credential and its scopes; directory memberships are read from Postgres for the response, not for `users:read` authorization. Redis stores only digested-key OAuth state and browser sessions under the API namespace. Stopping either process closes only its own clients. Neither runtime starts, stops, reconnects, or terminates the other. `API_DB_POOL_MAX` defaults to four so the API cannot silently consume an unbounded share of the existing Postgres connection budget.
 
 ## How Requests Move Through The Bot
 
@@ -157,6 +157,9 @@ Important durable aggregates include:
 - merit types and merit awards
 - event tiers and event sessions
 - tracked channels, stored message references, participant stats, and review decisions
+- shared API integrations and independently revocable credential metadata
+
+API credential secrets are never durable data. `ApiCredential` stores a unique non-secret prefix, an HMAC-SHA-256 verifier, the single `users:read` permission, expiry and revocation audit data, and a throttled `lastUsedAt` timestamp. The API-only pepper remains environment configuration. Integration archive and credential revocation are idempotent, and row-serialized integration mutations establish a clear order between archive and mint operations.
 
 ### Redis
 
@@ -169,7 +172,7 @@ Redis stores transient runtime coordination data. Today that is mainly active ev
 
 The rule is simple: Redis holds state that matters while a workflow is in flight. Postgres holds state that matters afterward.
 
-API-owned transient keys must use the `arbiter:api:v1:` prefix and a TTL no greater than `API_REDIS_MAX_TTL_SECONDS`. The foundation writes no API keys yet; the namespace and bound are established so later OAuth/session and throttling work cannot collide with bot or BullMQ keys.
+API-owned transient keys must use the `arbiter:api:v1:` prefix and a TTL no greater than `API_REDIS_MAX_TTL_SECONDS`. OAuth state is browser-bound, single-use, and stored under `auth:oauth-state:` with a digested key. Browser sessions use digested `auth:session:` keys, sliding idle expiry, non-sliding absolute expiry, and session-bound CSRF tokens. Credential-authenticated directory reads use atomic fixed-window counters under `rate:directory:` and fail closed when Redis is unavailable. Rate-limit commands are bounded by the remaining HTTP deadline and the dedicated client disables offline queuing, so expired commands are not replayed after recovery. API credentials and directory data themselves live in Postgres, not Redis. These keys cannot collide with bot or BullMQ ownership.
 
 ### In-Process Division Cache
 

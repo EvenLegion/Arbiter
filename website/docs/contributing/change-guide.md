@@ -33,6 +33,7 @@ If you start deep in a query module before you understand the workflow, you will
 | Event, tracking, review, or merit behavior                     | Event/merit feature and service directories                              | Redis, Postgres, presentation, scheduled tasks            |
 | Divisions, nicknames, name changes, or guild-member automation | Membership/identity feature and service directories                      | Cache, Discord roles, listeners, presentation             |
 | Logging or observability                                       | Execution context creators, ingress logging, and observability config    | User-visible failure paths, log bindings                  |
+| An API route or transport contract                             | Shared Zod contract and v1 operation catalog                             | API handler, generated reference, contract/API tests      |
 | A listener or scheduled task                                   | Listener or task shell                                                   | Shared service code, logging, tests                       |
 | Docs                                                           | The page that owns the stable concept                                    | Any neighboring page that now duplicates it               |
 | Release or deploy behavior                                     | Release tooling or production stack docs                                 | GitHub workflows, Docker config, operations docs          |
@@ -128,7 +129,25 @@ Expected work:
 - return typed outcomes
 - map those outcomes to Discord copy in a presenter if the branching is meaningful
 
+### Extend The Standalone API
+
+Treat `packages/api-contracts` as the transport authority. Add or update the Zod request and response schemas plus the v1 operation catalog, then make the runtime handler consume those shared contracts. Do not hand-maintain a second schema in Docusaurus.
+
+Regenerate and validate the published reference in the same change:
+
+```bash
+pnpm api:reference:generate
+pnpm api:reference:check
+pnpm --filter @arbiter/api-contracts test
+pnpm --filter @arbiter/api test
+pnpm docs:build
+```
+
+Review the generated [API reference](/api/reference) and OpenAPI artifact. New routes must declare every supported method, the browser-session or API-credential boundary, CSRF for browser mutations, required scopes, stable error codes and statuses, bounds, pagination, and relevant response headers. Examples remain placeholder-only and must never contain live credentials, cookies, OAuth values, environment values, or production hostnames.
+
 ## Validation Checklist
+
+Use the [Testing And Validation](/local-development/testing-and-validation) matrix to choose the narrowest check that covers the changed risk, then finish with the ticket-required or repository-wide chain.
 
 For most code changes, the safe default is:
 
@@ -155,6 +174,8 @@ Do manual Discord checks when the change affects:
 - guild-member listeners triggered by real role changes
 
 Use automated tests for business correctness. Use manual testing for client and transport behavior.
+
+For environment, service, data, or failure diagnosis, use the focused [Local Development](/local-development/environment-and-services) runbooks instead of expanding this contributor workflow with command inventories.
 
 ## Docs Are Part Of The Change
 
@@ -186,26 +207,31 @@ read-only checker finds the plan by its parsed `branch` field and validates its
 schema, `origin/dev` merge base, version intent, and recorded commit ancestry.
 
 - Reuse that plan when it still targets `origin/dev`, records the current merge
-  base, and has the intended version bump and release-note scope.
+  base, and has the intended version bump, contribution summary, public-note
+  mode, group, and public-copy scope.
 - Do not create another plan merely because you added a later implementation or
   review-fix commit.
 - If no matching plan exists, commit the scoped work with Conventional Commit
-  subjects, then run `pnpm release:plan -- --bump patch` once, substituting the
-  intended `minor` or `major` bump when appropriate.
+  subjects, then run `pnpm release:plan` once with the intended bump, explicit
+  `standalone`, `contribute`, `publish`, or `internal` mode, contribution summary,
+  and every field required by that mode.
 - Regenerate a matching plan only when its branch, base, merge base, version
   bump, or release-note scope is no longer valid. Use
-  `pnpm release:plan -- --regenerate --bump patch --reason "why replacement is required"`.
+  `--regenerate`, the full intended classification, and
+  `--reason "why replacement is required"`.
 
 The planner reuses a valid plan without changing the worktree. For a missing
 plan, it writes the branch-owned file under `.release-plans/` and commits it.
 Unreadable or duplicate plans require manual repair before the tool can safely
-identify ownership. The full validity and recovery model is documented in
-[Operations](/operations/release-and-deploy).
+identify ownership. The full validity and repair model is documented in
+[Release contributions and source publication](/contributing/release-process).
 
-The plan descriptions become public release notes and may be posted to the Even
-Legion Discord. Write them for members who do not know the codebase: explain the
-change, why it matters, and whether it changes commands or member behavior. Do
-not use file names, ticket shorthand, or technical jargon without explanation.
+Plans are always provenance records. Only `standalone` and `publish` plans emit
+public notes; `contribute` and `internal` plans do not. A capability group must
+have exactly one publisher. Run `pnpm release:preview` to see the exact
+consolidated public notes and provenance manifest without changing the worktree.
+The full mode, migration, preview, and source-publication contract is documented
+in [Release contributions and source publication](/contributing/release-process).
 
 ## A Good Final Smell Test
 

@@ -14,6 +14,7 @@ type CreateEventDraftDeps = {
 		eventTierId: number;
 		threadId: string;
 		name: string;
+		expectedEventDuration: number;
 		primaryChannelId: string;
 		addedByDbUserId: string;
 	}) => Promise<{ id: number; name: string }>;
@@ -37,9 +38,7 @@ type CreateEventDraftDeps = {
 };
 
 export type CreateEventDraftResult =
-	| { kind: 'tier_not_found' }
-	| { kind: 'tracking_thread_failed' }
-	| { kind: 'draft_created'; eventSessionId: number; trackingThreadId: string };
+	{ kind: 'tier_not_found' } | { kind: 'tracking_thread_failed' } | { kind: 'draft_created'; eventSessionId: number; trackingThreadId: string };
 
 export async function createEventDraft(
 	deps: CreateEventDraftDeps,
@@ -49,6 +48,8 @@ export async function createEventDraft(
 		issuerTag: string;
 		eventTierId: number;
 		eventName: string;
+		/** Selected duration in whole minutes. */
+		expectedEventDuration: number;
 		primaryVoiceChannelId: string;
 	}
 ): Promise<CreateEventDraftResult> {
@@ -86,6 +87,7 @@ export async function createEventDraft(
 			eventTierId: eventTier.id,
 			threadId: thread.threadId,
 			name: input.eventName,
+			expectedEventDuration: input.expectedEventDuration,
 			primaryChannelId: input.primaryVoiceChannelId,
 			addedByDbUserId: input.hostDbUserId
 		});

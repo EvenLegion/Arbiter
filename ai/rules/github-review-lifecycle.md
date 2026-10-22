@@ -19,21 +19,18 @@ Use REST review comments, reviews, issue comments, requested reviewers, checks,
 and PR reactions as complementary surfaces. Flat comments and
 `gh pr view --comments` alone are insufficient.
 
-## Delegated Fable-to-Opus ownership
+## Delegated review ownership
 
 A PR whose description carries the `Review handoff` marker from
 `ai/rules/implementation-lifecycle.md` has intentionally split implementation
-from review follow-through. Fable stops at the recorded head without observing
-or acting on review feedback. A separate Opus 5 task invoked with
-`ADDRESS_REVIEW_COMMENTS` owns this lifecycle and must use authoritative
-`reviewThreads` state, independently decide every actionable finding, implement
-accepted fixes, reply to and resolve decided threads, push later heads, and
-complete the bounded reviewer cycle below.
+from review follow-through. The receiving Astra `ADDRESS_REVIEW_COMMENTS` task
+owns this lifecycle within the recorded scope and permissions. The implementation
+task stops feedback work at the recorded head; do not operate on the same review
+threads concurrently. Handoff contents and completion evidence are owned by the
+implementation lifecycle. Older Fable/Opus markers do not override the current
+Astra review routing.
 
-The handoff marker is observable delegation, not reviewer completion. The Opus
-5 task's decisions, commits, replies, thread-resolution state, validation, and
-bounded reviewer-cycle result are the completion evidence. Unless the user
-explicitly overrides the delegation, do not send review work back to Fable.
+## Thread freshness
 
 Re-fetch GraphQL thread state:
 
@@ -88,8 +85,9 @@ requirements, and fix complexity determine the decision. Rare findings that
 threaten authorization, Postgres/Redis integrity, idempotency, data loss, or
 live Discord safety remain material; the high-risk approval gate still applies.
 
-For accepted items: patch, run proportionate checks, commit, push, reply when
-useful, resolve the addressed thread, and re-fetch thread state. For rejected
+For accepted items: patch, run proportionate checks, then follow the implementation
+lifecycle's scoped commit, pre-push release-plan check/reuse, and push sequence.
+Reply when useful, resolve the addressed thread, and re-fetch thread state. For rejected
 or declined items: reply with concise evidence and, for declines, the risk and
 complexity tradeoff; resolve the decided thread and re-fetch. Leave only
 genuinely partial or blocked items unresolved, with the blocker reported.
@@ -108,7 +106,10 @@ The goal is material risk reduction, not zero automated-review comments.
 
 1. Observe one automated review of the completed implementation.
 2. Decide its threads and address accepted feedback in one consolidated batch.
-3. Observe one current-head follow-up review.
+3. If accepted material fixes were pushed, observe one current-head follow-up
+   review. If the first review has no accepted high-value finding and all
+   threads have decisions, stop after the settle/refetch step; do not request
+   a redundant clean-head review.
 4. Decide and address any remaining high-value findings. Unless the high-risk
    third-cycle exception below applies, do not request, trigger, or wait for
    another automated review after that push.

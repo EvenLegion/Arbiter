@@ -34,3 +34,6 @@ website/node_modules/
 audits/
 
 logs/
+
+# Transient release-preparation serialization lock
+.release-publish.lock

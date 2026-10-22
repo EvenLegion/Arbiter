@@ -45,65 +45,69 @@ describe('runRecordEventReviewDecisionAction', () => {
 		mocks.presentRecordEventReviewDecisionResult.mockReset();
 	});
 
-	it('loads the attendee state directly by event and target user before toggling', async () => {
-		mocks.eventReviewRepository.getReviewAttendee.mockResolvedValue({
-			dbUserId: 'db-user-1',
-			discordUserId: 'discord-user-1',
-			discordUsername: 'alpha',
-			discordNickname: 'Alpha',
-			attendedSeconds: 3600,
-			decision: EventReviewDecisionKind.MERIT
-		});
-		mocks.eventRepository.getSession.mockResolvedValue({
-			id: 42,
-			state: EventSessionState.ENDED_PENDING_REVIEW,
-			startedAt: new Date('2026-03-14T10:00:00.000Z'),
-			endedAt: new Date('2026-03-14T11:00:00.000Z')
-		});
-		mocks.recordEventReviewDecision.mockResolvedValue({
-			kind: 'decision_saved',
-			synced: true
-		});
-		mocks.presentRecordEventReviewDecisionResult.mockReturnValue(null);
+	it.each([EventReviewDecisionKind.MERIT, EventReviewDecisionKind.NO_MERIT, null])(
+		'toggles the saved or derived decision %s using the selected duration',
+		async (decision) => {
+			mocks.eventReviewRepository.getReviewAttendee.mockResolvedValue({
+				dbUserId: 'db-user-1',
+				discordUserId: 'discord-user-1',
+				discordUsername: 'alpha',
+				discordNickname: 'Alpha',
+				attendedSeconds: 1800,
+				decision
+			});
+			mocks.eventRepository.getSession.mockResolvedValue({
+				id: 42,
+				state: EventSessionState.ENDED_PENDING_REVIEW,
+				startedAt: new Date('2026-03-14T10:00:00.000Z'),
+				endedAt: new Date('2026-03-14T12:00:00.000Z'),
+				expectedEventDuration: 60
+			});
+			mocks.recordEventReviewDecision.mockResolvedValue({
+				kind: 'decision_saved',
+				synced: true
+			});
+			mocks.presentRecordEventReviewDecisionResult.mockReturnValue(null);
 
-		const logger = createMockLogger();
+			const logger = createMockLogger();
 
-		await runRecordEventReviewDecisionAction({
-			parsedEventReviewButton: {
-				action: 'decision',
-				eventSessionId: 42,
-				targetDbUserId: 'db-user-1',
-				page: 9
-			},
-			guild: {
-				id: 'guild-1'
-			} as never,
-			logger,
-			reviewer: {
-				actor: {
-					discordUserId: 'reviewer-1',
-					dbUserId: 'reviewer-db-1',
-					capabilities: {
-						isStaff: true,
-						isCenturion: false,
-						isOptio: false
+			await runRecordEventReviewDecisionAction({
+				parsedEventReviewButton: {
+					action: 'decision',
+					eventSessionId: 42,
+					targetDbUserId: 'db-user-1',
+					page: 9
+				},
+				guild: {
+					id: 'guild-1'
+				} as never,
+				logger,
+				reviewer: {
+					actor: {
+						discordUserId: 'reviewer-1',
+						dbUserId: 'reviewer-db-1',
+						capabilities: {
+							isStaff: true,
+							isCenturion: false,
+							isOptio: false
+						}
 					}
 				}
-			}
-		});
+			});
 
-		expect(mocks.eventReviewRepository.getReviewAttendee).toHaveBeenCalledWith({
-			eventSessionId: 42,
-			targetDbUserId: 'db-user-1'
-		});
-		expect(mocks.recordEventReviewDecision).toHaveBeenCalledWith(
-			expect.any(Object),
-			expect.objectContaining({
+			expect(mocks.eventReviewRepository.getReviewAttendee).toHaveBeenCalledWith({
 				eventSessionId: 42,
-				targetDbUserId: 'db-user-1',
-				page: 9,
-				decision: EventReviewDecisionKind.NO_MERIT
-			})
-		);
-	});
+				targetDbUserId: 'db-user-1'
+			});
+			expect(mocks.recordEventReviewDecision).toHaveBeenCalledWith(
+				expect.any(Object),
+				expect.objectContaining({
+					eventSessionId: 42,
+					targetDbUserId: 'db-user-1',
+					page: 9,
+					decision: decision === EventReviewDecisionKind.NO_MERIT ? EventReviewDecisionKind.MERIT : EventReviewDecisionKind.NO_MERIT
+				})
+			);
+		}
+	);
 });

@@ -41,6 +41,8 @@ model Event {
   eventTierId             Int
   threadId                String            @unique
   name                    String
+  /// Selected expected duration in whole minutes (60, 90, 120, 150, 180); null preserves legacy attendance rules.
+  expectedEventDuration   Int?
   state                   EventSessionState @default(DRAFT)
   startedAt               DateTime?
   eventPingSentAt         DateTime?

@@ -62,6 +62,9 @@ Verify this map against the live tree before relying on it:
 - `prisma/schema` and its migrations: durable Postgres model and deploy-time
   evolution; `prisma/migration` contains separately invoked legacy-data and
   repair utilities.
+- `apps/api`, `apps/portal`, `packages/domain`, and `packages/api-contracts`:
+  independent API and staff portal, shared policy, and transport contracts.
+  Load their current boundary guides from `ai/PROJECT_RULES.md` only when affected.
 - `website/docs`: contributor, architecture, feature, release, and deployment
   guidance.
 - Root infrastructure: pnpm scripts, Docker Compose, CI, release planning, and
@@ -131,8 +134,9 @@ does not introduce.
   agree without embedding credentials or unsafe production defaults.
 - Root scripts and CI exercise the intended typecheck, lint, unit, integration,
   and docs-build paths without silently skipping critical coverage.
-- Feature work targets `dev`; release planning derives from Conventional
-  Commit subjects; only the `dev` to `main` promotion path publishes releases.
+- Feature work targets `dev`; branch-owned release plans preserve provenance
+  and explicitly classify public notes under `ai/rules/release-plans.md`.
+  Release publication follows the separately authorized `dev` to `main` path.
 - Production migration, bot, Redis, persistent storage, and log-shipping health
   are verified separately. Container health alone is not treated as success.
 

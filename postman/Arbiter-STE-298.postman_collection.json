@@ -1,0 +1,326 @@
+{
+	"info": {
+		"_postman_id": "c874c6a3-d032-4b61-89be-a20da20d43b4",
+		"name": "Arbiter API — STE-298 Directory",
+		"description": "Requests for the credential-authenticated directory routes introduced by STE-298, plus liveness and readiness checks. Select the supplied local environment and set apiKey before running authenticated requests.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Infrastructure",
+			"item": [
+				{
+					"name": "Health",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('returns 200', () => pm.response.to.have.status(200));",
+									"pm.test('reports process health', () => pm.expect(pm.response.json().data.status).to.eql('ok'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [{ "key": "X-Request-ID", "value": "postman-health-{{$guid}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "health"]
+						}
+					}
+				},
+				{
+					"name": "Readiness",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('returns 200', () => pm.response.to.have.status(200));",
+									"pm.test('Postgres and Redis are ready', () => pm.expect(pm.response.json().data.status).to.eql('ready'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [{ "key": "X-Request-ID", "value": "postman-readiness-{{$guid}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/readiness",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "readiness"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Directory — authenticated",
+			"item": [
+				{
+					"name": "Get user by Discord ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('returns 200', () => pm.response.to.have.status(200));",
+									"pm.test('returns the requested user', () => pm.expect(pm.response.json().data.discordUserId).to.eql(pm.environment.get('discordUserId')));",
+									"pm.test('returns rate-limit headers', () => pm.expect(pm.response.headers.has('X-RateLimit-Limit')).to.be.true);"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{apiKey}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [{ "key": "X-Request-ID", "value": "postman-user-{{$guid}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/{{discordUserId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "users", "{{discordUserId}}"]
+						}
+					}
+				},
+				{
+					"name": "Query first page",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('returns 200', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('returns a bounded users page', () => { pm.expect(body.data.users).to.be.an('array'); pm.expect(body.data.users.length).to.be.at.most(25); });",
+									"if (body.data.nextCursor) pm.environment.set('nextCursor', body.data.nextCursor); else pm.environment.unset('nextCursor');"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{apiKey}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Request-ID", "value": "postman-query-{{$guid}}" }
+						],
+						"body": { "mode": "raw", "raw": "{\n\t\"limit\": 25\n}" },
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/query",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "users", "query"]
+						}
+					}
+				},
+				{
+					"name": "Query by Discord IDs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('returns 200', () => pm.response.to.have.status(200));",
+									"pm.test('returns at most one user', () => pm.expect(pm.response.json().data.users.length).to.be.at.most(1));"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{apiKey}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Request-ID", "value": "postman-query-ids-{{$guid}}" }
+						],
+						"body": { "mode": "raw", "raw": "{\n\t\"discordUserIds\": [\"{{discordUserId}}\"],\n\t\"limit\": 1\n}" },
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/query",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "users", "query"]
+						}
+					}
+				},
+				{
+					"name": "Query by division and rank",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": ["pm.test('returns 200', () => pm.response.to.have.status(200));"]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{apiKey}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Request-ID", "value": "postman-query-filter-{{$guid}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"divisionCodesAny\": [\"{{divisionCode}}\"],\n\t\"minimumRank\": 1,\n\t\"limit\": 25\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/query",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "users", "query"]
+						}
+					}
+				},
+				{
+					"name": "Query next page (requires nextCursor)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (!pm.environment.get('nextCursor')) throw new Error('Run Query first page and use a page size that returns nextCursor first.');"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('returns 200', () => pm.response.to.have.status(200));",
+									"const cursor = pm.response.json().data.nextCursor;",
+									"if (cursor) pm.environment.set('nextCursor', cursor); else pm.environment.unset('nextCursor');"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{apiKey}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Request-ID", "value": "postman-query-next-{{$guid}}" }
+						],
+						"body": { "mode": "raw", "raw": "{\n\t\"limit\": 25,\n\t\"cursor\": \"{{nextCursor}}\"\n}" },
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/query",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "users", "query"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Negative cases",
+			"item": [
+				{
+					"name": "Missing bearer credential → 401",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('returns 401', () => pm.response.to.have.status(401));",
+									"pm.test('uses the sanitized error', () => pm.expect(pm.response.json().error.code).to.eql('unauthorized'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/{{discordUserId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "users", "{{discordUserId}}"]
+						}
+					}
+				},
+				{
+					"name": "Missing user → 404",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('returns 404', () => pm.response.to.have.status(404));",
+									"pm.test('uses not_found', () => pm.expect(pm.response.json().error.code).to.eql('not_found'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{apiKey}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/{{missingDiscordUserId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "users", "{{missingDiscordUserId}}"]
+						}
+					}
+				},
+				{
+					"name": "Malformed query → 400",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('returns 400', () => pm.response.to.have.status(400));",
+									"pm.test('uses bad_request', () => pm.expect(pm.response.json().error.code).to.eql('bad_request'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{apiKey}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": { "mode": "raw", "raw": "{\n\t\"minimumRank\": 5,\n\t\"maximumRank\": 1\n}" },
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/query",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "users", "query"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

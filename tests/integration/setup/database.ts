@@ -16,9 +16,10 @@ export type StandalonePrisma = {
 	close: () => Promise<void>;
 };
 
-export function createStandalonePrisma(databaseUrl: string): StandalonePrisma {
+export function createStandalonePrisma(databaseUrl: string, { max }: { max?: number } = {}): StandalonePrisma {
 	const pool = new Pool({
-		connectionString: databaseUrl
+		connectionString: databaseUrl,
+		max
 	});
 	const prisma = new PrismaClient({
 		adapter: new PrismaPg(pool)
@@ -35,6 +36,18 @@ export function createStandalonePrisma(databaseUrl: string): StandalonePrisma {
 
 export function pushPrismaSchema(databaseUrl: string) {
 	execFileSync('pnpm', ['exec', 'prisma', 'db', 'push'], {
+		cwd: repoRoot,
+		env: {
+			...process.env,
+			DATABASE_URL: databaseUrl,
+			PRISMA_DATABASE_URL: databaseUrl
+		},
+		stdio: 'pipe'
+	});
+}
+
+export function deployPrismaMigrations(databaseUrl: string) {
+	execFileSync('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], {
 		cwd: repoRoot,
 		env: {
 			...process.env,

@@ -1,6 +1,7 @@
 import { ChannelType, type ForumChannel, type Guild, type GuildMember, type TextChannel } from 'discord.js';
 
 import { ENV_DISCORD } from '../../../../../config/env/discord';
+import { isExpectedEventDurationMinutes } from '../../../../constants';
 import { eventRepository } from '../../../../../integrations/prisma/repositories';
 import { getGuildChannel } from '../../../../discord/guild/configuredGuild';
 import { getDbUserOrThrow } from '../../../../discord/guild/users';
@@ -8,6 +9,7 @@ import { getDbUserOrThrow } from '../../../../discord/guild/users';
 type EventStartInteraction = {
 	options: {
 		getString: (name: string, required?: boolean) => string | null;
+		getInteger: (name: string, required?: boolean) => number | null;
 	};
 	user: {
 		id: string;
@@ -25,6 +27,7 @@ export type ResolvedEventStartCommand =
 				issuerTag: string;
 				eventTierId: number;
 				eventName: string;
+				expectedEventDuration: number;
 				primaryVoiceChannelId: string;
 			};
 	  }
@@ -84,6 +87,15 @@ export async function resolveEventStartCommand({
 		};
 	}
 
+	const expectedEventDuration = interaction.options.getInteger('expected_event_duration', true);
+	if (!isExpectedEventDurationMinutes(expectedEventDuration)) {
+		return {
+			kind: 'fail',
+			delivery: 'editReply',
+			content: 'Select an expected event duration of 1 hour, 1.5 hours, 2 hours, 2.5 hours, or 3 hours.'
+		};
+	}
+
 	const trackingChannel = await resolveTrackingChannel(guild);
 	if (!trackingChannel) {
 		logger.error(
@@ -112,6 +124,7 @@ export async function resolveEventStartCommand({
 			issuerTag: interaction.user.tag,
 			eventTierId: eventTier.id,
 			eventName,
+			expectedEventDuration,
 			primaryVoiceChannelId
 		}
 	};

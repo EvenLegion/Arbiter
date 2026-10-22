@@ -1,10 +1,28 @@
 import { z } from 'zod';
 
 export const API_V1_PREFIX = '/api/v1' as const;
+export const API_CONTRACT_VERSION = '1' as const;
+export const API_CONTRACT_VERSION_HEADER = 'x-arbiter-api-contract-version' as const;
 export const API_V1_ROUTES = {
 	health: `${API_V1_PREFIX}/health`,
-	readiness: `${API_V1_PREFIX}/readiness`
+	readiness: `${API_V1_PREFIX}/readiness`,
+	authDiscordStart: `${API_V1_PREFIX}/auth/discord/start`,
+	authDiscordCallback: `${API_V1_PREFIX}/auth/discord/callback`,
+	authSession: `${API_V1_PREFIX}/auth/session`,
+	authIdentity: `${API_V1_PREFIX}/auth/me`,
+	authLogout: `${API_V1_PREFIX}/auth/logout`,
+	integrationRegistry: `${API_V1_PREFIX}/integrations`,
+	directoryUsers: `${API_V1_PREFIX}/users`,
+	directoryQuery: `${API_V1_PREFIX}/users/query`
 } as const;
+
+export function apiIntegrationCredentialsRoute(integrationId: string): string {
+	return `${API_V1_ROUTES.integrationRegistry}/${encodeURIComponent(integrationId)}/credentials`;
+}
+
+export function apiCredentialRevokeRoute(integrationId: string, credentialId: string): string {
+	return `${apiIntegrationCredentialsRoute(integrationId)}/${encodeURIComponent(credentialId)}/revoke`;
+}
 
 export const RequestIdSchema = z
 	.string()
@@ -32,6 +50,17 @@ export const ApiErrorCodeSchema = z.enum([
 	'not_found',
 	'payload_too_large',
 	'request_timeout',
+	'unauthorized',
+	'forbidden',
+	'invalid_oauth_state',
+	'oauth_failed',
+	'csrf_failed',
+	'origin_not_allowed',
+	'invalid_redirect',
+	'conflict',
+	'stale',
+	'integration_archived',
+	'rate_limited',
 	'service_unavailable',
 	'internal_error'
 ]);

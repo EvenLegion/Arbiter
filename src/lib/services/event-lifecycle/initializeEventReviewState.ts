@@ -1,6 +1,7 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 
 import type { EventReviewParticipantSnapshot, EventReviewUserLookup } from './eventLifecycleTypes';
+import { resolveEventAttendancePolicy } from '../event-review/eventAttendancePolicy';
 
 type InitializeEventReviewDeps = {
 	findEventSession: (eventSessionId: number) => Promise<{
@@ -8,6 +9,7 @@ type InitializeEventReviewDeps = {
 		state: EventSessionState;
 		startedAt: Date | null;
 		endedAt: Date | null;
+		expectedEventDuration?: number | null;
 	} | null>;
 	getTrackingParticipantsSnapshot: (eventSessionId: number) => Promise<EventReviewParticipantSnapshot[]>;
 	findUsersByDiscordUserIds: (discordUserIds: string[]) => Promise<EventReviewUserLookup[]>;
@@ -79,6 +81,11 @@ export async function initializeEventReviewState(
 		endedAt: eventSession.endedAt
 	});
 	const participantSnapshots = await deps.getTrackingParticipantsSnapshot(input.eventSessionId);
+	const attendancePolicy = resolveEventAttendancePolicy({
+		durationSeconds,
+		expectedEventDuration: eventSession.expectedEventDuration,
+		defaultMinAttendancePct: deps.defaultMinAttendancePercent
+	});
 	const discordUserIds = [...new Set(participantSnapshots.map((snapshot) => snapshot.discordUserId))];
 	const users = discordUserIds.length > 0 ? await deps.findUsersByDiscordUserIds(discordUserIds) : [];
 	const dbUserIdByDiscordUserId = new Map(users.map((user) => [user.discordUserId, user.id]));
@@ -108,8 +115,8 @@ export async function initializeEventReviewState(
 			targetDbUserId: participant.dbUserId,
 			decision: resolveDefaultReviewDecision({
 				attendedSeconds: participant.attendedSeconds,
-				durationSeconds,
-				defaultMinAttendancePercent: deps.defaultMinAttendancePercent
+				durationSeconds: attendancePolicy.durationSeconds,
+				defaultMinAttendancePercent: attendancePolicy.defaultMinAttendancePct
 			})
 		})),
 		overwriteExisting: false
