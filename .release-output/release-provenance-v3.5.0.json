@@ -1,0 +1,382 @@
+{
+	"schemaVersion": 1,
+	"releaseVersion": "3.5.0",
+	"plans": [
+		{
+			"fileName": "codex-agent-instruction-refresh.json",
+			"branch": "codex/agent-instruction-refresh",
+			"bump": "patch",
+			"contributionSummary": "Refreshes Arbiter agent guidance, proportional validation and Astra review routing while preserving project-specific behavior and approval boundaries.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "a20f38d7a6322dccaeb091495adcb1b88bb99238",
+					"subject": "docs(ai): refresh agent instructions with bounded review guidance",
+					"committedAt": "2026-10-21T13:16:23-10:00",
+					"committedAtMs": 1792624583000,
+					"type": "docs",
+					"scope": "ai",
+					"description": "refresh agent instructions with bounded review guidance",
+					"breaking": false,
+					"section": "Maintenance",
+					"pullRequest": {
+						"number": 116,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/116"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "codex-dependency-consolidation.json",
+			"branch": "codex/dependency-consolidation",
+			"bump": "patch",
+			"contributionSummary": "Refreshes compatible runtime and development dependencies across the workspace and consolidates the dependency update backlog.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "66db0de7fe2352db06e3d4ba2ac0282415a5db68",
+					"subject": "chore(deps): consolidate compatible workspace updates",
+					"committedAt": "2026-10-21T14:04:21-10:00",
+					"committedAtMs": 1792627461000,
+					"type": "chore",
+					"scope": "deps",
+					"description": "consolidate compatible workspace updates",
+					"breaking": false,
+					"section": "Maintenance",
+					"pullRequest": {
+						"number": 117,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/117"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "codex-event-review-ci-fix.json",
+			"branch": "codex/event-review-ci-fix",
+			"bump": "patch",
+			"contributionSummary": "Removes unused merit-duration presentation wiring and updates the review embed assertion to match the shortened header copy, restoring CI without changing attendance decisions.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "08c2f8514300db5581c20b8273840cc15cda76f1",
+					"subject": "fix(event): remove unused review duration wiring",
+					"committedAt": "2026-10-21T16:12:29-10:00",
+					"committedAtMs": 1792635149000,
+					"type": "fix",
+					"scope": "event",
+					"description": "remove unused review duration wiring",
+					"breaking": false,
+					"section": "Fixes",
+					"pullRequest": {
+						"number": 119,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/119"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "codex-expected-event-duration.json",
+			"branch": "codex/expected-event-duration",
+			"bump": "minor",
+			"contributionSummary": "Adds required expected_event_duration choices, nullable whole-minute persistence, and capped-duration review defaults with legacy fallback and regression coverage.",
+			"publicNote": {
+				"mode": "standalone",
+				"description": "Event organizers now choose an expected duration when creating an event, from one to three hours in half-hour steps. Arbiter preselects merit for members who attend at least half of the event's actual duration when less than expected duration, or half of the expected duration when longer than expected. Event runners can still adjust merit selections before submitting.",
+				"section": "Features"
+			},
+			"commits": [
+				{
+					"sha": "6ab56cff1c077c58f042f2b4346279f0daf5fdbd",
+					"subject": "feat(event): select merit defaults using expected duration",
+					"committedAt": "2026-10-21T15:07:01-10:00",
+					"committedAtMs": 1792631221000,
+					"type": "feat",
+					"scope": "event",
+					"description": "select merit defaults using expected duration",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 118,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/118"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "codex-STE-298-api-directory-routes.json",
+			"branch": "codex/STE-298-api-directory-routes",
+			"bump": "minor",
+			"contributionSummary": "Exposes credential-authenticated member-directory routes with bounded filtering, pagination, rate limiting, and safe errors.",
+			"publicNote": {
+				"mode": "standalone",
+				"description": "Arbiter now includes a working member-directory API for approved Even Legion tools. It provides current division memberships, merit totals, and merit ranks for individual members or filtered groups, while read-only access controls and usage limits protect Arbiter from unauthorized or excessive use.",
+				"section": "Features"
+			},
+			"commits": [
+				{
+					"sha": "ad7b408efcb9768d2d739a5974bbeea8794fff3d",
+					"subject": "feat(api): expose credential-authenticated directory routes",
+					"committedAt": "2026-08-09T13:53:06-10:00",
+					"committedAtMs": 1786319586000,
+					"type": "feat",
+					"scope": "api",
+					"description": "Arbiter now includes a working member-directory API for approved Even Legion tools. It provides current division memberships, merit totals, and merit ranks for individual members or filtered groups, while read-only access controls and usage limits protect Arbiter from unauthorized or excessive use.",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 109,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/109"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "codex-STE-299-portal-credential-management.json",
+			"branch": "codex/STE-299-portal-credential-management",
+			"bump": "patch",
+			"contributionSummary": "Adds staff-portal management for API integrations and their credential lifecycle.",
+			"publicNote": {
+				"mode": "standalone",
+				"description": "Arbiter now includes a staff website for managing which approved tools can use the member-directory API. Authorized staff can sign in with Discord, register integrations, create or replace access keys, review their status, and revoke access when it is no longer needed.",
+				"section": "Features"
+			},
+			"commits": [
+				{
+					"sha": "6cda1be48f15a3892274509946f0a5edf823021c",
+					"subject": "feat(api): add portal credential management",
+					"committedAt": "2026-08-09T16:20:34-10:00",
+					"committedAtMs": 1786328434000,
+					"type": "feat",
+					"scope": "api",
+					"description": "Arbiter now includes a staff website for managing which approved tools can use the member-directory API. Authorized staff can sign in with Discord, register integrations, create or replace access keys, review their status, and revoke access when it is no longer needed.",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 110,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/110"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "codex-STE-336-openapi-reference.json",
+			"branch": "codex/STE-336-openapi-reference",
+			"bump": "minor",
+			"contributionSummary": "Generates OpenAPI 3.1 and Docusaurus references from API contract schemas and validates runtime route and method drift.",
+			"publicNote": {
+				"mode": "standalone",
+				"description": "Integrators can now browse and download a complete reference for Arbiter's supported v1 API, including sign-in and credential requirements, request and response shapes, stable errors, pagination, and rate limits. The published reference stays aligned with supported API behavior as Arbiter adds new capabilities.",
+				"section": "Features"
+			},
+			"commits": [
+				{
+					"sha": "80550cb448da21636cd5c8059bbafdbe408f0f24",
+					"subject": "feat(api): publish contract-derived OpenAPI reference",
+					"committedAt": "2026-08-09T20:28:23-10:00",
+					"committedAtMs": 1786343303000,
+					"type": "feat",
+					"scope": "api",
+					"description": "publish contract-derived OpenAPI reference",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 115,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/115"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "codex-STE-338-release-plan-provenance.json",
+			"branch": "codex/STE-338-release-plan-provenance",
+			"bump": "patch",
+			"contributionSummary": "Separates branch provenance from grouped public release notes and adds explicit migration and read-only preview tooling.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "a66850de334e2ec325e6e5d51e84e32402464abf",
+					"subject": "feat(release): consolidate public notes with provenance",
+					"committedAt": "2026-08-09T19:16:17-10:00",
+					"committedAtMs": 1786338977000,
+					"type": "feat",
+					"scope": "release",
+					"description": "consolidate public notes with provenance",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 112,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/112"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "codex-STE-340-release-operations.json",
+			"branch": "codex/STE-340-release-operations",
+			"bump": "patch",
+			"contributionSummary": "Separates contributor release guidance from artifact deployment, verification, and recovery runbooks.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "f889883e2b5bfc0b97c4f5c47ce1fb4893b11087",
+					"subject": "docs: split release and operations runbooks",
+					"committedAt": "2026-08-09T20:02:02-10:00",
+					"committedAtMs": 1786341722000,
+					"type": "docs",
+					"scope": null,
+					"description": "split release and operations runbooks",
+					"breaking": false,
+					"section": "Maintenance",
+					"pullRequest": {
+						"number": 113,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/113"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "codex-STE-341-local-development-runbooks.json",
+			"branch": "codex/STE-341-local-development-runbooks",
+			"bump": "patch",
+			"contributionSummary": "Adds concise local development, data, testing, and troubleshooting runbooks.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "d7b104f2db0b2141d364a6b6374a75c55ab70d17",
+					"subject": "docs: add local development runbooks",
+					"committedAt": "2026-08-09T20:04:10-10:00",
+					"committedAtMs": 1786341850000,
+					"type": "docs",
+					"scope": null,
+					"description": "add local development runbooks",
+					"breaking": false,
+					"section": "Maintenance",
+					"pullRequest": {
+						"number": 114,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/114"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		}
+	],
+	"publicNotes": [
+		{
+			"mode": "standalone",
+			"group": null,
+			"section": "Features",
+			"description": "Arbiter now includes a working member-directory API for approved Even Legion tools. It provides current division memberships, merit totals, and merit ranks for individual members or filtered groups, while read-only access controls and usage limits protect Arbiter from unauthorized or excessive use.",
+			"planFiles": [
+				"codex-STE-298-api-directory-routes.json"
+			],
+			"branches": [
+				"codex/STE-298-api-directory-routes"
+			],
+			"commitShas": [
+				"ad7b408efcb9768d2d739a5974bbeea8794fff3d"
+			],
+			"pullRequests": [
+				{
+					"number": 109,
+					"url": "https://github.com/EvenLegion/Arbiter/pull/109"
+				}
+			],
+			"contributors": [
+				"Spacesai1or"
+			]
+		},
+		{
+			"mode": "standalone",
+			"group": null,
+			"section": "Features",
+			"description": "Arbiter now includes a staff website for managing which approved tools can use the member-directory API. Authorized staff can sign in with Discord, register integrations, create or replace access keys, review their status, and revoke access when it is no longer needed.",
+			"planFiles": [
+				"codex-STE-299-portal-credential-management.json"
+			],
+			"branches": [
+				"codex/STE-299-portal-credential-management"
+			],
+			"commitShas": [
+				"6cda1be48f15a3892274509946f0a5edf823021c"
+			],
+			"pullRequests": [
+				{
+					"number": 110,
+					"url": "https://github.com/EvenLegion/Arbiter/pull/110"
+				}
+			],
+			"contributors": [
+				"Spacesai1or"
+			]
+		},
+		{
+			"mode": "standalone",
+			"group": null,
+			"section": "Features",
+			"description": "Integrators can now browse and download a complete reference for Arbiter's supported v1 API, including sign-in and credential requirements, request and response shapes, stable errors, pagination, and rate limits. The published reference stays aligned with supported API behavior as Arbiter adds new capabilities.",
+			"planFiles": [
+				"codex-STE-336-openapi-reference.json"
+			],
+			"branches": [
+				"codex/STE-336-openapi-reference"
+			],
+			"commitShas": [
+				"80550cb448da21636cd5c8059bbafdbe408f0f24"
+			],
+			"pullRequests": [
+				{
+					"number": 115,
+					"url": "https://github.com/EvenLegion/Arbiter/pull/115"
+				}
+			],
+			"contributors": [
+				"Spacesai1or"
+			]
+		},
+		{
+			"mode": "standalone",
+			"group": null,
+			"section": "Features",
+			"description": "Event organizers now choose an expected duration when creating an event, from one to three hours in half-hour steps. Arbiter preselects merit for members who attend at least half of the event's actual duration when less than expected duration, or half of the expected duration when longer than expected. Event runners can still adjust merit selections before submitting.",
+			"planFiles": [
+				"codex-expected-event-duration.json"
+			],
+			"branches": [
+				"codex/expected-event-duration"
+			],
+			"commitShas": [
+				"6ab56cff1c077c58f042f2b4346279f0daf5fdbd"
+			],
+			"pullRequests": [
+				{
+					"number": 118,
+					"url": "https://github.com/EvenLegion/Arbiter/pull/118"
+				}
+			],
+			"contributors": [
+				"Spacesai1or"
+			]
+		}
+	]
+}
