@@ -1,3 +1,4 @@
+import { EventReviewDecisionLockedError } from '../../../../../src/lib/services/event-review/eventReviewDecisionErrors';
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -8,12 +9,53 @@ import {
 } from '../../../../../src/lib/services/event-review/eventReviewService';
 
 describe('eventReviewService', () => {
+	it.each([null, EventSessionState.FINALIZED_WITH_MERITS])(
+		'reports a write-time review lock for state %s without syncing success',
+		async (currentState) => {
+			const deps = {
+				findEventSession: vi.fn().mockResolvedValue({ id: 10, state: EventSessionState.ENDED_PENDING_REVIEW }),
+				resolveTargetMeritEligibility: vi.fn().mockResolvedValue('eligible'),
+				saveDecision: vi.fn().mockRejectedValue(new EventReviewDecisionLockedError(currentState)),
+				syncReviewMessage: vi.fn()
+			};
+			const result = await recordEventReviewDecision(deps, {
+				actor: buildActor(),
+				eventSessionId: 10,
+				targetDbUserId: 'attendee',
+				decision: EventReviewDecisionKind.MERIT,
+				page: 1
+			});
+			expect(result).toEqual(currentState === null ? { kind: 'event_not_found' } : { kind: 'review_locked', currentState });
+			expect(deps.syncReviewMessage).not.toHaveBeenCalled();
+		}
+	);
+
+	it.each(['not_org_member', 'unavailable'] as const)('rejects a forged or stale MERIT toggle for %s', async (eligibility) => {
+		const deps = {
+			findEventSession: vi.fn().mockResolvedValue({ id: 10, state: EventSessionState.ENDED_PENDING_REVIEW }),
+			resolveTargetMeritEligibility: vi.fn().mockResolvedValue(eligibility),
+			saveDecision: vi.fn(),
+			syncReviewMessage: vi.fn()
+		};
+		expect(
+			await recordEventReviewDecision(deps, {
+				actor: buildActor(),
+				eventSessionId: 10,
+				targetDbUserId: 'outsider',
+				decision: EventReviewDecisionKind.MERIT,
+				page: 1
+			})
+		).toEqual({ kind: 'recipient_ineligible', eligibility });
+		expect(deps.saveDecision).not.toHaveBeenCalled();
+	});
+
 	it('records a decision and refreshes the review message', async () => {
 		const deps = {
 			findEventSession: vi.fn().mockResolvedValue({
 				id: 10,
 				state: EventSessionState.ENDED_PENDING_REVIEW
 			}),
+			resolveTargetMeritEligibility: async () => 'eligible' as const,
 			saveDecision: vi.fn().mockResolvedValue(undefined),
 			syncReviewMessage: vi.fn().mockResolvedValue(true)
 		};
@@ -47,6 +89,7 @@ describe('eventReviewService', () => {
 				id: 10,
 				state: EventSessionState.FINALIZED_WITH_MERITS
 			}),
+			resolveTargetMeritEligibility: async () => 'eligible' as const,
 			saveDecision: vi.fn().mockResolvedValue(undefined),
 			syncReviewMessage: vi.fn().mockResolvedValue(true)
 		};

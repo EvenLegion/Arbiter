@@ -1,6 +1,7 @@
 import { EventSessionChannelKind } from '@prisma/client';
 import type { Guild } from 'discord.js';
 
+import { createMeritEligibilityResolver } from '../../../../discord/guild/meritEligibility';
 import { eventRepository, eventReviewRepository } from '../../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../../logging/executionContext';
 import { EVENT_LIFECYCLE_SESSION_INCLUDE, type EventLifecycleEventSession } from '../../../../services/event-lifecycle';
@@ -24,7 +25,7 @@ export function createFinalizeEventReviewLifecycleDeps({
 				eventSessionId
 			}),
 		finalizeReview: async (params: { eventSessionId: number; reviewerDbUserId: string; mode: 'with' | 'without' }) =>
-			eventReviewRepository.finalizeReview(params),
+			eventReviewRepository.finalizeReview({ ...params, resolveMeritEligibility: createMeritEligibilityResolver(guild) }),
 		syncAwardedNicknames: async ({
 			awardedUsers
 		}: {

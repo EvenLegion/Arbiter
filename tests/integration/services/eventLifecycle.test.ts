@@ -286,6 +286,7 @@ describe('eventLifecycle integration', () => {
 							endedAt: true
 						}
 					}),
+				resolveMeritEligibility: async () => 'eligible' as const,
 				getTrackingParticipantsSnapshot: async (eventSessionId) =>
 					getTrackingParticipantsSnapshot({
 						eventSessionId
@@ -394,7 +395,7 @@ describe('eventLifecycle integration', () => {
 							state: true
 						}
 					}),
-				finalizeReview: eventReviewRepository.finalizeReview,
+				finalizeReview: (params) => eventReviewRepository.finalizeReview({ ...params, resolveMeritEligibility: async () => 'eligible' }),
 				syncAwardedNicknames: vi.fn().mockResolvedValue(undefined),
 				reloadEventSession: loadEventLifecycleEventSession,
 				syncTrackingSummary: vi.fn().mockResolvedValue(undefined),

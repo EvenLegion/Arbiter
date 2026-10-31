@@ -19,9 +19,26 @@ describe('eventReviewPresentationModel', () => {
 			defaultMinAttendancePct: 100,
 			fullAttendanceGraceSeconds: 60,
 			attendees: [
-				{ dbUserId: 'a', discordUserId: 'a', discordUsername: 'a', discordNickname: 'a', attendedSeconds: 1800, decision: null },
-				{ dbUserId: 'b', discordUserId: 'b', discordUsername: 'b', discordNickname: 'b', attendedSeconds: 1799, decision: null },
 				{
+					meritEligibility: 'eligible',
+					dbUserId: 'a',
+					discordUserId: 'a',
+					discordUsername: 'a',
+					discordNickname: 'a',
+					attendedSeconds: 1800,
+					decision: null
+				},
+				{
+					meritEligibility: 'eligible',
+					dbUserId: 'b',
+					discordUserId: 'b',
+					discordUsername: 'b',
+					discordNickname: 'b',
+					attendedSeconds: 1799,
+					decision: null
+				},
+				{
+					meritEligibility: 'eligible',
 					dbUserId: 'c',
 					discordUserId: 'c',
 					discordUsername: 'c',
@@ -30,6 +47,7 @@ describe('eventReviewPresentationModel', () => {
 					decision: EventReviewDecisionKind.MERIT
 				},
 				{
+					meritEligibility: 'eligible',
 					dbUserId: 'd',
 					discordUserId: 'd',
 					discordUsername: 'd',
@@ -88,6 +106,7 @@ describe('eventReviewPresentationModel', () => {
 			pageSize: 10,
 			attendees: [
 				{
+					meritEligibility: 'eligible',
 					dbUserId: 'db-user-1',
 					discordUserId: '123',
 					discordUsername: 'alpha',
@@ -96,6 +115,7 @@ describe('eventReviewPresentationModel', () => {
 					decision: null
 				},
 				{
+					meritEligibility: 'eligible',
 					dbUserId: 'db-user-2',
 					discordUserId: '456',
 					discordUsername: 'bravo',
@@ -151,6 +171,7 @@ describe('eventReviewPresentationModel', () => {
 			pageSize: 10,
 			attendees: [
 				{
+					meritEligibility: 'eligible',
 					dbUserId: 'db-user-1',
 					discordUserId: '123',
 					discordUsername: 'alpha',
@@ -172,6 +193,7 @@ describe('eventReviewPresentationModel', () => {
 			pageSize: 10,
 			attendees: [
 				{
+					meritEligibility: 'eligible',
 					dbUserId: 'db-user-1',
 					discordUserId: '123',
 					discordUsername: 'alpha',

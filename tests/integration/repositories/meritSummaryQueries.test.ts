@@ -42,6 +42,63 @@ describe('merit summary query integration', () => {
 		}
 	});
 
+	it('allows a successful eligibility lookup that exceeds the interactive transaction timeout', async () => {
+		const recipient = await createUser(standalone.prisma, { discordUserId: 'slow-recipient' });
+		const staff = await createUser(standalone.prisma, { discordUserId: 'slow-staff' });
+		const result = await meritRepository.awardManualMerit({
+			recipientDbUserId: recipient.id,
+			awardedByDbUserId: staff.id,
+			meritTypeCode: MeritTypeCode.COMMANDER_MERIT,
+			resolveMeritEligibility: async () => {
+				await new Promise((resolve) => setTimeout(resolve, 6000));
+				return 'eligible';
+			}
+		});
+		expect(result.userId).toBe(recipient.id);
+		expect(await standalone.prisma.merit.count()).toBe(1);
+	}, 15000);
+
+	it.each(['manual_type_disabled', 'recipient_changed'] as const)(
+		'revalidates %s after the external lookup before committing a grant',
+		async (change) => {
+			const recipient = await createUser(standalone.prisma, { discordUserId: 'changed-recipient' });
+			const staff = await createUser(standalone.prisma, { discordUserId: 'changed-staff' });
+			await expect(
+				meritRepository.awardManualMerit({
+					recipientDbUserId: recipient.id,
+					awardedByDbUserId: staff.id,
+					meritTypeCode: MeritTypeCode.COMMANDER_MERIT,
+					resolveMeritEligibility: async () => {
+						if (change === 'manual_type_disabled')
+							await standalone.prisma.meritType.update({
+								where: { code: MeritTypeCode.COMMANDER_MERIT },
+								data: { isManualAwardable: false }
+							});
+						else await standalone.prisma.user.update({ where: { id: recipient.id }, data: { discordUserId: 'replacement-recipient' } });
+						return 'eligible';
+					}
+				})
+			).rejects.toMatchObject({ name: change === 'manual_type_disabled' ? 'MeritTypeNotManualAwardableError' : 'MeritEligibilityError' });
+			expect(await standalone.prisma.merit.count()).toBe(0);
+		}
+	);
+
+	it.each(['not_org_member', 'unavailable'] as const)('blocks direct positive staff grants for %s but permits demerits', async (eligibility) => {
+		const recipient = await createUser(standalone.prisma, { discordUserId: 'manual-recipient', discordUsername: 'recipient' });
+		const staff = await createUser(standalone.prisma, { discordUserId: 'manual-staff', discordUsername: 'staff' });
+		const resolveMeritEligibility = vi.fn().mockResolvedValue(eligibility);
+		const params = { recipientDbUserId: recipient.id, awardedByDbUserId: staff.id, resolveMeritEligibility };
+		await expect(meritRepository.awardManualMerit({ ...params, meritTypeCode: MeritTypeCode.COMMANDER_MERIT })).rejects.toMatchObject({
+			name: 'MeritEligibilityError',
+			eligibility
+		});
+		expect(await standalone.prisma.merit.count()).toBe(0);
+		resolveMeritEligibility.mockClear();
+		await meritRepository.awardManualMerit({ ...params, meritTypeCode: MeritTypeCode.DEMERIT });
+		expect(resolveMeritEligibility).not.toHaveBeenCalled();
+		expect(await standalone.prisma.merit.count()).toBe(1);
+	});
+
 	it('creates manual merits, rejects non-manual merit types, and summarizes totals across users', async () => {
 		const awarder = await createUser(standalone.prisma, {
 			discordUserId: '4401',
@@ -64,6 +121,7 @@ describe('merit summary query integration', () => {
 
 		await expect(
 			meritRepository.awardManualMerit({
+				resolveMeritEligibility: async () => 'eligible',
 				recipientDbUserId: recipient.id,
 				awardedByDbUserId: awarder.id,
 				meritTypeCode: MeritTypeCode.TIER_1
@@ -71,6 +129,7 @@ describe('merit summary query integration', () => {
 		).rejects.toBeInstanceOf(MeritTypeNotManualAwardableError);
 
 		const firstAward = await meritRepository.awardManualMerit({
+			resolveMeritEligibility: async () => 'eligible',
 			recipientDbUserId: recipient.id,
 			awardedByDbUserId: awarder.id,
 			meritTypeCode: MeritTypeCode.COMMANDER_MERIT,
@@ -78,12 +137,14 @@ describe('merit summary query integration', () => {
 			eventSessionId: linkedEvent.id
 		});
 		const secondAward = await meritRepository.awardManualMerit({
+			resolveMeritEligibility: async () => 'eligible',
 			recipientDbUserId: recipient.id,
 			awardedByDbUserId: awarder.id,
 			meritTypeCode: MeritTypeCode.DEMERIT,
 			reason: 'Penalty'
 		});
 		await meritRepository.awardManualMerit({
+			resolveMeritEligibility: async () => 'eligible',
 			recipientDbUserId: otherRecipient.id,
 			awardedByDbUserId: awarder.id,
 			meritTypeCode: MeritTypeCode.TESSERARIUS_MERIT,

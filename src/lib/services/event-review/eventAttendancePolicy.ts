@@ -1,3 +1,5 @@
+import { EventReviewDecisionKind } from '@prisma/client';
+
 /** Resolve the merit denominator without changing the event's actual timestamps or attendance. */
 export function resolveEventAttendancePolicy({
 	durationSeconds,
@@ -20,4 +22,17 @@ export function resolveEventAttendancePolicy({
 		defaultMinAttendancePct: 50,
 		fullAttendanceGraceSeconds: 0
 	};
+}
+
+export function resolveDefaultReviewDecision({
+	attendedSeconds,
+	durationSeconds,
+	defaultMinAttendancePercent
+}: {
+	attendedSeconds: number;
+	durationSeconds: number;
+	defaultMinAttendancePercent: number;
+}) {
+	if (durationSeconds <= 0) return EventReviewDecisionKind.NO_MERIT;
+	return attendedSeconds / durationSeconds >= defaultMinAttendancePercent / 100 ? EventReviewDecisionKind.MERIT : EventReviewDecisionKind.NO_MERIT;
 }

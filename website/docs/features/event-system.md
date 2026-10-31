@@ -213,6 +213,30 @@ Today this area is concentrated in a few predictable places:
 
 That path map is meant as a current orientation aid, not a contract that file names will never move.
 
+## Merit Recipient Eligibility
+
+Recipients must currently hold a configured **LGN**, **INT**, or **RES** Discord role
+for attendance merits, automatic host merits, and positive manual staff grants.
+Staff authority does not override recipient eligibility. Role IDs come from the
+configured divisions; stored membership or a user record alone does not qualify.
+Demerits remain available for corrections regardless of org membership.
+
+Review preparation keeps nonmembers' attendance and defaults them to no merit.
+Open reviews show “Not eligible for merit: not part of the org” and disable their
+merit button. Failed member/configuration lookups show eligibility as unavailable,
+with the merit button disabled. An unavailable initialization lookup leaves an attendance-qualified merit
+default unresolved instead of recording a rejection. Attendance-based rejections
+remain unchanged. Refresh retries the
+lookup, and submission re-evaluates unresolved attendance defaults while preserving
+explicit reviewer decisions. Award submission
+fetches current roles again, so removing an org role after preparation prevents
+both attendee and host awards. If eligibility cannot be verified, no awards are
+written and the review stays open for retry. Finalized reviews retain their stored
+decisions; this rule does not revoke earlier awards. Decision writes are locked
+against finalization, including actions waiting on a membership lookup. Live role
+lookups happen before opening award transactions so Discord delays do not consume
+the database transaction timeout.
+
 ## Cross-Feature Coupling To Remember
 
 Merit totals are not just reporting data. They feed nickname computation through merit-rank symbols.

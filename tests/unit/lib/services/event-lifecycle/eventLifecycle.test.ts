@@ -1,6 +1,7 @@
 import { EventReviewDecisionKind, EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 
+import { MeritEligibilityError } from '../../../../../src/lib/services/merit-eligibility/meritEligibility';
 import {
 	activateDraftEvent,
 	addTrackedChannel,
@@ -435,6 +436,7 @@ describe('eventLifecycle', () => {
 				startedAt: new Date('2026-03-15T10:00:00Z'),
 				endedAt: new Date('2026-03-15T11:00:00Z')
 			}),
+			resolveMeritEligibility: async () => 'eligible' as const,
 			getTrackingParticipantsSnapshot: vi.fn().mockResolvedValue([
 				{
 					discordUserId: 'known-user',
@@ -487,6 +489,25 @@ describe('eventLifecycle', () => {
 			],
 			overwriteExisting: false
 		});
+	});
+
+	it('returns a retryable eligibility failure without award follow-up effects', async () => {
+		const deps = {
+			findEventSession: vi.fn().mockResolvedValue({ id: 10, state: EventSessionState.ENDED_PENDING_REVIEW }),
+			finalizeReview: vi.fn().mockRejectedValue(new MeritEligibilityError('unavailable')),
+			syncAwardedNicknames: vi.fn(),
+			reloadEventSession: vi.fn(),
+			syncTrackingSummary: vi.fn(),
+			postReviewSubmissionMessages: vi.fn(),
+			deleteTrackedChannelRows: vi.fn(),
+			syncReviewMessage: vi.fn()
+		};
+		expect(
+			await finalizeEventReviewLifecycle(deps, { actor: { ...buildActor(), dbUserId: 'reviewer' }, eventSessionId: 10, mode: 'with' })
+		).toEqual({ kind: 'eligibility_unavailable' });
+		expect(deps.syncAwardedNicknames).not.toHaveBeenCalled();
+		expect(deps.postReviewSubmissionMessages).not.toHaveBeenCalled();
+		expect(deps.deleteTrackedChannelRows).not.toHaveBeenCalled();
 	});
 
 	it('finalizes review and reports whether the review message sync succeeded', async () => {

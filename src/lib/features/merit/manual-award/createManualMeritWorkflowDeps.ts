@@ -1,5 +1,6 @@
 import { type Guild, type GuildMember } from 'discord.js';
 
+import { createMeritEligibilityResolver } from '../../../discord/guild/meritEligibility';
 import { eventRepository, meritRepository, userRepository } from '../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { createGuildMemberDirectMessageGateway } from '../../../services/guild-member/guildMemberDirectMessageGateway';
@@ -49,7 +50,8 @@ export function createManualMeritWorkflowDeps({
 				createdAt: linkedEvent.createdAt
 			};
 		},
-		awardManualMerit: meritRepository.awardManualMerit,
+		awardManualMerit: (params: Omit<Parameters<typeof meritRepository.awardManualMerit>[0], 'resolveMeritEligibility'>) =>
+			meritRepository.awardManualMerit({ ...params, resolveMeritEligibility: createMeritEligibilityResolver(guild) }),
 		syncRecipientNickname: nicknameEffects.syncRecipientNickname,
 		computeAwarderNickname: nicknameEffects.computeAwarderNickname,
 		getRecipientTotalMerits: ({ userDbUserId }: { userDbUserId: string }) =>

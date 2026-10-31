@@ -1,6 +1,7 @@
-import { MeritTypeCode } from '@prisma/client';
+import { MeritTypeCode, type Prisma } from '@prisma/client';
 import { z } from 'zod';
 
+import { MeritEligibilityError, type ResolveMeritEligibility } from '../../../lib/services/merit-eligibility/meritEligibility';
 import { prisma } from '../prisma';
 
 type AwardManualMeritParams = {
@@ -26,24 +27,24 @@ const AWARD_MANUAL_MERIT_SCHEMA = z.object({
 	eventSessionId: z.number().int().positive().nullable().optional()
 });
 
-export async function awardManualMerit(params: AwardManualMeritParams) {
+export async function awardManualMerit(params: AwardManualMeritParams & { resolveMeritEligibility: ResolveMeritEligibility }) {
 	const parsed = AWARD_MANUAL_MERIT_SCHEMA.parse(params);
 
+	const candidateType = await findManualMeritType(prisma, parsed.meritTypeCode);
+	let verifiedDiscordUserId: string | undefined;
+	if (candidateType.meritAmount > 0) {
+		const recipient = await prisma.user.findUniqueOrThrow({ where: { id: parsed.recipientDbUserId }, select: { discordUserId: true } });
+		// Discord latency/rate-limit queues must not consume an interactive DB transaction.
+		const eligibility = await params.resolveMeritEligibility(recipient.discordUserId);
+		if (eligibility !== 'eligible') throw new MeritEligibilityError(eligibility);
+		verifiedDiscordUserId = recipient.discordUserId;
+	}
+
 	return prisma.$transaction(async (tx) => {
-		const meritType = await tx.meritType.findUnique({
-			where: {
-				code: parsed.meritTypeCode
-			},
-			select: {
-				id: true,
-				isManualAwardable: true
-			}
-		});
-		if (!meritType) {
-			throw new Error(`MeritType not seeded for code: ${parsed.meritTypeCode}`);
-		}
-		if (!meritType.isManualAwardable) {
-			throw new MeritTypeNotManualAwardableError(parsed.meritTypeCode);
+		const meritType = await findManualMeritType(tx, parsed.meritTypeCode);
+		if (meritType.meritAmount > 0) {
+			const recipient = await tx.user.findUniqueOrThrow({ where: { id: parsed.recipientDbUserId }, select: { discordUserId: true } });
+			if (recipient.discordUserId !== verifiedDiscordUserId) throw new MeritEligibilityError('unavailable');
 		}
 
 		return tx.merit.create({
@@ -65,4 +66,14 @@ export async function awardManualMerit(params: AwardManualMeritParams) {
 			}
 		});
 	});
+}
+
+async function findManualMeritType(client: Pick<Prisma.TransactionClient, 'meritType'>, meritTypeCode: MeritTypeCode) {
+	const meritType = await client.meritType.findUnique({
+		where: { code: meritTypeCode },
+		select: { id: true, isManualAwardable: true, meritAmount: true }
+	});
+	if (!meritType) throw new Error(`MeritType not seeded for code: ${meritTypeCode}`);
+	if (!meritType.isManualAwardable) throw new MeritTypeNotManualAwardableError(meritTypeCode);
+	return meritType;
 }

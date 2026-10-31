@@ -1,5 +1,6 @@
 import { EventSessionState } from '@prisma/client';
 
+import { MeritEligibilityError } from '../merit-eligibility/meritEligibility';
 import type { ActorContext } from '../_shared/actor';
 import { hasStaffOrCenturionEquivalentCapability } from '../_shared/actor';
 import type { EventLifecycleEventSession, EventReviewFinalizationResult } from './eventLifecycleTypes';
@@ -32,6 +33,7 @@ export type FinalizeEventReviewLifecycleResult =
 	| { kind: 'event_not_found' }
 	| { kind: 'invalid_state'; currentState: EventSessionState }
 	| { kind: 'state_conflict' }
+	| { kind: 'eligibility_unavailable' }
 	| {
 			kind: 'review_finalized';
 			toState: EventReviewFinalizationResult['toState'];
@@ -71,11 +73,17 @@ export async function finalizeEventReviewLifecycle(
 		};
 	}
 
-	const finalizeResult = await deps.finalizeReview({
-		eventSessionId: input.eventSessionId,
-		reviewerDbUserId: input.actor.dbUserId,
-		mode: input.mode
-	});
+	let finalizeResult: EventReviewFinalizationResult;
+	try {
+		finalizeResult = await deps.finalizeReview({
+			eventSessionId: input.eventSessionId,
+			reviewerDbUserId: input.actor.dbUserId,
+			mode: input.mode
+		});
+	} catch (error) {
+		if (error instanceof MeritEligibilityError) return { kind: 'eligibility_unavailable' };
+		throw error;
+	}
 	if (!finalizeResult.finalized) {
 		return {
 			kind: 'state_conflict'

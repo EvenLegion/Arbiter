@@ -7,6 +7,7 @@ import { buildEventReviewHeaderEmbed } from './buildEventReviewHeaderEmbed';
 import { buildEventReviewNavigationRow } from './buildEventReviewNavigationRow';
 import { buildEventReviewSubmitControlsRow } from './buildEventReviewSubmitControlsRow';
 
+import type { MeritEligibility } from '../../../../services/merit-eligibility/meritEligibility';
 type BuildEventReviewPayloadParams = {
 	eventSessionId: number;
 	state: EventSessionState;
@@ -15,7 +16,7 @@ type BuildEventReviewPayloadParams = {
 	attendeeCount: number;
 	page: number;
 	totalPages: number;
-	attendees: EventReviewPageAttendee[];
+	attendees: Array<EventReviewPageAttendee & { meritEligibility?: MeritEligibility }>;
 	pageSize: number;
 };
 

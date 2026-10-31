@@ -1,5 +1,9 @@
 import { EventReviewDecisionKind, EventSessionState, MeritTypeCode, type Prisma } from '@prisma/client';
 
+import { ENV_DISCORD } from '../../../../config/env/discord';
+import { computeEventDurationSeconds } from '../../../../lib/services/event-lifecycle/initializeEventReviewState';
+import { resolveEventAttendancePolicy, resolveDefaultReviewDecision } from '../../../../lib/services/event-review/eventAttendancePolicy';
+
 type FinalizedEventSessionState = Extract<EventSessionState, 'FINALIZED_WITH_MERITS' | 'FINALIZED_NO_MERITS'>;
 
 export type FinalizeEventReviewResult = {
@@ -39,6 +43,9 @@ export async function loadFinalizableEventReviewSession(tx: Prisma.TransactionCl
 		select: {
 			id: true,
 			state: true,
+			startedAt: true,
+			endedAt: true,
+			expectedEventDuration: true,
 			hostUserId: true,
 			hostUser: {
 				select: {
@@ -115,6 +122,30 @@ export async function findMeritDecisionRows(tx: Prisma.TransactionClient, eventS
 	});
 }
 
+export async function findDefaultReviewDecisionRows(
+	tx: Prisma.TransactionClient,
+	eventSession: NonNullable<Awaited<ReturnType<typeof loadFinalizableEventReviewSession>>>
+) {
+	const participants = await tx.eventParticipantStat.findMany({
+		where: { eventSessionId: eventSession.id, user: { targetEventDecisions: { none: { eventSessionId: eventSession.id } } } },
+		select: { userId: true, attendedSeconds: true, user: { select: { discordUserId: true } } }
+	});
+	const attendancePolicy = resolveEventAttendancePolicy({
+		durationSeconds: computeEventDurationSeconds(eventSession),
+		expectedEventDuration: eventSession.expectedEventDuration,
+		defaultMinAttendancePct: ENV_DISCORD.EVENT_MERIT_DEFAULT_MIN_ATTENDANCE_PCT
+	});
+	return participants.map((participant) => ({
+		targetUserId: participant.userId,
+		targetUser: participant.user,
+		decision: resolveDefaultReviewDecision({
+			attendedSeconds: participant.attendedSeconds,
+			durationSeconds: attendancePolicy.durationSeconds,
+			defaultMinAttendancePercent: attendancePolicy.defaultMinAttendancePct
+		})
+	}));
+}
+
 export async function createFinalizedEventReviewMerits({
 	tx,
 	meritDecisionRows,
@@ -125,7 +156,8 @@ export async function createFinalizedEventReviewMerits({
 	hostUserId,
 	hostDiscordUserId,
 	hostMeritTypeId,
-	hostMeritAmount
+	hostMeritAmount,
+	hostEligible
 }: {
 	tx: Prisma.TransactionClient;
 	meritDecisionRows: Awaited<ReturnType<typeof findMeritDecisionRows>>;
@@ -137,6 +169,7 @@ export async function createFinalizedEventReviewMerits({
 	hostDiscordUserId: string;
 	hostMeritTypeId: number;
 	hostMeritAmount: number;
+	hostEligible: boolean;
 }) {
 	const meritRows = [
 		...meritDecisionRows.map((row) => ({
@@ -146,13 +179,17 @@ export async function createFinalizedEventReviewMerits({
 			reason: 'Awarded for attending',
 			eventSessionId
 		})),
-		{
-			userId: hostUserId,
-			awardedByUserId: reviewerDbUserId,
-			meritTypeId: hostMeritTypeId,
-			reason: 'Awarded for hosting',
-			eventSessionId
-		}
+		...(hostEligible
+			? [
+					{
+						userId: hostUserId,
+						awardedByUserId: reviewerDbUserId,
+						meritTypeId: hostMeritTypeId,
+						reason: 'Awarded for hosting',
+						eventSessionId
+					}
+				]
+			: [])
 	];
 	const createManyResult = await tx.merit.createMany({
 		data: meritRows,
@@ -174,15 +211,17 @@ export async function createFinalizedEventReviewMerits({
 		});
 	}
 
-	const existingHostAward = awardedUsersByDbUserId.get(hostUserId);
-	if (existingHostAward) {
-		existingHostAward.awardedMeritAmount += hostMeritAmount;
-	} else {
-		awardedUsersByDbUserId.set(hostUserId, {
-			dbUserId: hostUserId,
-			discordUserId: hostDiscordUserId,
-			awardedMeritAmount: hostMeritAmount
-		});
+	if (hostEligible) {
+		const existingHostAward = awardedUsersByDbUserId.get(hostUserId);
+		if (existingHostAward) {
+			existingHostAward.awardedMeritAmount += hostMeritAmount;
+		} else {
+			awardedUsersByDbUserId.set(hostUserId, {
+				dbUserId: hostUserId,
+				discordUserId: hostDiscordUserId,
+				awardedMeritAmount: hostMeritAmount
+			});
+		}
 	}
 
 	return {

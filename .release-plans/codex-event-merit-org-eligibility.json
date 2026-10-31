@@ -1,0 +1,29 @@
+{
+	"schemaVersion": 2,
+	"branch": "codex/event-merit-org-eligibility",
+	"baseRef": "origin/dev",
+	"mergeBase": "8d272b8ac9e2ad1f67509cf19d1dba75e2cc6e71",
+	"headRef": "0d37c81049c4c1e7f0f8bde278ca8bb7cbd8c2ed",
+	"generatedAt": "2026-10-31T03:20:32.823Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Restricts attendee, host, and positive manual merits to current configured org roles; preserves attendance and corrections, and serializes decision writes with finalization.",
+	"publicNote": {
+		"mode": "standalone",
+		"description": "Arbiter now awards event and staff-granted merits only to members with LGN, INT, or RES. Event reviews still show nonmembers’ attendance and explain why they cannot receive a merit, while checking membership again when the review is submitted.",
+		"section": "Fixes"
+	},
+	"commits": [
+		{
+			"sha": "0d37c81049c4c1e7f0f8bde278ca8bb7cbd8c2ed",
+			"subject": "fix(merit): require org membership for positive awards",
+			"committedAt": "2026-10-30T17:20:09-10:00",
+			"committedAtMs": 1793416809000,
+			"type": "fix",
+			"scope": "merit",
+			"description": "require org membership for positive awards",
+			"breaking": false,
+			"section": "Fixes"
+		}
+	]
+}

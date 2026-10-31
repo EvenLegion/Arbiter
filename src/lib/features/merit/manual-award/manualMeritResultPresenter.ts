@@ -14,6 +14,14 @@ type ManualMeritResponse =
 
 export function presentManualMeritResult(result: AwardManualMeritWorkflowResult): ManualMeritResponse {
 	switch (result.kind) {
+		case 'recipient_ineligible':
+			return {
+				delivery: 'editReply',
+				content:
+					result.eligibility === 'not_org_member'
+						? 'Not eligible for merit: not part of the org. The recipient must have LGN, INT, or RES.'
+						: 'Merit eligibility unavailable. No merit was awarded. Please try again.'
+			};
 		case 'forbidden':
 			return {
 				delivery: 'fail',

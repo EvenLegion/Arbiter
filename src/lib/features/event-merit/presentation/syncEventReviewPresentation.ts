@@ -1,6 +1,7 @@
-import { EventSessionMessageKind } from '@prisma/client';
+import { EventSessionState, EventSessionMessageKind } from '@prisma/client';
 import type { Guild } from 'discord.js';
 
+import { createMeritEligibilityResolver } from '../../../discord/guild/meritEligibility';
 import { eventRepository, eventReviewRepository } from '../../../../integrations/prisma/repositories';
 import { computeEventDurationSeconds } from '../../../services/event-lifecycle';
 import { loadEventReviewPage } from '../../../services/event-review/eventReviewService';
@@ -41,6 +42,16 @@ export async function syncEventReviewPresentation({
 		startedAt: reviewPage.eventSession.startedAt,
 		endedAt: reviewPage.eventSession.endedAt
 	});
+	const resolveMeritEligibility = createMeritEligibilityResolver(guild);
+	const attendees = await Promise.all(
+		reviewPage.attendees.map(async (attendee) => ({
+			...attendee,
+			meritEligibility:
+				reviewPage.eventSession.state === EventSessionState.ENDED_PENDING_REVIEW
+					? await resolveMeritEligibility(attendee.discordUserId)
+					: undefined
+		}))
+	);
 	const payload = buildEventReviewPayload({
 		eventSessionId: reviewPage.eventSession.id,
 		state: reviewPage.eventSession.state,
@@ -49,7 +60,7 @@ export async function syncEventReviewPresentation({
 		attendeeCount: reviewPage.attendeeCount,
 		page: reviewPage.page,
 		totalPages: reviewPage.totalPages,
-		attendees: reviewPage.attendees,
+		attendees,
 		pageSize: reviewPage.pageSize
 	});
 

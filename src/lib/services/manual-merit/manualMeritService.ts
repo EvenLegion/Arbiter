@@ -1,6 +1,7 @@
 import { MeritTypeCode } from '@prisma/client';
 import { z } from 'zod';
 
+import { MeritEligibilityError } from '../merit-eligibility/meritEligibility';
 import type { ActorContext } from '../_shared/actor';
 import { resolveMeritRankProgress } from '../merit-rank/meritRank';
 
@@ -52,6 +53,7 @@ export type ManualMeritServiceDeps = {
 
 export type AwardManualMeritWorkflowResult =
 	| { kind: 'forbidden' }
+	| { kind: 'recipient_ineligible'; eligibility: 'not_org_member' | 'unavailable' }
 	| { kind: 'invalid_player_selection' }
 	| { kind: 'invalid_merit_type' }
 	| { kind: 'target_not_found' }
@@ -127,6 +129,7 @@ export async function awardManualMeritWorkflow(
 			eventSessionId: linkedEvent?.id ?? null
 		});
 	} catch (error) {
+		if (error instanceof MeritEligibilityError) return { kind: 'recipient_ineligible', eligibility: error.eligibility };
 		if (isMeritTypeNotManualAwardableError(error)) {
 			return {
 				kind: 'merit_type_not_manual_awardable'

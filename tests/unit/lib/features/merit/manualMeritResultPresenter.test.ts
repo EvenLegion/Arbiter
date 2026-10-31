@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { presentManualMeritResult } from '../../../../../src/lib/features/merit/manual-award/manualMeritResultPresenter';
 
 describe('manualMeritResultPresenter', () => {
+	it('distinguishes nonmembers from unavailable eligibility', () => {
+		expect(presentManualMeritResult({ kind: 'recipient_ineligible', eligibility: 'not_org_member' }).content).toContain(
+			'Not eligible for merit: not part of the org'
+		);
+		expect(presentManualMeritResult({ kind: 'recipient_ineligible', eligibility: 'unavailable' }).content).toContain(
+			'Merit eligibility unavailable'
+		);
+	});
+
 	it('maps command validation failures to short actionable replies', () => {
 		expect(
 			presentManualMeritResult({

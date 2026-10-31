@@ -74,7 +74,7 @@ describe('manualMeritService integration', () => {
 						createdAt: event.createdAt
 					};
 				},
-				awardManualMerit: meritRepository.awardManualMerit,
+				awardManualMerit: (params) => meritRepository.awardManualMerit({ ...params, resolveMeritEligibility: async () => 'eligible' }),
 				syncRecipientNickname: async () => 'ok',
 				computeAwarderNickname: async () => 'Staff Display',
 				getRecipientTotalMerits: meritRepository.getUserTotalMerits,
@@ -131,7 +131,7 @@ describe('manualMeritService integration', () => {
 				resolveTargetMember: async () => buildResolvedMember('5304'),
 				upsertUser: userRepository.upsert,
 				findLinkedEvent: async () => null,
-				awardManualMerit: meritRepository.awardManualMerit,
+				awardManualMerit: (params) => meritRepository.awardManualMerit({ ...params, resolveMeritEligibility: async () => 'eligible' }),
 				syncRecipientNickname: async () => 'ok',
 				computeAwarderNickname: async () => 'Staff Display',
 				getRecipientTotalMerits: meritRepository.getUserTotalMerits,

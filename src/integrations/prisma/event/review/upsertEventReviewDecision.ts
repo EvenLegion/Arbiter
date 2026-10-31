@@ -1,4 +1,5 @@
-import { EventReviewDecisionKind, type EventReviewDecisionKind as EventReviewDecisionKindType } from '@prisma/client';
+import { EventReviewDecisionLockedError } from '../../../../lib/services/event-review/eventReviewDecisionErrors';
+import { EventSessionState, EventReviewDecisionKind, type EventReviewDecisionKind as EventReviewDecisionKindType } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../../prisma';
 
@@ -22,20 +23,32 @@ export async function upsertEventReviewDecision({ eventSessionId, targetDbUserId
 		decision
 	});
 
-	return prisma.eventReviewDecision.upsert({
-		where: {
-			eventSessionId_targetUserId: {
-				eventSessionId: parsed.eventSessionId,
-				targetUserId: parsed.targetDbUserId
-			}
-		},
-		update: {
-			decision: parsed.decision
-		},
-		create: {
-			eventSessionId: parsed.eventSessionId,
-			targetUserId: parsed.targetDbUserId,
-			decision: parsed.decision
+	return prisma.$transaction(async (tx) => {
+		// Share the finalizer's event-row lock so a delayed membership check cannot
+		// change stored decisions after finalization has committed.
+		const pending = await tx.event.updateMany({
+			where: { id: parsed.eventSessionId, state: EventSessionState.ENDED_PENDING_REVIEW },
+			data: { state: EventSessionState.ENDED_PENDING_REVIEW }
+		});
+		if (pending.count !== 1) {
+			const event = await tx.event.findUnique({ where: { id: parsed.eventSessionId }, select: { state: true } });
+			throw new EventReviewDecisionLockedError(event?.state ?? null);
 		}
+		return tx.eventReviewDecision.upsert({
+			where: {
+				eventSessionId_targetUserId: {
+					eventSessionId: parsed.eventSessionId,
+					targetUserId: parsed.targetDbUserId
+				}
+			},
+			update: {
+				decision: parsed.decision
+			},
+			create: {
+				eventSessionId: parsed.eventSessionId,
+				targetUserId: parsed.targetDbUserId,
+				decision: parsed.decision
+			}
+		});
 	});
 }

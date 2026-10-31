@@ -1,6 +1,7 @@
 import { EventReviewDecisionKind } from '@prisma/client';
 import type { Guild } from 'discord.js';
 
+import { createMeritEligibilityResolver } from '../../../../discord/guild/meritEligibility';
 import { ENV_DISCORD } from '../../../../../config/env/discord';
 import { eventRepository, eventReviewRepository } from '../../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../../logging/executionContext';
@@ -78,6 +79,7 @@ export async function runRecordEventReviewDecisionAction({
 
 	const result = await recordEventReviewDecision(
 		{
+			resolveTargetMeritEligibility: async () => createMeritEligibilityResolver(guild)(currentAttendee.discordUserId),
 			findEventSession: async (eventSessionId: number) =>
 				eventRepository.getSession({
 					eventSessionId

@@ -39,6 +39,7 @@ describe('initializeEventReview integration', () => {
 		deployPrismaMigrations(containers.databaseUrl);
 		standalone = createStandalonePrisma(containers.databaseUrl);
 		vi.resetModules();
+		vi.doMock('../../../src/lib/discord/guild/meritEligibility', () => ({ createMeritEligibilityResolver: () => async () => 'eligible' }));
 		vi.doMock('../../../src/lib/features/event-merit/presentation/syncEventReviewPresentation', () => ({
 			syncEventReviewPresentation
 		}));
@@ -185,6 +186,7 @@ describe('initializeEventReview integration', () => {
 			await recordEventReviewDecision(
 				{
 					findEventSession: (eventSessionId) => eventRepository.getSession({ eventSessionId }),
+					resolveTargetMeritEligibility: async () => 'eligible' as const,
 					saveDecision: async (params) => {
 						await eventReviewRepository.upsertDecision(params);
 					},
@@ -205,7 +207,14 @@ describe('initializeEventReview integration', () => {
 		}
 		await initialize(); // Empty Redis after initialization must not reset saved decisions.
 		const results = await Promise.all(
-			[1, 2].map(() => eventReviewRepository.finalizeReview({ eventSessionId: event.id, reviewerDbUserId: host.id, mode: 'with' }))
+			[1, 2].map(() =>
+				eventReviewRepository.finalizeReview({
+					resolveMeritEligibility: async () => 'eligible',
+					eventSessionId: event.id,
+					reviewerDbUserId: host.id,
+					mode: 'with'
+				})
+			)
 		);
 		expect(results.filter((result) => result.finalized)).toHaveLength(1);
 		const merits = await standalone.prisma.merit.findMany({ where: { eventSessionId: event.id } });

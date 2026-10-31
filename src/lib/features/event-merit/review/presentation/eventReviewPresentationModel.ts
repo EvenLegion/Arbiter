@@ -4,6 +4,7 @@ import { stripLeadingPrefixSegments } from '../../../../services/bulk-nickname/n
 import { stripTrailingMeritRankSuffix } from '../../../../services/nickname/buildUserNickname';
 import { resolveEventAttendancePolicy } from '../../../../services/event-review/eventAttendancePolicy';
 
+import type { MeritEligibility } from '../../../../services/merit-eligibility/meritEligibility';
 export type EventReviewPresentationAttendee = {
 	dbUserId: string;
 	discordUserId: string;
@@ -12,6 +13,7 @@ export type EventReviewPresentationAttendee = {
 	attendancePercent: number;
 	selectedDecision: EventReviewDecisionKind;
 	decisionLabel: string;
+	meritEligible: boolean;
 };
 
 export function buildEventReviewPresentationModel({
@@ -28,7 +30,7 @@ export function buildEventReviewPresentationModel({
 	durationSeconds: number;
 	expectedEventDuration?: number | null;
 	page: number;
-	attendees: EventReviewPageAttendee[];
+	attendees: Array<EventReviewPageAttendee & { meritEligibility?: MeritEligibility }>;
 	pageSize: number;
 	defaultMinAttendancePct?: number;
 	fullAttendanceGraceSeconds?: number;
@@ -44,14 +46,18 @@ export function buildEventReviewPresentationModel({
 			attendedSeconds: attendee.attendedSeconds,
 			...attendancePolicy
 		});
-		const selectedDecision = resolveEventReviewDecision({
-			decision: attendee.decision,
-			attendedSeconds: attendee.attendedSeconds,
-			durationSeconds,
-			expectedEventDuration,
-			defaultMinAttendancePct,
-			fullAttendanceGraceSeconds
-		});
+		const eligibility = state === EventSessionState.ENDED_PENDING_REVIEW ? (attendee.meritEligibility ?? 'unavailable') : undefined;
+		const meritEligible = eligibility === undefined || eligibility === 'eligible';
+		const selectedDecision = !meritEligible
+			? EventReviewDecisionKind.NO_MERIT
+			: resolveEventReviewDecision({
+					decision: attendee.decision,
+					attendedSeconds: attendee.attendedSeconds,
+					durationSeconds,
+					expectedEventDuration,
+					defaultMinAttendancePct,
+					fullAttendanceGraceSeconds
+				});
 
 		return {
 			dbUserId: attendee.dbUserId,
@@ -63,7 +69,13 @@ export function buildEventReviewPresentationModel({
 			attendedSeconds: attendee.attendedSeconds,
 			attendancePercent,
 			selectedDecision,
-			decisionLabel: formatDecisionLabel(selectedDecision),
+			meritEligible,
+			decisionLabel:
+				eligibility === 'not_org_member'
+					? 'Not eligible for merit: not part of the org'
+					: eligibility === 'unavailable'
+						? 'Merit eligibility unavailable: refresh to retry'
+						: formatDecisionLabel(selectedDecision),
 			absoluteIndex: (page - 1) * pageSize + index + 1
 		};
 	});
