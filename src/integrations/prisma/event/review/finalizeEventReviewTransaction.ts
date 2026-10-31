@@ -1,4 +1,4 @@
-import { EventSessionState } from '@prisma/client';
+import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 
 import { MeritEligibilityError, type ResolveMeritEligibility } from '../../../../lib/services/merit-eligibility/meritEligibility';
 import {
@@ -6,6 +6,7 @@ import {
 	buildUnfinalizedEventReviewResult,
 	createFinalizedEventReviewMerits,
 	findMeritDecisionRows,
+	findDefaultReviewDecisionRows,
 	finalizeEventReviewState,
 	loadCenturionHostMeritType,
 	loadFinalizableEventReviewSession
@@ -37,7 +38,11 @@ export async function finalizeEventReviewTransaction({
 	if (mode === 'with') {
 		const candidateSession = await loadFinalizableEventReviewSession(prisma, eventSessionId);
 		if (!candidateSession || candidateSession.state !== EventSessionState.ENDED_PENDING_REVIEW) return buildUnfinalizedEventReviewResult(toState);
-		const candidates = await findMeritDecisionRows(prisma, eventSessionId);
+		const defaults = await findDefaultReviewDecisionRows(prisma, candidateSession);
+		const candidates = [
+			...(await findMeritDecisionRows(prisma, eventSessionId)),
+			...defaults.filter((row) => row.decision === EventReviewDecisionKind.MERIT)
+		];
 		for (const discordUserId of new Set([...candidates.map((row) => row.targetUser.discordUserId), candidateSession.hostUser.discordUserId])) {
 			eligibility.set(discordUserId, await resolveMeritEligibility(discordUserId));
 		}
@@ -66,7 +71,11 @@ export async function finalizeEventReviewTransaction({
 			return buildFinalizedWithoutMeritsResult(toState);
 		}
 
-		const meritDecisionRows = await findMeritDecisionRows(tx, eventSessionId);
+		const defaults = await findDefaultReviewDecisionRows(tx, eventSession);
+		const meritDecisionRows = [
+			...(await findMeritDecisionRows(tx, eventSessionId)),
+			...defaults.filter((row) => row.decision === EventReviewDecisionKind.MERIT)
+		];
 
 		// Re-read decisions under the finalization transaction. A concurrent new selection
 		// must be checked on a retry rather than inheriting another user's eligibility.
@@ -76,6 +85,19 @@ export async function finalizeEventReviewTransaction({
 			)
 		) {
 			throw new MeritEligibilityError('unavailable');
+		}
+		if (defaults.length > 0) {
+			await tx.eventReviewDecision.createMany({
+				data: defaults.map((row) => ({
+					eventSessionId,
+					targetUserId: row.targetUserId,
+					decision:
+						row.decision === EventReviewDecisionKind.MERIT && eligibility.get(row.targetUser.discordUserId) === 'eligible'
+							? EventReviewDecisionKind.MERIT
+							: EventReviewDecisionKind.NO_MERIT
+				})),
+				skipDuplicates: true
+			});
 		}
 		const eligibleDecisionRows = meritDecisionRows.filter((row) => eligibility.get(row.targetUser.discordUserId) === 'eligible');
 		const ineligibleUserIds = meritDecisionRows

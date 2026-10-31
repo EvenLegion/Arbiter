@@ -8,13 +8,27 @@ describe('expected event duration review defaults', () => {
 		[0.5, 1, 2].map((actualMultiplier) => ({ expectedEventDuration, actualMultiplier }))
 	);
 
+	it('keeps a legacy attendance rejection when membership lookup is unavailable', async () => {
+		const deps = {
+			...reviewDeps(null, 3600, [3590]),
+			defaultMinAttendancePercent: 100,
+			resolveMeritEligibility: vi.fn().mockResolvedValue('unavailable')
+		};
+		await initializeEventReviewState(deps, { eventSessionId: 1 });
+		expect(deps.upsertReviewDecisions).toHaveBeenCalledWith({
+			eventSessionId: 1,
+			decisions: [{ targetDbUserId: 'db-0', decision: EventReviewDecisionKind.NO_MERIT }],
+			overwriteExisting: false
+		});
+	});
+
 	it.each(['not_org_member', 'unavailable'] as const)('preserves full attendance but does not preselect merit for %s', async (eligibility) => {
 		const deps = { ...reviewDeps(60, 3600, [3600]), resolveMeritEligibility: vi.fn().mockResolvedValue(eligibility) };
 		await initializeEventReviewState(deps, { eventSessionId: 1 });
 		expect(deps.upsertParticipantStats).toHaveBeenCalledWith({ eventSessionId: 1, participants: [{ dbUserId: 'db-0', attendedSeconds: 3600 }] });
 		expect(deps.upsertReviewDecisions).toHaveBeenCalledWith({
 			eventSessionId: 1,
-			decisions: [{ targetDbUserId: 'db-0', decision: 'NO_MERIT' }],
+			decisions: eligibility === 'unavailable' ? [] : [{ targetDbUserId: 'db-0', decision: 'NO_MERIT' }],
 			overwriteExisting: false
 		});
 	});

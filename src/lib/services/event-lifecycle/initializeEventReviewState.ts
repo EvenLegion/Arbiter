@@ -2,7 +2,7 @@ import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 
 import type { EventReviewParticipantSnapshot, EventReviewUserLookup } from './eventLifecycleTypes';
 import type { ResolveMeritEligibility } from '../merit-eligibility/meritEligibility';
-import { resolveEventAttendancePolicy } from '../event-review/eventAttendancePolicy';
+import { resolveEventAttendancePolicy, resolveDefaultReviewDecision } from '../event-review/eventAttendancePolicy';
 
 type InitializeEventReviewDeps = {
 	resolveMeritEligibility: ResolveMeritEligibility;
@@ -117,17 +117,22 @@ export async function initializeEventReviewState(
 
 	await deps.upsertReviewDecisions({
 		eventSessionId: input.eventSessionId,
-		decisions: participants.map((participant) => ({
-			targetDbUserId: participant.dbUserId,
-			decision:
-				eligibilityByDbUserId.get(participant.dbUserId) !== 'eligible'
-					? EventReviewDecisionKind.NO_MERIT
-					: resolveDefaultReviewDecision({
-							attendedSeconds: participant.attendedSeconds,
-							durationSeconds: attendancePolicy.durationSeconds,
-							defaultMinAttendancePercent: attendancePolicy.defaultMinAttendancePct
-						})
-		})),
+		decisions: participants.flatMap((participant) => {
+			const eligibility = eligibilityByDbUserId.get(participant.dbUserId);
+			const attendanceDecision = resolveDefaultReviewDecision({
+				attendedSeconds: participant.attendedSeconds,
+				durationSeconds: attendancePolicy.durationSeconds,
+				defaultMinAttendancePercent: attendancePolicy.defaultMinAttendancePct
+			});
+			// Keep attendance rejections durable; only unresolved positive defaults need retry.
+			if ((eligibility === undefined || eligibility === 'unavailable') && attendanceDecision === EventReviewDecisionKind.MERIT) return [];
+			return [
+				{
+					targetDbUserId: participant.dbUserId,
+					decision: eligibility === 'not_org_member' ? EventReviewDecisionKind.NO_MERIT : attendanceDecision
+				}
+			];
+		}),
 		overwriteExisting: false
 	});
 
@@ -153,20 +158,4 @@ function clampAttendedSecondsForReview(attendedSeconds: number, durationSeconds:
 	}
 
 	return Math.min(durationSeconds, safeAttendedSeconds);
-}
-
-function resolveDefaultReviewDecision({
-	attendedSeconds,
-	durationSeconds,
-	defaultMinAttendancePercent
-}: {
-	attendedSeconds: number;
-	durationSeconds: number;
-	defaultMinAttendancePercent: number;
-}) {
-	if (durationSeconds <= 0) {
-		return EventReviewDecisionKind.NO_MERIT;
-	}
-
-	return attendedSeconds / durationSeconds >= defaultMinAttendancePercent / 100 ? EventReviewDecisionKind.MERIT : EventReviewDecisionKind.NO_MERIT;
 }
