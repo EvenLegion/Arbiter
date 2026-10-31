@@ -25,6 +25,7 @@ export function buildEventReviewAttendeeRows({
 						})
 					)
 					.setLabel(attendee.labelSuffix)
+					.setDisabled(!attendee.meritEligible)
 					.setStyle(attendee.selectedDecision === EventReviewDecisionKind.MERIT ? ButtonStyle.Success : ButtonStyle.Danger)
 			)
 		)

@@ -40,6 +40,142 @@ describe('finalizeEventReview integration', () => {
 		}
 	});
 
+	it('checks the automatic host award when there are no attendee merit decisions', async () => {
+		const host = await createUser(standalone.prisma, { discordUserId: 'only-host', discordUsername: 'host' });
+		const tier = await standalone.prisma.eventTier.findUniqueOrThrow({ where: { code: MeritTypeCode.TIER_1 } });
+		const event = await standalone.prisma.event.create({
+			data: {
+				hostUserId: host.id,
+				eventTierId: tier.id,
+				threadId: 'only-host-thread',
+				name: 'Host only',
+				state: EventSessionState.ENDED_PENDING_REVIEW
+			}
+		});
+		expect(
+			await eventReviewRepository.finalizeReview({
+				eventSessionId: event.id,
+				reviewerDbUserId: host.id,
+				mode: 'with',
+				resolveMeritEligibility: async () => 'not_org_member'
+			})
+		).toMatchObject({ finalized: true, awardedCount: 0, awardedUsers: [] });
+		expect(await standalone.prisma.merit.count()).toBe(0);
+	});
+
+	it('rolls back finalization when another attendee is selected during live eligibility checks', async () => {
+		const host = await createUser(standalone.prisma, { discordUserId: 'concurrent-host', discordUsername: 'host' });
+		const attendee = await createUser(standalone.prisma, { discordUserId: 'concurrent-attendee', discordUsername: 'attendee' });
+		const tier = await standalone.prisma.eventTier.findUniqueOrThrow({ where: { code: MeritTypeCode.TIER_1 } });
+		const event = await standalone.prisma.event.create({
+			data: {
+				hostUserId: host.id,
+				eventTierId: tier.id,
+				threadId: 'concurrent-thread',
+				name: 'Concurrent review',
+				state: EventSessionState.ENDED_PENDING_REVIEW
+			}
+		});
+		await expect(
+			eventReviewRepository.finalizeReview({
+				eventSessionId: event.id,
+				reviewerDbUserId: host.id,
+				mode: 'with',
+				resolveMeritEligibility: async () => {
+					await standalone.prisma.eventReviewDecision.create({
+						data: { eventSessionId: event.id, targetUserId: attendee.id, decision: EventReviewDecisionKind.MERIT }
+					});
+					return 'eligible';
+				}
+			})
+		).rejects.toMatchObject({ name: 'MeritEligibilityError' });
+		expect(await standalone.prisma.merit.count()).toBe(0);
+		expect(await standalone.prisma.event.findUniqueOrThrow({ where: { id: event.id } })).toMatchObject({
+			state: EventSessionState.ENDED_PENDING_REVIEW,
+			reviewFinalizedAt: null
+		});
+	});
+
+	it.each(['attendee', 'host', 'both'] as const)(
+		'rechecks and excludes %s after org role removal, keeping attendance and retry safety',
+		async (removed) => {
+			const host = await createUser(standalone.prisma, { discordUserId: 'removed-host', discordUsername: 'host' });
+			const attendee = await createUser(standalone.prisma, { discordUserId: 'removed-attendee', discordUsername: 'attendee' });
+			const tier = await standalone.prisma.eventTier.findUniqueOrThrow({ where: { code: MeritTypeCode.TIER_3 } });
+			const event = await standalone.prisma.event.create({
+				data: {
+					hostUserId: host.id,
+					eventTierId: tier.id,
+					threadId: 'removed-thread',
+					name: 'Role removal',
+					state: EventSessionState.ENDED_PENDING_REVIEW
+				}
+			});
+			await standalone.prisma.eventParticipantStat.create({ data: { eventSessionId: event.id, userId: attendee.id, attendedSeconds: 3600 } });
+			await standalone.prisma.eventReviewDecision.create({
+				data: { eventSessionId: event.id, targetUserId: attendee.id, decision: EventReviewDecisionKind.MERIT }
+			});
+			const resolveMeritEligibility = vi.fn(
+				async (id: string) =>
+					(removed === 'both' || id === `removed-${removed}` ? 'not_org_member' : 'eligible') as 'not_org_member' | 'eligible'
+			);
+			const input = { eventSessionId: event.id, reviewerDbUserId: host.id, mode: 'with' as const, resolveMeritEligibility };
+			const result = await eventReviewRepository.finalizeReview(input);
+			expect(result.awardedCount).toBe(removed === 'both' ? 0 : 1);
+			expect(result.awardedUsers.map((u) => u.discordUserId)).toEqual(
+				removed === 'both' ? [] : [removed === 'host' ? attendee.discordUserId : host.discordUserId]
+			);
+			expect(await standalone.prisma.merit.count({ where: { eventSessionId: event.id } })).toBe(result.awardedCount);
+			expect(await standalone.prisma.eventParticipantStat.findMany({ where: { eventSessionId: event.id } })).toMatchObject([
+				{ userId: attendee.id, attendedSeconds: 3600 }
+			]);
+			if (removed !== 'host')
+				expect(await standalone.prisma.eventReviewDecision.findMany({ where: { eventSessionId: event.id } })).toMatchObject([
+					{ decision: 'NO_MERIT' }
+				]);
+			expect(await eventReviewRepository.finalizeReview(input)).toMatchObject({ finalized: false, awardedCount: 0 });
+		}
+	);
+
+	it.each(['host', 'attendee'] as const)('keeps review pending with no awards when %s eligibility is unavailable', async (failed) => {
+		const host = await createUser(standalone.prisma, { discordUserId: 'unknown-host', discordUsername: 'host' });
+		const attendee = await createUser(standalone.prisma, { discordUserId: 'unknown-attendee', discordUsername: 'attendee' });
+		const tier = await standalone.prisma.eventTier.findUniqueOrThrow({ where: { code: MeritTypeCode.TIER_1 } });
+		const event = await standalone.prisma.event.create({
+			data: {
+				hostUserId: host.id,
+				eventTierId: tier.id,
+				threadId: 'unknown-thread',
+				name: 'Lookup failure',
+				state: EventSessionState.ENDED_PENDING_REVIEW
+			}
+		});
+		await standalone.prisma.eventReviewDecision.create({
+			data: { eventSessionId: event.id, targetUserId: attendee.id, decision: EventReviewDecisionKind.MERIT }
+		});
+		await expect(
+			eventReviewRepository.finalizeReview({
+				eventSessionId: event.id,
+				reviewerDbUserId: host.id,
+				mode: 'with',
+				resolveMeritEligibility: async (id) => (id === `unknown-${failed}` ? 'unavailable' : 'eligible')
+			})
+		).rejects.toMatchObject({ name: 'MeritEligibilityError' });
+		expect(await standalone.prisma.merit.count()).toBe(0);
+		expect(await standalone.prisma.event.findUniqueOrThrow({ where: { id: event.id } })).toMatchObject({
+			state: EventSessionState.ENDED_PENDING_REVIEW,
+			reviewFinalizedAt: null
+		});
+		expect(
+			await eventReviewRepository.finalizeReview({
+				eventSessionId: event.id,
+				reviewerDbUserId: host.id,
+				mode: 'with',
+				resolveMeritEligibility: async () => 'eligible'
+			})
+		).toMatchObject({ finalized: true, awardedCount: 2 });
+	});
+
 	it('finalizes an event with merits and writes merit rows for MERIT decisions only', async () => {
 		const reviewer = await createUser(standalone.prisma, {
 			discordUserId: '3001',
@@ -85,6 +221,7 @@ describe('finalizeEventReview integration', () => {
 		});
 
 		const result = await eventReviewRepository.finalizeReview({
+			resolveMeritEligibility: async () => 'eligible',
 			eventSessionId: eventSession.id,
 			reviewerDbUserId: reviewer.id,
 			mode: 'with'
@@ -159,6 +296,7 @@ describe('finalizeEventReview integration', () => {
 		});
 
 		const result = await eventReviewRepository.finalizeReview({
+			resolveMeritEligibility: async () => 'eligible',
 			eventSessionId: eventSession.id,
 			reviewerDbUserId: reviewer.id,
 			mode: 'without'
@@ -200,6 +338,7 @@ describe('finalizeEventReview integration', () => {
 		});
 
 		const result = await eventReviewRepository.finalizeReview({
+			resolveMeritEligibility: async () => 'eligible',
 			eventSessionId: eventSession.id,
 			reviewerDbUserId: reviewer.id,
 			mode: 'with'

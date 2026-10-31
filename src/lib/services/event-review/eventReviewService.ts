@@ -1,5 +1,7 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 
+import { EventReviewDecisionLockedError } from './eventReviewDecisionErrors';
+import type { MeritEligibility } from '../merit-eligibility/meritEligibility';
 import type { ActorContext } from '../_shared/actor';
 import { hasStaffOrCenturionEquivalentCapability } from '../_shared/actor';
 import type { EventReviewPage } from '../../../integrations/prisma/repositories';
@@ -16,6 +18,7 @@ type ReviewEventLookup = {
 };
 
 type RecordEventReviewDecisionDeps = {
+	resolveTargetMeritEligibility: (dbUserId: string) => Promise<MeritEligibility>;
 	findEventSession: (eventSessionId: number) => Promise<ReviewEventLookup | null>;
 	saveDecision: (params: { eventSessionId: number; targetDbUserId: string; decision: EventReviewDecisionKind }) => Promise<void>;
 	syncReviewMessage: (params: { eventSessionId: number; page: number }) => Promise<boolean>;
@@ -30,6 +33,7 @@ type RefreshEventReviewPageDeps = LoadEventReviewPageDeps & {
 };
 
 export type RecordEventReviewDecisionResult =
+	| { kind: 'recipient_ineligible'; eligibility: 'not_org_member' | 'unavailable' }
 	| { kind: 'forbidden' }
 	| { kind: 'event_not_found' }
 	| { kind: 'invalid_state'; currentState: EventSessionState }
@@ -37,14 +41,10 @@ export type RecordEventReviewDecisionResult =
 	| { kind: 'decision_saved'; synced: boolean };
 
 export type LoadEventReviewPageResult =
-	| { kind: 'event_not_found' }
-	| { kind: 'invalid_state'; currentState: EventSessionState }
-	| { kind: 'page_ready'; reviewPage: EventReviewPage };
+	{ kind: 'event_not_found' } | { kind: 'invalid_state'; currentState: EventSessionState } | { kind: 'page_ready'; reviewPage: EventReviewPage };
 
 export type RefreshEventReviewPageResult =
-	| { kind: 'event_not_found' }
-	| { kind: 'invalid_state'; currentState: EventSessionState }
-	| { kind: 'page_refreshed'; synced: boolean };
+	{ kind: 'event_not_found' } | { kind: 'invalid_state'; currentState: EventSessionState } | { kind: 'page_refreshed'; synced: boolean };
 
 export async function recordEventReviewDecision(
 	deps: RecordEventReviewDecisionDeps,
@@ -81,11 +81,23 @@ export async function recordEventReviewDecision(
 		};
 	}
 
-	await deps.saveDecision({
-		eventSessionId: input.eventSessionId,
-		targetDbUserId: input.targetDbUserId,
-		decision: input.decision
-	});
+	if (input.decision === EventReviewDecisionKind.MERIT) {
+		const eligibility = await deps.resolveTargetMeritEligibility(input.targetDbUserId);
+		if (eligibility !== 'eligible') return { kind: 'recipient_ineligible', eligibility };
+	}
+
+	try {
+		await deps.saveDecision({
+			eventSessionId: input.eventSessionId,
+			targetDbUserId: input.targetDbUserId,
+			decision: input.decision
+		});
+	} catch (error) {
+		if (error instanceof EventReviewDecisionLockedError) {
+			return error.currentState === null ? { kind: 'event_not_found' } : { kind: 'review_locked', currentState: error.currentState };
+		}
+		throw error;
+	}
 
 	return {
 		kind: 'decision_saved',

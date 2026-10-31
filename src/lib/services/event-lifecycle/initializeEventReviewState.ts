@@ -1,9 +1,11 @@
 import { EventReviewDecisionKind, EventSessionState } from '@prisma/client';
 
 import type { EventReviewParticipantSnapshot, EventReviewUserLookup } from './eventLifecycleTypes';
+import type { ResolveMeritEligibility } from '../merit-eligibility/meritEligibility';
 import { resolveEventAttendancePolicy } from '../event-review/eventAttendancePolicy';
 
 type InitializeEventReviewDeps = {
+	resolveMeritEligibility: ResolveMeritEligibility;
 	findEventSession: (eventSessionId: number) => Promise<{
 		id: number;
 		state: EventSessionState;
@@ -109,15 +111,22 @@ export async function initializeEventReviewState(
 		participants
 	});
 
+	const eligibilityByDbUserId = new Map(
+		await Promise.all(users.map(async (user) => [user.id, await deps.resolveMeritEligibility(user.discordUserId)] as const))
+	);
+
 	await deps.upsertReviewDecisions({
 		eventSessionId: input.eventSessionId,
 		decisions: participants.map((participant) => ({
 			targetDbUserId: participant.dbUserId,
-			decision: resolveDefaultReviewDecision({
-				attendedSeconds: participant.attendedSeconds,
-				durationSeconds: attendancePolicy.durationSeconds,
-				defaultMinAttendancePercent: attendancePolicy.defaultMinAttendancePct
-			})
+			decision:
+				eligibilityByDbUserId.get(participant.dbUserId) !== 'eligible'
+					? EventReviewDecisionKind.NO_MERIT
+					: resolveDefaultReviewDecision({
+							attendedSeconds: participant.attendedSeconds,
+							durationSeconds: attendancePolicy.durationSeconds,
+							defaultMinAttendancePercent: attendancePolicy.defaultMinAttendancePct
+						})
 		})),
 		overwriteExisting: false
 	});

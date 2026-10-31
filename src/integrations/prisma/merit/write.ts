@@ -1,6 +1,7 @@
 import { MeritTypeCode } from '@prisma/client';
 import { z } from 'zod';
 
+import { MeritEligibilityError, type ResolveMeritEligibility } from '../../../lib/services/merit-eligibility/meritEligibility';
 import { prisma } from '../prisma';
 
 type AwardManualMeritParams = {
@@ -26,7 +27,7 @@ const AWARD_MANUAL_MERIT_SCHEMA = z.object({
 	eventSessionId: z.number().int().positive().nullable().optional()
 });
 
-export async function awardManualMerit(params: AwardManualMeritParams) {
+export async function awardManualMerit(params: AwardManualMeritParams & { resolveMeritEligibility: ResolveMeritEligibility }) {
 	const parsed = AWARD_MANUAL_MERIT_SCHEMA.parse(params);
 
 	return prisma.$transaction(async (tx) => {
@@ -36,7 +37,8 @@ export async function awardManualMerit(params: AwardManualMeritParams) {
 			},
 			select: {
 				id: true,
-				isManualAwardable: true
+				isManualAwardable: true,
+				meritAmount: true
 			}
 		});
 		if (!meritType) {
@@ -44,6 +46,12 @@ export async function awardManualMerit(params: AwardManualMeritParams) {
 		}
 		if (!meritType.isManualAwardable) {
 			throw new MeritTypeNotManualAwardableError(parsed.meritTypeCode);
+		}
+
+		if (meritType.meritAmount > 0) {
+			const recipient = await tx.user.findUniqueOrThrow({ where: { id: parsed.recipientDbUserId }, select: { discordUserId: true } });
+			const eligibility = await params.resolveMeritEligibility(recipient.discordUserId);
+			if (eligibility !== 'eligible') throw new MeritEligibilityError(eligibility);
 		}
 
 		return tx.merit.create({

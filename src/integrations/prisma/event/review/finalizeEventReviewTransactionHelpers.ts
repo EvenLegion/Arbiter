@@ -125,7 +125,8 @@ export async function createFinalizedEventReviewMerits({
 	hostUserId,
 	hostDiscordUserId,
 	hostMeritTypeId,
-	hostMeritAmount
+	hostMeritAmount,
+	hostEligible
 }: {
 	tx: Prisma.TransactionClient;
 	meritDecisionRows: Awaited<ReturnType<typeof findMeritDecisionRows>>;
@@ -137,6 +138,7 @@ export async function createFinalizedEventReviewMerits({
 	hostDiscordUserId: string;
 	hostMeritTypeId: number;
 	hostMeritAmount: number;
+	hostEligible: boolean;
 }) {
 	const meritRows = [
 		...meritDecisionRows.map((row) => ({
@@ -146,13 +148,17 @@ export async function createFinalizedEventReviewMerits({
 			reason: 'Awarded for attending',
 			eventSessionId
 		})),
-		{
-			userId: hostUserId,
-			awardedByUserId: reviewerDbUserId,
-			meritTypeId: hostMeritTypeId,
-			reason: 'Awarded for hosting',
-			eventSessionId
-		}
+		...(hostEligible
+			? [
+					{
+						userId: hostUserId,
+						awardedByUserId: reviewerDbUserId,
+						meritTypeId: hostMeritTypeId,
+						reason: 'Awarded for hosting',
+						eventSessionId
+					}
+				]
+			: [])
 	];
 	const createManyResult = await tx.merit.createMany({
 		data: meritRows,
@@ -174,15 +180,17 @@ export async function createFinalizedEventReviewMerits({
 		});
 	}
 
-	const existingHostAward = awardedUsersByDbUserId.get(hostUserId);
-	if (existingHostAward) {
-		existingHostAward.awardedMeritAmount += hostMeritAmount;
-	} else {
-		awardedUsersByDbUserId.set(hostUserId, {
-			dbUserId: hostUserId,
-			discordUserId: hostDiscordUserId,
-			awardedMeritAmount: hostMeritAmount
-		});
+	if (hostEligible) {
+		const existingHostAward = awardedUsersByDbUserId.get(hostUserId);
+		if (existingHostAward) {
+			existingHostAward.awardedMeritAmount += hostMeritAmount;
+		} else {
+			awardedUsersByDbUserId.set(hostUserId, {
+				dbUserId: hostUserId,
+				discordUserId: hostDiscordUserId,
+				awardedMeritAmount: hostMeritAmount
+			});
+		}
 	}
 
 	return {

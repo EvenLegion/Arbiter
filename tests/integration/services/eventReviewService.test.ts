@@ -42,6 +42,73 @@ describe('eventReviewService integration', () => {
 		}
 	});
 
+	it('rejects an eligibility lookup that completes after finalization and preserves excluded medal recipients', async () => {
+		// Match the repository's module instance after this suite's resetModules.
+		const { recordEventReviewDecision: recordDecision } = await import('../../../src/lib/services/event-review/eventReviewService');
+		const { staffMedalRepository } = await import('../../../src/integrations/prisma/repositories');
+		const host = await createUser(standalone.prisma, { discordUserId: 'race-host' });
+		const attendee = await createUser(standalone.prisma, { discordUserId: 'race-attendee' });
+		const event = await createEventSession(standalone.prisma, {
+			hostUserId: host.id,
+			threadId: 'race-thread',
+			name: 'Delayed eligibility',
+			state: EventSessionState.ENDED_PENDING_REVIEW
+		});
+		await standalone.prisma.eventParticipantStat.create({ data: { eventSessionId: event.id, userId: attendee.id, attendedSeconds: 3600 } });
+		await eventReviewRepository.upsertDecision({
+			eventSessionId: event.id,
+			targetDbUserId: attendee.id,
+			decision: EventReviewDecisionKind.MERIT
+		});
+		let signalLookupStarted!: () => void;
+		const lookupStarted = new Promise<void>((resolve) => {
+			signalLookupStarted = resolve;
+		});
+		let finishLookup!: (status: 'eligible') => void;
+		const eligibilityLookup = new Promise<'eligible'>((resolve) => {
+			finishLookup = resolve;
+		});
+		const syncReviewMessage = vi.fn().mockResolvedValue(true);
+		const delayedDecision = recordDecision(
+			{
+				findEventSession: async (id) => standalone.prisma.event.findUnique({ where: { id }, select: { id: true, state: true } }),
+				resolveTargetMeritEligibility: async () => {
+					signalLookupStarted();
+					return eligibilityLookup;
+				},
+				saveDecision: async (params) => {
+					await eventReviewRepository.upsertDecision(params);
+				},
+				syncReviewMessage
+			},
+			{
+				actor: { discordUserId: host.discordUserId, dbUserId: host.id, capabilities: { isStaff: true, isCenturion: false, isOptio: false } },
+				eventSessionId: event.id,
+				targetDbUserId: attendee.id,
+				decision: EventReviewDecisionKind.MERIT,
+				page: 1
+			}
+		);
+		await lookupStarted;
+		try {
+			await eventReviewRepository.finalizeReview({
+				eventSessionId: event.id,
+				reviewerDbUserId: host.id,
+				mode: 'with',
+				resolveMeritEligibility: async (id) => (id === attendee.discordUserId ? 'not_org_member' : 'eligible')
+			});
+		} finally {
+			finishLookup('eligible');
+		}
+		expect(await delayedDecision).toEqual({ kind: 'review_locked', currentState: EventSessionState.FINALIZED_WITH_MERITS });
+		expect(syncReviewMessage).not.toHaveBeenCalled();
+		expect(await standalone.prisma.eventReviewDecision.findMany({ where: { eventSessionId: event.id } })).toMatchObject([
+			{ targetUserId: attendee.id, decision: EventReviewDecisionKind.NO_MERIT }
+		]);
+		expect(await standalone.prisma.merit.count({ where: { eventSessionId: event.id, userId: attendee.id } })).toBe(0);
+		expect(await staffMedalRepository.listEventMeritRecipients({ eventSessionId: event.id })).toEqual([]);
+	});
+
 	it('records a review decision and persists it through the service', async () => {
 		const reviewer = await createUser(standalone.prisma, {
 			discordUserId: '5201',
@@ -71,6 +138,7 @@ describe('eventReviewService integration', () => {
 							state: true
 						}
 					}),
+				resolveTargetMeritEligibility: async () => 'eligible' as const,
 				saveDecision: eventReviewRepository.upsertDecision,
 				syncReviewMessage: vi.fn().mockResolvedValue(true)
 			},
@@ -202,6 +270,7 @@ describe('eventReviewService integration', () => {
 							state: true
 						}
 					}),
+				resolveTargetMeritEligibility: async () => 'eligible' as const,
 				saveDecision: eventReviewRepository.upsertDecision,
 				syncReviewMessage: vi.fn().mockResolvedValue(true)
 			},

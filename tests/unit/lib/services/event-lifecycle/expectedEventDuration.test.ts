@@ -8,6 +8,17 @@ describe('expected event duration review defaults', () => {
 		[0.5, 1, 2].map((actualMultiplier) => ({ expectedEventDuration, actualMultiplier }))
 	);
 
+	it.each(['not_org_member', 'unavailable'] as const)('preserves full attendance but does not preselect merit for %s', async (eligibility) => {
+		const deps = { ...reviewDeps(60, 3600, [3600]), resolveMeritEligibility: vi.fn().mockResolvedValue(eligibility) };
+		await initializeEventReviewState(deps, { eventSessionId: 1 });
+		expect(deps.upsertParticipantStats).toHaveBeenCalledWith({ eventSessionId: 1, participants: [{ dbUserId: 'db-0', attendedSeconds: 3600 }] });
+		expect(deps.upsertReviewDecisions).toHaveBeenCalledWith({
+			eventSessionId: 1,
+			decisions: [{ targetDbUserId: 'db-0', decision: 'NO_MERIT' }],
+			overwriteExisting: false
+		});
+	});
+
 	it.each(cases)(
 		'uses an inclusive half threshold for $expectedEventDuration minutes, actual multiplier $actualMultiplier',
 		async ({ expectedEventDuration, actualMultiplier }) => {
@@ -69,6 +80,7 @@ function reviewDeps(expectedEventDuration: number | null | undefined, actualSeco
 			endedAt: new Date(actualSeconds * 1000),
 			expectedEventDuration
 		}),
+		resolveMeritEligibility: async () => 'eligible' as const,
 		getTrackingParticipantsSnapshot: vi
 			.fn()
 			.mockResolvedValue(attendance.map((attendedSeconds, index) => ({ discordUserId: `discord-${index}`, attendedSeconds }))),

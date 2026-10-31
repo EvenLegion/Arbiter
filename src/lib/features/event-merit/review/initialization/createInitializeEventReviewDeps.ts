@@ -7,8 +7,10 @@ import { eventRepository, eventReviewRepository, userRepository } from '../../..
 import type { ExecutionContext } from '../../../../logging/executionContext';
 import { syncEventReviewPresentation } from '../../presentation/syncEventReviewPresentation';
 
+import { createMeritEligibilityResolver } from '../../../../discord/guild/meritEligibility';
 export function createInitializeEventReviewDeps({ guild, logger }: { guild: import('discord.js').Guild; logger: ExecutionContext['logger'] }) {
 	return {
+		resolveMeritEligibility: createMeritEligibilityResolver(guild),
 		findEventSession: async (eventSessionId: number) =>
 			eventRepository.getSession({
 				eventSessionId

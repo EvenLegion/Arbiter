@@ -1,9 +1,27 @@
 import { MeritTypeCode } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 
+import { MeritEligibilityError } from '../../../../../src/lib/services/merit-eligibility/meritEligibility';
 import { awardManualMeritWorkflow } from '../../../../../src/lib/services/manual-merit/manualMeritService';
 
 describe('manualMeritService', () => {
+	it.each(['not_org_member', 'unavailable'] as const)('reports %s without sending successful award effects', async (eligibility) => {
+		const deps = createDeps();
+		deps.awardManualMerit.mockRejectedValueOnce(new MeritEligibilityError(eligibility));
+		const result = await awardManualMeritWorkflow(deps, {
+			actor: createActor(),
+			actorMember: buildMember('staff-user'),
+			playerInput: 'target-user',
+			rawMeritTypeCode: MeritTypeCode.COMMANDER_MERIT,
+			reason: null,
+			linkedEventSessionId: null
+		});
+		expect(result).toEqual({ kind: 'recipient_ineligible', eligibility });
+		expect(deps.sendRecipientDm).not.toHaveBeenCalled();
+		expect(deps.syncRecipientNickname).not.toHaveBeenCalled();
+		expect(deps.notifyRankUp).not.toHaveBeenCalled();
+	});
+
 	it('awards manual merit successfully without warnings', async () => {
 		const deps = createDeps();
 

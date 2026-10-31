@@ -1,5 +1,6 @@
 import { EventSessionState } from '@prisma/client';
 
+import { MeritEligibilityError, type ResolveMeritEligibility } from '../../../../lib/services/merit-eligibility/meritEligibility';
 import {
 	buildFinalizedWithoutMeritsResult,
 	buildUnfinalizedEventReviewResult,
@@ -17,16 +18,31 @@ import type { FinalizeEventReviewResult } from './finalizeEventReviewTransaction
 export async function finalizeEventReviewTransaction({
 	eventSessionId,
 	reviewerDbUserId,
-	mode
+	mode,
+	resolveMeritEligibility
 }: {
 	eventSessionId: number;
 	reviewerDbUserId: string;
 	mode: 'with' | 'without';
+	resolveMeritEligibility: ResolveMeritEligibility;
 }): Promise<FinalizeEventReviewResult> {
 	const toState: FinalizeEventReviewResult['toState'] =
 		mode === 'with' ? EventSessionState.FINALIZED_WITH_MERITS : EventSessionState.FINALIZED_NO_MERITS;
 
 	const now = new Date();
+
+	// Resolve live Discord roles before opening the DB transaction: rate-limited
+	// member fetches must not hold the event lock or exhaust Prisma's timeout.
+	const eligibility = new Map<string, Awaited<ReturnType<ResolveMeritEligibility>>>();
+	if (mode === 'with') {
+		const candidateSession = await loadFinalizableEventReviewSession(prisma, eventSessionId);
+		if (!candidateSession || candidateSession.state !== EventSessionState.ENDED_PENDING_REVIEW) return buildUnfinalizedEventReviewResult(toState);
+		const candidates = await findMeritDecisionRows(prisma, eventSessionId);
+		for (const discordUserId of new Set([...candidates.map((row) => row.targetUser.discordUserId), candidateSession.hostUser.discordUserId])) {
+			eligibility.set(discordUserId, await resolveMeritEligibility(discordUserId));
+		}
+		if ([...eligibility.values()].some((status) => status === 'unavailable')) throw new MeritEligibilityError('unavailable');
+	}
 
 	return prisma.$transaction(async (tx) => {
 		const eventSession = await loadFinalizableEventReviewSession(tx, eventSessionId);
@@ -52,33 +68,31 @@ export async function finalizeEventReviewTransaction({
 
 		const meritDecisionRows = await findMeritDecisionRows(tx, eventSessionId);
 
-		if (meritDecisionRows.length === 0) {
-			const centurionHostMeritType = await loadCenturionHostMeritType(tx);
-			const hostMeritCreation = await createFinalizedEventReviewMerits({
-				tx,
-				meritDecisionRows,
-				reviewerDbUserId,
-				eventSessionId,
-				attendanceMeritTypeId: eventSession.eventTier.meritTypeId,
-				attendanceMeritAmount: eventSession.eventTier.meritType.meritAmount,
-				hostUserId: eventSession.hostUserId,
-				hostDiscordUserId: eventSession.hostUser.discordUserId,
-				hostMeritTypeId: centurionHostMeritType.id,
-				hostMeritAmount: centurionHostMeritType.meritAmount
+		// Re-read decisions under the finalization transaction. A concurrent new selection
+		// must be checked on a retry rather than inheriting another user's eligibility.
+		if (
+			[...meritDecisionRows.map((row) => row.targetUser.discordUserId), eventSession.hostUser.discordUserId].some(
+				(discordUserId) => !eligibility.has(discordUserId)
+			)
+		) {
+			throw new MeritEligibilityError('unavailable');
+		}
+		const eligibleDecisionRows = meritDecisionRows.filter((row) => eligibility.get(row.targetUser.discordUserId) === 'eligible');
+		const ineligibleUserIds = meritDecisionRows
+			.filter((row) => eligibility.get(row.targetUser.discordUserId) !== 'eligible')
+			.map((row) => row.targetUserId);
+		if (ineligibleUserIds.length > 0) {
+			await tx.eventReviewDecision.updateMany({
+				where: { eventSessionId, targetUserId: { in: ineligibleUserIds } },
+				data: { decision: 'NO_MERIT' }
 			});
-
-			return {
-				finalized: true,
-				toState,
-				awardedCount: hostMeritCreation.createManyResult.count,
-				awardedUsers: hostMeritCreation.awardedUsers
-			};
 		}
 
 		const centurionHostMeritType = await loadCenturionHostMeritType(tx);
 		const meritCreation = await createFinalizedEventReviewMerits({
 			tx,
-			meritDecisionRows,
+			meritDecisionRows: eligibleDecisionRows,
+			hostEligible: eligibility.get(eventSession.hostUser.discordUserId) === 'eligible',
 			reviewerDbUserId,
 			eventSessionId,
 			attendanceMeritTypeId: eventSession.eventTier.meritTypeId,

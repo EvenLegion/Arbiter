@@ -47,11 +47,7 @@ export function buildEventReviewHeaderEmbed({
 				value: formatEventSessionStateLabel(state),
 				inline: true
 			},
-			{
-				name: 'Attendees',
-				value: attendeesFieldValue,
-				inline: false
-			}
+			...buildAttendeeFields(attendeesFieldValue)
 		)
 		.setFooter({
 			text: `Event session ID: ${eventSessionId}`
@@ -68,4 +64,17 @@ function formatDuration(durationSeconds: number) {
 	}
 
 	return `${minutes}m`;
+}
+
+function buildAttendeeFields(attendeesFieldValue: string) {
+	const chunks: string[] = [];
+	for (const line of attendeesFieldValue.split('\n')) {
+		const previous = chunks[chunks.length - 1];
+		if (previous !== undefined && previous.length + line.length + 1 <= 1024) {
+			chunks[chunks.length - 1] = `${previous}\n${line}`;
+		} else {
+			chunks.push(line);
+		}
+	}
+	return chunks.map((value, index) => ({ name: index === 0 ? 'Attendees' : 'Attendees (continued)', value, inline: false }));
 }
