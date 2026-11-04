@@ -20,7 +20,7 @@
 		"ioredis": "^5.11.1",
 		"pg": "^8.23.1",
 		"pino": "^10.4.0",
-		"zod": "~4.4.3"
+		"zod": "~4.6.6"
 	},
 	"devDependencies": {
 		"@types/node": "^22.20.5",
