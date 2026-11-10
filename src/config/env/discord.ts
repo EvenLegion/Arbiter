@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { createMeritBadgeRoleMap, parseMeritBadgeRoleIds } from '../meritBadgeRoles';
 import { env } from './env';
 
 const DiscordSchema = z.object({
@@ -60,3 +61,13 @@ if (!parsed.success) {
 }
 
 export const ENV_DISCORD = parsed.data as z.infer<typeof DiscordSchema>;
+
+// Optional merit badge role IDs: MERIT_BADGE_FERRUM_I_ROLE_ID … MERIT_BADGE_SUPRA_OMNIA_III_ROLE_ID.
+// Unset means that tier is off; all unset means badge sync is off. See src/config/meritBadgeRoles.ts.
+const meritBadgeRoles = parseMeritBadgeRoleIds(env);
+
+if (meritBadgeRoles.issues.length > 0) {
+	throw new Error(`Invalid environment configuration:\n${meritBadgeRoles.issues.join('\n')}`);
+}
+
+export const ENV_MERIT_BADGE_ROLES = createMeritBadgeRoleMap(meritBadgeRoles.roleIdsByTier);
