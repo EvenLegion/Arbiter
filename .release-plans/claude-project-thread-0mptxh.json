@@ -1,0 +1,38 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-0mptxh",
+	"baseRef": "origin/dev",
+	"mergeBase": "8d272b8ac9e2ad1f67509cf19d1dba75e2cc6e71",
+	"headRef": "118f8fa321c558eafbee9b2117bfb227dedeae97",
+	"generatedAt": "2026-11-10T23:56:13.696Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Adds the dormant merit badge foundations: the frozen 36-tier badge policy in @arbiter/domain, a frozen legacy rank surface, and optional per-tier badge role ID configuration with a read-only startup role check. Badge sync stays off until role IDs are set.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "30b90a2dde5e35c0fa8198031d2e7ddc215b8848",
+			"subject": "feat(domain): add frozen merit badge policy and freeze legacy ranks",
+			"committedAt": "2026-11-10T23:50:09+00:00",
+			"committedAtMs": 1794354609000,
+			"type": "feat",
+			"scope": "domain",
+			"description": "add frozen merit badge policy and freeze legacy ranks",
+			"breaking": false,
+			"section": "Features"
+		},
+		{
+			"sha": "118f8fa321c558eafbee9b2117bfb227dedeae97",
+			"subject": "feat(config): read optional merit badge role IDs and check them at startup",
+			"committedAt": "2026-11-10T23:55:57+00:00",
+			"committedAtMs": 1794354957000,
+			"type": "feat",
+			"scope": "config",
+			"description": "read optional merit badge role IDs and check them at startup",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
