@@ -32,6 +32,8 @@ export type GuildMemberSyncDeps<TMember> = {
 		outcome: 'updated' | 'unchanged' | 'skipped';
 		reason?: string;
 	}>;
+	/** Optional merit badge sync. Must not throw; a failure is counted, not added to failed members. */
+	syncBadge?: (params: { member: TMember }) => Promise<'updated' | 'unchanged' | 'failed'>;
 };
 
 export type GuildMemberSyncResult =
@@ -46,6 +48,8 @@ export type GuildMemberSyncResult =
 			nicknameComputed: number;
 			nicknameUpdated: number;
 			nicknameUnchanged: number;
+			badgeUpdated: number;
+			badgeFailed: number;
 			failedMembers: GuildMemberSyncFailure[];
 	  };
 
@@ -57,6 +61,8 @@ type GuildMemberSyncCounters = {
 	nicknameComputed: number;
 	nicknameUpdated: number;
 	nicknameUnchanged: number;
+	badgeUpdated: number;
+	badgeFailed: number;
 };
 
 type GuildMemberSyncProgress = GuildMemberSyncCounters & {
@@ -103,6 +109,8 @@ function createGuildMemberSyncProgress(): GuildMemberSyncProgress {
 		nicknameComputed: 0,
 		nicknameUpdated: 0,
 		nicknameUnchanged: 0,
+		badgeUpdated: 0,
+		badgeFailed: 0,
 		failedMembers: []
 	};
 }
@@ -146,18 +154,38 @@ async function syncGuildMemberRecord<TMember>(deps: GuildMemberSyncDeps<TMember>
 			member,
 			dbUserId
 		});
-		if (nicknameResult.outcome === 'skipped') {
-			return;
-		}
-
-		progress.nicknameComputed++;
-		if (nicknameResult.outcome === 'updated') {
-			progress.nicknameUpdated++;
-		} else {
-			progress.nicknameUnchanged++;
+		if (nicknameResult.outcome !== 'skipped') {
+			progress.nicknameComputed++;
+			if (nicknameResult.outcome === 'updated') {
+				progress.nicknameUpdated++;
+			} else {
+				progress.nicknameUnchanged++;
+			}
 		}
 	} catch (error) {
 		progress.failedMembers.push(buildFailure(snapshot, dbUserId, error));
+	}
+
+	await syncGuildMemberBadge(deps, progress, member);
+}
+
+async function syncGuildMemberBadge<TMember>(deps: GuildMemberSyncDeps<TMember>, progress: GuildMemberSyncProgress, member: TMember) {
+	if (!deps.syncBadge) {
+		return;
+	}
+
+	let outcome: 'updated' | 'unchanged' | 'failed';
+	try {
+		outcome = await deps.syncBadge({
+			member
+		});
+	} catch {
+		outcome = 'failed';
+	}
+	if (outcome === 'updated') {
+		progress.badgeUpdated++;
+	} else if (outcome === 'failed') {
+		progress.badgeFailed++;
 	}
 }
 
@@ -172,6 +200,8 @@ function finalizeGuildMemberSyncResult(progress: GuildMemberSyncProgress): Guild
 		nicknameComputed: progress.nicknameComputed,
 		nicknameUpdated: progress.nicknameUpdated,
 		nicknameUnchanged: progress.nicknameUnchanged,
+		badgeUpdated: progress.badgeUpdated,
+		badgeFailed: progress.badgeFailed,
 		failedMembers: progress.failedMembers
 	};
 }

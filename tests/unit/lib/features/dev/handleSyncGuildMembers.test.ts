@@ -83,6 +83,8 @@ describe('handleSyncGuildMembers', () => {
 			nicknameComputed: 2,
 			nicknameUpdated: 1,
 			nicknameUnchanged: 1,
+			badgeUpdated: 0,
+			badgeFailed: 0,
 			failedMembers: []
 		});
 		mocks.buildGuildMemberSyncPayload.mockReturnValue({

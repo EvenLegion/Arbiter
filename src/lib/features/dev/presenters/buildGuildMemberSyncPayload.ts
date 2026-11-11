@@ -5,7 +5,7 @@ import type { GuildMemberSyncResult } from '../../../services/guild-member-sync/
 export function buildGuildMemberSyncPayload({ result }: { result: Extract<GuildMemberSyncResult, { kind: 'completed' }> }) {
 	const summaryEmbed = new EmbedBuilder()
 		.setTitle('Guild Member Sync Complete')
-		.setColor(result.failedMembers.length > 0 ? 0xf59e0b : 0x22c55e)
+		.setColor(result.failedMembers.length > 0 || result.badgeFailed > 0 ? 0xf59e0b : 0x22c55e)
 		.addFields(
 			{ name: 'Total Members', value: String(result.totalMembers), inline: true },
 			{ name: 'Bot Members Skipped', value: String(result.botMembersSkipped), inline: true },
@@ -14,6 +14,8 @@ export function buildGuildMemberSyncPayload({ result }: { result: Extract<GuildM
 			{ name: 'Nicknames Computed', value: String(result.nicknameComputed), inline: true },
 			{ name: 'Nicknames Updated', value: String(result.nicknameUpdated), inline: true },
 			{ name: 'Nicknames Unchanged', value: String(result.nicknameUnchanged), inline: true },
+			{ name: 'Badges Updated', value: String(result.badgeUpdated), inline: true },
+			{ name: 'Badge Failures', value: String(result.badgeFailed), inline: true },
 			{ name: 'Failed Members', value: String(result.failedMembers.length), inline: true }
 		)
 		.setTimestamp();

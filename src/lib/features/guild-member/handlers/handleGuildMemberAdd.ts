@@ -3,6 +3,7 @@ import type { GuildMember } from 'discord.js';
 import { ENV_DISCORD } from '../../../../config/env/discord';
 import { userRepository } from '../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../logging/executionContext';
+import { createMeritBadgeSyncRuntime } from '../../../services/merit-badge/createMeritBadgeSyncRuntime';
 import { buildWelcomeMessage } from '../welcome/buildWelcomeMessage';
 
 type HandleGuildMemberAddParams = {
@@ -41,6 +42,8 @@ export async function handleGuildMemberAdd({ member, context }: HandleGuildMembe
 		);
 	}
 
+	await restoreMeritBadge({ member, context, logger });
+
 	const message = buildWelcomeMessage({
 		guildName: member.guild.name,
 		discordUserId: member.user.id,
@@ -72,4 +75,38 @@ export async function handleGuildMemberAdd({ member, context }: HandleGuildMembe
 		},
 		'welcome message sent'
 	);
+}
+
+/** Gives a returning member back the badge for their stored total. Never blocks the welcome. */
+async function restoreMeritBadge({
+	member,
+	context,
+	logger
+}: {
+	member: GuildMember;
+	context: ExecutionContext;
+	logger: ExecutionContext['logger'];
+}) {
+	if (member.guild.id !== ENV_DISCORD.DISCORD_GUILD_ID) {
+		return;
+	}
+
+	try {
+		// The runtime logs the outcome; no total override, so the total is read fresh.
+		await createMeritBadgeSyncRuntime({
+			guild: member.guild,
+			context,
+			auditReason: 'Merit badge restore after member rejoined'
+		}).syncMember({
+			discordUserId: member.user.id
+		});
+	} catch (error) {
+		logger.error(
+			{
+				discordUserId: member.user.id,
+				errorName: error instanceof Error ? error.name : undefined
+			},
+			'Failed to restore merit badge for joining member'
+		);
+	}
 }
