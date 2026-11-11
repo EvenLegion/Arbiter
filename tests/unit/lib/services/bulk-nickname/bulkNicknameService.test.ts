@@ -76,8 +76,52 @@ describe('bulkNicknameService', () => {
 					dbUserId: 'db-1006',
 					reason: 'Failed setting nickname'
 				}
-			]
+			],
+			dryRun: false,
+			plan: []
 		});
+	});
+
+	it('passes dry_run to every member and lists planned changes and skipped staff only', async () => {
+		const targets = buildTargets(['1001', '1002', '1003', '1004']);
+		const syncNickname = vi.fn(async ({ target }: { target: BulkNicknameTarget }) => {
+			switch (target.discordUserId) {
+				case '1001':
+					return { outcome: 'updated' as const, currentNickname: 'Alpha (edited by hand)', computedNickname: 'LGN | Alpha' };
+				case '1002':
+					return { outcome: 'unchanged' as const, currentNickname: 'LGN | Bravo', computedNickname: 'LGN | Bravo' };
+				case '1003':
+					return { outcome: 'skipped' as const, reason: 'User has a staff role', currentNickname: null, computedNickname: null };
+				default:
+					return { outcome: 'skipped' as const, reason: 'User is the guild owner', currentNickname: 'Owner', computedNickname: null };
+			}
+		});
+
+		const result = await syncBulkNicknames(
+			{
+				resolveTargets: async () => targets,
+				listMembers: async () => new Map(targets.map((target) => [target.discordUserId, { id: target.discordUserId, currentNickname: '' }])),
+				getMember: async () => null,
+				syncNickname
+			},
+			{ includeStaff: false, dryRun: true }
+		);
+
+		expect(syncNickname).toHaveBeenCalledTimes(4);
+		for (const call of syncNickname.mock.calls) {
+			expect(call[0]).toMatchObject({ includeStaff: false, dryRun: true });
+		}
+		expect(result).toMatchObject({ kind: 'completed', dryRun: true, updated: 1, unchanged: 1, skippedStaff: 1, skippedByRule: 1 });
+		expect(result.kind === 'completed' && result.plan).toEqual([
+			{
+				discordUserId: '1001',
+				discordUsername: 'user-1001',
+				action: 'change',
+				currentNickname: 'Alpha (edited by hand)',
+				plannedNickname: 'LGN | Alpha'
+			},
+			{ discordUserId: '1003', discordUsername: 'user-1003', action: 'skipped_staff', currentNickname: null, plannedNickname: null }
+		]);
 	});
 
 	it('reports transform summaries with failures and missing members', async () => {

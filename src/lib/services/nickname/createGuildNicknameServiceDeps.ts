@@ -11,12 +11,14 @@ export type CreateGuildNicknameServiceDepsParams = {
 	context: ExecutionContext;
 	resolveMember?: ResolveGuildMember;
 	includeStaff?: boolean;
+	dryRun?: boolean;
 };
 
 export function createGuildNicknameServiceDeps({
 	guild,
 	context,
 	includeStaff = false,
+	dryRun = false,
 	resolveMember = (discordUserId) =>
 		getGuildMember({
 			guild,
@@ -61,6 +63,7 @@ export function createGuildNicknameServiceDeps({
 				member,
 				context,
 				includeStaff,
+				dryRun,
 				setReason,
 				totalMeritsOverride,
 				contextBindings

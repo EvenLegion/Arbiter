@@ -57,6 +57,7 @@ export async function syncGuildNickname({
 	context,
 	setReason,
 	includeStaff = false,
+	dryRun = false,
 	totalMeritsOverride,
 	contextBindings
 }: {
@@ -64,6 +65,8 @@ export async function syncGuildNickname({
 	context: ExecutionContext;
 	setReason: string;
 	includeStaff?: boolean;
+	/** Decide exactly as a live sync would, but never call `setNickname`. `updated` then means "would update". */
+	dryRun?: boolean;
 	totalMeritsOverride?: number;
 	contextBindings?: Record<string, unknown>;
 }): Promise<NicknameSyncResult<GuildMember>> {
@@ -102,6 +105,14 @@ export async function syncGuildNickname({
 	if (member.nickname === nicknameResult.computedNickname) {
 		return {
 			outcome: 'unchanged',
+			member,
+			computedNickname: nicknameResult.computedNickname
+		};
+	}
+
+	if (dryRun) {
+		return {
+			outcome: 'updated',
 			member,
 			computedNickname: nicknameResult.computedNickname
 		};

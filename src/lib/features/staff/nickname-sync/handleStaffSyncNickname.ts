@@ -26,8 +26,9 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 		return;
 	}
 	const { guild, logger, responder } = prepared;
+	const dryRun = interaction.options.getBoolean('dry_run', false) ?? false;
 	await responder.safeEditReply({
-		content: `Nickname sync started. requestId=\`${context.requestId}\``
+		content: `${dryRun ? 'Nickname sync dry run' : 'Nickname sync'} started. requestId=\`${context.requestId}\``
 	});
 
 	const optionValue = interaction.options.getString('user', false);
@@ -48,7 +49,8 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 			}),
 			{
 				requestedDiscordUserId,
-				includeStaff
+				includeStaff,
+				dryRun
 			}
 		);
 
@@ -68,14 +70,18 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 			return;
 		}
 
+		// The dry-run plan holds nicknames: it goes only into the ephemeral reply. Logs get its size only.
+		const { plan, ...counts } = result;
 		const logBindings = {
-			...result,
+			...counts,
+			planRows: plan.length,
 			includeStaff
 		};
+		const logEvent = dryRun ? 'nickname.sync.dry_run_completed' : 'nickname.sync.completed';
 		if (result.failed > 0) {
-			logger.warn(logBindings, 'nickname.sync.completed_with_failures');
+			logger.warn(logBindings, `${logEvent}_with_failures`);
 		} else {
-			logger.info(logBindings, 'nickname.sync.completed');
+			logger.info(logBindings, logEvent);
 		}
 
 		await responder.safeEditReply(

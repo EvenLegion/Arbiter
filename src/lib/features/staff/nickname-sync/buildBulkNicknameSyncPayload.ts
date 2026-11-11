@@ -1,6 +1,11 @@
-import { EmbedBuilder } from 'discord.js';
+import { AttachmentBuilder, EmbedBuilder, escapeMarkdown } from 'discord.js';
 
-import type { SyncBulkNicknamesResult } from '../../../services/bulk-nickname/bulkNicknameService';
+import type { BulkNicknamePlanEntry, SyncBulkNicknamesResult } from '../../../services/bulk-nickname/bulkNicknameService';
+import { escapeCsvCell } from '../merit-badges/meritBadgeReportCsv';
+
+export const NICKNAME_SYNC_DRY_RUN_CSV_NAME = 'nickname-sync-dry-run.csv';
+
+const DRY_RUN_SAMPLE_SIZE = 10;
 
 export function buildBulkNicknameSyncPayload({
 	result,
@@ -13,14 +18,14 @@ export function buildBulkNicknameSyncPayload({
 }) {
 	const unsuccessful = result.failed + result.missingInGuild;
 	const summaryEmbed = new EmbedBuilder()
-		.setTitle('Nickname Sync Complete')
-		.setColor(unsuccessful > 0 ? 0xf59e0b : 0x22c55e)
+		.setTitle(result.dryRun ? 'Nickname Sync Dry Run' : 'Nickname Sync Complete')
+		.setColor(unsuccessful > 0 ? 0xf59e0b : result.dryRun ? 0x3b82f6 : 0x22c55e)
 		.addFields(
 			{ name: 'Mode', value: result.scope === 'single' ? 'Single User' : 'All DB Users', inline: true },
 			{ name: 'Include Staff', value: includeStaff ? 'Yes' : 'No', inline: true },
 			{ name: 'Targets', value: String(result.targetCount), inline: true },
 			{ name: 'Attempted', value: String(result.attempted), inline: true },
-			{ name: 'Updated', value: String(result.updated), inline: true },
+			{ name: result.dryRun ? 'Would Update' : 'Updated', value: String(result.updated), inline: true },
 			{ name: 'Unchanged', value: String(result.unchanged), inline: true },
 			{ name: 'Skipped Staff', value: String(result.skippedStaff), inline: true },
 			{ name: 'Skipped By Rule', value: String(result.skippedByRule), inline: true },
@@ -29,11 +34,54 @@ export function buildBulkNicknameSyncPayload({
 		)
 		.setTimestamp();
 
+	if (!result.dryRun) {
+		return {
+			content:
+				unsuccessful > 0
+					? `Some nickname sync operations were unsuccessful. Share requestId=\`${requestId}\` with TECH.`
+					: `Nickname sync succeeded. requestId=\`${requestId}\``,
+			embeds: [summaryEmbed]
+		};
+	}
+
+	const changes = result.plan.filter((entry) => entry.action === 'change');
+	if (changes.length > 0) {
+		const sample = changes.slice(0, DRY_RUN_SAMPLE_SIZE).map(formatChangeLine);
+		const more = changes.length > DRY_RUN_SAMPLE_SIZE ? `\n…and ${changes.length - DRY_RUN_SAMPLE_SIZE} more in the CSV.` : '';
+		summaryEmbed.setDescription(`**Nicknames a live run would change**\n${sample.join('\n')}${more}`);
+	}
+
+	const failureNote = unsuccessful > 0 ? ` Some members could not be checked; share requestId=\`${requestId}\` with TECH.` : '';
 	return {
 		content:
-			unsuccessful > 0
-				? `Some nickname sync operations were unsuccessful. Share requestId=\`${requestId}\` with TECH.`
-				: `Nickname sync succeeded. requestId=\`${requestId}\``,
-		embeds: [summaryEmbed]
+			result.plan.length > 0
+				? `Dry run only: no nicknames were changed. The CSV lists every change and skipped staff member.${failureNote} requestId=\`${requestId}\``
+				: `Dry run only: no nicknames were changed.${failureNote} requestId=\`${requestId}\``,
+		embeds: [summaryEmbed],
+		files:
+			result.plan.length > 0
+				? [new AttachmentBuilder(Buffer.from(buildNicknameSyncDryRunCsv(result.plan), 'utf8'), { name: NICKNAME_SYNC_DRY_RUN_CSV_NAME })]
+				: []
 	};
+}
+
+/**
+ * The dry-run CSV: one row per nickname a live run would change (including nicknames someone edited by
+ * hand, which a live run overwrites) and per staff member it would skip.
+ */
+export function buildNicknameSyncDryRunCsv(plan: readonly BulkNicknamePlanEntry[]): string {
+	const header = ['discord_user_id', 'stored_username', 'action', 'current_nickname', 'planned_nickname'];
+	const lines = [header.map(escapeCsvCell).join(',')];
+	for (const entry of plan) {
+		lines.push(
+			[entry.discordUserId, entry.discordUsername, entry.action, entry.currentNickname, entry.plannedNickname].map(escapeCsvCell).join(',')
+		);
+	}
+
+	return `${lines.join('\r\n')}\r\n`;
+}
+
+function formatChangeLine(entry: BulkNicknamePlanEntry) {
+	const current = entry.currentNickname === null ? '(no nickname)' : escapeMarkdown(entry.currentNickname);
+	return `${current} → ${escapeMarkdown(entry.plannedNickname ?? '')}`;
 }

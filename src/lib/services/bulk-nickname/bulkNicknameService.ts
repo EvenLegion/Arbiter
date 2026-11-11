@@ -37,10 +37,25 @@ type BulkNicknameUserDirectory = {
 
 export type SyncBulkNicknamesDeps<TMember> = BulkNicknameResolutionDeps<TMember> & {
 	prepare?: () => Promise<void>;
-	syncNickname: (params: { target: BulkNicknameTarget; member: TMember; includeStaff: boolean }) => Promise<{
+	syncNickname: (params: { target: BulkNicknameTarget; member: TMember; includeStaff: boolean; dryRun: boolean }) => Promise<{
 		outcome: 'updated' | 'unchanged' | 'skipped';
 		reason?: string;
+		/** The member's Discord nickname before the sync; null when they have none. */
+		currentNickname?: string | null;
+		computedNickname?: string | null;
 	}>;
+};
+
+/**
+ * One dry-run row: a nickname a live run would change, or a staff member it would skip. Holds
+ * nicknames, so it belongs only in the ephemeral reply and its attachment, never in logs.
+ */
+export type BulkNicknamePlanEntry = {
+	discordUserId: string;
+	discordUsername: string;
+	action: 'change' | 'skipped_staff';
+	currentNickname: string | null;
+	plannedNickname: string | null;
 };
 
 export type TransformBulkNicknamesDeps<TMember> = BulkNicknameResolutionDeps<TMember> & {
@@ -71,6 +86,9 @@ export type SyncBulkNicknamesResult =
 			missingInGuild: number;
 			failed: number;
 			failures: BulkNicknameFailure[];
+			dryRun: boolean;
+			/** Filled only on a dry run. */
+			plan: BulkNicknamePlanEntry[];
 	  };
 
 export type TransformBulkNicknamesResult =
@@ -126,8 +144,10 @@ export async function syncBulkNicknames<TMember>(
 	input: {
 		requestedDiscordUserId?: string;
 		includeStaff: boolean;
+		dryRun?: boolean;
 	}
 ): Promise<SyncBulkNicknamesResult> {
+	const dryRun = input.dryRun ?? false;
 	const scope = resolveBulkNicknameScope(input.requestedDiscordUserId);
 	if (deps.prepare) {
 		try {
@@ -163,6 +183,7 @@ export async function syncBulkNicknames<TMember>(
 	let missingInGuild = 0;
 	let failed = 0;
 	const failures = [];
+	const plan: BulkNicknamePlanEntry[] = [];
 
 	for (const target of targets) {
 		const member = membersByDiscordUserId.get(target.discordUserId) ?? null;
@@ -176,10 +197,14 @@ export async function syncBulkNicknames<TMember>(
 			const result = await deps.syncNickname({
 				target,
 				member,
-				includeStaff: input.includeStaff
+				includeStaff: input.includeStaff,
+				dryRun
 			});
 			if (result.outcome === 'updated') {
 				updated++;
+				if (dryRun) {
+					plan.push(buildPlanEntry(target, 'change', result));
+				}
 				continue;
 			}
 			if (result.outcome === 'unchanged') {
@@ -188,6 +213,9 @@ export async function syncBulkNicknames<TMember>(
 			}
 			if (result.reason === 'User has a staff role') {
 				skippedStaff++;
+				if (dryRun) {
+					plan.push(buildPlanEntry(target, 'skipped_staff', result));
+				}
 				continue;
 			}
 
@@ -209,7 +237,9 @@ export async function syncBulkNicknames<TMember>(
 		skippedByRule,
 		missingInGuild,
 		failed,
-		failures
+		failures,
+		dryRun,
+		plan
 	};
 }
 
@@ -327,6 +357,20 @@ async function loadMembersByDiscordUserId<TMember>(
 
 function resolveBulkNicknameScope(requestedDiscordUserId?: string): BulkNicknameScope {
 	return requestedDiscordUserId ? 'single' : 'all';
+}
+
+function buildPlanEntry(
+	target: BulkNicknameTarget,
+	action: BulkNicknamePlanEntry['action'],
+	result: { currentNickname?: string | null; computedNickname?: string | null }
+): BulkNicknamePlanEntry {
+	return {
+		discordUserId: target.discordUserId,
+		discordUsername: target.discordUsername,
+		action,
+		currentNickname: result.currentNickname ?? null,
+		plannedNickname: action === 'change' ? (result.computedNickname ?? null) : null
+	};
 }
 
 function buildBulkNicknameFailure(target: BulkNicknameTarget, error: unknown): BulkNicknameFailure {
