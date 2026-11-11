@@ -186,6 +186,26 @@ describe('manualMeritService', () => {
 		});
 	});
 
+	it('keeps the legacy next line in the recipient DM while the next badge has no role', async () => {
+		const deps = createDeps();
+		deps.badgeRoles = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6].map((tier) => [tier, `${100000000000000000 + tier}`])));
+
+		await awardManualMeritWorkflow(deps, {
+			actor: createActor(),
+			actorMember: buildMember('staff-user'),
+			playerInput: 'target-user',
+			rawMeritTypeCode: MeritTypeCode.COMMANDER_MERIT,
+			reason: null,
+			linkedEventSessionId: null
+		});
+
+		expect(deps.sendRecipientDm).toHaveBeenCalledWith(
+			expect.objectContaining({
+				content: expect.stringMatching(/You have \*\*12 merits total\*\*\nNext rank level in \*\*6 merits\*\*$/)
+			})
+		);
+	});
+
 	it('returns linked_event_not_found when the selected event does not exist', async () => {
 		const deps = createDeps({
 			findLinkedEventResult: null

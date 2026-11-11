@@ -3,7 +3,7 @@ import { GuildMember } from 'discord.js';
 import { ENV_MERIT_BADGE_ROLES } from '../../../config/env/discord';
 import type { ContextLogger } from '../../logging/executionContext';
 import { resolveMeritBadgePromotion } from './meritBadge';
-import { buildMeritBadgeEarnedDm, resolveMeritBadgeCopyProgress, type MeritBadgeCopyRoles } from './meritBadgeMessages';
+import { buildMeritBadgeEarnedDm, buildNextMeritBadgeLine, resolveMeritBadgeCopy, type MeritBadgeCopyRoles } from './meritBadgeMessages';
 import { resolveMeritRankLevel, resolveMeritRankProgress } from './meritRank';
 
 type NotifyMeritRankUpParams = {
@@ -17,7 +17,8 @@ type NotifyMeritRankUpParams = {
 
 /**
  * DMs a member after a promotion. Once the current badge tier's role is configured, the DM is
- * sent on every new badge (D14); before that, it keeps the legacy rank-level copy. A drop never
+ * sent on every new badge (D14); before that, it keeps the legacy rank-level copy. The next-badge
+ * line names a badge only once that badge has a role; until then it keeps the legacy line. A drop never
  * sends a DM. The send is best effort and only logs a warning on failure.
  */
 export async function notifyMeritRankUp({
@@ -27,11 +28,11 @@ export async function notifyMeritRankUp({
 	logger,
 	badgeRoles = ENV_MERIT_BADGE_ROLES
 }: NotifyMeritRankUpParams) {
-	const badgeProgress = resolveMeritBadgeCopyProgress({
+	const badgeCopy = resolveMeritBadgeCopy({
 		totalMerits: currentTotalMerits,
 		badgeRoles
 	});
-	if (badgeProgress) {
+	if (badgeCopy) {
 		const promotion = resolveMeritBadgePromotion({
 			previousTotalMerits,
 			currentTotalMerits
@@ -45,7 +46,7 @@ export async function notifyMeritRankUp({
 			content: buildMeritBadgeEarnedDm({
 				earnedTier: promotion.currentTier,
 				currentTotalMerits,
-				progress: badgeProgress
+				nextLine: withPeriod(buildNextMeritBadgeLine(badgeCopy)) ?? buildLegacyNextRankLine(currentTotalMerits)
 			}),
 			logger,
 			logFields: {
@@ -71,17 +72,12 @@ export async function notifyMeritRankUp({
 		return false;
 	}
 
-	const rankProgress = resolveMeritRankProgress(currentTotalMerits);
-	const nextRankLine = rankProgress.nextLevel
-		? `Next rank level in **${rankProgress.meritsRemainingToNextLevel} merit${rankProgress.meritsRemainingToNextLevel === 1 ? '' : 's'}**.`
-		: 'You are at the maximum merit rank level.';
-
 	await sendBestEffort({
 		member,
 		content: [
 			`Congratulations, Legionnaire! You've ranked up to **Level ${currentLevel}**!`,
 			`You have **${currentTotalMerits} merits** total.`,
-			nextRankLine
+			buildLegacyNextRankLine(currentTotalMerits)
 		].join('\n'),
 		logger,
 		logFields: {
@@ -94,6 +90,17 @@ export async function notifyMeritRankUp({
 	});
 
 	return true;
+}
+
+function buildLegacyNextRankLine(currentTotalMerits: number) {
+	const rankProgress = resolveMeritRankProgress(currentTotalMerits);
+	return rankProgress.nextLevel
+		? `Next rank level in **${rankProgress.meritsRemainingToNextLevel} merit${rankProgress.meritsRemainingToNextLevel === 1 ? '' : 's'}**.`
+		: 'You are at the maximum merit rank level.';
+}
+
+function withPeriod(line: string | null) {
+	return line === null ? null : `${line}.`;
 }
 
 async function sendBestEffort({

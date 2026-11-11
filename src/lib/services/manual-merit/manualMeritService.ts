@@ -2,7 +2,7 @@ import { MeritTypeCode } from '@prisma/client';
 import { z } from 'zod';
 
 import type { ActorContext } from '../_shared/actor';
-import { buildNextMeritBadgeLine, resolveMeritBadgeCopyProgress, type MeritBadgeCopyRoles } from '../merit-rank/meritBadgeMessages';
+import { buildNextMeritBadgeLine, resolveMeritBadgeCopy, type MeritBadgeCopyRoles } from '../merit-rank/meritBadgeMessages';
 import { resolveMeritRankProgress } from '../merit-rank/meritRank';
 
 const PLAYER_DISCORD_USER_ID_SCHEMA = z.string().trim().min(1);
@@ -51,7 +51,7 @@ export type ManualMeritServiceDeps = {
 	syncRecipientBadge: (params: { discordUserId: string; totalMerits: number }) => Promise<'ok' | 'failed'>;
 	notifyRankUp: (params: { discordUserId: string; previousTotalMerits: number; currentTotalMerits: number }) => Promise<void>;
 	sendRecipientDm: (params: { discordUserId: string; content: string }) => Promise<boolean>;
-	/** Configured badge roles; the DM's next line names the next badge once the member's tier has a role. */
+	/** Configured badge roles; the DM's next line names the next badge once both the member's tier and the next tier have a role. */
 	badgeRoles: MeritBadgeCopyRoles;
 };
 
@@ -391,12 +391,13 @@ function buildManualMeritDmContent({
 }
 
 function buildNextProgressLine({ currentTotalMerits, badgeRoles }: { currentTotalMerits: number; badgeRoles: MeritBadgeCopyRoles }) {
-	const badgeProgress = resolveMeritBadgeCopyProgress({
+	const badgeCopy = resolveMeritBadgeCopy({
 		totalMerits: currentTotalMerits,
 		badgeRoles
 	});
-	if (badgeProgress) {
-		return buildNextMeritBadgeLine(badgeProgress);
+	const badgeLine = badgeCopy ? buildNextMeritBadgeLine(badgeCopy) : null;
+	if (badgeLine) {
+		return badgeLine;
 	}
 
 	const rankProgress = resolveMeritRankProgress(currentTotalMerits);

@@ -21,6 +21,21 @@ describe('notifyMeritRankUp', () => {
 		);
 	});
 
+	it('keeps the legacy next line when the next badge has no role yet', async () => {
+		const member = createMember();
+		const ferrumToAes = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6].map((tier) => [tier, `${100000000000000000 + tier}`])));
+
+		await expect(notify({ member, previousTotalMerits: 10, currentTotalMerits: 12, badgeRoles: ferrumToAes })).resolves.toBe(true);
+
+		expect(member.user.send).toHaveBeenCalledWith(
+			[
+				"Congratulations, Legionnaire! You've earned the **Aes III** merit badge!",
+				'You have **12 merits** total.',
+				'Next rank level in **6 merits**.'
+			].join('\n')
+		);
+	});
+
 	it('sends no DM when the badge does not change, even if the legacy level does', async () => {
 		const member = createMember();
 

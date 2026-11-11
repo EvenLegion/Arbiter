@@ -5,51 +5,60 @@ import {
 	buildMeritBadgeEarnedDm,
 	buildMeritBadgeListFields,
 	buildNextMeritBadgeLine,
-	resolveMeritBadgeCopyProgress
+	resolveMeritBadgeCopy
 } from '../../../../../src/lib/services/merit-rank/meritBadgeMessages';
 
-const ALL_ROLES = createMeritBadgeRoleMap(new Map(Array.from({ length: 36 }, (_, index) => [index + 1, `${100000000000000000 + index}`])));
+const ALL_ROLES = rolesForTiers(Array.from({ length: 36 }, (_, index) => index + 1));
 const NO_ROLES = createMeritBadgeRoleMap(new Map());
 
 describe('meritBadgeMessages', () => {
 	it('names the badge and the next badge for a total of 12', () => {
-		const progress = resolveMeritBadgeCopyProgress({ totalMerits: 12, badgeRoles: ALL_ROLES });
+		const copy = resolveMeritBadgeCopy({ totalMerits: 12, badgeRoles: ALL_ROLES });
 
-		expect(progress?.currentTier?.label).toBe('Aes III');
-		expect(buildNextMeritBadgeLine(progress!)).toBe('Next badge **Argentum I** in **4 merits**');
-		expect(buildMeritBadgeListFields(progress!)).toEqual({
+		expect(copy?.progress.currentTier?.label).toBe('Aes III');
+		expect(buildNextMeritBadgeLine(copy!)).toBe('Next badge **Argentum I** in **4 merits**');
+		expect(buildMeritBadgeListFields(copy!)).toEqual({
 			currentValue: 'Aes III',
 			progressValue: ['To Argentum I: [==----------] 20%', '4 merits needed to next badge'].join('\n')
 		});
 	});
 
 	it('uses badge copy only when the tier the copy is about has a role', () => {
-		const ferrumOnly = createMeritBadgeRoleMap(new Map([[1, '100000000000000001']]));
+		const ferrumOnly = rolesForTiers([1]);
 
-		expect(resolveMeritBadgeCopyProgress({ totalMerits: 12, badgeRoles: NO_ROLES })).toBeNull();
-		expect(resolveMeritBadgeCopyProgress({ totalMerits: 12, badgeRoles: ferrumOnly })).toBeNull();
-		expect(resolveMeritBadgeCopyProgress({ totalMerits: 1, badgeRoles: ferrumOnly })?.currentTier?.label).toBe('Ferrum I');
+		expect(resolveMeritBadgeCopy({ totalMerits: 12, badgeRoles: NO_ROLES })).toBeNull();
+		expect(resolveMeritBadgeCopy({ totalMerits: 12, badgeRoles: ferrumOnly })).toBeNull();
+		expect(resolveMeritBadgeCopy({ totalMerits: 1, badgeRoles: ferrumOnly })?.progress.currentTier?.label).toBe('Ferrum I');
+	});
+
+	it('does not promise a next badge whose role is not configured yet', () => {
+		// Ferrum I to Aes III have roles; Argentum I does not, so sync could not award it.
+		const copy = resolveMeritBadgeCopy({ totalMerits: 12, badgeRoles: rolesForTiers([1, 2, 3, 4, 5, 6]) });
+
+		expect(copy?.canPromiseNextTier).toBe(false);
+		expect(buildNextMeritBadgeLine(copy!)).toBeNull();
+		expect(buildMeritBadgeListFields(copy!)).toEqual({ currentValue: 'Aes III', progressValue: null });
 	});
 
 	it('points a member with no merits at Ferrum I', () => {
-		const progress = resolveMeritBadgeCopyProgress({ totalMerits: 0, badgeRoles: ALL_ROLES });
+		const copy = resolveMeritBadgeCopy({ totalMerits: 0, badgeRoles: ALL_ROLES });
 
-		expect(buildMeritBadgeListFields(progress!)).toEqual({
+		expect(buildMeritBadgeListFields(copy!)).toEqual({
 			currentValue: 'No badge yet',
 			progressValue: ['To Ferrum I: [------------] 0%', '1 merit needed to next badge'].join('\n')
 		});
 	});
 
 	it('says the member holds the highest badge at Supra Omnia III', () => {
-		const progress = resolveMeritBadgeCopyProgress({ totalMerits: 2_400, badgeRoles: ALL_ROLES });
+		const copy = resolveMeritBadgeCopy({ totalMerits: 2_400, badgeRoles: ALL_ROLES });
 
-		expect(buildNextMeritBadgeLine(progress!)).toBe('You hold the highest merit badge');
-		expect(buildMeritBadgeListFields(progress!).progressValue).toBe('Highest badge reached');
+		expect(buildNextMeritBadgeLine(copy!)).toBe('You hold the highest merit badge');
+		expect(buildMeritBadgeListFields(copy!).progressValue).toBe('Highest badge reached');
 		expect(
 			buildMeritBadgeEarnedDm({
-				earnedTier: progress!.currentTier!,
+				earnedTier: copy!.progress.currentTier!,
 				currentTotalMerits: 2_400,
-				progress: progress!
+				nextLine: 'You hold the highest merit badge.'
 			})
 		).toBe(
 			[
@@ -60,3 +69,7 @@ describe('meritBadgeMessages', () => {
 		);
 	});
 });
+
+function rolesForTiers(tiers: number[]) {
+	return createMeritBadgeRoleMap(new Map(tiers.map((tier) => [tier, `${100000000000000000 + tier}`])));
+}

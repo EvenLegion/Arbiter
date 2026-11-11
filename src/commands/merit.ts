@@ -1,7 +1,7 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 
-import { ENV_DISCORD } from '../config/env';
+import { ENV_DISCORD, ENV_MERIT_BADGE_ROLES } from '../config/env';
 import { handleMeritAutocomplete } from '../lib/features/merit/autocomplete/meritAutocompleteProvider';
 import { handleGiveMerit } from '../lib/features/merit/manual-award/handleGiveMerit';
 import { handleMeritList } from '../lib/features/merit/read/handleMeritList';
@@ -80,7 +80,11 @@ export class MeritCommand extends Subcommand {
 					.addSubcommand((subcommand) =>
 						subcommand
 							.setName('rank_list')
-							.setDescription('List how many members hold each merit badge or rank level, by division (staff only).')
+							.setDescription(
+								ENV_MERIT_BADGE_ROLES.isEnabled
+									? 'List how many members hold each merit badge, by division (staff only).'
+									: 'List how many members are at each merit rank level by division (staff only).'
+							)
 							.addBooleanOption((option) =>
 								option
 									.setName('public')

@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'disc
 
 import { ENV_MERIT_BADGE_ROLES } from '../../../../config/env/discord';
 import type { MeritSummaryEntry } from '../../../../integrations/prisma/repositories';
-import { buildMeritBadgeListFields, resolveMeritBadgeCopyProgress, type MeritBadgeCopyRoles } from '../../../services/merit-rank/meritBadgeMessages';
+import { buildMeritBadgeListFields, resolveMeritBadgeCopy, type MeritBadgeCopyRoles } from '../../../services/merit-rank/meritBadgeMessages';
 import { buildMeritRankProgressBar, resolveMeritRankProgress } from '../../../services/merit-rank/meritRank';
 import { buildMeritListPageButtonId, buildMeritListPageIndicatorButtonId } from './meritListButtonCustomId';
 
@@ -127,19 +127,31 @@ function buildMeritListEmbed({
 }
 
 /** Badge fields once the member's badge tier has a role; otherwise the legacy rank fields. */
+/**
+ * Badge fields once the member's badge tier has a role; otherwise the legacy rank fields.
+ * While the next badge has no role yet, the progress field stays the legacy rank progress.
+ */
 function buildStandingFields({ totalMerits, badgeRoles }: { totalMerits: number; badgeRoles: MeritBadgeCopyRoles }) {
-	const badgeProgress = resolveMeritBadgeCopyProgress({
+	const legacy = buildLegacyRankFields(totalMerits);
+	const badgeCopy = resolveMeritBadgeCopy({
 		totalMerits,
 		badgeRoles
 	});
-	if (badgeProgress) {
-		return {
-			currentName: 'Current Badge',
-			progressName: 'Badge Progress',
-			...buildMeritBadgeListFields(badgeProgress)
-		};
+	if (!badgeCopy) {
+		return legacy;
 	}
 
+	const badgeFields = buildMeritBadgeListFields(badgeCopy);
+	return {
+		currentName: 'Current Badge',
+		currentValue: badgeFields.currentValue,
+		...(badgeFields.progressValue === null
+			? { progressName: legacy.progressName, progressValue: legacy.progressValue }
+			: { progressName: 'Badge Progress', progressValue: badgeFields.progressValue })
+	};
+}
+
+function buildLegacyRankFields(totalMerits: number) {
 	const rankProgress = resolveMeritRankProgress(totalMerits);
 	return {
 		currentName: 'Current Rank',
