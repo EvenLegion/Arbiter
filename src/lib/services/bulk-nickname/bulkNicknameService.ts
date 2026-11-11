@@ -47,15 +47,16 @@ export type SyncBulkNicknamesDeps<TMember> = BulkNicknameResolutionDeps<TMember>
 };
 
 /**
- * One dry-run row: a nickname a live run would change, or a staff member it would skip. Holds
- * nicknames, so it belongs only in the ephemeral reply and its attachment, never in logs.
+ * One dry-run row: a nickname a live run would change, a staff member it would skip, or a member it
+ * would fail on. Holds nicknames, so it belongs only in the ephemeral reply and its attachment, never in logs.
  */
 export type BulkNicknamePlanEntry = {
 	discordUserId: string;
 	discordUsername: string;
-	action: 'change' | 'skipped_staff';
+	action: 'change' | 'skipped_staff' | 'failed';
 	currentNickname: string | null;
 	plannedNickname: string | null;
+	reason: string | null;
 };
 
 export type TransformBulkNicknamesDeps<TMember> = BulkNicknameResolutionDeps<TMember> & {
@@ -222,7 +223,11 @@ export async function syncBulkNicknames<TMember>(
 			skippedByRule++;
 		} catch (error) {
 			failed++;
-			failures.push(buildBulkNicknameFailure(target, error));
+			const failure = buildBulkNicknameFailure(target, error);
+			failures.push(failure);
+			if (dryRun) {
+				plan.push({ ...buildPlanEntry(target, 'failed', {}), reason: failure.reason });
+			}
 		}
 	}
 
@@ -369,7 +374,8 @@ function buildPlanEntry(
 		discordUsername: target.discordUsername,
 		action,
 		currentNickname: result.currentNickname ?? null,
-		plannedNickname: action === 'change' ? (result.computedNickname ?? null) : null
+		plannedNickname: action === 'change' ? (result.computedNickname ?? null) : null,
+		reason: null
 	};
 }
 

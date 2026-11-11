@@ -37,10 +37,10 @@ export async function computeGuildNickname({
 		totalMerits: nicknameInputs.totalMerits
 	});
 
+	// No nickname values here: bulk dry runs pass through this path and must keep nicknames out of logs.
 	scopedContext.logger.trace(
 		{
 			discordUserId: member.id,
-			computedNickname: nicknameResult.newUserNickname,
 			computeSkipReason: nicknameResult.reason
 		},
 		'Computed nickname for guild member'

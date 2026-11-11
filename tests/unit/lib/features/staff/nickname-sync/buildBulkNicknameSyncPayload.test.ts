@@ -55,7 +55,14 @@ describe('buildBulkNicknameSyncPayload', () => {
 		const changes = Array.from({ length: 12 }, (_, index) => buildChange(String(index + 1)));
 		const plan: BulkNicknamePlanEntry[] = [
 			...changes,
-			{ discordUserId: '900', discordUsername: 'staff-900', action: 'skipped_staff', currentNickname: 'STF | Boss', plannedNickname: null }
+			{
+				discordUserId: '900',
+				discordUsername: 'staff-900',
+				action: 'skipped_staff',
+				currentNickname: 'STF | Boss',
+				plannedNickname: null,
+				reason: null
+			}
 		];
 
 		const payload = buildBulkNicknameSyncPayload({
@@ -65,7 +72,7 @@ describe('buildBulkNicknameSyncPayload', () => {
 		});
 
 		expect(payload.content).toBe(
-			'Dry run only: no nicknames were changed. The CSV lists every change and skipped staff member. requestId=`req-3`'
+			'Dry run only: no nicknames were changed. The CSV lists every change, skipped staff member and failure. requestId=`req-3`'
 		);
 		expect(payload.embeds[0].data.title).toBe('Nickname Sync Dry Run');
 		expect(payload.embeds[0].data.fields?.map((field) => [field.name, field.value])).toContainEqual(['Would Update', '12']);
@@ -94,21 +101,51 @@ describe('buildBulkNicknameSyncPayload', () => {
 describe('buildNicknameSyncDryRunCsv', () => {
 	it('writes one row per plan entry and escapes formula-like nicknames', () => {
 		const csv = buildNicknameSyncDryRunCsv([
-			{ discordUserId: '1', discordUsername: 'alpha', action: 'change', currentNickname: null, plannedNickname: 'LGN | Alpha' },
-			{ discordUserId: '2', discordUsername: 'bravo', action: 'change', currentNickname: '=HYPERLINK("x")', plannedNickname: 'LGN | Bravo, Jr' },
-			{ discordUserId: '3', discordUsername: 'carl', action: 'skipped_staff', currentNickname: 'STF | Carl', plannedNickname: null }
+			{ discordUserId: '1', discordUsername: 'alpha', action: 'change', currentNickname: null, plannedNickname: 'LGN | Alpha', reason: null },
+			{
+				discordUserId: '2',
+				discordUsername: 'bravo',
+				action: 'change',
+				currentNickname: '=HYPERLINK("x")',
+				plannedNickname: 'LGN | Bravo, Jr',
+				reason: null
+			},
+			{
+				discordUserId: '3',
+				discordUsername: 'carl',
+				action: 'skipped_staff',
+				currentNickname: 'STF | Carl',
+				plannedNickname: null,
+				reason: null
+			},
+			{
+				discordUserId: '4',
+				discordUsername: 'dan',
+				action: 'failed',
+				currentNickname: null,
+				plannedNickname: null,
+				reason: 'Failed to sync nickname: nickname-too-long'
+			}
 		]);
 
 		expect(csv.split('\r\n')).toEqual([
-			'discord_user_id,stored_username,action,current_nickname,planned_nickname',
-			'1,alpha,change,,LGN | Alpha',
-			'2,bravo,change,"\'=HYPERLINK(""x"")","LGN | Bravo, Jr"',
-			'3,carl,skipped_staff,STF | Carl,',
+			'discord_user_id,stored_username,action,current_nickname,planned_nickname,reason',
+			'1,alpha,change,,LGN | Alpha,',
+			'2,bravo,change,"\'=HYPERLINK(""x"")","LGN | Bravo, Jr",',
+			'3,carl,skipped_staff,STF | Carl,,',
+			'4,dan,failed,,,Failed to sync nickname: nickname-too-long',
 			''
 		]);
 	});
 });
 
 function buildChange(id: string): BulkNicknamePlanEntry {
-	return { discordUserId: id, discordUsername: `user-${id}`, action: 'change', currentNickname: `Old_${id}`, plannedNickname: `LGN | New_${id}` };
+	return {
+		discordUserId: id,
+		discordUsername: `user-${id}`,
+		action: 'change',
+		currentNickname: `Old_${id}`,
+		plannedNickname: `LGN | New_${id}`,
+		reason: null
+	};
 }

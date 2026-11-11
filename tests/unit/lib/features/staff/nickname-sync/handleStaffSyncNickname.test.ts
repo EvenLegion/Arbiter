@@ -35,8 +35,8 @@ const counts = {
 	skippedStaff: 1,
 	skippedByRule: 0,
 	missingInGuild: 0,
-	failed: 0,
-	failures: []
+	failed: 1,
+	failures: [{ discordUserId: '3', discordUsername: 'carl', dbUserId: 'db-3', reason: 'Failed to sync nickname: nickname-too-long' }]
 };
 
 describe('handleStaffSyncNickname', () => {
@@ -56,13 +56,16 @@ describe('handleStaffSyncNickname', () => {
 		await handleStaffSyncNickname({ interaction: createInteraction({}), context: createContext() as never });
 
 		expect(mocks.syncBulkNicknames).toHaveBeenCalledWith({}, { requestedDiscordUserId: undefined, includeStaff: false, dryRun: false });
-		expect(prepared.logger.info).toHaveBeenCalledWith(expect.objectContaining({ dryRun: false }), 'nickname.sync.completed');
+		expect(prepared.logger.warn).toHaveBeenCalledWith(
+			expect.objectContaining({ dryRun: false, failures: counts.failures }),
+			'nickname.sync.completed_with_failures'
+		);
 		expect(prepared.responder.safeEditReply).toHaveBeenLastCalledWith(
-			expect.objectContaining({ content: 'Nickname sync succeeded. requestId=`req-1`' })
+			expect.objectContaining({ content: expect.stringContaining('Some nickname sync operations were unsuccessful') })
 		);
 	});
 
-	it('runs a dry run and keeps the nickname plan out of the log payload', async () => {
+	it('runs a dry run and logs counts only, with no nickname plan or failure list', async () => {
 		const prepared = createPrepared();
 		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
 		mocks.syncBulkNicknames.mockResolvedValue({
@@ -86,12 +89,14 @@ describe('handleStaffSyncNickname', () => {
 		});
 
 		expect(mocks.syncBulkNicknames).toHaveBeenCalledWith({}, { requestedDiscordUserId: undefined, includeStaff: false, dryRun: true });
-		expect(prepared.logger.info).toHaveBeenCalledTimes(1);
-		const [bindings, event] = prepared.logger.info.mock.calls[0];
-		expect(event).toBe('nickname.sync.dry_run_completed');
+		expect(prepared.logger.warn).toHaveBeenCalledTimes(1);
+		const [bindings, event] = prepared.logger.warn.mock.calls[0];
+		expect(event).toBe('nickname.sync.dry_run_completed_with_failures');
 		expect(bindings).not.toHaveProperty('plan');
+		expect(bindings).not.toHaveProperty('failures');
 		expect(JSON.stringify(bindings)).not.toContain('Secret');
-		expect(bindings).toMatchObject({ dryRun: true, updated: 1, skippedStaff: 1, planRows: 2, includeStaff: false });
+		expect(JSON.stringify(bindings)).not.toContain('carl');
+		expect(bindings).toMatchObject({ dryRun: true, updated: 1, skippedStaff: 1, failed: 1, planRows: 2, includeStaff: false });
 		expect(prepared.responder.safeEditReply).toHaveBeenLastCalledWith(
 			expect.objectContaining({ content: expect.stringContaining('Dry run only'), files: [expect.anything()] })
 		);

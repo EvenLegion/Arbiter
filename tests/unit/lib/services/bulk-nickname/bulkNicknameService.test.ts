@@ -82,8 +82,8 @@ describe('bulkNicknameService', () => {
 		});
 	});
 
-	it('passes dry_run to every member and lists planned changes and skipped staff only', async () => {
-		const targets = buildTargets(['1001', '1002', '1003', '1004']);
+	it('passes dry_run to every member and lists planned changes, skipped staff and failures', async () => {
+		const targets = buildTargets(['1001', '1002', '1003', '1004', '1005']);
 		const syncNickname = vi.fn(async ({ target }: { target: BulkNicknameTarget }) => {
 			switch (target.discordUserId) {
 				case '1001':
@@ -92,8 +92,10 @@ describe('bulkNicknameService', () => {
 					return { outcome: 'unchanged' as const, currentNickname: 'LGN | Bravo', computedNickname: 'LGN | Bravo' };
 				case '1003':
 					return { outcome: 'skipped' as const, reason: 'User has a staff role', currentNickname: null, computedNickname: null };
-				default:
+				case '1004':
 					return { outcome: 'skipped' as const, reason: 'User is the guild owner', currentNickname: 'Owner', computedNickname: null };
+				default:
+					throw new Error('Failed to sync nickname: nickname-too-long');
 			}
 		});
 
@@ -107,20 +109,36 @@ describe('bulkNicknameService', () => {
 			{ includeStaff: false, dryRun: true }
 		);
 
-		expect(syncNickname).toHaveBeenCalledTimes(4);
+		expect(syncNickname).toHaveBeenCalledTimes(5);
 		for (const call of syncNickname.mock.calls) {
 			expect(call[0]).toMatchObject({ includeStaff: false, dryRun: true });
 		}
-		expect(result).toMatchObject({ kind: 'completed', dryRun: true, updated: 1, unchanged: 1, skippedStaff: 1, skippedByRule: 1 });
+		expect(result).toMatchObject({ kind: 'completed', dryRun: true, updated: 1, unchanged: 1, skippedStaff: 1, skippedByRule: 1, failed: 1 });
 		expect(result.kind === 'completed' && result.plan).toEqual([
 			{
 				discordUserId: '1001',
 				discordUsername: 'user-1001',
 				action: 'change',
 				currentNickname: 'Alpha (edited by hand)',
-				plannedNickname: 'LGN | Alpha'
+				plannedNickname: 'LGN | Alpha',
+				reason: null
 			},
-			{ discordUserId: '1003', discordUsername: 'user-1003', action: 'skipped_staff', currentNickname: null, plannedNickname: null }
+			{
+				discordUserId: '1003',
+				discordUsername: 'user-1003',
+				action: 'skipped_staff',
+				currentNickname: null,
+				plannedNickname: null,
+				reason: null
+			},
+			{
+				discordUserId: '1005',
+				discordUsername: 'user-1005',
+				action: 'failed',
+				currentNickname: null,
+				plannedNickname: null,
+				reason: 'Failed to sync nickname: nickname-too-long'
+			}
 		]);
 	});
 

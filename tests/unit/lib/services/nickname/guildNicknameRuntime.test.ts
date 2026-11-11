@@ -41,11 +41,13 @@ describe('syncGuildNickname', () => {
 
 	it('plans a change on a dry run without calling setNickname', async () => {
 		const member = createMember('Alpha (edited)');
+		const context = createContext();
 
-		const result = await syncGuildNickname({ member: member as never, context: createContext(), setReason: 'Staff nickname sync', dryRun: true });
+		const result = await syncGuildNickname({ member: member as never, context, setReason: 'Staff nickname sync', dryRun: true });
 
 		expect(result).toEqual({ outcome: 'updated', member, computedNickname: 'LGN | Alpha' });
 		expect(member.setNickname).not.toHaveBeenCalled();
+		expect(JSON.stringify((context as { logger: { trace: ReturnType<typeof vi.fn> } }).logger.trace.mock.calls)).not.toContain('LGN | Alpha');
 	});
 
 	it('still skips staff on a dry run unless includeStaff is set', async () => {
@@ -53,7 +55,13 @@ describe('syncGuildNickname', () => {
 		const member = createMember('Alpha');
 
 		const skipped = await syncGuildNickname({ member: member as never, context: createContext(), setReason: 'x', dryRun: true });
-		const included = await syncGuildNickname({ member: member as never, context: createContext(), setReason: 'x', dryRun: true, includeStaff: true });
+		const included = await syncGuildNickname({
+			member: member as never,
+			context: createContext(),
+			setReason: 'x',
+			dryRun: true,
+			includeStaff: true
+		});
 
 		expect(skipped).toMatchObject({ outcome: 'skipped', reason: 'User has a staff role' });
 		expect(included).toMatchObject({ outcome: 'updated', computedNickname: 'LGN | Alpha' });

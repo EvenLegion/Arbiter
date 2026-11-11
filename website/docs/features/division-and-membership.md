@@ -135,9 +135,9 @@ The thread-based review flow gives the repo three things:
 `/staff sync_nickname [user] [include_staff] [dry_run]` recomputes and applies the nickname for every user in the database, or for one selected user. It is a staff command, not a development command.
 
 - **Live run (default).** Members with a staff role are skipped unless `include_staff` is true. The reply counts updated, unchanged, skipped and failed members.
-- **Dry run (`dry_run: true`).** Makes the same decisions as a live run, including `include_staff`, but changes no nickname. The ephemeral reply shows the counts and up to 10 sample changes, plus a CSV with each change (Discord ID, stored username, current and planned nickname) and each skipped staff member. A nickname someone edited by hand in Discord shows up as a change, because a live run overwrites it.
+- **Dry run (`dry_run: true`).** Makes the same decisions as a live run, including `include_staff`, but changes no nickname. The ephemeral reply shows the counts and up to 10 sample changes, plus a CSV with each change (Discord ID, stored username, current and planned nickname), each skipped staff member and each member it would fail on, with the reason. A nickname someone edited by hand in Discord shows up as a change, because a live run overwrites it.
 
-The run's summary log carries counts and any failures (Discord ID, stored username, reason), never nicknames. Nicknames appear only in the ephemeral reply and its CSV.
+A dry run logs counts only; its nicknames and failures appear only in the ephemeral reply and its CSV. A live run's summary log also lists failures (Discord ID, stored username, reason), never nicknames.
 
 ## Merit Badge Sync Command
 

@@ -70,11 +70,12 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 			return;
 		}
 
-		// The dry-run plan holds nicknames: it goes only into the ephemeral reply. Logs get its size only.
-		const { plan, ...counts } = result;
+		// A dry run logs counts only: its plan (nicknames) and failures go only into the ephemeral reply and CSV.
+		// A live run keeps today's log payload, including the failure list.
+		const { plan, failures, ...counts } = result;
 		const logBindings = {
 			...counts,
-			planRows: plan.length,
+			...(dryRun ? { planRows: plan.length } : { failures }),
 			includeStaff
 		};
 		const logEvent = dryRun ? 'nickname.sync.dry_run_completed' : 'nickname.sync.completed';

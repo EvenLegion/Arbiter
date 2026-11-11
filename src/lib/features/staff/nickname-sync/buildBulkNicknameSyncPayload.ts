@@ -51,11 +51,11 @@ export function buildBulkNicknameSyncPayload({
 		summaryEmbed.setDescription(`**Nicknames a live run would change**\n${sample.join('\n')}${more}`);
 	}
 
-	const failureNote = unsuccessful > 0 ? ` Some members could not be checked; share requestId=\`${requestId}\` with TECH.` : '';
+	const failureNote = unsuccessful > 0 ? ' Some members could not be checked.' : '';
 	return {
 		content:
 			result.plan.length > 0
-				? `Dry run only: no nicknames were changed. The CSV lists every change and skipped staff member.${failureNote} requestId=\`${requestId}\``
+				? `Dry run only: no nicknames were changed. The CSV lists every change, skipped staff member and failure.${failureNote} requestId=\`${requestId}\``
 				: `Dry run only: no nicknames were changed.${failureNote} requestId=\`${requestId}\``,
 		embeds: [summaryEmbed],
 		files:
@@ -67,14 +67,16 @@ export function buildBulkNicknameSyncPayload({
 
 /**
  * The dry-run CSV: one row per nickname a live run would change (including nicknames someone edited by
- * hand, which a live run overwrites) and per staff member it would skip.
+ * hand, which a live run overwrites), per staff member it would skip, and per member it would fail on.
  */
 export function buildNicknameSyncDryRunCsv(plan: readonly BulkNicknamePlanEntry[]): string {
-	const header = ['discord_user_id', 'stored_username', 'action', 'current_nickname', 'planned_nickname'];
+	const header = ['discord_user_id', 'stored_username', 'action', 'current_nickname', 'planned_nickname', 'reason'];
 	const lines = [header.map(escapeCsvCell).join(',')];
 	for (const entry of plan) {
 		lines.push(
-			[entry.discordUserId, entry.discordUsername, entry.action, entry.currentNickname, entry.plannedNickname].map(escapeCsvCell).join(',')
+			[entry.discordUserId, entry.discordUsername, entry.action, entry.currentNickname, entry.plannedNickname, entry.reason]
+				.map(escapeCsvCell)
+				.join(',')
 		);
 	}
 
