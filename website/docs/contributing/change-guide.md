@@ -32,6 +32,7 @@ If you start deep in a query module before you understand the workflow, you will
 | Postgres, Redis, or query behavior                             | Domain-shaped repository plus aggregate-specific Prisma or Redis modules | Integration tests                                         |
 | Event, tracking, review, or merit behavior                     | Event/merit feature and service directories                              | Redis, Postgres, presentation, scheduled tasks            |
 | Divisions, nicknames, name changes, or guild-member automation | Membership/identity feature and service directories                      | Cache, Discord roles, listeners, presentation             |
+| Merit badge roles                                              | `src/lib/services/merit-badge` and the badge policy in `packages/domain` | Sync hooks, listeners, staff sync command, merit copy     |
 | Logging or observability                                       | Execution context creators, ingress logging, and observability config    | User-visible failure paths, log bindings                  |
 | An API route or transport contract                             | Shared Zod contract and v1 operation catalog                             | API handler, generated reference, contract/API tests      |
 | A listener or scheduled task                                   | Listener or task shell                                                   | Shared service code, logging, tests                       |
@@ -172,6 +173,7 @@ Do manual Discord checks when the change affects:
 - buttons or modals
 - permission and precondition behavior
 - guild-member listeners triggered by real role changes
+- merit badge role sync (needs badge roles and their IDs on the test server; the [rollout runbook](/operations/merit-badge-rollout#step-3-rehearse-on-the-test-server) lists the checks)
 
 Use automated tests for business correctness. Use manual testing for client and transport behavior.
 

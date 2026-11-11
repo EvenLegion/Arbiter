@@ -21,6 +21,8 @@ Choose checks by the risk that changed, then finish with the ticket-required or 
 | Documentation                                                             | `pnpm docs:build`                                                         | MDX, links resolved by Docusaurus, and production docs bundle              | Still inspect changed pages at desktop and mobile widths           |
 | Discord registration, autocomplete, components, permissions, or listeners | Manual check in a configured non-production guild                         | Real Discord transport and client behavior                                 | Never claim this check without the required client and credentials |
 
+Merit badge sync needs badge roles on the test server and their IDs in the test bot's environment. The [rollout runbook](../operations/merit-badge-rollout.md#step-3-rehearse-on-the-test-server) lists the manual checks. Remove test role IDs from any environment that deploys before the real roles exist.
+
 For root bot behavior outside `tests/unit`, use `pnpm test:bot`. To run the root bot and all package suites together, use `pnpm test`.
 
 ## Repository And CI Chain

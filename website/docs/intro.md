@@ -6,7 +6,7 @@ sidebar_position: 1
 
 # Arbiter Docs
 
-Arbiter is Even Legion's Discord operations bot. It owns event session workflows, merit awarding and rank progression, division and nickname automation, name-change review, and the runtime plumbing that keeps Discord state aligned with persisted state.
+Arbiter is Even Legion's Discord operations bot. It owns event session workflows, merit awarding and rank progression, merit badge roles (when enabled), division and nickname automation, name-change review, and the runtime plumbing that keeps Discord state aligned with persisted state.
 
 This site is written for contributors. The goal is to get a new developer from zero context to useful changes without making them read a dozen partially overlapping pages first.
 
@@ -61,6 +61,8 @@ That tradeoff is intentional. The code can move. The responsibilities are much m
   [Event And Merit Workflows](/features/event-system)
 - Changing division, nickname, name-change, or guild-member automation:
   [Membership, Identity, And Guild Automation](/features/division-and-membership)
+- Changing merit badge roles, or turning them on:
+  [Merit Badges](/features/merit-badges) and the [rollout runbook](/operations/merit-badge-rollout)
 - Need to know where a change belongs and how to validate it:
   [Contributor Guide](/contributing/change-guide)
 - Preparing a release or production deploy:

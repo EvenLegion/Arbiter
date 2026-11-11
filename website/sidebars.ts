@@ -21,11 +21,13 @@ const sidebars: SidebarsConfig = {
 		'api/deployment-readiness',
 		'features/event-system',
 		'features/division-and-membership',
+		'features/merit-badges',
 		'contributing/change-guide',
 		'contributing/release-process',
 		'operations/release-and-deploy',
 		'operations/production-deployment',
 		'operations/recovery',
+		'operations/merit-badge-rollout',
 		'operations/redis-and-queues',
 		'operations/dependency-audits'
 	]

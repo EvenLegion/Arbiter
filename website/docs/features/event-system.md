@@ -200,7 +200,7 @@ Manual merit awards typically:
 - synchronize the recipient's merit badge role from the new total
 - send rank-up or direct-message notifications when appropriate
 
-Demerits use the same path. If the badge role cannot be updated, the merit still stands and the staff reply gets a warning line.
+Demerits use the same path. If the badge role cannot be updated, the merit still stands and the staff reply gets a warning line. Once the member's badge has a role, the promotion DM announces each new badge instead of a new rank level; see [Merit Badges](./merit-badges.md#what-members-and-staff-read).
 
 The merit list flow is the main read-oriented merit workflow. It loads a user's merit summary and paginated entries, then maps that summary into a Discord-friendly view. Staff can inspect other users; non-staff are restricted to their own records.
 

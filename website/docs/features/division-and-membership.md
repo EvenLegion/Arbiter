@@ -86,7 +86,7 @@ When a member's Discord roles change in the configured guild, the guild-member u
 - recompute the member's nickname
 - re-check the member's merit badge role
 
-If only merit badge roles changed (Arbiter's own badge sync, or someone editing a badge role by hand), the listener skips membership reconciliation and the nickname and only re-checks the badge, so a hand-edited badge is put back. Badge roles never feed membership reconciliation. When Discord sends a partial old member, the change is handled as a full role change.
+Merit badge roles are described on the [Merit Badges](./merit-badges.md) page. If only merit badge roles changed (Arbiter's own badge sync, or someone editing a badge role by hand), the listener skips membership reconciliation and the nickname and only re-checks the badge, so a hand-edited badge is put back. Badge roles never feed membership reconciliation. When Discord sends a partial old member, the change is handled as a full role change.
 
 When a new guild member joins, Arbiter currently:
 
@@ -107,6 +107,8 @@ Nickname computation has real policy behind it. The workflow considers:
 - whether the chosen division shows merit rank
 - current total merits
 - Discord's nickname length limit
+
+The circled merit-rank number in nicknames is planned for removal once merit badges are live; the [rollout runbook](../operations/merit-badge-rollout.md#step-10-remove-the-rank-number) covers that step. Until then, nickname output is unchanged.
 
 Many bulk nickname workflows skip staff by default. That is intentional. Staff often need operational flexibility or carry role combinations that make automatic mass updates riskier.
 
@@ -147,7 +149,7 @@ A dry run logs counts only; its nicknames and failures appear only in the epheme
 - **Live run (`dry_run: false`).** Only one live run at a time. It first checks that badge role IDs are configured, that Arbiter has Manage Roles and that Arbiter can assign every configured badge role; otherwise it changes nothing. Members are processed one at a time in Discord ID order. Totals are read 100 members at a time; if a read fails, those members count as failed and get no role calls. A member who already has the right badge costs zero Discord calls. Any other member goes through the single-member badge sync, which re-reads the total inside the member lock.
 - **Pacing and stopping.** Arbiter pauses after each member whose roles changed and relies on the discord.js rate-limit queue. A run stops between members after 12 minutes or after repeated long rate-limit waits, and reports processed and remaining counts. There is no checkpoint: run the command again and correct members are skipped.
 
-The command never sends DMs and never creates or edits roles. The command's own report and run logs carry counts only; each member a live run changes or fails still gets the standard badge sync log line (Discord ID, tier numbers and role IDs, never names or totals). Pacing and limits are constants in `src/lib/services/merit-badge/meritBadgeBulkSyncService.ts`.
+The [rollout runbook](../operations/merit-badge-rollout.md) uses this command for the cutover report, the canary and the backfill. The command never sends DMs and never creates or edits roles. The command's own report and run logs carry counts only; each member a live run changes or fails still gets the standard badge sync log line (Discord ID, tier numbers and role IDs, never names or totals). Pacing and limits are constants in `src/lib/services/merit-badge/meritBadgeBulkSyncService.ts`.
 
 ## Development Repair Commands
 
