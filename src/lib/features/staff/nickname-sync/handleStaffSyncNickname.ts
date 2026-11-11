@@ -85,12 +85,14 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 			logger.info(logBindings, logEvent);
 		}
 
+		// A dry-run report holds nicknames, so a failed send must not log the raw error (it keeps the request body).
 		await responder.safeEditReply(
 			buildBulkNicknameSyncPayload({
 				result,
 				includeStaff,
 				requestId: context.requestId
-			})
+			}),
+			{ logRawError: !dryRun }
 		);
 	} catch (error: unknown) {
 		logger.error(

@@ -61,7 +61,8 @@ describe('handleStaffSyncNickname', () => {
 			'nickname.sync.completed_with_failures'
 		);
 		expect(prepared.responder.safeEditReply).toHaveBeenLastCalledWith(
-			expect.objectContaining({ content: expect.stringContaining('Some nickname sync operations were unsuccessful') })
+			expect.objectContaining({ content: expect.stringContaining('Some nickname sync operations were unsuccessful') }),
+			{ logRawError: true }
 		);
 	});
 
@@ -98,7 +99,8 @@ describe('handleStaffSyncNickname', () => {
 		expect(JSON.stringify(bindings)).not.toContain('carl');
 		expect(bindings).toMatchObject({ dryRun: true, updated: 1, skippedStaff: 1, failed: 1, planRows: 2, includeStaff: false });
 		expect(prepared.responder.safeEditReply).toHaveBeenLastCalledWith(
-			expect.objectContaining({ content: expect.stringContaining('Dry run only'), files: [expect.anything()] })
+			expect.objectContaining({ content: expect.stringContaining('Dry run only'), files: [expect.anything()] }),
+			{ logRawError: false }
 		);
 	});
 });
