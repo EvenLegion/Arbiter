@@ -21,10 +21,10 @@ This workflow family is easier to reason about when you separate four related bu
 
 | Concern                   | Primary source of truth                                          | Notes                                                                             |
 | ------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Division definitions      | Postgres plus the in-process division cache                      | Definitions drive permissions, prefixes, role mappings, and merit-rank visibility |
+| Division definitions      | Postgres plus the in-process division cache                      | Definitions drive permissions, prefixes, and role mappings                        |
 | Public division selection | Discord role state first, then reconciliation into durable state | The public selector updates roles directly                                        |
 | Staff membership mutation | Durable division membership plus follow-up sync behavior         | Used for administrative correction and maintenance                                |
-| Effective nickname        | Computed projection, not free-form text                          | Depends on base nickname, divisions, merit totals, and policy rules               |
+| Effective nickname        | Computed projection, not free-form text                          | Depends on base nickname, divisions, and policy rules                             |
 
 ## The Core Identity Model
 
@@ -35,8 +35,8 @@ A member's effective nickname is a computed projection of:
 - the stored base nickname
 - the member's durable division memberships
 - division priority and prefix rules
-- whether the selected division shows merit rank
-- the member's current total merits
+
+Nicknames carry no merit rank. The old circled rank number (① to ㊿) was retired when merit badge roles went live; any leftover number is stripped on the member's next nickname sync. Merit standing now shows as a merit badge role.
 
 That is why nickname behavior is its own workflow area instead of a few string helpers scattered around the repo.
 
@@ -47,7 +47,8 @@ Division records carry more than a label. They define:
 - kind and priority implications
 - optional display prefix
 - optional Discord role mapping
-- whether merit rank should be shown in the final nickname
+
+The `showRank` column is still in the schema but nothing reads it since the rank number was retired. A follow-up ticket drops it.
 
 Because those rules affect permissions, role reconciliation, public division selection, and nickname output, the repo keeps division data cached in memory and refreshes it on a schedule.
 
@@ -104,8 +105,7 @@ Nickname computation has real policy behind it. The workflow considers:
 
 - whether the member is the guild owner
 - which division should win prefix priority
-- whether the chosen division shows merit rank
-- current total merits
+- stripping any leftover legacy rank number (① to ㊿)
 - Discord's nickname length limit
 
 Many bulk nickname workflows skip staff by default. That is intentional. Staff often need operational flexibility or carry role combinations that make automatic mass updates riskier.
@@ -122,7 +122,7 @@ The flow looks like this:
 4. staff can approve, deny, or edit the pending requested name
 5. approval updates durable and Discord-facing identity state
 
-Normalization matters here. The requested name is expected to be a base name, not a full decorated nickname with division prefixes or merit-rank suffixes.
+Normalization matters here. The requested name is expected to be a base name, not a full decorated nickname with division prefixes or legacy merit-rank numbers. Names that contain ① to ㊿ are still rejected.
 
 The thread-based review flow gives the repo three things:
 
