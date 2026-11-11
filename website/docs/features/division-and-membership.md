@@ -79,9 +79,7 @@ This is useful when Discord role state and database state need to be brought bac
 
 Guild-member role changes are an important source of truth for some automation paths.
 
-Both guild-member listeners act only in the configured guild.
-
-When a member's Discord roles change, the guild-member update listener can:
+When a member's Discord roles change in the configured guild, the guild-member update listener can (updates from other guilds are ignored):
 
 - detect relevant role diffs
 - reconcile durable division memberships from the current Discord role set
@@ -93,7 +91,7 @@ If only merit badge roles changed (Arbiter's own badge sync, or someone editing 
 When a new guild member joins, Arbiter currently:
 
 - upserts the user into durable state
-- restores a returning member's merit badge role from their stored total
+- restores a returning member's merit badge role from their stored total (configured guild only)
 - sends the welcome message in the configured welcome channel
 
 A badge failure never stops the welcome message. Listener badge syncs always read the total fresh from Postgres.
