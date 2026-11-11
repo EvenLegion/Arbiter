@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-2dtvzj",
+	"baseRef": "origin/dev",
+	"mergeBase": "9878fa33ecb251a9955eb108ab9bc31fe779ef39",
+	"headRef": "f334ae0cea7273cc9697b0b67fce42609ffa4332",
+	"generatedAt": "2026-11-11T08:31:37.167Z",
+	"bump": "minor",
+	"targetVersion": "3.6.0",
+	"contributionSummary": "MB-09 (STE-1568): buildUserNickname stops appending the legacy circled rank symbol (D4) while still stripping the frozen 1-50 set and enforcing the 32-character limit. Merit totals leave the nickname path. Name-change too-long copy drops the rank wording. Held unmerged until rollout runbook step 10.",
+	"publicNote": {
+		"mode": "standalone",
+		"description": "Member nicknames no longer end in a circled rank number, because merit standing now shows as a merit badge role. Any old number is removed the next time a member's nickname updates, and names get two more characters of room.",
+		"section": "Features"
+	},
+	"commits": [
+		{
+			"sha": "4bf19a5bfb820604280460bdc2a509914ea90462",
+			"subject": "feat(nickname): stop adding the merit rank number to nicknames",
+			"committedAt": "2026-11-11T08:31:21+00:00",
+			"committedAtMs": 1794385881000,
+			"type": "feat",
+			"scope": "nickname",
+			"description": "stop adding the merit rank number to nicknames",
+			"breaking": false,
+			"section": "Features"
+		},
+		{
+			"sha": "f334ae0cea7273cc9697b0b67fce42609ffa4332",
+			"subject": "docs(nickname): describe nicknames without the merit rank number",
+			"committedAt": "2026-11-11T08:31:21+00:00",
+			"committedAtMs": 1794385881000,
+			"type": "docs",
+			"scope": "nickname",
+			"description": "describe nicknames without the merit rank number",
+			"breaking": false,
+			"section": "Maintenance"
+		}
+	]
+}

@@ -94,7 +94,6 @@ export async function syncAwardedMemberNicknamesAndNotifyRankUp({
 			{
 				discordUserId,
 				setReason: 'Event review merit rank sync',
-				totalMeritsOverride: totalsByDbUserId.get(awardedUser.dbUserId),
 				contextBindings: {
 					step: 'syncAwardedMemberNickname',
 					discordUserId

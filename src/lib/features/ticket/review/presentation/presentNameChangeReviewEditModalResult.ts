@@ -48,7 +48,7 @@ export function presentNameChangeReviewEditModalResult(result: EditPendingNameCh
 			return {
 				kind: 'response',
 				delivery: 'editReply',
-				content: 'Edited requested name is too long after organization formatting/rank is applied. Please choose a shorter name.'
+				content: 'Edited requested name is too long once any division prefix is added. Please choose a shorter name.'
 			};
 		case 'validation_failed':
 			return {

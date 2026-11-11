@@ -1,7 +1,7 @@
 import { DivisionKind } from '@prisma/client';
 import type { GuildMember } from 'discord.js';
 
-import { divisionRepository, meritRepository } from '../../../integrations/prisma/repositories';
+import { divisionRepository } from '../../../integrations/prisma/repositories';
 import { memberHasDivisionKindRole } from '../../discord/guild/divisions';
 import { getDbUserOrThrow } from '../../discord/guild/users';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
@@ -11,13 +11,11 @@ import type { NicknameComputeResult, NicknameSyncResult } from './nicknameServic
 export async function computeGuildNickname({
 	member,
 	context,
-	totalMeritsOverride,
 	contextBindings,
 	baseDiscordNicknameOverride
 }: {
 	member: GuildMember;
 	context: ExecutionContext;
-	totalMeritsOverride?: number;
 	contextBindings?: Record<string, unknown>;
 	baseDiscordNicknameOverride?: string;
 }): Promise<NicknameComputeResult> {
@@ -27,14 +25,12 @@ export async function computeGuildNickname({
 	});
 	const nicknameInputs = await loadGuildNicknameInputs({
 		discordUserId: member.id,
-		totalMeritsOverride,
 		baseDiscordNicknameOverride
 	});
 	const nicknameResult = buildUserNickname({
 		isGuildOwner: member.guild.ownerId === member.id,
 		baseNickname: nicknameInputs.baseNickname,
-		divisions: nicknameInputs.divisions,
-		totalMerits: nicknameInputs.totalMerits
+		divisions: nicknameInputs.divisions
 	});
 
 	// No nickname values here: bulk dry runs pass through this path and must keep nicknames out of logs.
@@ -58,7 +54,6 @@ export async function syncGuildNickname({
 	setReason,
 	includeStaff = false,
 	dryRun = false,
-	totalMeritsOverride,
 	contextBindings
 }: {
 	member: GuildMember;
@@ -67,7 +62,6 @@ export async function syncGuildNickname({
 	includeStaff?: boolean;
 	/** Decide exactly as a live sync would, but never call `setNickname`. `updated` then means "would update". */
 	dryRun?: boolean;
-	totalMeritsOverride?: number;
 	contextBindings?: Record<string, unknown>;
 }): Promise<NicknameSyncResult<GuildMember>> {
 	if (!includeStaff) {
@@ -89,7 +83,6 @@ export async function syncGuildNickname({
 	const nicknameResult = await computeGuildNickname({
 		member,
 		context,
-		totalMeritsOverride,
 		contextBindings
 	});
 
@@ -128,11 +121,9 @@ export async function syncGuildNickname({
 
 async function loadGuildNicknameInputs({
 	discordUserId,
-	totalMeritsOverride,
 	baseDiscordNicknameOverride
 }: {
 	discordUserId: string;
-	totalMeritsOverride?: number;
 	baseDiscordNicknameOverride?: string;
 }) {
 	const [divisions, dbUser] = await Promise.all([
@@ -144,12 +135,6 @@ async function loadGuildNicknameInputs({
 
 	return {
 		divisions,
-		baseNickname: baseDiscordNicknameOverride ?? dbUser.discordNickname,
-		totalMerits:
-			typeof totalMeritsOverride === 'number'
-				? totalMeritsOverride
-				: await meritRepository.getUserTotalMerits({
-						userDbUserId: dbUser.id
-					})
+		baseNickname: baseDiscordNicknameOverride ?? dbUser.discordNickname
 	};
 }

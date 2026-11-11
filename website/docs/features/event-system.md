@@ -221,14 +221,13 @@ That path map is meant as a current orientation aid, not a contract that file na
 
 ## Cross-Feature Coupling To Remember
 
-Merit totals are not just reporting data. They feed nickname computation through merit-rank symbols.
+Merit totals are not just reporting data. They decide each member's merit badge role. They no longer change nicknames: the old circled rank number was retired.
 
 That means changes to:
 
-- merit thresholds
+- merit badge thresholds
 - merit award amounts
 - finalization behavior
-- nickname rules
 
 can interact across feature boundaries. Check the membership and identity workflow before assuming a merit-only change is isolated.
 

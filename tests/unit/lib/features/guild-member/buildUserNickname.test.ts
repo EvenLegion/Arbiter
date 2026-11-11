@@ -1,17 +1,27 @@
 import { DivisionKind } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
+import { DISCORD_MAX_NICKNAME_LENGTH } from '../../../../../src/lib/constants';
 import { getMeritRankSymbol } from '../../../../../src/lib/services/merit-rank/meritRank';
 import { buildUserNickname, stripTrailingMeritRankSuffix } from '../../../../../src/lib/services/nickname/buildUserNickname';
 
 describe('buildUserNickname', () => {
+	const legionnaire = {
+		id: 3,
+		code: 'LGN',
+		name: 'Legionnaire',
+		displayNamePrefix: 'LGN',
+		kind: DivisionKind.LEGIONNAIRE,
+		showRank: true,
+		discordRoleId: '3'
+	};
+
 	it('skips nickname computation for the guild owner', () => {
 		expect(
 			buildUserNickname({
 				isGuildOwner: true,
 				baseNickname: 'OwnerName',
-				divisions: [],
-				totalMerits: 0
+				divisions: []
 			})
 		).toEqual({
 			newUserNickname: null,
@@ -43,11 +53,48 @@ describe('buildUserNickname', () => {
 						showRank: true,
 						discordRoleId: '2'
 					}
-				],
-				totalMerits: 0
+				]
 			})
 		).toEqual({
 			newUserNickname: 'RSV | Callsign'
+		});
+	});
+
+	it('never appends a merit rank symbol, even for a showRank division', () => {
+		expect(
+			buildUserNickname({
+				isGuildOwner: false,
+				baseNickname: 'Callsign',
+				divisions: [legionnaire]
+			})
+		).toEqual({
+			newUserNickname: 'LGN | Callsign'
+		});
+	});
+
+	it('strips a legacy rank symbol left in the base nickname', () => {
+		expect(
+			buildUserNickname({
+				isGuildOwner: false,
+				baseNickname: `Callsign ${getMeritRankSymbol(42)}`,
+				divisions: []
+			})
+		).toEqual({
+			newUserNickname: 'Callsign'
+		});
+	});
+
+	it('accepts a nickname at exactly the Discord limit', () => {
+		const baseNickname = 'X'.repeat(DISCORD_MAX_NICKNAME_LENGTH - 'LGN | '.length);
+
+		expect(
+			buildUserNickname({
+				isGuildOwner: false,
+				baseNickname,
+				divisions: [legionnaire]
+			})
+		).toEqual({
+			newUserNickname: `LGN | ${baseNickname}`
 		});
 	});
 
@@ -66,8 +113,7 @@ describe('buildUserNickname', () => {
 						showRank: false,
 						discordRoleId: '1'
 					}
-				],
-				totalMerits: 0
+				]
 			})
 		).toThrow();
 	});
