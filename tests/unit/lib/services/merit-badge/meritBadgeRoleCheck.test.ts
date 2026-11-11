@@ -91,6 +91,21 @@ describe('checkMeritBadgeRoles', () => {
 		]);
 	});
 
+	it('reports a badge role ID that is also a STAFF division role', () => {
+		expect(
+			checkMeritBadgeRoles({
+				roleMap,
+				guildRoles: healthyGuildRoles(),
+				everyoneRoleId: GUILD_ID,
+				botHighestRoleId: BOT_ROLE_ID,
+				staffRoleIds: new Set([STAFF_ROLE_ID, BADGE_1_ROLE_ID])
+			})
+		).toEqual([
+			expect.objectContaining({ kind: 'not_below_staff_role', tier: 1, otherRoleId: BADGE_1_ROLE_ID }),
+			expect.objectContaining({ kind: 'not_below_staff_role', tier: 2, otherRoleId: BADGE_1_ROLE_ID })
+		]);
+	});
+
 	it('reports a badge role that grants moderation permissions', () => {
 		const roles = healthyGuildRoles().map((guildRole) =>
 			guildRole.id === BADGE_1_ROLE_ID ? { ...guildRole, permissions: PermissionFlagsBits.ManageMessages } : guildRole

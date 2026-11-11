@@ -75,9 +75,12 @@ export function checkMeritBadgeRoles({
 
 	const rolesById = new Map(guildRoles.map((role) => [role.id, role] as const));
 	const botHighestRole = rolesById.get(botHighestRoleId) ?? null;
-	const protectedRoles = guildRoles.filter((role) => role.id !== everyoneRoleId && !roleMap.roleIds.has(role.id));
-	const lowestStaffRole = findLowest(protectedRoles.filter((role) => staffRoleIds.has(role.id)));
-	const lowestModerationRole = findLowest(protectedRoles.filter((role) => hasModerationPermissions(role.permissions)));
+	// A badge ID that is also a STAFF division role stays in the staff set, so the overlap is reported.
+	const lowestStaffRole = findLowest(guildRoles.filter((role) => role.id !== everyoneRoleId && staffRoleIds.has(role.id)));
+	// Badge roles with moderation permissions are reported on their own below.
+	const lowestModerationRole = findLowest(
+		guildRoles.filter((role) => role.id !== everyoneRoleId && !roleMap.roleIds.has(role.id) && hasModerationPermissions(role.permissions))
+	);
 
 	for (const { tier, roleId } of roleMap.configuredRoles) {
 		const ref: BadgeRoleRef = { tier: tier.tier, tierLabel: tier.label, roleId };
