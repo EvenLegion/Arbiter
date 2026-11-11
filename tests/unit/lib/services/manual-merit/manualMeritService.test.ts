@@ -1,6 +1,7 @@
 import { MeritTypeCode } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 
+import { createMeritBadgeRoleMap } from '../../../../../src/config/meritBadgeRoles';
 import { awardManualMeritWorkflow } from '../../../../../src/lib/services/manual-merit/manualMeritService';
 
 describe('manualMeritService', () => {
@@ -160,6 +161,31 @@ describe('manualMeritService', () => {
 		});
 	});
 
+	it('names the next badge in the recipient DM once the badge tier has a role', async () => {
+		const deps = createDeps();
+		deps.badgeRoles = createMeritBadgeRoleMap(new Map(Array.from({ length: 36 }, (_, index) => [index + 1, `${100000000000000000 + index}`])));
+
+		await awardManualMeritWorkflow(deps, {
+			actor: createActor(),
+			actorMember: buildMember('staff-user'),
+			playerInput: 'target-user',
+			rawMeritTypeCode: MeritTypeCode.COMMANDER_MERIT,
+			reason: null,
+			linkedEventSessionId: null
+		});
+
+		expect(deps.sendRecipientDm).toHaveBeenCalledWith({
+			discordUserId: 'target-user',
+			content: [
+				'**Staff Display** gave you **Commander Merit**',
+				'Your merits were adjusted by: **+1 merit**',
+				'Reason: Not provided',
+				'You have **12 merits total**',
+				'Next badge **Argentum I** in **4 merits**'
+			].join('\n')
+		});
+	});
+
 	it('returns linked_event_not_found when the selected event does not exist', async () => {
 		const deps = createDeps({
 			findLinkedEventResult: null
@@ -280,6 +306,7 @@ function createDeps({
 		getRecipientTotalMerits: vi.fn().mockResolvedValue(12),
 		syncRecipientBadge: vi.fn().mockResolvedValue('ok'),
 		notifyRankUp: vi.fn().mockResolvedValue(undefined),
-		sendRecipientDm: vi.fn().mockResolvedValue(true)
+		sendRecipientDm: vi.fn().mockResolvedValue(true),
+		badgeRoles: createMeritBadgeRoleMap(new Map())
 	};
 }

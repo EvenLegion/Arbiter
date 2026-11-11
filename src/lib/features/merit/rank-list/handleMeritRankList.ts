@@ -1,10 +1,11 @@
 import { MessageFlags, type ButtonInteraction, type ChatInputCommandInteraction } from 'discord.js';
 
-import { meritRepository } from '../../../../integrations/prisma/repositories';
+import { ENV_MERIT_BADGE_ROLES } from '../../../../config/env/discord';
+import { meritRepository, type MeritRankBreakdownLadder } from '../../../../integrations/prisma/repositories';
 import { createInteractionResponder } from '../../../discord/interactions/interactionResponder';
 import { resolveConfiguredGuild, resolveInteractionActor } from '../../../discord/interactions/interactionPreflight';
 import type { ExecutionContext } from '../../../logging/executionContext';
-import { buildMeritRankListPayload, MERIT_RANK_LIST_PAGE_SIZE } from './buildMeritRankListPayload';
+import { buildMeritRankListPayload } from './buildMeritRankListPayload';
 import type { ParsedMeritRankListButton } from './meritRankListButtonCustomId';
 
 type HandleMeritRankListParams = {
@@ -59,11 +60,13 @@ export async function handleMeritRankList({ interaction, context }: HandleMeritR
 	);
 
 	try {
-		const entries = await meritRepository.getMeritRankBreakdown();
+		const ladder = resolveRankListLadder();
+		const entries = await meritRepository.getMeritRankBreakdown({ ladder });
 
 		logger.info(
 			{
 				shouldReplyPublicly,
+				ladder,
 				rankedLevelCount: entries.length
 			},
 			'merit.rank_list.loaded'
@@ -73,7 +76,7 @@ export async function handleMeritRankList({ interaction, context }: HandleMeritR
 			buildMeritRankListPayload({
 				entries,
 				page: 1,
-				pageSize: MERIT_RANK_LIST_PAGE_SIZE
+				ladder
 			})
 		);
 	} catch (error) {
@@ -139,13 +142,15 @@ export async function handleMeritRankListPageButton({ interaction, parsedMeritRa
 	await responder.deferUpdate();
 
 	try {
-		const entries = await meritRepository.getMeritRankBreakdown();
+		const ladder = resolveRankListLadder();
+		const entries = await meritRepository.getMeritRankBreakdown({ ladder });
 
+		// A page past the end, such as page 5 from a legacy list, clamps to the last page.
 		await responder.safeEditReply(
 			buildMeritRankListPayload({
 				entries,
 				page: parsedMeritRankListButton.page,
-				pageSize: MERIT_RANK_LIST_PAGE_SIZE
+				ladder
 			})
 		);
 	} catch (error) {
@@ -160,4 +165,9 @@ export async function handleMeritRankListPageButton({ interaction, parsedMeritRa
 			requestId: true
 		});
 	}
+}
+
+/** Badge tiers once any badge role is configured; otherwise the legacy 50-level breakdown. */
+function resolveRankListLadder(): MeritRankBreakdownLadder {
+	return ENV_MERIT_BADGE_ROLES.isEnabled ? 'badge' : 'legacy';
 }

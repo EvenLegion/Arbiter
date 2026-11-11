@@ -1,5 +1,6 @@
 import { type Guild, type GuildMember } from 'discord.js';
 
+import { ENV_MERIT_BADGE_ROLES } from '../../../../config/env/discord';
 import { eventRepository, meritRepository, userRepository } from '../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { createGuildMemberDirectMessageGateway } from '../../../services/guild-member/guildMemberDirectMessageGateway';
@@ -76,7 +77,8 @@ export function createManualMeritWorkflowDeps({
 				discordUserId,
 				content,
 				logMessage: 'Failed to DM manual merit award to recipient'
-			})
+			}),
+		badgeRoles: ENV_MERIT_BADGE_ROLES
 	};
 }
 export { mapMemberToResolvedMember } from './manualMeritMemberResolver';

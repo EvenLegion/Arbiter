@@ -80,7 +80,7 @@ export class MeritCommand extends Subcommand {
 					.addSubcommand((subcommand) =>
 						subcommand
 							.setName('rank_list')
-							.setDescription('List how many members are at each merit rank level by division (staff only).')
+							.setDescription('List how many members hold each merit badge or rank level, by division (staff only).')
 							.addBooleanOption((option) =>
 								option
 									.setName('public')
