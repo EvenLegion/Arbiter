@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => ({
 	parseDiscordUserIdInput: vi.fn(),
 	getGuildMember: vi.fn(),
 	createGuildNicknameWorkflow: vi.fn(),
+	createMeritBadgeSyncRuntime: vi.fn(),
+	syncMemberBadge: vi.fn(),
+	badgeRoleIds: new Set<string>(),
 	userMigrationRepository: {
 		migrateByDiscordUserId: vi.fn()
 	}
@@ -26,6 +29,18 @@ vi.mock('../../../../../../src/lib/services/nickname/guildNicknameWorkflow', () 
 	createGuildNicknameWorkflow: mocks.createGuildNicknameWorkflow
 }));
 
+vi.mock('../../../../../../src/lib/services/merit-badge/createMeritBadgeSyncRuntime', () => ({
+	createMeritBadgeSyncRuntime: mocks.createMeritBadgeSyncRuntime
+}));
+
+vi.mock('../../../../../../src/config/env/discord', () => ({
+	ENV_MERIT_BADGE_ROLES: {
+		get roleIds() {
+			return mocks.badgeRoleIds;
+		}
+	}
+}));
+
 vi.mock('../../../../../../src/integrations/prisma/repositories', () => ({
 	userMigrationRepository: mocks.userMigrationRepository
 }));
@@ -38,7 +53,17 @@ describe('handleStaffUserMigrate', () => {
 		mocks.parseDiscordUserIdInput.mockReset();
 		mocks.getGuildMember.mockReset();
 		mocks.createGuildNicknameWorkflow.mockReset();
+		mocks.createMeritBadgeSyncRuntime.mockReset();
+		mocks.syncMemberBadge.mockReset();
+		mocks.badgeRoleIds = new Set<string>();
 		mocks.userMigrationRepository.migrateByDiscordUserId.mockReset();
+		mocks.createMeritBadgeSyncRuntime.mockReturnValue({
+			syncMember: mocks.syncMemberBadge
+		});
+		mocks.syncMemberBadge.mockImplementation(async ({ discordUserId }: { discordUserId: string }) => ({
+			kind: 'disabled',
+			discordUserId
+		}));
 	});
 
 	it('rejects invalid old_user_id input', async () => {
@@ -161,6 +186,83 @@ describe('handleStaffUserMigrate', () => {
 		expect(prepared.responder.safeEditReply).toHaveBeenCalledWith({
 			content: expect.stringContaining('Nickname sync: updated.')
 		});
+		expect(prepared.responder.safeEditReply).not.toHaveBeenCalledWith({
+			content: expect.stringContaining('Merit badge sync')
+		});
+	});
+
+	it('keeps badge roles out of the role copy and syncs both accounts after the merge', async () => {
+		const prepared = createPrepared();
+		mocks.badgeRoleIds = new Set(['badge-old', 'badge-new']);
+		const oldMember = createMember(OLD_ID, ['role-copy', 'badge-old', 'guild-1']);
+		const newMember = createMember(NEW_ID, ['badge-new', 'guild-1']);
+		const order: string[] = [];
+		newMember.roles.add.mockImplementation(async (roleId: string) => {
+			order.push(`copy:${roleId}`);
+		});
+		mocks.syncMemberBadge.mockImplementation(async ({ discordUserId }: { discordUserId: string }) => {
+			order.push(`badge:${discordUserId}`);
+			return discordUserId === NEW_ID
+				? { kind: 'updated', discordUserId, addedRoleId: 'badge-merged', removedRoleIds: ['badge-new'] }
+				: { kind: 'updated', discordUserId, addedRoleId: null, removedRoleIds: ['badge-old'] };
+		});
+		arrangeMigration({ prepared, oldMember, newMember });
+
+		await runMigration('req-5');
+
+		expect(newMember.roles.add).toHaveBeenCalledTimes(1);
+		expect(newMember.roles.add).toHaveBeenCalledWith('role-copy', expect.any(String));
+		// Sync runs after the merge commits and after the role copy, with no total override.
+		expect(order).toEqual(['copy:role-copy', `badge:${NEW_ID}`, `badge:${OLD_ID}`]);
+		expect(mocks.syncMemberBadge).toHaveBeenNthCalledWith(1, { discordUserId: NEW_ID });
+		expect(mocks.syncMemberBadge).toHaveBeenNthCalledWith(2, { discordUserId: OLD_ID });
+		expect(mocks.createMeritBadgeSyncRuntime).toHaveBeenCalledWith(
+			expect.objectContaining({
+				guild: prepared.guild,
+				auditReason: `Merit badge sync after /staff user_migrate (${OLD_ID} -> ${NEW_ID})`
+			})
+		);
+		expect(lastReply(prepared)).toContain('Role copy: added 1 roles from the old user.');
+		expect(lastReply(prepared)).toContain('Merit badge sync: new account updated; old account updated.');
+	});
+
+	it('still reports the migration when a badge sync fails', async () => {
+		const prepared = createPrepared();
+		mocks.badgeRoleIds = new Set(['badge-old']);
+		const oldMember = createMember(OLD_ID, ['badge-old', 'guild-1']);
+		const newMember = createMember(NEW_ID, ['guild-1']);
+		mocks.syncMemberBadge.mockImplementation(async ({ discordUserId }: { discordUserId: string }) =>
+			discordUserId === NEW_ID
+				? { kind: 'failed', discordUserId, stage: 'add_role', code: 'missing_permissions', addedRoleId: null, removedRoleIds: [] }
+				: { kind: 'member_not_found', discordUserId }
+		);
+		arrangeMigration({ prepared, oldMember, newMember });
+
+		await runMigration('req-6');
+
+		expect(newMember.roles.add).not.toHaveBeenCalled();
+		expect(prepared.responder.fail).not.toHaveBeenCalled();
+		expect(lastReply(prepared)).toContain(`Migrated records from <@${OLD_ID}> to <@${NEW_ID}>.`);
+		expect(lastReply(prepared)).toContain(
+			'Merit badge sync: new account could not be updated (`missing_permissions`); old account not in the server.'
+		);
+		expect(lastReply(prepared)).toContain('Nickname sync: unchanged.');
+	});
+
+	it('still reports the migration when the badge sync throws', async () => {
+		const prepared = createPrepared();
+		mocks.syncMemberBadge.mockRejectedValue(new Error('boom'));
+		arrangeMigration({
+			prepared,
+			oldMember: createMember(OLD_ID, ['guild-1']),
+			newMember: createMember(NEW_ID, ['guild-1'])
+		});
+
+		await runMigration('req-7');
+
+		expect(prepared.responder.fail).not.toHaveBeenCalled();
+		expect(lastReply(prepared)).toContain(`Migrated records from <@${OLD_ID}> to <@${NEW_ID}>.`);
+		expect(lastReply(prepared)).toContain('Merit badge sync could not complete. The migration itself succeeded.');
 	});
 
 	it('skips role copy when the old user is not present in the configured guild', async () => {
@@ -228,6 +330,74 @@ describe('handleStaffUserMigrate', () => {
 		expect(newMember.roles.add).not.toHaveBeenCalled();
 	});
 });
+
+const OLD_ID = '100000000000000000';
+const NEW_ID = '200000000000000000';
+
+function arrangeMigration({
+	prepared,
+	oldMember,
+	newMember
+}: {
+	prepared: ReturnType<typeof createPrepared>;
+	oldMember: ReturnType<typeof createMember> | null;
+	newMember: ReturnType<typeof createMember> | null;
+}) {
+	mocks.prepareGuildInteraction.mockResolvedValue(prepared);
+	mocks.parseDiscordUserIdInput.mockImplementation((value: string | null) => {
+		if (value === 'old-user') return OLD_ID;
+		if (value === 'new-user') return NEW_ID;
+		return undefined;
+	});
+	mocks.userMigrationRepository.migrateByDiscordUserId.mockResolvedValue({
+		kind: 'migrated',
+		oldUser: { dbUserId: 'old-db', discordUserId: OLD_ID },
+		newUser: { dbUserId: 'new-db', discordUserId: NEW_ID },
+		counts: {
+			requestedNameChangesMigrated: 0,
+			reviewedNameChangesMigrated: 0,
+			meritsReceivedMigrated: 2,
+			meritsAwardedMigrated: 0,
+			hostedEventsMigrated: 0,
+			finalizedEventsMigrated: 0,
+			eventChannelsMigrated: 0,
+			divisionMembershipsReassigned: 0,
+			divisionMembershipsMerged: 0,
+			participantStatsReassigned: 0,
+			participantStatsMerged: 0,
+			reviewDecisionsReassigned: 0,
+			reviewDecisionsMerged: 0,
+			baseNicknameCopied: false
+		}
+	});
+	mocks.getGuildMember.mockImplementation(async ({ discordUserId }: { discordUserId: string }) => {
+		if (discordUserId === OLD_ID) return oldMember;
+		if (discordUserId === NEW_ID) return newMember;
+		return null;
+	});
+	mocks.createGuildNicknameWorkflow.mockReturnValue({
+		syncNickname: vi.fn().mockResolvedValue({
+			kind: 'synced',
+			outcome: 'unchanged',
+			member: newMember,
+			computedNickname: 'INT | Callsign'
+		})
+	});
+}
+
+async function runMigration(requestId: string) {
+	await handleStaffUserMigrate({
+		interaction: createInteraction({
+			old_user_id: 'old-user',
+			new_user_id: 'new-user'
+		}),
+		context: createContext(requestId) as never
+	});
+}
+
+function lastReply(prepared: ReturnType<typeof createPrepared>): string {
+	return prepared.responder.safeEditReply.mock.calls.at(-1)?.[0]?.content ?? '';
+}
 
 function createPrepared() {
 	return {
