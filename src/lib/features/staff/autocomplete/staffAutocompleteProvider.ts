@@ -45,6 +45,11 @@ const STAFF_AUTOCOMPLETE_ROUTES: readonly AutocompleteRoute[] = [
 		subcommandGroupName: 'division_membership',
 		focusedOptionName: 'nickname'
 	}),
+	createGuildMemberRoute({
+		subcommandGroupName: 'merit_badges',
+		subcommandName: 'sync',
+		focusedOptionName: 'user'
+	}),
 	createGuildScopedAutocompleteRoute({
 		match: {
 			subcommandName: 'medal_give',
