@@ -93,6 +93,12 @@ export class StaffCommand extends Subcommand {
 							.addBooleanOption((option) =>
 								option.setName('include_staff').setDescription('Include staff users in nickname sync.').setRequired(false)
 							)
+							.addBooleanOption((option) =>
+								option
+									.setName('dry_run')
+									.setDescription('Report the nickname changes without applying them. Defaults to false.')
+									.setRequired(false)
+							)
 					)
 					.addSubcommand((subcommand) =>
 						subcommand

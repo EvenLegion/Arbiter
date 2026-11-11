@@ -130,6 +130,15 @@ The thread-based review flow gives the repo three things:
 - collaborative staff review in Discord
 - a stable reference that can be edited, updated, and archived as the request progresses
 
+## Staff Nickname Sync Command
+
+`/staff sync_nickname [user] [include_staff] [dry_run]` recomputes and applies the nickname for every user in the database, or for one selected user. It is a staff command, not a development command.
+
+- **Live run (default).** Members with a staff role are skipped unless `include_staff` is true. The reply counts updated, unchanged, skipped and failed members.
+- **Dry run (`dry_run: true`).** Makes the same decisions as a live run, including `include_staff`, but changes no nickname. The ephemeral reply shows the counts and up to 10 sample changes, plus a CSV with each change (Discord ID, stored username, current and planned nickname), each skipped staff member and each member it would fail on, with the reason. A nickname someone edited by hand in Discord shows up as a change, because a live run overwrites it.
+
+A dry run logs counts only; its nicknames and failures appear only in the ephemeral reply and its CSV. If that reply cannot be sent, the error log keeps only the error's name, message and code. A live run's summary log also lists failures (Discord ID, stored username, reason), never nicknames.
+
 ## Merit Badge Sync Command
 
 `/staff merit_badges sync [user] [dry_run]` reconciles merit badge roles for every non-bot member, or for one selected member. Arbiter re-checks the staff capability inside the handler.
@@ -147,7 +156,6 @@ The development-only command group exists because identity and membership state 
 Current repair-style workflows include:
 
 - syncing guild members into the database (this also syncs each member's merit badge role and reports badge updates and failures)
-- bulk nickname synchronization
 - bulk nickname transformations for cleanup and migration work
 
 These are intentionally kept behind development mode because they are operational tools, not normal production user flows.

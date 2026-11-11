@@ -1,7 +1,7 @@
 import { MessageFlags, type InteractionDeferReplyOptions, type InteractionEditReplyOptions, type InteractionReplyOptions } from 'discord.js';
 
 import type { ExecutionContext } from '../../logging/executionContext';
-import { toErrorLogFields } from '../../logging/errorDetails';
+import { toErrorDetails, toErrorLogFields } from '../../logging/errorDetails';
 
 type ReplyLikeInteraction = {
 	reply: (payload: string | InteractionReplyOptions) => Promise<unknown>;
@@ -149,14 +149,18 @@ export function createInteractionResponder({ interaction, context, logger, calle
 				);
 			}
 		},
-		safeEditReply: async (payload: InteractionResponderPayload) => {
+		/**
+		 * `logRawError: false` logs only the error's name, message and code. Use it when the payload holds
+		 * data that must stay out of logs: a raw Discord API error keeps the request body, files included.
+		 */
+		safeEditReply: async (payload: InteractionResponderPayload, options?: { logRawError?: boolean }) => {
 			try {
 				await interaction.editReply(toInteractionEditReplyPayload(payload));
 				logger.debug('discord.reply.edited');
 			} catch (error) {
 				logger.error(
 					{
-						...toErrorLogFields(error),
+						...(options?.logRawError === false ? toErrorDetails(error) : toErrorLogFields(error)),
 						caller
 					},
 					'discord.side_effect.failed'

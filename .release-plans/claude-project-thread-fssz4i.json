@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-fssz4i",
+	"baseRef": "origin/dev",
+	"mergeBase": "fe7d1d9b0b880501878f3bec68c8d3195fc44499",
+	"headRef": "cbdf24ad82852fec47676f22946602077eaa39ba",
+	"generatedAt": "2026-11-11T02:31:37.443Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Adds dry_run to /staff sync_nickname (MB-08): same per-member decisions as a live run with no setNickname call, ephemeral reply with counts, a sample and a CSV of changes, skipped staff and failures; dry-run logs carry counts only. Docs no longer call bulk nickname sync dev-only.",
+	"publicNote": {
+		"mode": "standalone",
+		"description": "Staff can now preview a nickname sync before running it. The new dry run option on /staff sync_nickname lists every nickname a real sync would change, including names someone edited by hand, and every staff member it would skip, without changing anyone's nickname.",
+		"section": "Features"
+	},
+	"commits": [
+		{
+			"sha": "98c5b338b729b4b9213b1a7548bdfce2f475dae5",
+			"subject": "feat(staff): add dry_run to /staff sync_nickname",
+			"committedAt": "2026-11-11T02:30:03+00:00",
+			"committedAtMs": 1794364203000,
+			"type": "feat",
+			"scope": "staff",
+			"description": "add dry_run to /staff sync_nickname",
+			"breaking": false,
+			"section": "Features"
+		},
+		{
+			"sha": "cbdf24ad82852fec47676f22946602077eaa39ba",
+			"subject": "fix(staff): keep nicknames and failure lists out of dry-run logs",
+			"committedAt": "2026-11-11T02:30:03+00:00",
+			"committedAtMs": 1794364203000,
+			"type": "fix",
+			"scope": "staff",
+			"description": "keep nicknames and failure lists out of dry-run logs",
+			"breaking": false,
+			"section": "Fixes"
+		}
+	]
+}

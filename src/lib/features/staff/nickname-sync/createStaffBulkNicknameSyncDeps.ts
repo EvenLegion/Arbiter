@@ -29,7 +29,8 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 		syncNickname: ({
 			target,
 			member,
-			includeStaff
+			includeStaff,
+			dryRun
 		}: {
 			target: {
 				id: string;
@@ -37,6 +38,7 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 			};
 			member: GuildMember;
 			includeStaff: boolean;
+			dryRun: boolean;
 		}) =>
 			createGuildNicknameWorkflow({
 				guild,
@@ -48,7 +50,8 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 						step: 'buildUserNickname'
 					}
 				}),
-				includeStaff
+				includeStaff,
+				dryRun
 			})
 				.syncNickname({
 					discordUserId: member.id,
@@ -61,7 +64,9 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 
 					return {
 						outcome: result.outcome,
-						reason: result.reason
+						reason: result.reason,
+						currentNickname: result.member.nickname,
+						computedNickname: result.computedNickname
 					};
 				})
 	};
