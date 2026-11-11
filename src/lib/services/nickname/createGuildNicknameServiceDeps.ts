@@ -33,30 +33,25 @@ export function createGuildNicknameServiceDeps({
 		computeNickname: ({
 			member,
 			baseDiscordNicknameOverride,
-			totalMeritsOverride,
 			contextBindings
 		}: {
 			member: GuildMember;
 			baseDiscordNicknameOverride?: string;
-			totalMeritsOverride?: number;
 			contextBindings?: Record<string, unknown>;
 		}) =>
 			computeGuildNickname({
 				member,
 				context,
 				baseDiscordNicknameOverride,
-				totalMeritsOverride,
 				contextBindings
 			}),
 		syncComputedNickname: ({
 			member,
 			setReason,
-			totalMeritsOverride,
 			contextBindings
 		}: {
 			member: GuildMember;
 			setReason: string;
-			totalMeritsOverride?: number;
 			contextBindings?: Record<string, unknown>;
 		}) =>
 			syncGuildNickname({
@@ -65,7 +60,6 @@ export function createGuildNicknameServiceDeps({
 				includeStaff,
 				dryRun,
 				setReason,
-				totalMeritsOverride,
 				contextBindings
 			})
 	};

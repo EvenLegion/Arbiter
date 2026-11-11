@@ -1,6 +1,6 @@
 import { type Division, DivisionKind } from '@prisma/client';
 import { DISCORD_MAX_NICKNAME_LENGTH } from '../../constants';
-import { getMeritRankSymbol, LEGACY_MERIT_RANK_SYMBOLS, resolveMeritRankLevel } from '../merit-rank/meritRank';
+import { LEGACY_MERIT_RANK_SYMBOLS } from '../merit-rank/meritRank';
 
 const PREFIX_PRIORITY: ((division: Division) => boolean)[] = [
 	(division) => division.kind === DivisionKind.INITIATE,
@@ -21,41 +21,29 @@ type BuildUserNicknameParams = {
 	isGuildOwner: boolean;
 	baseNickname: string;
 	divisions: Division[];
-	totalMerits: number;
 };
 
+/**
+ * Nicknames carry no merit rank (D4). A legacy circled rank suffix (①–㊿) is still
+ * stripped so old nicknames converge on the next sync.
+ */
 export const buildUserNickname = ({
 	isGuildOwner,
 	baseNickname,
-	divisions,
-	totalMerits
+	divisions
 }: BuildUserNicknameParams): { newUserNickname: string | null; reason?: string } => {
 	if (isGuildOwner) {
 		return { newUserNickname: null, reason: 'User is the guild owner' };
 	}
 
-	const meritRankLevel = resolveMeritRankLevel(totalMerits);
-
 	for (const hasPriority of PREFIX_PRIORITY) {
 		const priorityDivision = selectPriorityDivision(divisions, hasPriority);
 		if (priorityDivision) {
-			return {
-				newUserNickname: appendMeritRankSuffix({
-					nickname: `${priorityDivision.displayNamePrefix} | ${baseNickname}`,
-					meritRankLevel,
-					shouldShowRank: priorityDivision.showRank
-				})
-			};
+			return { newUserNickname: finalizeNickname(`${priorityDivision.displayNamePrefix} | ${baseNickname}`) };
 		}
 	}
 
-	return {
-		newUserNickname: appendMeritRankSuffix({
-			nickname: baseNickname,
-			meritRankLevel,
-			shouldShowRank: true
-		})
-	};
+	return { newUserNickname: finalizeNickname(baseNickname) };
 };
 
 function selectPriorityDivision(divisions: Division[], hasPriority: (division: Division) => boolean) {
@@ -71,41 +59,16 @@ function selectPriorityDivision(divisions: Division[], hasPriority: (division: D
 	return matchingDivisions[0] ?? null;
 }
 
-function appendMeritRankSuffix({
-	nickname,
-	meritRankLevel,
-	shouldShowRank
-}: {
-	nickname: string;
-	meritRankLevel: number | null;
-	shouldShowRank: boolean;
-}) {
+function finalizeNickname(nickname: string) {
 	const sanitizedNickname = stripTrailingMeritRankSuffix(nickname);
-	if (!meritRankLevel || !shouldShowRank) {
-		if (sanitizedNickname.length > DISCORD_MAX_NICKNAME_LENGTH) {
-			throw createNicknameTooLongError({
-				computedNickname: sanitizedNickname,
-				computedLength: sanitizedNickname.length
-			});
-		}
-
-		return sanitizedNickname;
+	if (sanitizedNickname.length > DISCORD_MAX_NICKNAME_LENGTH) {
+		throw createNicknameTooLongError({
+			computedNickname: sanitizedNickname,
+			computedLength: sanitizedNickname.length
+		});
 	}
 
-	const meritRankSymbol = getMeritRankSymbol(meritRankLevel);
-	if (!meritRankSymbol) {
-		return sanitizedNickname;
-	}
-
-	const suffix = ` ${meritRankSymbol}`;
-	if (sanitizedNickname.length + suffix.length <= DISCORD_MAX_NICKNAME_LENGTH) {
-		return `${sanitizedNickname}${suffix}`;
-	}
-
-	throw createNicknameTooLongError({
-		computedNickname: `${sanitizedNickname}${suffix}`,
-		computedLength: sanitizedNickname.length + suffix.length
-	});
+	return sanitizedNickname;
 }
 
 function createNicknameTooLongError({ computedNickname, computedLength }: { computedNickname: string; computedLength: number }) {

@@ -28,7 +28,6 @@ export type NicknameComputeDeps<TMember> = NicknameLookupDeps<TMember> & {
 	computeNickname: (params: {
 		member: TMember;
 		baseDiscordNicknameOverride?: string;
-		totalMeritsOverride?: number;
 		contextBindings?: Record<string, unknown>;
 	}) => Promise<NicknameComputeResult>;
 };
@@ -37,7 +36,6 @@ export type NicknameSyncDeps<TMember> = NicknameLookupDeps<TMember> & {
 	syncComputedNickname: (params: {
 		member: TMember;
 		setReason: string;
-		totalMeritsOverride?: number;
 		contextBindings?: Record<string, unknown>;
 	}) => Promise<NicknameSyncResult<TMember>>;
 };
@@ -65,7 +63,6 @@ export async function computeNicknameForUser<TMember>(
 	deps: NicknameComputeDeps<TMember>,
 	input: {
 		discordUserId: string;
-		totalMeritsOverride?: number;
 		contextBindings?: Record<string, unknown>;
 	}
 ): Promise<ComputeNicknameForUserResult> {
@@ -79,7 +76,6 @@ export async function computeNicknameForUser<TMember>(
 	try {
 		const result = await deps.computeNickname({
 			member,
-			totalMeritsOverride: input.totalMeritsOverride,
 			contextBindings: input.contextBindings
 		});
 
@@ -101,7 +97,6 @@ export async function syncNicknameForUser<TMember>(
 	input: {
 		discordUserId: string;
 		setReason: string;
-		totalMeritsOverride?: number;
 		contextBindings?: Record<string, unknown>;
 	}
 ): Promise<SyncNicknameForUserResult<TMember>> {
@@ -116,7 +111,6 @@ export async function syncNicknameForUser<TMember>(
 		const result = await deps.syncComputedNickname({
 			member,
 			setReason: input.setReason,
-			totalMeritsOverride: input.totalMeritsOverride,
 			contextBindings: input.contextBindings
 		});
 

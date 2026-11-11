@@ -2,15 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	listUserDivisions: vi.fn(),
-	getUserTotalMerits: vi.fn(),
 	memberHasDivisionKindRole: vi.fn(),
 	getDbUserOrThrow: vi.fn(),
 	buildUserNickname: vi.fn()
 }));
 
 vi.mock('../../../../../src/integrations/prisma/repositories', () => ({
-	divisionRepository: { listUserDivisions: mocks.listUserDivisions },
-	meritRepository: { getUserTotalMerits: mocks.getUserTotalMerits }
+	divisionRepository: { listUserDivisions: mocks.listUserDivisions }
 }));
 
 vi.mock('../../../../../src/lib/discord/guild/divisions', () => ({
@@ -33,7 +31,6 @@ describe('syncGuildNickname', () => {
 			mock.mockReset();
 		}
 		mocks.listUserDivisions.mockResolvedValue([]);
-		mocks.getUserTotalMerits.mockResolvedValue(12);
 		mocks.getDbUserOrThrow.mockResolvedValue({ id: 'db-1', discordNickname: 'Alpha' });
 		mocks.memberHasDivisionKindRole.mockResolvedValue(false);
 		mocks.buildUserNickname.mockReturnValue({ newUserNickname: 'LGN | Alpha' });
