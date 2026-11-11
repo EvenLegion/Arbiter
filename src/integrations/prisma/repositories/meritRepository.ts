@@ -6,7 +6,7 @@ import { getUsersTotalMerits } from '../merit/getUsersTotalMerits';
 import { listMeritTypes } from '../merit/listMeritTypes';
 
 export { MeritTypeNotManualAwardableError };
-export type { UserMeritSummary, MeritSummaryEntry, MeritRankBreakdownEntry } from '../merit/meritReadTypes';
+export type { UserMeritSummary, MeritSummaryEntry, MeritRankBreakdownEntry, MeritRankBreakdownLadder } from '../merit/meritReadTypes';
 
 export const meritRepository = {
 	awardManualMerit,

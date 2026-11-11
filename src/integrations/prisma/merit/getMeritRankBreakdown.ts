@@ -1,12 +1,24 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../prisma';
-import { USER_MERIT_RANK_DIVISION_ROW_SCHEMA, type MeritRankBreakdownEntry, type UserMeritRankDivisionRowInput } from './meritReadTypes';
+import {
+	USER_MERIT_RANK_DIVISION_ROW_SCHEMA,
+	type MeritRankBreakdownEntry,
+	type MeritRankBreakdownLadder,
+	type UserMeritRankDivisionRowInput
+} from './meritReadTypes';
+import { MAX_MERIT_BADGE_TIER, resolveMeritBadgeTier } from '../../../lib/services/merit-rank/meritBadge';
 import { MAX_MERIT_RANK_LEVEL, resolveMeritRankLevel } from '../../../lib/services/merit-rank/meritRank';
 
 const TRACKED_DIVISION_CODES = ['LGN', 'RES', 'CENT', 'OPT', 'NVY', 'NVY-L', 'MRN', 'MRN-L', 'SUP', 'SUP-L'] as const;
 
-export async function getMeritRankBreakdown(): Promise<MeritRankBreakdownEntry[]> {
+const LADDERS: Record<MeritRankBreakdownLadder, { rowCount: number; resolveRow: (totalMerits: number) => number | null }> = {
+	legacy: { rowCount: MAX_MERIT_RANK_LEVEL, resolveRow: resolveMeritRankLevel },
+	badge: { rowCount: MAX_MERIT_BADGE_TIER, resolveRow: (totalMerits) => resolveMeritBadgeTier(totalMerits)?.tier ?? null }
+};
+
+export async function getMeritRankBreakdown({ ladder }: { ladder: MeritRankBreakdownLadder }): Promise<MeritRankBreakdownEntry[]> {
+	const { rowCount, resolveRow } = LADDERS[ladder];
 	const rawRows = await prisma.$queryRaw<UserMeritRankDivisionRowInput[]>`
 		WITH "merit_totals" AS (
 			SELECT "m"."userId", COALESCE(SUM("mt"."meritAmount"), 0) AS "total"
@@ -40,7 +52,7 @@ export async function getMeritRankBreakdown(): Promise<MeritRankBreakdownEntry[]
 	const rows = rawRows.map((row) => USER_MERIT_RANK_DIVISION_ROW_SCHEMA.parse(row));
 	const countsByLevel = new Map<number, MeritRankBreakdownEntry>();
 
-	for (let level = 1; level <= MAX_MERIT_RANK_LEVEL; level++) {
+	for (let level = 1; level <= rowCount; level++) {
 		countsByLevel.set(level, {
 			level,
 			lgnOrResCount: 0,
@@ -58,7 +70,7 @@ export async function getMeritRankBreakdown(): Promise<MeritRankBreakdownEntry[]
 	}
 
 	for (const row of rows) {
-		const level = resolveMeritRankLevel(row.total);
+		const level = resolveRow(row.total);
 		if (!level) {
 			continue;
 		}

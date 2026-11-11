@@ -1,6 +1,8 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 
+import { ENV_MERIT_BADGE_ROLES } from '../../../../config/env/discord';
 import type { MeritSummaryEntry } from '../../../../integrations/prisma/repositories';
+import { buildMeritBadgeListFields, resolveMeritBadgeCopy, type MeritBadgeCopyRoles } from '../../../services/merit-rank/meritBadgeMessages';
 import { buildMeritRankProgressBar, resolveMeritRankProgress } from '../../../services/merit-rank/meritRank';
 import { buildMeritListPageButtonId, buildMeritListPageIndicatorButtonId } from './meritListButtonCustomId';
 
@@ -12,6 +14,8 @@ type BuildMeritListPayloadParams = {
 	page: number;
 	totalPages: number;
 	entries: MeritSummaryEntry[];
+	/** Defaults to the configured badge roles. */
+	badgeRoles?: MeritBadgeCopyRoles;
 };
 
 export function buildMeritListPayload({
@@ -21,13 +25,15 @@ export function buildMeritListPayload({
 	totalLinkedEvents,
 	page,
 	totalPages,
-	entries
+	entries,
+	badgeRoles = ENV_MERIT_BADGE_ROLES
 }: BuildMeritListPayloadParams) {
 	const embed = buildMeritListEmbed({
 		targetDisplayName,
 		totalMerits,
 		totalLinkedEvents,
-		entries
+		entries,
+		badgeRoles
 	});
 	const prevPage = Math.max(1, page - 1);
 	const nextPage = Math.min(totalPages, page + 1);
@@ -78,24 +84,19 @@ function buildMeritListEmbed({
 	targetDisplayName,
 	totalMerits,
 	totalLinkedEvents,
-	entries
+	entries,
+	badgeRoles
 }: {
 	targetDisplayName: string;
 	totalMerits: number;
 	totalLinkedEvents: number;
 	entries: MeritSummaryEntry[];
+	badgeRoles: MeritBadgeCopyRoles;
 }) {
 	const description = buildEntriesDescription({
 		entries
 	});
-	const rankProgress = resolveMeritRankProgress(totalMerits);
-	const currentRankLabel = rankProgress.currentLevel ? `Level ${rankProgress.currentLevel}` : 'Unranked';
-	const progressValue = rankProgress.nextLevel
-		? [
-				`To Level ${rankProgress.nextLevel}: ${buildMeritRankProgressBar({ progressRatio: rankProgress.progressRatio })} ${rankProgress.progressPercent}%`,
-				`${rankProgress.meritsRemainingToNextLevel} merit${rankProgress.meritsRemainingToNextLevel === 1 ? '' : 's'} needed to next rank`
-			].join('\n')
-		: 'Max rank reached';
+	const standing = buildStandingFields({ totalMerits, badgeRoles });
 
 	return new EmbedBuilder()
 		.setTitle(`Merits for ${targetDisplayName}`)
@@ -112,17 +113,57 @@ function buildMeritListEmbed({
 				inline: true
 			},
 			{
-				name: 'Current Rank',
-				value: currentRankLabel,
+				name: standing.currentName,
+				value: standing.currentValue,
 				inline: true
 			},
 			{
-				name: 'Rank Progress',
-				value: progressValue,
+				name: standing.progressName,
+				value: standing.progressValue,
 				inline: false
 			}
 		)
 		.setDescription(description);
+}
+
+/** Badge fields once the member's badge tier has a role; otherwise the legacy rank fields. */
+/**
+ * Badge fields once the member's badge tier has a role; otherwise the legacy rank fields.
+ * While the next badge has no role yet, the progress field stays the legacy rank progress.
+ */
+function buildStandingFields({ totalMerits, badgeRoles }: { totalMerits: number; badgeRoles: MeritBadgeCopyRoles }) {
+	const legacy = buildLegacyRankFields(totalMerits);
+	const badgeCopy = resolveMeritBadgeCopy({
+		totalMerits,
+		badgeRoles
+	});
+	if (!badgeCopy) {
+		return legacy;
+	}
+
+	const badgeFields = buildMeritBadgeListFields(badgeCopy);
+	return {
+		currentName: 'Current Badge',
+		currentValue: badgeFields.currentValue,
+		...(badgeFields.progressValue === null
+			? { progressName: legacy.progressName, progressValue: legacy.progressValue }
+			: { progressName: 'Badge Progress', progressValue: badgeFields.progressValue })
+	};
+}
+
+function buildLegacyRankFields(totalMerits: number) {
+	const rankProgress = resolveMeritRankProgress(totalMerits);
+	return {
+		currentName: 'Current Rank',
+		currentValue: rankProgress.currentLevel ? `Level ${rankProgress.currentLevel}` : 'Unranked',
+		progressName: 'Rank Progress',
+		progressValue: rankProgress.nextLevel
+			? [
+					`To Level ${rankProgress.nextLevel}: ${buildMeritRankProgressBar({ progressRatio: rankProgress.progressRatio })} ${rankProgress.progressPercent}%`,
+					`${rankProgress.meritsRemainingToNextLevel} merit${rankProgress.meritsRemainingToNextLevel === 1 ? '' : 's'} needed to next rank`
+				].join('\n')
+			: 'Max rank reached'
+	};
 }
 
 function buildEntriesDescription({ entries }: { entries: MeritSummaryEntry[] }) {

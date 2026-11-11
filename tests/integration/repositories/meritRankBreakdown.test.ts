@@ -142,7 +142,9 @@ describe('merit rank breakdown integration', () => {
 			]
 		});
 
-		const result = await meritRepository.getMeritRankBreakdown();
+		const result = await meritRepository.getMeritRankBreakdown({ ladder: 'legacy' });
+
+		expect(result).toHaveLength(50);
 
 		expect(result.find((entry) => entry.level === 1)).toEqual({
 			level: 1,
@@ -200,5 +202,15 @@ describe('merit rank breakdown integration', () => {
 			supCount: 0,
 			supLCount: 0
 		});
+
+		// Totals are 1, 3 and 7: Ferrum I (tier 1), Ferrum III (tier 3) and Aes I (tier 4).
+		const badgeResult = await meritRepository.getMeritRankBreakdown({ ladder: 'badge' });
+		const legacyRowAt = (level: number) => result.find((entry) => entry.level === level);
+
+		expect(badgeResult).toHaveLength(36);
+		expect(badgeResult.find((entry) => entry.level === 1)).toEqual(legacyRowAt(1));
+		expect(badgeResult.find((entry) => entry.level === 2)).toEqual({ ...legacyRowAt(4), level: 2 });
+		expect(badgeResult.find((entry) => entry.level === 3)).toEqual({ ...legacyRowAt(2), level: 3 });
+		expect(badgeResult.find((entry) => entry.level === 4)).toEqual({ ...legacyRowAt(3), level: 4 });
 	});
 });

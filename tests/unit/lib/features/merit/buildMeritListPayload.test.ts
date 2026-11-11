@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { createMeritBadgeRoleMap } from '../../../../../src/config/meritBadgeRoles';
 import { buildMeritListPayload } from '../../../../../src/lib/features/merit/read/buildMeritListPayload';
 
 describe('buildMeritListPayload', () => {
@@ -67,4 +68,47 @@ describe('buildMeritListPayload', () => {
 			'merit:list:page-disabled:next:123456789012345678:1'
 		]);
 	});
+
+	it('keeps the rank fields while no badge role is configured', () => {
+		const payload = buildMeritListPayload({ ...listParams(), badgeRoles: createMeritBadgeRoleMap(new Map()) });
+
+		expect(payload.embeds[0].data.fields?.slice(2)).toEqual([
+			{ name: 'Current Rank', value: 'Level 4', inline: true },
+			{ name: 'Rank Progress', value: 'To Level 5: [------------] 0%\n6 merits needed to next rank', inline: false }
+		]);
+	});
+
+	it('shows the badge and badge progress once the badge tier has a role', () => {
+		const badgeRoles = createMeritBadgeRoleMap(new Map(Array.from({ length: 36 }, (_, index) => [index + 1, `${100000000000000000 + index}`])));
+
+		const payload = buildMeritListPayload({ ...listParams(), badgeRoles });
+
+		expect(payload.embeds[0].data.fields?.slice(2)).toEqual([
+			{ name: 'Current Badge', value: 'Aes III', inline: true },
+			{ name: 'Badge Progress', value: 'To Argentum I: [==----------] 20%\n4 merits needed to next badge', inline: false }
+		]);
+	});
+
+	it('keeps the rank progress field while the next badge has no role', () => {
+		const badgeRoles = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6].map((tier) => [tier, `${100000000000000000 + tier}`])));
+
+		const payload = buildMeritListPayload({ ...listParams(), badgeRoles });
+
+		expect(payload.embeds[0].data.fields?.slice(2)).toEqual([
+			{ name: 'Current Badge', value: 'Aes III', inline: true },
+			{ name: 'Rank Progress', value: 'To Level 5: [------------] 0%\n6 merits needed to next rank', inline: false }
+		]);
+	});
 });
+
+function listParams() {
+	return {
+		targetDiscordUserId: '123456789012345678',
+		targetDisplayName: 'Alpha',
+		totalMerits: 12,
+		totalLinkedEvents: 3,
+		page: 1,
+		totalPages: 1,
+		entries: []
+	};
+}

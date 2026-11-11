@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-pqj0g1",
+	"baseRef": "origin/dev",
+	"mergeBase": "43a63d2cf0c91f7f8dd5ef31182caf808e497ec8",
+	"headRef": "ff3747b7381633a4cf131f696ded6c7c9109b4b6",
+	"generatedAt": "2026-11-11T02:05:17.128Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Shows merit badges in member copy (MB-07): the badge-earned DM on every new badge, the next-badge line in the manual award DM, badge fields in /merit list, and /merit rank_list counts per badge tier (9 per page). Each switches only once the relevant badge role is configured, so nothing changes before cutover.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "ff3747b7381633a4cf131f696ded6c7c9109b4b6",
+			"subject": "feat(merit): show merit badges in member DMs, /merit list and rank_list",
+			"committedAt": "2026-11-11T02:05:11+00:00",
+			"committedAtMs": 1794362711000,
+			"type": "feat",
+			"scope": "merit",
+			"description": "show merit badges in member DMs, /merit list and rank_list",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
