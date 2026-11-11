@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-14js5f",
+	"baseRef": "origin/dev",
+	"mergeBase": "8f8dbc429d7485a489a9e78ffda62f82ba3ed478",
+	"headRef": "321efba9dd664f88a50ff5e0ae0f879214d5cf00",
+	"generatedAt": "2026-11-11T00:30:53.874Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Adds the dormant single-member merit badge sync service, planner and role gateway (MB-03). No caller is wired yet, and it does nothing while no badge role ID is configured.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "321efba9dd664f88a50ff5e0ae0f879214d5cf00",
+			"subject": "feat(merit-badge): add single-member badge sync service and role gateway",
+			"committedAt": "2026-11-11T00:30:30+00:00",
+			"committedAtMs": 1794357030000,
+			"type": "feat",
+			"scope": "merit-badge",
+			"description": "add single-member badge sync service and role gateway",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
