@@ -17,6 +17,17 @@ export type BulkNicknameFailure = {
 	reason: string;
 };
 
+/** Stops a run in time to edit the interaction reply, which expires after 15 minutes. Same limits as the badge bulk sync. */
+export const BULK_NICKNAME_SYNC_DEADLINE_MS = 12 * 60_000;
+/** Pause after each nickname a live run changes. discord.js still queues any rate limit. */
+export const BULK_NICKNAME_SYNC_PACE_MS = 1_000;
+/** A rate-limit wait at least this long counts toward stopping the run. */
+export const BULK_NICKNAME_SYNC_LONG_RATE_LIMIT_WAIT_MS = 10_000;
+/** The run stops, between members, after this many long rate-limit waits. */
+export const BULK_NICKNAME_SYNC_MAX_LONG_RATE_LIMIT_WAITS = 3;
+
+export type BulkNicknameSyncStopReason = 'deadline' | 'rate_limited';
+
 export type BulkNicknameResolutionDeps<TMember> = {
 	resolveTargets: (params: { requestedDiscordUserId?: string }) => Promise<BulkNicknameTarget[]>;
 	getMember: (discordUserId: string) => Promise<TMember | null>;
@@ -44,6 +55,14 @@ export type SyncBulkNicknamesDeps<TMember> = BulkNicknameResolutionDeps<TMember>
 		currentNickname?: string | null;
 		computedNickname?: string | null;
 	}>;
+	/** Calls `onWait` with each Discord rate-limit wait (ms); returns an unsubscribe function. */
+	watchRateLimits?: (onWait: (waitMs: number) => void) => () => void;
+	now?: () => number;
+	sleep?: (ms: number) => Promise<void>;
+	deadlineMs?: number;
+	paceMs?: number;
+	longRateLimitWaitMs?: number;
+	maxLongRateLimitWaits?: number;
 };
 
 /**
@@ -79,6 +98,10 @@ export type SyncBulkNicknamesResult =
 			kind: 'completed';
 			scope: BulkNicknameScope;
 			targetCount: number;
+			/** Set when the run stopped early; `remaining` targets were not processed. Run the command again to continue. */
+			stopReason: BulkNicknameSyncStopReason | null;
+			remaining: number;
+			rateLimitWaits: number;
 			attempted: number;
 			updated: number;
 			unchanged: number;
@@ -150,6 +173,13 @@ export async function syncBulkNicknames<TMember>(
 ): Promise<SyncBulkNicknamesResult> {
 	const dryRun = input.dryRun ?? false;
 	const scope = resolveBulkNicknameScope(input.requestedDiscordUserId);
+	const now = deps.now ?? Date.now;
+	const sleep = deps.sleep ?? defaultSleep;
+	const deadlineMs = deps.deadlineMs ?? BULK_NICKNAME_SYNC_DEADLINE_MS;
+	const paceMs = deps.paceMs ?? BULK_NICKNAME_SYNC_PACE_MS;
+	const longWaitMs = deps.longRateLimitWaitMs ?? BULK_NICKNAME_SYNC_LONG_RATE_LIMIT_WAIT_MS;
+	const maxLongWaits = deps.maxLongRateLimitWaits ?? BULK_NICKNAME_SYNC_MAX_LONG_RATE_LIMIT_WAITS;
+	const startedAt = now();
 	if (deps.prepare) {
 		try {
 			await deps.prepare();
@@ -185,56 +215,86 @@ export async function syncBulkNicknames<TMember>(
 	let failed = 0;
 	const failures = [];
 	const plan: BulkNicknamePlanEntry[] = [];
+	let processed = 0;
+	let rateLimitWaits = 0;
+	let longRateLimitWaits = 0;
+	let stopReason: BulkNicknameSyncStopReason | null = null;
+	const unsubscribe =
+		deps.watchRateLimits?.((waitMs) => {
+			rateLimitWaits++;
+			if (waitMs >= longWaitMs) {
+				longRateLimitWaits++;
+			}
+		}) ?? (() => undefined);
 
-	for (const target of targets) {
-		const member = membersByDiscordUserId.get(target.discordUserId) ?? null;
-		if (!member) {
-			missingInGuild++;
-			continue;
-		}
+	try {
+		for (const [index, target] of targets.entries()) {
+			if (longRateLimitWaits >= maxLongWaits) {
+				stopReason = 'rate_limited';
+				break;
+			}
+			if (now() - startedAt >= deadlineMs) {
+				stopReason = 'deadline';
+				break;
+			}
 
-		attempted++;
-		try {
-			const result = await deps.syncNickname({
-				target,
-				member,
-				includeStaff: input.includeStaff,
-				dryRun
-			});
-			if (result.outcome === 'updated') {
-				updated++;
-				if (dryRun) {
-					plan.push(buildPlanEntry(target, 'change', result));
+			processed++;
+			const member = membersByDiscordUserId.get(target.discordUserId) ?? null;
+			if (!member) {
+				missingInGuild++;
+				continue;
+			}
+
+			attempted++;
+			try {
+				const result = await deps.syncNickname({
+					target,
+					member,
+					includeStaff: input.includeStaff,
+					dryRun
+				});
+				if (result.outcome === 'updated') {
+					updated++;
+					if (dryRun) {
+						plan.push(buildPlanEntry(target, 'change', result));
+					} else if (index < targets.length - 1) {
+						await sleep(paceMs);
+					}
+					continue;
 				}
-				continue;
-			}
-			if (result.outcome === 'unchanged') {
-				unchanged++;
-				continue;
-			}
-			if (result.reason === 'User has a staff role') {
-				skippedStaff++;
-				if (dryRun) {
-					plan.push(buildPlanEntry(target, 'skipped_staff', result));
+				if (result.outcome === 'unchanged') {
+					unchanged++;
+					continue;
 				}
-				continue;
-			}
+				if (result.reason === 'User has a staff role') {
+					skippedStaff++;
+					if (dryRun) {
+						plan.push(buildPlanEntry(target, 'skipped_staff', result));
+					}
+					continue;
+				}
 
-			skippedByRule++;
-		} catch (error) {
-			failed++;
-			const failure = buildBulkNicknameFailure(target, error);
-			failures.push(failure);
-			if (dryRun) {
-				plan.push({ ...buildPlanEntry(target, 'failed', {}), reason: failure.reason });
+				skippedByRule++;
+			} catch (error) {
+				failed++;
+				const failure = buildBulkNicknameFailure(target, error);
+				failures.push(failure);
+				if (dryRun) {
+					plan.push({ ...buildPlanEntry(target, 'failed', {}), reason: failure.reason });
+				}
 			}
 		}
+	} finally {
+		unsubscribe();
 	}
 
 	return {
 		kind: 'completed',
 		scope,
 		targetCount: targets.length,
+		stopReason,
+		remaining: targets.length - processed,
+		rateLimitWaits,
 		attempted,
 		updated,
 		unchanged,
@@ -386,4 +446,8 @@ function buildBulkNicknameFailure(target: BulkNicknameTarget, error: unknown): B
 		dbUserId: target.id,
 		reason: error instanceof Error ? error.message : 'Unknown error'
 	};
+}
+
+function defaultSleep(ms: number) {
+	return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
