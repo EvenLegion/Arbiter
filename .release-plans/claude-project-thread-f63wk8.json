@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-f63wk8",
+	"baseRef": "origin/dev",
+	"mergeBase": "79738d6d48219a753a2c0f326e90f3a479148e50",
+	"headRef": "fc928a165f35144ea77bc8a8cd7cfd17d9efc7ec",
+	"generatedAt": "2026-11-11T07:41:43.067Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Adds a Current badge line to the manual merit and demerit DM once the member's badge tier has a role, so a demerit that drops a section names the badge the member now holds. No new DM; legacy copy is unchanged while the tier has no role.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "fc928a165f35144ea77bc8a8cd7cfd17d9efc7ec",
+			"subject": "feat(merit): name the current badge in merit and demerit DMs",
+			"committedAt": "2026-11-11T07:41:32+00:00",
+			"committedAtMs": 1794382892000,
+			"type": "feat",
+			"scope": "merit",
+			"description": "name the current badge in merit and demerit DMs",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
