@@ -19,12 +19,12 @@ That includes:
 
 This workflow family is easier to reason about when you separate four related but different things:
 
-| Concern                   | Primary source of truth                                          | Notes                                                                             |
-| ------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Division definitions      | Postgres plus the in-process division cache                      | Definitions drive permissions, prefixes, and role mappings                        |
-| Public division selection | Discord role state first, then reconciliation into durable state | The public selector updates roles directly                                        |
-| Staff membership mutation | Durable division membership plus follow-up sync behavior         | Used for administrative correction and maintenance                                |
-| Effective nickname        | Computed projection, not free-form text                          | Depends on base nickname, divisions, and policy rules                             |
+| Concern                   | Primary source of truth                                          | Notes                                                      |
+| ------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------- |
+| Division definitions      | Postgres plus the in-process division cache                      | Definitions drive permissions, prefixes, and role mappings |
+| Public division selection | Discord role state first, then reconciliation into durable state | The public selector updates roles directly                 |
+| Staff membership mutation | Durable division membership plus follow-up sync behavior         | Used for administrative correction and maintenance         |
+| Effective nickname        | Computed projection, not free-form text                          | Depends on base nickname, divisions, and policy rules      |
 
 ## The Core Identity Model
 

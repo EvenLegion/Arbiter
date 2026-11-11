@@ -67,13 +67,13 @@ export async function buildStandaloneMedalEligibleUserChoices({ query }: { query
 }
 
 function buildUserChoiceLabel(user: {
-		id: string;
-		discordUserId: string;
-		discordNickname: string | null;
-		discordUsername: string | null;
-		divisionMemberships: Array<{
-			division: Parameters<typeof buildUserNickname>[0]['divisions'][number];
-		}>;
+	id: string;
+	discordUserId: string;
+	discordNickname: string | null;
+	discordUsername: string | null;
+	divisionMemberships: Array<{
+		division: Parameters<typeof buildUserNickname>[0]['divisions'][number];
+	}>;
 }) {
 	const baseNickname = user.discordNickname?.trim() || user.discordUsername?.trim() || user.discordUserId;
 
