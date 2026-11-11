@@ -17,9 +17,10 @@ export function buildBulkNicknameSyncPayload({
 	requestId: string;
 }) {
 	const unsuccessful = result.failed + result.missingInGuild;
+	const stopped = result.stopReason !== null;
 	const summaryEmbed = new EmbedBuilder()
-		.setTitle(result.dryRun ? 'Nickname Sync Dry Run' : 'Nickname Sync Complete')
-		.setColor(unsuccessful > 0 ? 0xf59e0b : result.dryRun ? 0x3b82f6 : 0x22c55e)
+		.setTitle(buildTitle(result.dryRun, stopped))
+		.setColor(unsuccessful > 0 || stopped ? 0xf59e0b : result.dryRun ? 0x3b82f6 : 0x22c55e)
 		.addFields(
 			{ name: 'Mode', value: result.scope === 'single' ? 'Single User' : 'All DB Users', inline: true },
 			{ name: 'Include Staff', value: includeStaff ? 'Yes' : 'No', inline: true },
@@ -33,13 +34,20 @@ export function buildBulkNicknameSyncPayload({
 			{ name: 'Failed', value: String(result.failed), inline: true }
 		)
 		.setTimestamp();
+	if (stopped) {
+		summaryEmbed.addFields({ name: 'Remaining', value: String(result.remaining), inline: true });
+	}
+	const stopNote = buildStopNote(result);
 
 	if (!result.dryRun) {
 		return {
 			content:
-				unsuccessful > 0
+				stopNote +
+				(unsuccessful > 0
 					? `Some nickname sync operations were unsuccessful. Share requestId=\`${requestId}\` with TECH.`
-					: `Nickname sync succeeded. requestId=\`${requestId}\``,
+					: stopped
+						? `requestId=\`${requestId}\``
+						: `Nickname sync succeeded. requestId=\`${requestId}\``),
 			embeds: [summaryEmbed]
 		};
 	}
@@ -54,9 +62,10 @@ export function buildBulkNicknameSyncPayload({
 	const failureNote = unsuccessful > 0 ? ' Some members could not be checked.' : '';
 	return {
 		content:
-			result.plan.length > 0
+			stopNote +
+			(result.plan.length > 0
 				? `Dry run only: no nicknames were changed. The CSV lists every change, skipped staff member and failure.${failureNote} requestId=\`${requestId}\``
-				: `Dry run only: no nicknames were changed.${failureNote} requestId=\`${requestId}\``,
+				: `Dry run only: no nicknames were changed.${failureNote} requestId=\`${requestId}\``),
 		embeds: [summaryEmbed],
 		files:
 			result.plan.length > 0
@@ -86,4 +95,22 @@ export function buildNicknameSyncDryRunCsv(plan: readonly BulkNicknamePlanEntry[
 function formatChangeLine(entry: BulkNicknamePlanEntry) {
 	const current = entry.currentNickname === null ? '(no nickname)' : escapeMarkdown(entry.currentNickname);
 	return `${current} → ${escapeMarkdown(entry.plannedNickname ?? '')}`;
+}
+
+function buildTitle(dryRun: boolean, stopped: boolean) {
+	if (dryRun) {
+		return stopped ? 'Nickname Sync Dry Run (Stopped Early)' : 'Nickname Sync Dry Run';
+	}
+
+	return stopped ? 'Nickname Sync Stopped Early' : 'Nickname Sync Complete';
+}
+
+function buildStopNote(result: Extract<SyncBulkNicknamesResult, { kind: 'completed' }>) {
+	if (result.stopReason === null) {
+		return '';
+	}
+
+	const why =
+		result.stopReason === 'rate_limited' ? 'Stopped early after repeated long Discord rate-limit waits.' : 'Stopped early at the time limit.';
+	return `${why} ${result.remaining} users were not checked. Run the command again to continue; users who are already correct are skipped.\n`;
 }

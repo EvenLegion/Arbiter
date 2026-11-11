@@ -11,6 +11,9 @@ const baseResult = {
 	kind: 'completed' as const,
 	scope: 'all' as const,
 	targetCount: 1,
+	stopReason: null,
+	remaining: 0,
+	rateLimitWaits: 0,
 	attempted: 1,
 	updated: 1,
 	unchanged: 0,
@@ -49,6 +52,32 @@ describe('buildBulkNicknameSyncPayload', () => {
 		expect(payload.content).toContain('Some nickname sync operations were unsuccessful');
 		expect(payload.embeds[0].data.color).toBe(0xf59e0b);
 		expect(payload.embeds[0].data.fields?.map((field) => [field.name, field.value])).toContainEqual(['Mode', 'All DB Users']);
+	});
+
+	it('says a stopped live run must be run again and shows the remaining count', () => {
+		const payload = buildBulkNicknameSyncPayload({
+			result: { ...baseResult, targetCount: 10, attempted: 4, updated: 4, stopReason: 'deadline' as const, remaining: 6 },
+			includeStaff: true,
+			requestId: 'req-3'
+		});
+
+		expect(payload.content).toBe(
+			'Stopped early at the time limit. 6 users were not checked. Run the command again to continue; users who are already correct are skipped.\nrequestId=`req-3`'
+		);
+		expect(payload.embeds[0].data.title).toBe('Nickname Sync Stopped Early');
+		expect(payload.embeds[0].data.color).toBe(0xf59e0b);
+		expect(payload.embeds[0].data.fields?.map((field) => [field.name, field.value])).toContainEqual(['Remaining', '6']);
+	});
+
+	it('marks a stopped dry run and names the rate-limit reason', () => {
+		const payload = buildBulkNicknameSyncPayload({
+			result: { ...baseResult, dryRun: true, updated: 0, stopReason: 'rate_limited' as const, remaining: 3 },
+			includeStaff: false,
+			requestId: 'req-4'
+		});
+
+		expect(payload.content).toMatch(/^Stopped early after repeated long Discord rate-limit waits\. 3 users were not checked\./);
+		expect(payload.embeds[0].data.title).toBe('Nickname Sync Dry Run (Stopped Early)');
 	});
 
 	it('shows a dry run with a sample of changes and a CSV of the full plan', () => {

@@ -137,6 +137,8 @@ The thread-based review flow gives the repo three things:
 - **Live run (default).** Members with a staff role are skipped unless `include_staff` is true. The reply counts updated, unchanged, skipped and failed members.
 - **Dry run (`dry_run: true`).** Makes the same decisions as a live run, including `include_staff`, but changes no nickname. The ephemeral reply shows the counts and up to 10 sample changes, plus a CSV with each change (Discord ID, stored username, current and planned nickname), each skipped staff member and each member it would fail on, with the reason. A nickname someone edited by hand in Discord shows up as a change, because a live run overwrites it.
 
+- **Pacing and stopping.** Users are processed one at a time. A live run pauses after each nickname it changes and relies on the discord.js rate-limit queue. A live run or dry run stops between users after 12 minutes or after repeated long rate-limit waits, so the reply arrives before Discord's 15-minute limit. It then reports the remaining count. There is no checkpoint: run the command again and users who are already correct are skipped, at no Discord cost. Pacing and limits are constants in `src/lib/services/bulk-nickname/bulkNicknameService.ts`.
+
 A dry run logs counts only; its nicknames and failures appear only in the ephemeral reply and its CSV. If that reply cannot be sent, the error log keeps only the error's name, message and code. A live run's summary log also lists failures (Discord ID, stored username, reason), never nicknames.
 
 ## Merit Badge Sync Command

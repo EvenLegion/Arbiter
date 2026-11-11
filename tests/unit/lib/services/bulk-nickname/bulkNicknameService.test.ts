@@ -11,6 +11,8 @@ type TestMember = {
 	currentNickname: string;
 };
 
+const sleep = async () => undefined;
+
 describe('bulkNicknameService', () => {
 	it('aggregates sync results across updated, unchanged, skipped, missing, and failed targets', async () => {
 		const targets = buildTargets(['1001', '1002', '1003', '1004', '1005', '1006']);
@@ -51,7 +53,8 @@ describe('bulkNicknameService', () => {
 					}
 
 					throw new Error('Failed setting nickname');
-				})
+				}),
+				sleep
 			},
 			{
 				includeStaff: false
@@ -62,6 +65,9 @@ describe('bulkNicknameService', () => {
 			kind: 'completed',
 			scope: 'all',
 			targetCount: 6,
+			stopReason: null,
+			remaining: 0,
+			rateLimitWaits: 0,
 			attempted: 5,
 			updated: 1,
 			unchanged: 1,
@@ -140,6 +146,84 @@ describe('bulkNicknameService', () => {
 				reason: 'Failed to sync nickname: nickname-too-long'
 			}
 		]);
+	});
+
+	it('pauses after each live nickname change, but not after the last target or on a dry run', async () => {
+		const targets = buildTargets(['1001', '1002', '1003']);
+		const deps = {
+			resolveTargets: async () => targets,
+			listMembers: async () => new Map(targets.map((target) => [target.discordUserId, { id: target.discordUserId, currentNickname: '' }])),
+			getMember: async () => null,
+			syncNickname: vi.fn(async ({ target }: { target: BulkNicknameTarget }) => ({
+				outcome: target.discordUserId === '1002' ? ('unchanged' as const) : ('updated' as const)
+			})),
+			sleep: vi.fn(async () => undefined),
+			paceMs: 250
+		};
+
+		await syncBulkNicknames(deps, { includeStaff: false });
+		expect(deps.sleep).toHaveBeenCalledTimes(1);
+		expect(deps.sleep).toHaveBeenCalledWith(250);
+
+		deps.sleep.mockClear();
+		await syncBulkNicknames(deps, { includeStaff: false, dryRun: true });
+		expect(deps.sleep).not.toHaveBeenCalled();
+	});
+
+	it('stops between targets at the deadline and reports the remaining count', async () => {
+		const targets = buildTargets(['1001', '1002', '1003', '1004']);
+		let clock = 0;
+		const syncNickname = vi.fn(async () => {
+			clock += 400;
+			return { outcome: 'updated' as const };
+		});
+
+		const result = await syncBulkNicknames(
+			{
+				resolveTargets: async () => targets,
+				listMembers: async () => new Map(targets.map((target) => [target.discordUserId, { id: target.discordUserId, currentNickname: '' }])),
+				getMember: async () => null,
+				syncNickname,
+				sleep,
+				now: () => clock,
+				deadlineMs: 1_000
+			},
+			{ includeStaff: false }
+		);
+
+		expect(syncNickname).toHaveBeenCalledTimes(3);
+		expect(result).toMatchObject({ kind: 'completed', stopReason: 'deadline', updated: 3, remaining: 1, targetCount: 4 });
+	});
+
+	it('stops after repeated long rate-limit waits and unsubscribes from rate-limit events', async () => {
+		const targets = buildTargets(['1001', '1002', '1003', '1004']);
+		let onWait: ((waitMs: number) => void) | undefined;
+		const unsubscribe = vi.fn();
+		const syncNickname = vi.fn(async () => {
+			onWait?.(500);
+			onWait?.(15_000);
+			return { outcome: 'updated' as const };
+		});
+
+		const result = await syncBulkNicknames(
+			{
+				resolveTargets: async () => targets,
+				listMembers: async () => new Map(targets.map((target) => [target.discordUserId, { id: target.discordUserId, currentNickname: '' }])),
+				getMember: async () => null,
+				syncNickname,
+				sleep,
+				watchRateLimits: (listener) => {
+					onWait = listener;
+					return unsubscribe;
+				},
+				maxLongRateLimitWaits: 2
+			},
+			{ includeStaff: false }
+		);
+
+		expect(syncNickname).toHaveBeenCalledTimes(2);
+		expect(result).toMatchObject({ kind: 'completed', stopReason: 'rate_limited', remaining: 2, rateLimitWaits: 4 });
+		expect(unsubscribe).toHaveBeenCalledTimes(1);
 	});
 
 	it('reports transform summaries with failures and missing members', async () => {

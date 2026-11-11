@@ -1,4 +1,4 @@
-import type { Guild, GuildMember } from 'discord.js';
+import { RESTEvents, type Guild, type GuildMember, type RateLimitData } from 'discord.js';
 
 import { refreshDivisionCache } from '../../../discord/guild/divisions';
 import { getDbUser, listDbUsers } from '../../../discord/guild/users';
@@ -26,6 +26,13 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 			),
 		getMember: members.getMember,
 		listMembers: members.listMembers,
+		watchRateLimits: (onWait: (waitMs: number) => void) => {
+			const listener = (info: RateLimitData) => onWait(info.timeToReset);
+			guild.client.rest.on(RESTEvents.RateLimited, listener);
+			return () => {
+				guild.client.rest.off(RESTEvents.RateLimited, listener);
+			};
+		},
 		syncNickname: ({
 			target,
 			member,

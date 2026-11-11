@@ -1,0 +1,38 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/nickname-sync-pacing",
+	"baseRef": "origin/dev",
+	"mergeBase": "9f360b6842c007ac62a4a676cb9d36ee79ec3eb0",
+	"headRef": "05a098bf82e6f14708de71e48fed31c971102aa2",
+	"generatedAt": "2026-11-11T09:02:48.285Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Staff /staff sync_nickname now paces live nickname changes (1 s), stops between users after 12 minutes or 3 long rate-limit waits, and reports the remaining count, matching the badge bulk sync. Needed for the MB-11 bulk number strip over ~4,000 members.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "afb879a8b2a6c65742c386a25c414994bada2a7f",
+			"subject": "feat(staff): pace and time-box /staff sync_nickname",
+			"committedAt": "2026-11-11T09:01:53+00:00",
+			"committedAtMs": 1794387713000,
+			"type": "feat",
+			"scope": "staff",
+			"description": "pace and time-box /staff sync_nickname",
+			"breaking": false,
+			"section": "Features"
+		},
+		{
+			"sha": "05a098bf82e6f14708de71e48fed31c971102aa2",
+			"subject": "docs(staff): describe sync_nickname pacing and stopping",
+			"committedAt": "2026-11-11T09:02:11+00:00",
+			"committedAtMs": 1794387731000,
+			"type": "docs",
+			"scope": "staff",
+			"description": "describe sync_nickname pacing and stopping",
+			"breaking": false,
+			"section": "Maintenance"
+		}
+	]
+}
