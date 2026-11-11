@@ -208,7 +208,8 @@ describe('createMeritBadgeSyncRuntime', () => {
 			expect([...liveRoles]).toHaveLength(1);
 		}
 		expect([...liveRoles]).toEqual([FERRUM_III]);
-		expect(fetchMember).toHaveBeenCalledWith({ user: MEMBER_ID, force: true });
+		// Fresh reads leave the shared cache alone, so Discord's later update still reaches the listener.
+		expect(fetchMember).toHaveBeenCalledWith({ user: MEMBER_ID, force: true, cache: false });
 
 		// A hand edit within the window is seen and repaired.
 		liveRoles.clear();

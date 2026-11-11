@@ -108,7 +108,9 @@ async function fetchGuildMember(guild: Guild, discordUserId: string, { fresh }: 
 	}
 
 	try {
-		return await guild.members.fetch({ user: discordUserId, force: true });
+		// A fresh read must not update the shared cache: the gateway update would then compare equal and
+		// discord.js would skip guildMemberUpdate, so membership and nickname sync would never run.
+		return await guild.members.fetch({ user: discordUserId, force: true, cache: !fresh });
 	} catch (error) {
 		if (toMeritBadgeRoleFailure(error).code === 'unknown_member') {
 			return null;
