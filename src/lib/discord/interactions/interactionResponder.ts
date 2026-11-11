@@ -33,6 +33,7 @@ export type InteractionResponderPayload =
 			flags?: InteractionReplyOptions['flags'];
 			embeds?: InteractionReplyOptions['embeds'];
 			components?: InteractionReplyOptions['components'];
+			files?: InteractionReplyOptions['files'];
 	  };
 
 export type InteractionResponder = ReturnType<typeof createInteractionResponder>;
@@ -241,7 +242,8 @@ function toInteractionReplyPayload(payload: InteractionResponderPayload): string
 		content: payload.content ?? undefined,
 		flags: payload.flags,
 		embeds: payload.embeds,
-		components: payload.components
+		components: payload.components,
+		files: payload.files
 	};
 }
 
@@ -253,7 +255,8 @@ function toInteractionEditReplyPayload(payload: InteractionResponderPayload): st
 	return {
 		content: payload.content ?? undefined,
 		embeds: payload.embeds,
-		components: payload.components
+		components: payload.components,
+		files: payload.files
 	};
 }
 
