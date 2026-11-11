@@ -4,8 +4,11 @@
  * discord.js does not update the cached member after a single-role add or remove; the cache
  * catches up only when Discord's member update event arrives. Without this record, a second sync
  * for the same member that runs before that event plans from the old roles and can leave two
- * badge roles. Each sync overlays its member's recent changes on the cached roles. Entries expire
- * after `ttlMs`, by which time the cache has caught up, so later manual role edits are seen again.
+ * badge roles. Each sync overlays its member's recent changes on the cached roles.
+ *
+ * An entry is dropped as soon as the cached roles agree with it (Discord's update arrived), so a
+ * manual edit made right after Arbiter's own change is seen by the next sync. Entries also expire
+ * after `ttlMs` in case that update never arrives.
  */
 export type RecentRoleChanges = {
 	record: (discordUserId: string, roleId: string, held: boolean) => void;
@@ -55,12 +58,22 @@ export function createRecentRoleChanges({
 		apply(discordUserId, roleIds) {
 			const result = new Set(roleIds);
 			const changes = pruneMember(discordUserId, now());
-			for (const [roleId, change] of changes ?? []) {
-				if (change.held) {
+			if (!changes) {
+				return result;
+			}
+
+			for (const [roleId, change] of changes) {
+				if (result.has(roleId) === change.held) {
+					// The cache has caught up, so later edits to this role must show through.
+					changes.delete(roleId);
+				} else if (change.held) {
 					result.add(roleId);
 				} else {
 					result.delete(roleId);
 				}
+			}
+			if (changes.size === 0) {
+				changesByMember.delete(discordUserId);
 			}
 			return result;
 		}
