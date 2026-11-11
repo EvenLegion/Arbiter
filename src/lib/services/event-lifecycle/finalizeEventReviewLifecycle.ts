@@ -15,6 +15,8 @@ type FinalizeEventReviewDeps = {
 		mode: 'with' | 'without';
 	}) => Promise<EventReviewFinalizationResult>;
 	syncAwardedNicknames: (params: { awardedUsers: EventReviewFinalizationResult['awardedUsers'] }) => Promise<void>;
+	/** Must not throw; it logs its own failures. Badge results never change the finalize result. */
+	syncAwardedBadges: (params: { awardedUsers: EventReviewFinalizationResult['awardedUsers'] }) => Promise<void>;
 	reloadEventSession: (eventSessionId: number) => Promise<EventLifecycleEventSession | null>;
 	syncTrackingSummary: (eventSession: EventLifecycleEventSession) => Promise<void>;
 	postReviewSubmissionMessages: (params: {
@@ -102,13 +104,22 @@ export async function finalizeEventReviewLifecycle(
 		}
 	}
 
+	const reviewMessageSynced = await deps.syncReviewMessage({
+		eventSessionId: input.eventSessionId,
+		page: 1
+	});
+
+	// Badge roles run last, after the awards committed and the review messages were posted.
+	await deps
+		.syncAwardedBadges({
+			awardedUsers: finalizeResult.awardedUsers
+		})
+		.catch(() => undefined);
+
 	return {
 		kind: 'review_finalized',
 		toState: finalizeResult.toState,
 		awardedCount: finalizeResult.awardedCount,
-		reviewMessageSynced: await deps.syncReviewMessage({
-			eventSessionId: input.eventSessionId,
-			page: 1
-		})
+		reviewMessageSynced
 	};
 }

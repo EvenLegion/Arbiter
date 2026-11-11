@@ -79,16 +79,22 @@ This is useful when Discord role state and database state need to be brought bac
 
 Guild-member role changes are an important source of truth for some automation paths.
 
-When a member's Discord roles change, the guild-member update listener can:
+When a member's Discord roles change in the configured guild, the guild-member update listener can (updates from other guilds are ignored):
 
 - detect relevant role diffs
 - reconcile durable division memberships from the current Discord role set
 - recompute the member's nickname
+- re-check the member's merit badge role
+
+If only merit badge roles changed (Arbiter's own badge sync, or someone editing a badge role by hand), the listener skips membership reconciliation and the nickname and only re-checks the badge, so a hand-edited badge is put back. Badge roles never feed membership reconciliation. When Discord sends a partial old member, the change is handled as a full role change.
 
 When a new guild member joins, Arbiter currently:
 
 - upserts the user into durable state
+- restores a returning member's merit badge role from their stored total (configured guild only)
 - sends the welcome message in the configured welcome channel
+
+A badge failure never stops the welcome message. Listener badge syncs always read the total fresh from Postgres.
 
 Together, those flows keep the durable user directory warm and keep Discord-side role administration connected to Arbiter's identity model.
 
@@ -130,7 +136,7 @@ The development-only command group exists because identity and membership state 
 
 Current repair-style workflows include:
 
-- syncing guild members into the database
+- syncing guild members into the database (this also syncs each member's merit badge role and reports badge updates and failures)
 - bulk nickname synchronization
 - bulk nickname transformations for cleanup and migration work
 

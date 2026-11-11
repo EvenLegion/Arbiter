@@ -159,6 +159,81 @@ describe('handleGuildMemberUpdate', () => {
 		);
 	});
 
+	it('ignores updates from a guild other than the configured guild', async () => {
+		const logger = createMockLogger();
+		const context = createMockExecutionContext({
+			logger
+		});
+
+		await handleGuildMemberUpdate({
+			oldMember: createGuildMember({
+				discordUserId: '42',
+				discordUsername: 'user',
+				nickname: null,
+				roleIds: [],
+				guildId: 'other-guild'
+			}),
+			newMember: createGuildMember({
+				discordUserId: '42',
+				discordUsername: 'user',
+				nickname: null,
+				roleIds: ['role-new'],
+				guildId: 'other-guild'
+			}),
+			context
+		});
+
+		expect(mocks.createGuildMemberChangeDeps).not.toHaveBeenCalled();
+		expect(mocks.processGuildMemberRoleChange).not.toHaveBeenCalled();
+		expect(mocks.listCachedDivisions).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		[{ kind: 'updated' }, 'debug', 'Badge-only guild member update: skipped membership and nickname sync'],
+		[{ kind: 'failed', stage: 'add_role', code: 'missing_permissions' }, 'warn', 'Badge-only guild member update: badge sync failed']
+	] as const)('logs a badge-only update with badge outcome %o', async (badge, level, message) => {
+		mocks.createGuildMemberChangeDeps.mockReturnValue({
+			id: 'deps'
+		});
+		mocks.processGuildMemberRoleChange.mockResolvedValue({
+			kind: 'badge_only',
+			discordUserId: '42',
+			roleDiff: {
+				oldMemberIsPartial: false,
+				haveRolesChanged: true,
+				oldRoleIds: ['badge-1'],
+				newRoleIds: ['badge-2'],
+				addedRoleIds: ['badge-2'],
+				removedRoleIds: ['badge-1']
+			},
+			badge
+		});
+		mocks.listCachedDivisions.mockResolvedValue([]);
+		const logger = createMockLogger();
+		const context = createMockExecutionContext({
+			logger
+		});
+
+		await handleGuildMemberUpdate({
+			oldMember: createGuildMember({
+				discordUserId: '42',
+				discordUsername: 'user',
+				nickname: null,
+				roleIds: ['badge-1']
+			}),
+			newMember: createGuildMember({
+				discordUserId: '42',
+				discordUsername: 'user',
+				nickname: null,
+				roleIds: ['badge-2']
+			}),
+			context
+		});
+
+		expect(logger[level]).toHaveBeenCalledWith(expect.objectContaining({ discordUserId: '42', badge }), message);
+		expect(logger.info).not.toHaveBeenCalled();
+	});
+
 	it('logs missing-member failures from the workflow service', async () => {
 		mocks.createGuildMemberChangeDeps.mockReturnValue({
 			id: 'deps'
@@ -281,17 +356,19 @@ function createGuildMember({
 	discordUserId,
 	discordUsername,
 	nickname,
-	roleIds
+	roleIds,
+	guildId = 'test-guild-id'
 }: {
 	discordUserId: string;
 	discordUsername: string;
 	nickname: string | null;
 	roleIds: string[];
+	guildId?: string;
 }) {
 	return {
 		partial: false,
 		guild: {
-			id: 'guild-1'
+			id: guildId
 		},
 		user: {
 			id: discordUserId,

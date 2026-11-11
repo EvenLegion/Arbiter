@@ -1,6 +1,7 @@
 import type { GuildMember, PartialGuildMember } from 'discord.js';
 import type { Division } from '@prisma/client';
 
+import { ENV_DISCORD } from '../../../../config/env/discord';
 import { listCachedDivisions } from '../../../discord/guild/divisions';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { processGuildMemberRoleChange } from '../../../services/guild-member-change/guildMemberChangeService';
@@ -15,6 +16,17 @@ type HandleGuildMemberUpdateParams = {
 export async function handleGuildMemberUpdate({ oldMember, newMember, context }: HandleGuildMemberUpdateParams) {
 	const caller = 'handleGuildMemberUpdate';
 	const logger = context.logger.child({ caller });
+	if (newMember.guild.id !== ENV_DISCORD.DISCORD_GUILD_ID) {
+		logger.trace(
+			{
+				discordUserId: newMember.user.id,
+				guildId: newMember.guild.id
+			},
+			'Ignoring guild member update outside the configured guild'
+		);
+		return;
+	}
+
 	const oldMemberIsPartial = oldMember.partial;
 
 	const oldRoleIds = oldMemberIsPartial ? [] : oldMember.roles.cache.map((role) => role.id);
@@ -76,6 +88,19 @@ export async function handleGuildMemberUpdate({ oldMember, newMember, context }:
 		);
 		return;
 	}
+	if (result.kind === 'badge_only') {
+		const logBindings = {
+			discordUserId: newMember.user.id,
+			roleDiff: result.roleDiff,
+			badge: result.badge
+		};
+		if (result.badge.kind === 'failed') {
+			logger.warn(logBindings, 'Badge-only guild member update: badge sync failed');
+		} else {
+			logger.debug(logBindings, 'Badge-only guild member update: skipped membership and nickname sync');
+		}
+		return;
+	}
 	if (result.kind === 'member_not_found') {
 		logger.error(
 			{
@@ -94,7 +119,8 @@ export async function handleGuildMemberUpdate({ oldMember, newMember, context }:
 				discordNickname: newMember.nickname,
 				roleDiff: result.roleDiff,
 				membership: result.membership,
-				nickname: result.nickname
+				nickname: result.nickname,
+				badge: result.badge
 			},
 			'Guild member update workflow failed during nickname sync'
 		);
@@ -108,7 +134,8 @@ export async function handleGuildMemberUpdate({ oldMember, newMember, context }:
 			discordNickname: newMember.nickname,
 			roleDiff: result.roleDiff,
 			membership: result.membership,
-			nickname: result.nickname
+			nickname: result.nickname,
+			badge: result.badge
 		},
 		'Processed guild member update workflow'
 	);

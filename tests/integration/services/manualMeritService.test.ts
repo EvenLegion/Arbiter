@@ -78,6 +78,7 @@ describe('manualMeritService integration', () => {
 				syncRecipientNickname: async () => 'ok',
 				computeAwarderNickname: async () => 'Staff Display',
 				getRecipientTotalMerits: meritRepository.getUserTotalMerits,
+				syncRecipientBadge: async () => 'ok',
 				notifyRankUp: vi.fn().mockResolvedValue(undefined),
 				sendRecipientDm: vi.fn().mockResolvedValue(true)
 			},
@@ -109,7 +110,8 @@ describe('manualMeritService integration', () => {
 			linkedEventName: eventSession.name,
 			reason: 'Exceptional leadership',
 			dmSent: true,
-			recipientNicknameTooLong: false
+			recipientNicknameTooLong: false,
+			recipientBadgeSyncFailed: false
 		});
 		await expect(
 			standalone.prisma.merit.findMany({
@@ -135,6 +137,7 @@ describe('manualMeritService integration', () => {
 				syncRecipientNickname: async () => 'ok',
 				computeAwarderNickname: async () => 'Staff Display',
 				getRecipientTotalMerits: meritRepository.getUserTotalMerits,
+				syncRecipientBadge: async () => 'ok',
 				notifyRankUp: vi.fn().mockResolvedValue(undefined),
 				sendRecipientDm: vi.fn().mockResolvedValue(true)
 			},

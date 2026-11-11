@@ -62,8 +62,59 @@ describe('guildMemberSyncService', () => {
 			nicknameComputed: 2,
 			nicknameUpdated: 1,
 			nicknameUnchanged: 1,
+			badgeUpdated: 0,
+			badgeFailed: 0,
 			failedMembers: []
 		});
+	});
+
+	it('counts badge outcomes and keeps going when a badge sync fails or nickname sync is skipped', async () => {
+		const members: TestGuildMember[] = [
+			{ id: '4201', username: 'badge-updated', nickname: 'Badge Updated', avatarUrl: 'https://example.com/4201.png' },
+			{ id: '4202', username: 'badge-fails', nickname: 'Badge Fails', avatarUrl: 'https://example.com/4202.png' },
+			{ id: '4203', username: 'badge-throws', nickname: 'Badge Throws', avatarUrl: 'https://example.com/4203.png' },
+			{ id: '4204', username: 'nickname-skipped', nickname: 'Nickname Skipped', avatarUrl: 'https://example.com/4204.png' },
+			{ id: '4998', username: 'bot-user', nickname: 'Bot User', avatarUrl: 'https://example.com/4998.png', isBot: true }
+		];
+		const syncBadge = vi.fn(async ({ member }: { member: TestGuildMember }) => {
+			if (member.id === '4203') {
+				throw new Error('Badge exploded');
+			}
+			if (member.id === '4201') {
+				return 'updated' as const;
+			}
+			return member.id === '4202' ? ('failed' as const) : ('unchanged' as const);
+		});
+
+		const result = await syncGuildMembers({
+			refreshDivisionCache: vi.fn(async () => undefined),
+			listMembers: async () => members,
+			buildSnapshot: (member) => ({
+				discordUserId: member.id,
+				discordUsername: member.username,
+				discordNickname: member.nickname,
+				discordAvatarUrl: member.avatarUrl,
+				isBot: member.isBot ?? false
+			}),
+			upsertUser: vi.fn(async ({ discordUserId }) => ({
+				id: `db-${discordUserId}`
+			})),
+			reconcileMemberships: vi.fn(async () => undefined),
+			syncNickname: vi.fn(async ({ member }) => ({
+				outcome: member.id === '4204' ? ('skipped' as const) : ('unchanged' as const)
+			})),
+			syncBadge
+		});
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				kind: 'completed',
+				badgeUpdated: 1,
+				badgeFailed: 2,
+				failedMembers: []
+			})
+		);
+		expect(syncBadge.mock.calls.map(([params]) => params.member.id)).toEqual(['4201', '4202', '4203', '4204']);
 	});
 
 	it('reports partial failures with db user context when later steps fail', async () => {
@@ -130,6 +181,8 @@ describe('guildMemberSyncService', () => {
 			nicknameComputed: 0,
 			nicknameUpdated: 0,
 			nicknameUnchanged: 0,
+			badgeUpdated: 0,
+			badgeFailed: 0,
 			failedMembers: [
 				{
 					discordUserId: '4101',

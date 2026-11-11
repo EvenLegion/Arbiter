@@ -46,6 +46,8 @@ export type ManualMeritServiceDeps = {
 	syncRecipientNickname: (params: { discordUserId: string }) => Promise<'ok' | 'nickname-too-long' | 'failed'>;
 	computeAwarderNickname: (params: { discordUserId: string }) => Promise<string | null>;
 	getRecipientTotalMerits: (params: { userDbUserId: string }) => Promise<number>;
+	/** Syncs the recipient's merit badge from the post-commit total. */
+	syncRecipientBadge: (params: { discordUserId: string; totalMerits: number }) => Promise<'ok' | 'failed'>;
 	notifyRankUp: (params: { discordUserId: string; previousTotalMerits: number; currentTotalMerits: number }) => Promise<void>;
 	sendRecipientDm: (params: { discordUserId: string; content: string }) => Promise<boolean>;
 };
@@ -70,6 +72,7 @@ export type AwardManualMeritWorkflowResult =
 			reason: string | null;
 			dmSent: boolean;
 			recipientNicknameTooLong: boolean;
+			recipientBadgeSyncFailed: boolean;
 	  };
 
 export type AwardManualMeritWorkflowInput = {
@@ -157,7 +160,8 @@ export async function awardManualMeritWorkflow(
 		linkedEventName: linkedEvent?.name ?? null,
 		reason: input.reason,
 		dmSent: notifications.dmSent,
-		recipientNicknameTooLong: notifications.recipientNicknameTooLong
+		recipientNicknameTooLong: notifications.recipientNicknameTooLong,
+		recipientBadgeSyncFailed: notifications.recipientBadgeSyncFailed
 	};
 }
 
@@ -276,7 +280,7 @@ async function finalizeManualMeritNotifications({
 }: {
 	deps: Pick<
 		ManualMeritServiceDeps,
-		'syncRecipientNickname' | 'computeAwarderNickname' | 'getRecipientTotalMerits' | 'notifyRankUp' | 'sendRecipientDm'
+		'syncRecipientNickname' | 'computeAwarderNickname' | 'getRecipientTotalMerits' | 'syncRecipientBadge' | 'notifyRankUp' | 'sendRecipientDm'
 	>;
 	targetMember: ResolvedManualMeritMember;
 	awarderMember: ResolvedManualMeritMember;
@@ -299,6 +303,11 @@ async function finalizeManualMeritNotifications({
 	const currentTotalMerits = await deps.getRecipientTotalMerits({
 		userDbUserId: targetDbUserId
 	});
+	const recipientBadgeSyncFailed = await syncRecipientBadgeWithoutThrowing(deps, {
+		discordUserId: targetMember.discordUserId,
+		totalMerits: currentTotalMerits
+	});
+
 	const previousTotalMerits = Math.max(0, currentTotalMerits - meritAmount);
 	await deps.notifyRankUp({
 		discordUserId: targetMember.discordUserId,
@@ -320,8 +329,21 @@ async function finalizeManualMeritNotifications({
 
 	return {
 		dmSent,
-		recipientNicknameTooLong
+		recipientNicknameTooLong,
+		recipientBadgeSyncFailed
 	};
+}
+
+/** The merit is already committed, so a badge failure only adds a warning to the reply. */
+async function syncRecipientBadgeWithoutThrowing(
+	deps: Pick<ManualMeritServiceDeps, 'syncRecipientBadge'>,
+	params: { discordUserId: string; totalMerits: number }
+) {
+	try {
+		return (await deps.syncRecipientBadge(params)) === 'failed';
+	} catch {
+		return true;
+	}
 }
 
 function buildManualMeritDmContent({

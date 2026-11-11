@@ -26,8 +26,14 @@ describe('manualMeritService', () => {
 			linkedEventName: 'Training Op',
 			reason: 'Hosted training',
 			dmSent: true,
-			recipientNicknameTooLong: false
+			recipientNicknameTooLong: false,
+			recipientBadgeSyncFailed: false
 		});
+		expect(deps.syncRecipientBadge).toHaveBeenCalledWith({
+			discordUserId: 'target-user',
+			totalMerits: 12
+		});
+		expect(deps.syncRecipientBadge.mock.invocationCallOrder[0]).toBeGreaterThan(deps.awardManualMerit.mock.invocationCallOrder[0]);
 		expect(deps.sendRecipientDm).toHaveBeenCalledWith({
 			discordUserId: 'target-user',
 			content: [
@@ -64,7 +70,8 @@ describe('manualMeritService', () => {
 			linkedEventName: 'Training Op',
 			reason: 'Hosted training',
 			dmSent: true,
-			recipientNicknameTooLong: true
+			recipientNicknameTooLong: true,
+			recipientBadgeSyncFailed: false
 		});
 	});
 
@@ -91,13 +98,42 @@ describe('manualMeritService', () => {
 			linkedEventName: 'Training Op',
 			reason: 'Hosted training',
 			dmSent: false,
-			recipientNicknameTooLong: false
+			recipientNicknameTooLong: false,
+			recipientBadgeSyncFailed: false
 		});
 		expect(deps.notifyRankUp).toHaveBeenCalledWith({
 			discordUserId: 'target-user',
 			previousTotalMerits: 11,
 			currentTotalMerits: 12
 		});
+	});
+
+	it.each([
+		['returns failed', (deps: ReturnType<typeof createDeps>) => deps.syncRecipientBadge.mockResolvedValueOnce('failed')],
+		['throws', (deps: ReturnType<typeof createDeps>) => deps.syncRecipientBadge.mockRejectedValueOnce(new Error('boom'))]
+	])('keeps the award and warns when the badge sync %s', async (_label, failBadgeSync) => {
+		const deps = createDeps();
+		failBadgeSync(deps);
+
+		const result = await awardManualMeritWorkflow(deps, {
+			actor: createActor(),
+			actorMember: buildMember('staff-user'),
+			playerInput: 'target-user',
+			rawMeritTypeCode: MeritTypeCode.COMMANDER_MERIT,
+			reason: 'Hosted training',
+			linkedEventSessionId: 55
+		});
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				kind: 'awarded',
+				meritRecordId: 99,
+				dmSent: true,
+				recipientBadgeSyncFailed: true
+			})
+		);
+		expect(deps.notifyRankUp).toHaveBeenCalled();
+		expect(deps.sendRecipientDm).toHaveBeenCalled();
 	});
 
 	it('fills missing reason and event lines in the recipient DM', async () => {
@@ -242,6 +278,7 @@ function createDeps({
 		syncRecipientNickname: vi.fn().mockResolvedValue('ok'),
 		computeAwarderNickname: vi.fn().mockResolvedValue('Staff Display'),
 		getRecipientTotalMerits: vi.fn().mockResolvedValue(12),
+		syncRecipientBadge: vi.fn().mockResolvedValue('ok'),
 		notifyRankUp: vi.fn().mockResolvedValue(undefined),
 		sendRecipientDm: vi.fn().mockResolvedValue(true)
 	};

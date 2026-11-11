@@ -5,12 +5,18 @@ import { refreshDivisionCache } from '../../discord/guild/divisions';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
 import { reconcileGuildMemberDivisionMemberships } from '../division-membership/reconcileGuildMemberDivisionMemberships';
 import { createGuildMemberAccessGateway } from '../guild-member/guildMemberAccessGateway';
+import { createMeritBadgeSyncRuntime } from '../merit-badge/createMeritBadgeSyncRuntime';
 import { createGuildNicknameWorkflow } from '../nickname/guildNicknameWorkflow';
 import type { SyncNicknameForUserResult } from '../nickname/nicknameService';
 
 export function createGuildMemberSyncDeps({ guild, context }: { guild: Guild; context: ExecutionContext }) {
 	const members = createGuildMemberAccessGateway({
 		guild
+	});
+	const badges = createMeritBadgeSyncRuntime({
+		guild,
+		context,
+		auditReason: 'Development guild member sync'
 	});
 
 	return {
@@ -59,6 +65,16 @@ export function createGuildMemberSyncDeps({ guild, context }: { guild: Guild; co
 				outcome: result.outcome,
 				reason: result.reason
 			};
+		},
+		// The runtime logs failure details. Disabled, bots and members who left count as unchanged.
+		syncBadge: async ({ member }: { member: GuildMember }) => {
+			const result = await badges.syncMember({
+				discordUserId: member.id
+			});
+			if (result.kind === 'updated' || result.kind === 'failed') {
+				return result.kind;
+			}
+			return 'unchanged' as const;
 		}
 	};
 }

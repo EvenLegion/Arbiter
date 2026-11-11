@@ -511,6 +511,7 @@ describe('eventLifecycle', () => {
 				]
 			}),
 			syncAwardedNicknames: vi.fn().mockResolvedValue(undefined),
+			syncAwardedBadges: vi.fn().mockResolvedValue(undefined),
 			reloadEventSession: vi.fn().mockResolvedValueOnce(finalizedSession).mockResolvedValueOnce(finalizedSession),
 			syncTrackingSummary: vi.fn().mockResolvedValue(undefined),
 			postReviewSubmissionMessages: vi.fn().mockResolvedValue(undefined),
@@ -542,6 +543,66 @@ describe('eventLifecycle', () => {
 				}
 			]
 		});
+		expect(deps.syncAwardedBadges).toHaveBeenCalledWith({
+			awardedUsers: [
+				{
+					dbUserId: 'user-1',
+					discordUserId: 'discord-1',
+					awardedMeritAmount: 2
+				}
+			]
+		});
+		// Badges run after the awards committed and after the review messages were posted and synced.
+		expect(deps.syncAwardedBadges.mock.invocationCallOrder[0]).toBeGreaterThan(deps.finalizeReview.mock.invocationCallOrder[0]);
+		expect(deps.syncAwardedBadges.mock.invocationCallOrder[0]).toBeGreaterThan(deps.postReviewSubmissionMessages.mock.invocationCallOrder[0]);
+		expect(deps.syncAwardedBadges.mock.invocationCallOrder[0]).toBeGreaterThan(deps.syncReviewMessage.mock.invocationCallOrder[0]);
+	});
+
+	it('returns the finalized result even when the badge sync rejects', async () => {
+		const finalizedSession = buildEventSession({
+			state: EventSessionState.FINALIZED_WITH_MERITS
+		});
+		const deps = {
+			findEventSession: vi.fn().mockResolvedValue({
+				id: 10,
+				state: EventSessionState.ENDED_PENDING_REVIEW
+			}),
+			finalizeReview: vi.fn().mockResolvedValue({
+				finalized: true,
+				toState: EventSessionState.FINALIZED_WITH_MERITS,
+				awardedCount: 1,
+				awardedUsers: [
+					{
+						dbUserId: 'user-1',
+						discordUserId: 'discord-1',
+						awardedMeritAmount: 2
+					}
+				]
+			}),
+			syncAwardedNicknames: vi.fn().mockResolvedValue(undefined),
+			syncAwardedBadges: vi.fn().mockRejectedValue(new Error('badge boom')),
+			reloadEventSession: vi.fn().mockResolvedValue(finalizedSession),
+			syncTrackingSummary: vi.fn().mockResolvedValue(undefined),
+			postReviewSubmissionMessages: vi.fn().mockResolvedValue(undefined),
+			deleteTrackedChannelRows: vi.fn().mockResolvedValue(2),
+			syncReviewMessage: vi.fn().mockResolvedValue(true)
+		};
+
+		await expect(
+			finalizeEventReviewLifecycle(deps, {
+				actor: {
+					...buildActor(),
+					dbUserId: 'reviewer-db-user'
+				},
+				eventSessionId: 10,
+				mode: 'with'
+			})
+		).resolves.toEqual({
+			kind: 'review_finalized',
+			toState: EventSessionState.FINALIZED_WITH_MERITS,
+			awardedCount: 1,
+			reviewMessageSynced: true
+		});
 	});
 
 	it('finalizes review without merits and returns the finalized no-merits state', async () => {
@@ -560,6 +621,7 @@ describe('eventLifecycle', () => {
 				awardedUsers: []
 			}),
 			syncAwardedNicknames: vi.fn().mockResolvedValue(undefined),
+			syncAwardedBadges: vi.fn().mockResolvedValue(undefined),
 			reloadEventSession: vi.fn().mockResolvedValueOnce(finalizedSession).mockResolvedValueOnce(finalizedSession),
 			syncTrackingSummary: vi.fn().mockResolvedValue(undefined),
 			postReviewSubmissionMessages: vi.fn().mockResolvedValue(undefined),

@@ -1,0 +1,38 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-s950vu",
+	"baseRef": "origin/dev",
+	"mergeBase": "8838f858f65734b693abc6f23f7483d3cdfcb99f",
+	"headRef": "84c4035a34a73caa55d92c7bc4438432a7d853a5",
+	"generatedAt": "2026-11-11T00:52:14.099Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Wires the merit badge sync into event finalize, manual awards and demerits, the guild-member update and join listeners, and /dev sync_guild_members (MB-04). Inert until badge role IDs are configured.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "4dd26fab85205b120a674f6be7c86439a3401619",
+			"subject": "feat(merit-badge): sync badges after event review and manual merits",
+			"committedAt": "2026-11-11T00:51:35+00:00",
+			"committedAtMs": 1794358295000,
+			"type": "feat",
+			"scope": "merit-badge",
+			"description": "sync badges after event review and manual merits",
+			"breaking": false,
+			"section": "Features"
+		},
+		{
+			"sha": "84c4035a34a73caa55d92c7bc4438432a7d853a5",
+			"subject": "feat(guild-member): sync merit badges from member listeners and dev sync",
+			"committedAt": "2026-11-11T00:51:52+00:00",
+			"committedAtMs": 1794358312000,
+			"type": "feat",
+			"scope": "guild-member",
+			"description": "sync merit badges from member listeners and dev sync",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
