@@ -130,6 +130,16 @@ The thread-based review flow gives the repo three things:
 - collaborative staff review in Discord
 - a stable reference that can be edited, updated, and archived as the request progresses
 
+## Merit Badge Sync Command
+
+`/staff merit_badges sync [user] [dry_run]` reconciles merit badge roles for every non-bot member, or for one selected member. Arbiter re-checks the staff capability inside the handler.
+
+- **Dry run (default).** Read-only. It works before any badge role ID is configured, so it is the cutover report: an ephemeral summary with a tier histogram, planned action counts (add, swap, remove, none, unconfigured) and the badge role hierarchy check, plus a CSV with each member's Discord ID, stored username, total, legacy level and symbol, earned badge, current badge roles and planned action. CSV text cells that a spreadsheet could run as a formula are escaped.
+- **Live run (`dry_run: false`).** Only one live run at a time. It first checks that badge role IDs are configured, that Arbiter has Manage Roles and that Arbiter can assign every configured badge role; otherwise it changes nothing. Members are processed one at a time in Discord ID order. Totals are read 100 members at a time; if a read fails, those members count as failed and get no role calls. A member who already has the right badge costs zero Discord calls. Any other member goes through the single-member badge sync, which re-reads the total inside the member lock.
+- **Pacing and stopping.** Arbiter pauses after each member whose roles changed and relies on the discord.js rate-limit queue. A run stops between members after 12 minutes or after repeated long rate-limit waits, and reports processed and remaining counts. There is no checkpoint: run the command again and correct members are skipped.
+
+The command never sends DMs and never creates or edits roles. The command's own report and run logs carry counts only; each member a live run changes or fails still gets the standard badge sync log line (Discord ID, tier numbers and role IDs, never names or totals). Pacing and limits are constants in `src/lib/services/merit-badge/meritBadgeBulkSyncService.ts`.
+
 ## Development Repair Commands
 
 The development-only command group exists because identity and membership state sometimes need repair or migration support during development.
@@ -152,6 +162,7 @@ Today this area is concentrated in a few predictable places:
 | Staff membership mutation          | `src/lib/features/staff/division-membership`                                                          | `src/lib/services/division-membership`                                                                        |
 | Guild-member add/update automation | `src/lib/features/guild-member`                                                                       | `src/lib/services/guild-member`, `src/lib/services/guild-member-change`, `src/lib/services/guild-member-sync` |
 | Nickname computation and bulk sync | `src/lib/features/staff/nickname-sync`                                                                | `src/lib/services/nickname`, `src/lib/services/bulk-nickname`, `src/lib/services/merit-rank`                  |
+| Merit badge bulk sync              | `src/lib/features/staff/merit-badges`                                                                 | `src/lib/services/merit-badge`                                                                                |
 | Name-change request and review     | `src/lib/features/ticket/request`, `src/lib/features/ticket/review`, `src/lib/features/ticket/thread` | `src/lib/services/name-change`                                                                                |
 
 That map is a current orientation aid, not a promise that file paths will never move.

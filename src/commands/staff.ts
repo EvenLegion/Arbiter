@@ -7,6 +7,7 @@ import { handleStaffAutocomplete } from '../lib/features/staff/autocomplete/staf
 import { handlePostDivisionSelectionMessage } from '../lib/features/staff/division-selection/handlePostDivisionSelectionMessage';
 import { handleDivisionMembershipCommand } from '../lib/features/staff/division-membership/handleDivisionMembershipCommand';
 import { handleStaffMedalGive } from '../lib/features/staff/medal/handleStaffMedalGive';
+import { handleStaffMeritBadgeSync } from '../lib/features/staff/merit-badges/handleStaffMeritBadgeSync';
 import { handleStaffSyncNickname } from '../lib/features/staff/nickname-sync/handleStaffSyncNickname';
 import { handleStaffOrgAccept } from '../lib/features/staff/org-accept/handleStaffOrgAccept';
 import { handleStaffUpdateNickname } from '../lib/features/staff/update-nickname/handleStaffUpdateNickname';
@@ -57,6 +58,16 @@ import { createCommandExecutionContext } from '../lib/logging/commandExecutionCo
 				{
 					name: 'remove',
 					chatInputRun: 'chatInputDivisionMembershipRemove'
+				}
+			]
+		},
+		{
+			type: 'group',
+			name: 'merit_badges',
+			entries: [
+				{
+					name: 'sync',
+					chatInputRun: 'chatInputMeritBadgesSync'
 				}
 			]
 		}
@@ -197,6 +208,25 @@ export class StaffCommand extends Subcommand {
 											.setRequired(false)
 									)
 							)
+					)
+					.addSubcommandGroup((group) =>
+						group
+							.setName('merit_badges')
+							.setDescription('Merit badge roles.')
+							.addSubcommand((subcommand) =>
+								subcommand
+									.setName('sync')
+									.setDescription('Report or apply merit badge roles. Dry run by default; changes nothing unless dry_run is false.')
+									.addStringOption((option) =>
+										option.setName('user').setDescription('Optional target user.').setRequired(false).setAutocomplete(true)
+									)
+									.addBooleanOption((option) =>
+										option
+											.setName('dry_run')
+											.setDescription('Defaults to true: report only. Set false to apply badge roles.')
+											.setRequired(false)
+									)
+							)
 					),
 			{
 				guildIds: [ENV_DISCORD.DISCORD_GUILD_ID]
@@ -305,6 +335,18 @@ export class StaffCommand extends Subcommand {
 			interaction,
 			context,
 			mode: 'remove'
+		});
+	}
+
+	public async chatInputMeritBadgesSync(interaction: Subcommand.ChatInputCommandInteraction) {
+		const context = createCommandExecutionContext({
+			interaction,
+			flow: 'staff.meritBadges.sync'
+		});
+
+		return handleStaffMeritBadgeSync({
+			interaction,
+			context
 		});
 	}
 
