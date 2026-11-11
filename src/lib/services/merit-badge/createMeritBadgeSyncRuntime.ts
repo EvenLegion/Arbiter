@@ -6,6 +6,7 @@ import { meritRepository } from '../../../integrations/prisma/repositories';
 import { getDbUser } from '../../discord/guild/users';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
 import { MERIT_BADGE_MEMBER_LOCK, type RunExclusive } from './meritBadgeMemberLock';
+import { MERIT_BADGE_RECENT_ROLE_CHANGES, type RecentRoleChanges } from './meritBadgeRecentRoleChanges';
 import { createMeritBadgeRoleGateway, toMeritBadgeRoleFailure } from './meritBadgeRoleGateway';
 import { syncMemberMeritBadge, type MeritBadgeSyncDeps, type MeritBadgeSyncInput, type MeritBadgeSyncResult } from './meritBadgeSyncService';
 
@@ -18,7 +19,8 @@ export type MeritBadgeSyncRuntime = {
  *
  * The guild must be the configured guild. For any other guild every sync returns
  * `failed` with code `wrong_guild` and makes no reads or Discord calls.
- * Every caller shares one per-member lock unless a test passes its own.
+ * Every caller shares one per-member lock and one record of recent role changes unless a test
+ * passes its own.
  */
 export function createMeritBadgeSyncRuntime({
 	guild,
@@ -27,6 +29,7 @@ export function createMeritBadgeSyncRuntime({
 	roleMap = ENV_MERIT_BADGE_ROLES,
 	configuredGuildId = ENV_DISCORD.DISCORD_GUILD_ID,
 	runExclusive = MERIT_BADGE_MEMBER_LOCK,
+	recentRoleChanges = MERIT_BADGE_RECENT_ROLE_CHANGES,
 	resolveMember,
 	readTotalMerits = readMemberTotalMerits
 }: {
@@ -37,6 +40,7 @@ export function createMeritBadgeSyncRuntime({
 	roleMap?: MeritBadgeRoleMap;
 	configuredGuildId?: string;
 	runExclusive?: RunExclusive;
+	recentRoleChanges?: RecentRoleChanges;
 	resolveMember?: (discordUserId: string) => Promise<GuildMember | null>;
 	readTotalMerits?: (discordUserId: string) => Promise<number>;
 }): MeritBadgeSyncRuntime {
@@ -59,11 +63,24 @@ export function createMeritBadgeSyncRuntime({
 		getMember: resolveMember ?? ((discordUserId) => fetchGuildMember(guild, discordUserId)),
 		describeMember: (member) => ({
 			isBot: member.user.bot,
-			roleIds: member.roles.cache.keys()
+			// The cache lags our own role changes until Discord's member update arrives.
+			roleIds: recentRoleChanges.apply(member.id, member.roles.cache.keys())
 		}),
 		readTotalMerits,
-		addRole: gateway.addRole,
-		removeRole: gateway.removeRole
+		addRole: async (member, roleId) => {
+			const result = await gateway.addRole(member, roleId);
+			if (result.ok) {
+				recentRoleChanges.record(member.id, roleId, true);
+			}
+			return result;
+		},
+		removeRole: async (member, roleId) => {
+			const result = await gateway.removeRole(member, roleId);
+			if (result.ok) {
+				recentRoleChanges.record(member.id, roleId, false);
+			}
+			return result;
+		}
 	};
 
 	return {
