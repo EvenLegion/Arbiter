@@ -7,6 +7,7 @@ import { handleGiveMerit } from '../lib/features/merit/manual-award/handleGiveMe
 import { handleMeritList } from '../lib/features/merit/read/handleMeritList';
 import { handleMeritRankList } from '../lib/features/merit/rank-list/handleMeritRankList';
 import { createCommandExecutionContext } from '../lib/logging/commandExecutionContext';
+import { hasEveryMeritBadgeRole } from '../lib/services/merit-rank/meritBadgeMessages';
 
 @ApplyOptions<Subcommand.Options>({
 	description: 'Merit commands',
@@ -81,7 +82,7 @@ export class MeritCommand extends Subcommand {
 						subcommand
 							.setName('rank_list')
 							.setDescription(
-								ENV_MERIT_BADGE_ROLES.isEnabled
+								hasEveryMeritBadgeRole(ENV_MERIT_BADGE_ROLES)
 									? 'List how many members hold each merit badge, by division (staff only).'
 									: 'List how many members are at each merit rank level by division (staff only).'
 							)

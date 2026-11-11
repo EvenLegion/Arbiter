@@ -1,9 +1,17 @@
 import type { MeritBadgeRoleMap } from '../../../config/meritBadgeRoles';
-import { resolveMeritBadgeProgress, type MeritBadgeProgress, type MeritBadgeTier } from './meritBadge';
+import { MAX_MERIT_BADGE_TIER, resolveMeritBadgeProgress, type MeritBadgeProgress, type MeritBadgeTier } from './meritBadge';
 import { buildMeritRankProgressBar } from './meritRank';
 
 /** The part of the badge role map that member copy needs: which tiers have a role. */
 export type MeritBadgeCopyRoles = Pick<MeritBadgeRoleMap, 'byTier'>;
+
+/**
+ * True once every badge tier has a role. Staff views that name every tier, such as
+ * `/merit rank_list` and its command description, keep the legacy copy until then.
+ */
+export function hasEveryMeritBadgeRole(roleMap: Pick<MeritBadgeRoleMap, 'configuredRoles'>) {
+	return roleMap.configuredRoles.length === MAX_MERIT_BADGE_TIER;
+}
 
 export type MeritBadgeCopy = Readonly<{
 	progress: MeritBadgeProgress;

@@ -7,13 +7,13 @@ const mocks = vi.hoisted(() => ({
 	resolveInteractionActor: vi.fn(),
 	getMeritRankBreakdown: vi.fn(),
 	buildMeritRankListPayload: vi.fn(),
-	badgeSyncEnabled: false
+	allBadgeRolesConfigured: false
 }));
 
 vi.mock('../../../../../src/config/env/discord', () => ({
 	ENV_MERIT_BADGE_ROLES: {
-		get isEnabled() {
-			return mocks.badgeSyncEnabled;
+		get configuredRoles() {
+			return Array.from({ length: mocks.allBadgeRolesConfigured ? 36 : 6 });
 		}
 	}
 }));
@@ -46,7 +46,7 @@ describe('handleMeritRankList', () => {
 		mocks.resolveInteractionActor.mockReset();
 		mocks.getMeritRankBreakdown.mockReset();
 		mocks.buildMeritRankListPayload.mockReset();
-		mocks.badgeSyncEnabled = false;
+		mocks.allBadgeRolesConfigured = false;
 	});
 
 	it('requires staff before loading the initial merit rank list', async () => {
@@ -96,13 +96,13 @@ describe('handleMeritRankList', () => {
 		expect(responder.safeEditReply).toHaveBeenCalledWith(payload);
 	});
 
-	it('counts by badge tier once badge roles are configured, for the first view and for pages', async () => {
+	it('counts by badge tier once every badge role is configured, for the first view and for pages', async () => {
 		const responder = createResponder();
 		const logger = createLogger();
 		const entries = [{ level: 1 }];
 		const payload = { content: 'badge list payload' };
 
-		mocks.badgeSyncEnabled = true;
+		mocks.allBadgeRolesConfigured = true;
 		mocks.createInteractionResponder.mockReturnValue(responder);
 		mocks.resolveConfiguredGuild.mockResolvedValue({ id: 'guild-1' });
 		mocks.resolveInteractionActor.mockResolvedValue({ actor: { discordUserId: 'staff-1' } });

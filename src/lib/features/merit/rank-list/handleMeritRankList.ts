@@ -5,6 +5,7 @@ import { meritRepository, type MeritRankBreakdownLadder } from '../../../../inte
 import { createInteractionResponder } from '../../../discord/interactions/interactionResponder';
 import { resolveConfiguredGuild, resolveInteractionActor } from '../../../discord/interactions/interactionPreflight';
 import type { ExecutionContext } from '../../../logging/executionContext';
+import { hasEveryMeritBadgeRole } from '../../../services/merit-rank/meritBadgeMessages';
 import { buildMeritRankListPayload } from './buildMeritRankListPayload';
 import type { ParsedMeritRankListButton } from './meritRankListButtonCustomId';
 
@@ -167,7 +168,7 @@ export async function handleMeritRankListPageButton({ interaction, parsedMeritRa
 	}
 }
 
-/** Badge tiers once any badge role is configured; otherwise the legacy 50-level breakdown. */
+/** Badge tiers once every badge role is configured; otherwise the legacy 50-level breakdown. */
 function resolveRankListLadder(): MeritRankBreakdownLadder {
-	return ENV_MERIT_BADGE_ROLES.isEnabled ? 'badge' : 'legacy';
+	return hasEveryMeritBadgeRole(ENV_MERIT_BADGE_ROLES) ? 'badge' : 'legacy';
 }

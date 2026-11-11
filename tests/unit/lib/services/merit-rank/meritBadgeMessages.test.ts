@@ -5,6 +5,7 @@ import {
 	buildMeritBadgeEarnedDm,
 	buildMeritBadgeListFields,
 	buildNextMeritBadgeLine,
+	hasEveryMeritBadgeRole,
 	resolveMeritBadgeCopy
 } from '../../../../../src/lib/services/merit-rank/meritBadgeMessages';
 
@@ -38,6 +39,12 @@ describe('meritBadgeMessages', () => {
 		expect(copy?.canPromiseNextTier).toBe(false);
 		expect(buildNextMeritBadgeLine(copy!)).toBeNull();
 		expect(buildMeritBadgeListFields(copy!)).toEqual({ currentValue: 'Aes III', progressValue: null });
+	});
+
+	it('reports every badge role configured only when all 36 tiers have one', () => {
+		expect(hasEveryMeritBadgeRole(ALL_ROLES)).toBe(true);
+		expect(hasEveryMeritBadgeRole(rolesForTiers([1, 2, 3, 4, 5, 6]))).toBe(false);
+		expect(hasEveryMeritBadgeRole(NO_ROLES)).toBe(false);
 	});
 
 	it('points a member with no merits at Ferrum I', () => {
