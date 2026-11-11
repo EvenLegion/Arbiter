@@ -2,7 +2,7 @@ import { MeritTypeCode } from '@prisma/client';
 import { z } from 'zod';
 
 import type { ActorContext } from '../_shared/actor';
-import { buildNextMeritBadgeLine, resolveMeritBadgeCopy, type MeritBadgeCopyRoles } from '../merit-rank/meritBadgeMessages';
+import { buildNextMeritBadgeLine, resolveMeritBadgeCopy, type MeritBadgeCopy, type MeritBadgeCopyRoles } from '../merit-rank/meritBadgeMessages';
 import { resolveMeritRankProgress } from '../merit-rank/meritRank';
 
 const PLAYER_DISCORD_USER_ID_SCHEMA = z.string().trim().min(1);
@@ -376,7 +376,13 @@ function buildManualMeritDmContent({
 	const meritChangeLabel = `${formatSignedMeritAmount(meritAmount)} ${Math.abs(meritAmount) === 1 ? 'merit' : 'merits'}`;
 	const dmReasonLine = reason ?? 'Not provided';
 	const dmEventLine = linkedEventName ?? 'None';
-	const nextRankLine = buildNextProgressLine({ currentTotalMerits, badgeRoles });
+	const badgeCopy = resolveMeritBadgeCopy({
+		totalMerits: currentTotalMerits,
+		badgeRoles
+	});
+	// Names the badge after any change, including a demerit that drops a section.
+	const currentBadgeLine = badgeCopy ? `Current badge: **${badgeCopy.progress.currentTier?.label ?? 'No badge yet'}**` : null;
+	const nextRankLine = buildNextProgressLine({ currentTotalMerits, badgeCopy });
 
 	return [
 		`**${awarderNickname}** gave you **${meritTypeName}**`,
@@ -384,17 +390,14 @@ function buildManualMeritDmContent({
 		`Reason: ${dmReasonLine}`,
 		dmEventLine !== 'None' ? `Related event: ${dmEventLine}` : null,
 		`You have **${currentTotalMerits} merits total**`,
+		currentBadgeLine,
 		nextRankLine
 	]
 		.filter((line): line is string => line !== null)
 		.join('\n');
 }
 
-function buildNextProgressLine({ currentTotalMerits, badgeRoles }: { currentTotalMerits: number; badgeRoles: MeritBadgeCopyRoles }) {
-	const badgeCopy = resolveMeritBadgeCopy({
-		totalMerits: currentTotalMerits,
-		badgeRoles
-	});
+function buildNextProgressLine({ currentTotalMerits, badgeCopy }: { currentTotalMerits: number; badgeCopy: MeritBadgeCopy | null }) {
 	const badgeLine = badgeCopy ? buildNextMeritBadgeLine(badgeCopy) : null;
 	if (badgeLine) {
 		return badgeLine;

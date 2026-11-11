@@ -181,9 +181,41 @@ describe('manualMeritService', () => {
 				'Your merits were adjusted by: **+1 merit**',
 				'Reason: Not provided',
 				'You have **12 merits total**',
+				'Current badge: **Aes III**',
 				'Next badge **Argentum I** in **4 merits**'
 			].join('\n')
 		});
+	});
+
+	it('names the lower badge in the recipient DM after a demerit', async () => {
+		const deps = createDeps();
+		deps.badgeRoles = createMeritBadgeRoleMap(new Map(Array.from({ length: 36 }, (_, index) => [index + 1, `${100000000000000000 + index}`])));
+		deps.awardManualMerit.mockResolvedValue({
+			id: 99,
+			meritType: {
+				code: MeritTypeCode.DEMERIT,
+				name: 'Demerit',
+				meritAmount: -1
+			}
+		});
+		deps.getRecipientTotalMerits.mockResolvedValue(4);
+
+		await awardManualMeritWorkflow(deps, {
+			actor: createActor(),
+			actorMember: buildMember('staff-user'),
+			playerInput: 'target-user',
+			rawMeritTypeCode: MeritTypeCode.DEMERIT,
+			reason: null,
+			linkedEventSessionId: null
+		});
+
+		expect(deps.sendRecipientDm).toHaveBeenCalledWith(
+			expect.objectContaining({
+				content: expect.stringMatching(
+					/Your merits were adjusted by: \*\*-1 merit\*\*[\s\S]*You have \*\*4 merits total\*\*\nCurrent badge: \*\*Ferrum III\*\*\nNext badge \*\*Aes I\*\* in \*\*1 merit\*\*$/
+				)
+			})
+		);
 	});
 
 	it('keeps the legacy next line in the recipient DM while the next badge has no role', async () => {
@@ -201,7 +233,9 @@ describe('manualMeritService', () => {
 
 		expect(deps.sendRecipientDm).toHaveBeenCalledWith(
 			expect.objectContaining({
-				content: expect.stringMatching(/You have \*\*12 merits total\*\*\nNext rank level in \*\*6 merits\*\*$/)
+				content: expect.stringMatching(
+					/You have \*\*12 merits total\*\*\nCurrent badge: \*\*Aes III\*\*\nNext rank level in \*\*6 merits\*\*$/
+				)
 			})
 		);
 	});
