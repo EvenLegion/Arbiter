@@ -138,7 +138,7 @@ The thread-based review flow gives the repo three things:
 - **Live run (`dry_run: false`).** Only one live run at a time. It first checks that badge role IDs are configured, that Arbiter has Manage Roles and that Arbiter can assign every configured badge role; otherwise it changes nothing. Members are processed one at a time in Discord ID order. Totals are read 100 members at a time; if a read fails, those members count as failed and get no role calls. A member who already has the right badge costs zero Discord calls. Any other member goes through the single-member badge sync, which re-reads the total inside the member lock.
 - **Pacing and stopping.** Arbiter pauses after each member whose roles changed and relies on the discord.js rate-limit queue. A run stops between members after 12 minutes or after repeated long rate-limit waits, and reports processed and remaining counts. There is no checkpoint: run the command again and correct members are skipped.
 
-The command never sends DMs and never creates or edits roles. Logs carry counts only. Pacing and limits are constants in `src/lib/services/merit-badge/meritBadgeBulkSyncService.ts`.
+The command never sends DMs and never creates or edits roles. The command's own report and run logs carry counts only; each member a live run changes or fails still gets the standard badge sync log line (Discord ID, tier numbers and role IDs, never names or totals). Pacing and limits are constants in `src/lib/services/merit-badge/meritBadgeBulkSyncService.ts`.
 
 ## Development Repair Commands
 
