@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-4nns8n",
+	"baseRef": "origin/dev",
+	"mergeBase": "893e42ba4523fd6c39f41b9a4e9ea8687251f639",
+	"headRef": "fb2f07a57150195e804ee1ef948274118d051650",
+	"generatedAt": "2026-11-11T01:27:23.352Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Keeps merit badge roles out of /staff user_migrate role copying and syncs the old and new accounts' badges after the merge (MB-05). Inert until badge role IDs are configured.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "fb2f07a57150195e804ee1ef948274118d051650",
+			"subject": "feat(staff): keep badge roles out of user_migrate and sync both accounts",
+			"committedAt": "2026-11-11T01:27:16+00:00",
+			"committedAtMs": 1794360436000,
+			"type": "feat",
+			"scope": "staff",
+			"description": "keep badge roles out of user_migrate and sync both accounts",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
