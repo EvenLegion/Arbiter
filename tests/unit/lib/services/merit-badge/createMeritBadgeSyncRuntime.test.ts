@@ -5,7 +5,7 @@ import { createMeritBadgeRoleMap } from '../../../../../src/config/meritBadgeRol
 import { meritRepository, userRepository } from '../../../../../src/integrations/prisma/repositories';
 import { createMeritBadgeSyncRuntime } from '../../../../../src/lib/services/merit-badge/createMeritBadgeSyncRuntime';
 import { createKeyedLock } from '../../../../../src/lib/services/merit-badge/meritBadgeMemberLock';
-import { createRecentRoleChanges } from '../../../../../src/lib/services/merit-badge/meritBadgeRecentRoleChanges';
+import { createRecentlyChangedMembers } from '../../../../../src/lib/services/merit-badge/meritBadgeRecentlyChangedMembers';
 
 vi.mock('../../../../../src/integrations/prisma/repositories', () => ({
 	meritRepository: { getUserTotalMerits: vi.fn() },
@@ -93,7 +93,7 @@ describe('createMeritBadgeSyncRuntime', () => {
 			roleMap,
 			configuredGuildId: GUILD_ID,
 			runExclusive: createKeyedLock(),
-			recentRoleChanges: createRecentRoleChanges(),
+			recentlyChangedMembers: createRecentlyChangedMembers(),
 			readTotalMerits: vi.fn().mockResolvedValue(1)
 		});
 
@@ -109,7 +109,7 @@ describe('createMeritBadgeSyncRuntime', () => {
 			roleMap,
 			configuredGuildId: GUILD_ID,
 			runExclusive: createKeyedLock(),
-			recentRoleChanges: createRecentRoleChanges(),
+			recentlyChangedMembers: createRecentlyChangedMembers(),
 			readTotalMerits: vi.fn()
 		});
 		await expect(notFound.syncMember({ discordUserId: MEMBER_ID })).resolves.toMatchObject({ kind: 'member_not_found' });
@@ -120,7 +120,7 @@ describe('createMeritBadgeSyncRuntime', () => {
 			roleMap,
 			configuredGuildId: GUILD_ID,
 			runExclusive: createKeyedLock(),
-			recentRoleChanges: createRecentRoleChanges(),
+			recentlyChangedMembers: createRecentlyChangedMembers(),
 			readTotalMerits: vi.fn()
 		});
 		await expect(fetchFailed.syncMember({ discordUserId: MEMBER_ID })).resolves.toMatchObject({ kind: 'failed', stage: 'load_member' });
@@ -147,7 +147,7 @@ describe('createMeritBadgeSyncRuntime', () => {
 			roleMap,
 			configuredGuildId: GUILD_ID,
 			runExclusive: createKeyedLock(),
-			recentRoleChanges: createRecentRoleChanges()
+			recentlyChangedMembers: createRecentlyChangedMembers()
 		});
 
 		await expect(runtime.syncMember({ discordUserId: MEMBER_ID })).resolves.toMatchObject({ kind: 'updated', totalMerits: 1 });
@@ -162,7 +162,7 @@ describe('createMeritBadgeSyncRuntime', () => {
 			roleMap,
 			configuredGuildId: GUILD_ID,
 			runExclusive: createKeyedLock(),
-			recentRoleChanges: createRecentRoleChanges()
+			recentlyChangedMembers: createRecentlyChangedMembers()
 		});
 		await expect(noUserRow.syncMember({ discordUserId: MEMBER_ID })).resolves.toMatchObject({
 			kind: 'updated',
@@ -171,32 +171,59 @@ describe('createMeritBadgeSyncRuntime', () => {
 		});
 	});
 
-	it('plans from its own earlier changes while the Discord cache still shows old roles', async () => {
-		// Like discord.js, the fake never updates the cached roles after add/remove.
-		const member = fakeMember([FERRUM_I]);
+	it('fetches a member it changed recently fresh, so a stale cache never leaves two badges', async () => {
+		// Like discord.js, the cached member never updates after add/remove; Discord holds the live roles.
+		const liveRoles = new Set([FERRUM_I]);
+		const cachedMember = fakeMember([FERRUM_I]);
 		const calls: string[] = [];
-		member.roles.add.mockImplementation(async (roleId: string) => calls.push(`add:${roleId}`));
-		member.roles.remove.mockImplementation(async (roleId: string) => calls.push(`remove:${roleId}`));
+		const addRole = async (roleId: string) => {
+			calls.push(`add:${roleId}`);
+			liveRoles.add(roleId);
+		};
+		const removeRole = async (roleId: string) => {
+			calls.push(`remove:${roleId}`);
+			liveRoles.delete(roleId);
+		};
+		const withLiveCalls = (member: ReturnType<typeof fakeMember>) => {
+			member.roles.add.mockImplementation(addRole);
+			member.roles.remove.mockImplementation(removeRole);
+			return member;
+		};
+		withLiveCalls(cachedMember);
+		const fetchMember = vi.fn(async () => withLiveCalls(fakeMember([...liveRoles])));
 		let clock = 0;
 		const runtime = createMeritBadgeSyncRuntime({
-			guild: fakeGuild({ cachedMember: member }),
+			guild: fakeGuild({ cachedMember, fetchMember }),
 			context: createContext(),
 			roleMap,
 			configuredGuildId: GUILD_ID,
 			runExclusive: createKeyedLock(),
-			recentRoleChanges: createRecentRoleChanges({ ttlMs: 60_000, now: () => clock }),
+			recentlyChangedMembers: createRecentlyChangedMembers({ ttlMs: 60_000, now: () => clock }),
 			readTotalMerits: vi.fn()
 		});
 
-		await runtime.syncMember({ discordUserId: MEMBER_ID, totalMeritsOverride: 2 });
-		await runtime.syncMember({ discordUserId: MEMBER_ID, totalMeritsOverride: 3 });
-		await expect(runtime.syncMember({ discordUserId: MEMBER_ID, totalMeritsOverride: 3 })).resolves.toMatchObject({ kind: 'unchanged' });
-		expect(calls).toEqual([`add:${FERRUM_II}`, `remove:${FERRUM_I}`, `add:${FERRUM_III}`, `remove:${FERRUM_II}`]);
+		// I -> II -> I -> III before any Discord member update arrives.
+		for (const total of [2, 1, 3]) {
+			await runtime.syncMember({ discordUserId: MEMBER_ID, totalMeritsOverride: total });
+			expect([...liveRoles]).toHaveLength(1);
+		}
+		expect([...liveRoles]).toEqual([FERRUM_III]);
+		expect(fetchMember).toHaveBeenCalledWith({ user: MEMBER_ID, force: true });
 
-		// Once the record expires, the (now caught-up) cache is trusted again.
-		member.roles.cache = new Map([[FERRUM_III, {}]]);
+		// A hand edit within the window is seen and repaired.
+		liveRoles.clear();
+		await expect(runtime.syncMember({ discordUserId: MEMBER_ID, totalMeritsOverride: 3 })).resolves.toMatchObject({
+			kind: 'updated',
+			addedRoleId: FERRUM_III
+		});
+
+		// Once the window passes, the (now caught-up) cache is trusted again with zero Discord calls.
+		cachedMember.roles.cache = new Map([[FERRUM_III, {}]]);
 		clock = 60_000;
+		const fetchCount = fetchMember.mock.calls.length;
+		const callCount = calls.length;
 		await expect(runtime.syncMember({ discordUserId: MEMBER_ID, totalMeritsOverride: 3 })).resolves.toMatchObject({ kind: 'unchanged' });
-		expect(calls).toHaveLength(4);
+		expect(fetchMember).toHaveBeenCalledTimes(fetchCount);
+		expect(calls).toHaveLength(callCount);
 	});
 });

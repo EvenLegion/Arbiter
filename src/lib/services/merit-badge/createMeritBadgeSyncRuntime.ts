@@ -6,7 +6,7 @@ import { meritRepository } from '../../../integrations/prisma/repositories';
 import { getDbUser } from '../../discord/guild/users';
 import { createChildExecutionContext, type ExecutionContext } from '../../logging/executionContext';
 import { MERIT_BADGE_MEMBER_LOCK, type RunExclusive } from './meritBadgeMemberLock';
-import { MERIT_BADGE_RECENT_ROLE_CHANGES, type RecentRoleChanges } from './meritBadgeRecentRoleChanges';
+import { MERIT_BADGE_RECENTLY_CHANGED_MEMBERS, type RecentlyChangedMembers } from './meritBadgeRecentlyChangedMembers';
 import { createMeritBadgeRoleGateway, toMeritBadgeRoleFailure } from './meritBadgeRoleGateway';
 import { syncMemberMeritBadge, type MeritBadgeSyncDeps, type MeritBadgeSyncInput, type MeritBadgeSyncResult } from './meritBadgeSyncService';
 
@@ -19,8 +19,8 @@ export type MeritBadgeSyncRuntime = {
  *
  * The guild must be the configured guild. For any other guild every sync returns
  * `failed` with code `wrong_guild` and makes no reads or Discord calls.
- * Every caller shares one per-member lock and one record of recent role changes unless a test
- * passes its own.
+ * Every caller shares one per-member lock and one record of recently changed members unless a
+ * test passes its own.
  */
 export function createMeritBadgeSyncRuntime({
 	guild,
@@ -29,7 +29,7 @@ export function createMeritBadgeSyncRuntime({
 	roleMap = ENV_MERIT_BADGE_ROLES,
 	configuredGuildId = ENV_DISCORD.DISCORD_GUILD_ID,
 	runExclusive = MERIT_BADGE_MEMBER_LOCK,
-	recentRoleChanges = MERIT_BADGE_RECENT_ROLE_CHANGES,
+	recentlyChangedMembers = MERIT_BADGE_RECENTLY_CHANGED_MEMBERS,
 	resolveMember,
 	readTotalMerits = readMemberTotalMerits
 }: {
@@ -40,7 +40,7 @@ export function createMeritBadgeSyncRuntime({
 	roleMap?: MeritBadgeRoleMap;
 	configuredGuildId?: string;
 	runExclusive?: RunExclusive;
-	recentRoleChanges?: RecentRoleChanges;
+	recentlyChangedMembers?: RecentlyChangedMembers;
 	resolveMember?: (discordUserId: string) => Promise<GuildMember | null>;
 	readTotalMerits?: (discordUserId: string) => Promise<number>;
 }): MeritBadgeSyncRuntime {
@@ -60,24 +60,24 @@ export function createMeritBadgeSyncRuntime({
 		roleMap,
 		runExclusive,
 		logger,
-		getMember: resolveMember ?? ((discordUserId) => fetchGuildMember(guild, discordUserId)),
+		// The cache lags our own role changes, so a member we changed recently is fetched fresh.
+		getMember: resolveMember ?? ((discordUserId) => fetchGuildMember(guild, discordUserId, { fresh: recentlyChangedMembers.has(discordUserId) })),
 		describeMember: (member) => ({
 			isBot: member.user.bot,
-			// The cache lags our own role changes until Discord's member update arrives.
-			roleIds: recentRoleChanges.apply(member.id, member.roles.cache.keys())
+			roleIds: member.roles.cache.keys()
 		}),
 		readTotalMerits,
 		addRole: async (member, roleId) => {
 			const result = await gateway.addRole(member, roleId);
 			if (result.ok) {
-				recentRoleChanges.record(member.id, roleId, true);
+				recentlyChangedMembers.mark(member.id);
 			}
 			return result;
 		},
 		removeRole: async (member, roleId) => {
 			const result = await gateway.removeRole(member, roleId);
 			if (result.ok) {
-				recentRoleChanges.record(member.id, roleId, false);
+				recentlyChangedMembers.mark(member.id);
 			}
 			return result;
 		}
@@ -97,15 +97,18 @@ async function readMemberTotalMerits(discordUserId: string): Promise<number> {
 	return meritRepository.getUserTotalMerits({ userDbUserId: dbUser.id });
 }
 
-/** Cached member first. Only "unknown member" (10007) means not found; any other fetch error fails the sync. */
-async function fetchGuildMember(guild: Guild, discordUserId: string): Promise<GuildMember | null> {
-	const cachedMember = guild.members.cache.get(discordUserId);
+/**
+ * Cached member first, unless `fresh` asks for Discord's current roles.
+ * Only "unknown member" (10007) means not found; any other fetch error fails the sync.
+ */
+async function fetchGuildMember(guild: Guild, discordUserId: string, { fresh }: { fresh: boolean }): Promise<GuildMember | null> {
+	const cachedMember = fresh ? undefined : guild.members.cache.get(discordUserId);
 	if (cachedMember) {
 		return cachedMember;
 	}
 
 	try {
-		return await guild.members.fetch(discordUserId);
+		return await guild.members.fetch({ user: discordUserId, force: true });
 	} catch (error) {
 		if (toMeritBadgeRoleFailure(error).code === 'unknown_member') {
 			return null;
