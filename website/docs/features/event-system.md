@@ -180,6 +180,9 @@ Finalization is the point where tracking turns into final business outcomes. Dep
 - synchronize nicknames for awarded users
 - synchronize tracking or review presentation
 - clean up tracked-channel rows and transient review state
+- synchronize each awarded member's merit badge role
+
+The badge sync runs last, after the awards commit and the review messages are posted. It reads each member's total fresh, one member at a time, and logs a summary with the number of members, updates, failures and the time taken. A badge failure is logged; it never changes the award, the final state or the reply. Badge sync does nothing until merit badge role IDs are configured.
 
 If you are changing what "finalization" means, start in the finalization service first. Presentation changes come second.
 
@@ -194,7 +197,10 @@ Manual merit awards typically:
 - optionally link the award to a recent event session
 - persist the award
 - synchronize the recipient nickname
+- synchronize the recipient's merit badge role from the new total
 - send rank-up or direct-message notifications when appropriate
+
+Demerits use the same path. If the badge role cannot be updated, the merit still stands and the staff reply gets a warning line.
 
 The merit list flow is the main read-oriented merit workflow. It loads a user's merit summary and paginated entries, then maps that summary into a Discord-friendly view. Staff can inspect other users; non-staff are restricted to their own records.
 

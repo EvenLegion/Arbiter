@@ -396,6 +396,7 @@ describe('eventLifecycle integration', () => {
 					}),
 				finalizeReview: eventReviewRepository.finalizeReview,
 				syncAwardedNicknames: vi.fn().mockResolvedValue(undefined),
+				syncAwardedBadges: vi.fn().mockResolvedValue(undefined),
 				reloadEventSession: loadEventLifecycleEventSession,
 				syncTrackingSummary: vi.fn().mockResolvedValue(undefined),
 				postReviewSubmissionMessages: vi.fn().mockResolvedValue(undefined),
