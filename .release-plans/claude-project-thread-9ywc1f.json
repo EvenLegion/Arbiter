@@ -1,0 +1,38 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-9ywc1f",
+	"baseRef": "origin/dev",
+	"mergeBase": "522fcf478190e046b37d6e3003e1cd73fcd8fe68",
+	"headRef": "111119f21ae33749b3f884fb93a54dd226dc1539",
+	"generatedAt": "2026-11-11T01:44:48.609Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Adds /staff merit_badges sync: a read-only dry-run cutover report with CSV that works before badge role IDs exist, and a staff-only, run-locked live run that applies badge roles paced, time-boxed and stopped on repeated rate-limit waits. Inert until badge role IDs are configured.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "78ddb750580577bc3f19e341f3082be1146cfa4c",
+			"subject": "feat(interactions): forward file attachments in interaction replies",
+			"committedAt": "2026-11-11T01:43:56+00:00",
+			"committedAtMs": 1794361436000,
+			"type": "feat",
+			"scope": "interactions",
+			"description": "forward file attachments in interaction replies",
+			"breaking": false,
+			"section": "Features"
+		},
+		{
+			"sha": "111119f21ae33749b3f884fb93a54dd226dc1539",
+			"subject": "feat(staff): add /staff merit_badges sync cutover report and paced live run",
+			"committedAt": "2026-11-11T01:44:20+00:00",
+			"committedAtMs": 1794361460000,
+			"type": "feat",
+			"scope": "staff",
+			"description": "add /staff merit_badges sync cutover report and paced live run",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
