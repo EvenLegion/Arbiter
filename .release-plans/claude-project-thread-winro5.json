@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-winro5",
+	"baseRef": "origin/dev",
+	"mergeBase": "79738d6d48219a753a2c0f326e90f3a479148e50",
+	"headRef": "fa8fe264209d38a1771da26945d206bb2ab795cf",
+	"generatedAt": "2026-11-11T08:21:19.403Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Adds the Merit Badges docs page and the production merit badge rollout runbook, and links them from the related docs pages.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "fa8fe264209d38a1771da26945d206bb2ab795cf",
+			"subject": "docs(merit-badge): add the merit badges page and rollout runbook",
+			"committedAt": "2026-11-11T08:21:12+00:00",
+			"committedAtMs": 1794385272000,
+			"type": "docs",
+			"scope": "merit-badge",
+			"description": "add the merit badges page and rollout runbook",
+			"breaking": false,
+			"section": "Maintenance"
+		}
+	]
+}
