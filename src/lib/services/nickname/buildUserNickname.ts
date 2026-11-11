@@ -1,6 +1,6 @@
 import { type Division, DivisionKind } from '@prisma/client';
 import { DISCORD_MAX_NICKNAME_LENGTH } from '../../constants';
-import { getMeritRankSymbol, MAX_MERIT_RANK_LEVEL, resolveMeritRankLevel } from '../merit-rank/meritRank';
+import { getMeritRankSymbol, LEGACY_MERIT_RANK_SYMBOLS, resolveMeritRankLevel } from '../merit-rank/meritRank';
 
 const PREFIX_PRIORITY: ((division: Division) => boolean)[] = [
 	(division) => division.kind === DivisionKind.INITIATE,
@@ -130,12 +130,7 @@ export function isNicknameTooLongError(error: unknown) {
 export function stripTrailingMeritRankSuffix(value: string) {
 	const trimmed = value.trimEnd();
 
-	for (let level = 1; level <= MAX_MERIT_RANK_LEVEL; level++) {
-		const meritRankSymbol = getMeritRankSymbol(level);
-		if (!meritRankSymbol) {
-			continue;
-		}
-
+	for (const meritRankSymbol of LEGACY_MERIT_RANK_SYMBOLS) {
 		const suffix = ` ${meritRankSymbol}`;
 		if (trimmed.endsWith(suffix)) {
 			return trimmed.slice(0, -suffix.length).trimEnd();

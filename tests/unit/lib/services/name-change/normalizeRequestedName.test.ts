@@ -80,6 +80,18 @@ describe('normalizeRequestedName', () => {
 		});
 	});
 
+	it.each([1, 36, 50])('rejects the legacy level %i merit rank symbol', (level) => {
+		expect(
+			normalizeRequestedName({
+				rawRequestedName: `Callsign${getMeritRankSymbol(level)}`,
+				divisionPrefixes: ['NVY', 'MRN']
+			})
+		).toEqual({
+			success: false,
+			errorMessage: 'Requested name cannot contain merit rank symbols.'
+		});
+	});
+
 	it('rejects merit rank symbols', () => {
 		const meritRankSymbol = getMeritRankSymbol(1);
 		expect(meritRankSymbol).toBeTruthy();

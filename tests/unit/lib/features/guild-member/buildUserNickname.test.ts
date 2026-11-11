@@ -1,7 +1,8 @@
 import { DivisionKind } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
-import { buildUserNickname } from '../../../../../src/lib/services/nickname/buildUserNickname';
+import { getMeritRankSymbol } from '../../../../../src/lib/services/merit-rank/meritRank';
+import { buildUserNickname, stripTrailingMeritRankSuffix } from '../../../../../src/lib/services/nickname/buildUserNickname';
 
 describe('buildUserNickname', () => {
 	it('skips nickname computation for the guild owner', () => {
@@ -69,5 +70,15 @@ describe('buildUserNickname', () => {
 				totalMerits: 0
 			})
 		).toThrow();
+	});
+});
+
+describe('stripTrailingMeritRankSuffix', () => {
+	it.each([1, 20, 21, 35, 36, 37, 50])('strips the legacy level %i symbol', (level) => {
+		expect(stripTrailingMeritRankSuffix(`Callsign ${getMeritRankSymbol(level)}`)).toBe('Callsign');
+	});
+
+	it('leaves a name without a legacy symbol unchanged', () => {
+		expect(stripTrailingMeritRankSuffix('Callsign 51')).toBe('Callsign 51');
 	});
 });

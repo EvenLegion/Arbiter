@@ -1,4 +1,11 @@
-export const MERIT_RANK_THRESHOLDS: ReadonlyArray<{ level: number; cumulativeMerits: number }> = [
+/**
+ * Frozen legacy merit-rank policy (50 levels, circled-number symbols).
+ *
+ * Do not change these values. API v1 `rankLevel`, `rankSymbol` and its rank filters read this
+ * table, and nickname suffix stripping and name-change rejection read `LEGACY_MERIT_RANK_SYMBOLS`.
+ * Merit badges use the separate ladder in `meritBadge.ts`.
+ */
+export const MERIT_RANK_THRESHOLDS: ReadonlyArray<Readonly<{ level: number; cumulativeMerits: number }>> = [
 	{ level: 1, cumulativeMerits: 1 },
 	{ level: 2, cumulativeMerits: 3 },
 	{ level: 3, cumulativeMerits: 7 },
@@ -51,6 +58,11 @@ export const MERIT_RANK_THRESHOLDS: ReadonlyArray<{ level: number; cumulativeMer
 	{ level: 50, cumulativeMerits: 1323 }
 ];
 
+for (const threshold of MERIT_RANK_THRESHOLDS) {
+	Object.freeze(threshold);
+}
+Object.freeze(MERIT_RANK_THRESHOLDS);
+
 export const MAX_MERIT_RANK_LEVEL = MERIT_RANK_THRESHOLDS[MERIT_RANK_THRESHOLDS.length - 1]?.level ?? 0;
 
 const MERIT_RANK_SYMBOL_RANGES: ReadonlyArray<{
@@ -62,6 +74,14 @@ const MERIT_RANK_SYMBOL_RANGES: ReadonlyArray<{
 	{ minLevel: 21, maxLevel: 35, codePointOffset: 12860 },
 	{ minLevel: 36, maxLevel: 50, codePointOffset: 12941 }
 ];
+
+/**
+ * Every legacy rank symbol (①–⑳, ㉑–㉟, ㊱–㊿), in level order. Frozen so that nickname stripping
+ * and name-change rejection keep recognizing all 50 old symbols after the number leaves nicknames.
+ */
+export const LEGACY_MERIT_RANK_SYMBOLS: readonly string[] = Object.freeze(
+	MERIT_RANK_THRESHOLDS.map((threshold) => getMeritRankSymbol(threshold.level)).filter((symbol): symbol is string => symbol !== null)
+);
 
 const LEVEL_TO_CUMULATIVE_MERITS = new Map<number, number>(MERIT_RANK_THRESHOLDS.map((threshold) => [threshold.level, threshold.cumulativeMerits]));
 const LEVELS_BY_THRESHOLD_INDEX = MERIT_RANK_THRESHOLDS.map((threshold) => threshold.level);

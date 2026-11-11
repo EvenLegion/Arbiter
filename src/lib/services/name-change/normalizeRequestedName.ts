@@ -1,4 +1,4 @@
-import { MAX_MERIT_RANK_LEVEL, getMeritRankSymbol } from '../merit-rank/meritRank';
+import { LEGACY_MERIT_RANK_SYMBOLS } from '../merit-rank/meritRank';
 
 type NormalizeRequestedNameParams = {
 	rawRequestedName: string;
@@ -15,12 +15,6 @@ type NormalizeRequestedNameResult =
 			success: false;
 			errorMessage: string;
 	  };
-
-const MERIT_RANK_SYMBOLS = new Set(
-	Array.from({ length: MAX_MERIT_RANK_LEVEL }, (_, index) => getMeritRankSymbol(index + 1)).filter(
-		(symbol): symbol is string => typeof symbol === 'string'
-	)
-);
 
 export function normalizeRequestedName({ rawRequestedName, divisionPrefixes }: NormalizeRequestedNameParams): NormalizeRequestedNameResult {
 	const trimmed = rawRequestedName.trim();
@@ -83,7 +77,7 @@ export function normalizeRequestedName({ rawRequestedName, divisionPrefixes }: N
 }
 
 function containsMeritRankSymbol(value: string) {
-	for (const symbol of MERIT_RANK_SYMBOLS) {
+	for (const symbol of LEGACY_MERIT_RANK_SYMBOLS) {
 		if (value.includes(symbol)) {
 			return true;
 		}
