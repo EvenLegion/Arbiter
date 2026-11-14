@@ -250,7 +250,7 @@ describe('initializeEventReview integration', () => {
 		});
 		await applyTrackingTick({
 			eventSessionId: eventSession.id,
-			attendeeDiscordUserIds: [attendeeA.discordUserId, 'missing-discord-user'],
+			attendeeDiscordUserIds: [attendeeA.discordUserId],
 			tickDurationSeconds: 3000,
 			tickedAtMs: Date.parse('2026-03-14T11:10:00.000Z')
 		});
@@ -309,6 +309,32 @@ describe('initializeEventReview integration', () => {
 				page: 1
 			})
 		);
+	});
+
+	it('retains all Redis attendance when a tracked user cannot be resolved', async () => {
+		const host = await createUser(standalone.prisma, { discordUserId: 'unresolved-host' });
+		const event = await createEventSession(standalone.prisma, {
+			hostUserId: host.id,
+			threadId: 'unresolved-thread',
+			name: 'Unresolved',
+			state: EventSessionState.ENDED_PENDING_REVIEW,
+			eventTierCode: MeritTypeCode.TIER_2,
+			startedAt: new Date(0),
+			endedAt: new Date(600000)
+		});
+		await startTrackingSession({ eventSessionId: event.id, guildId: 'test-guild', startedAtMs: 0 });
+		await applyTrackingTick({
+			eventSessionId: event.id,
+			attendeeDiscordUserIds: [host.discordUserId, 'missing-user'],
+			tickDurationSeconds: 300,
+			tickedAtMs: 300000
+		});
+		await expect(
+			initializeEventReview({ guild: { id: 'test-guild' } as never, eventSessionId: event.id, context: createMockExecutionContext() })
+		).rejects.toThrow('unresolved_participants');
+		expect(await getTrackingParticipantsSnapshot({ eventSessionId: event.id })).toHaveLength(2);
+		expect(await standalone.prisma.eventParticipantStat.count({ where: { eventSessionId: event.id } })).toBe(0);
+		expect(syncEventReviewPresentation).not.toHaveBeenCalled();
 	});
 
 	it('no-ops for events that are not pending review', async () => {

@@ -37,6 +37,9 @@ export async function initializeEventReview({ guild, eventSessionId, context }: 
 		);
 		return;
 	}
+	if (result.kind === 'unresolved_participants' || result.kind === 'state_conflict') {
+		throw new Error(`Event review initialization incomplete: eventSessionId=${eventSessionId} reason=${result.kind}`);
+	}
 	if (result.kind === 'review_initialized_sync_failed') {
 		throw new Error(`Failed to create or update review message for eventSessionId=${eventSessionId}`);
 	}

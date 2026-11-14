@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   publish_release:
-    if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'dev'
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.head.ref == 'dev' || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -38,6 +38,16 @@ jobs:
           echo "release_version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_notes_path=${NOTES_PATH}" >> "$GITHUB_OUTPUT"
 
+      - name: Validate prepared hotfix
+        if: startsWith(github.event.pull_request.head.ref, 'hotfix/')
+        env:
+          RELEASE_PLAN_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HOTFIX_BASE: ${{ github.event.pull_request.base.sha }}
+          HOTFIX_HEAD_REF: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin "$HOTFIX_HEAD_REF"
+          node scripts/release/hotfix-check.mjs --prepared
+
       - name: Create tag
         run: |
           git config user.name "github-actions[bot]"
@@ -53,6 +63,7 @@ jobs:
           body_path: ${{ steps.release_meta.outputs.release_notes_path }}
 
       - name: Post release to Discord
+        if: github.event.pull_request.head.ref == 'dev'
         env:
           DISCORD_RELEASE_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
           RELEASE_NOTES_PATH: ${{ steps.release_meta.outputs.release_notes_path }}

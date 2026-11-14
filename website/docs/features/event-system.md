@@ -258,3 +258,17 @@ Useful search terms in this area include:
 The event and merit area is not complicated because the repo is over-abstracted. It is complicated because the domain itself is multi-step, long-lived, and stateful.
 
 The repo's split is there to keep that complexity visible and testable.
+
+## Bulk Attendance And Medal Processing
+
+Event-end attendance and default review decisions are persisted atomically using
+bulk writes before transient tracking data is cleared. Unknown tracked users
+fail closed, leaving the tracking snapshot available for investigation. Existing
+review decisions are preserved, and finalized events cannot be rewritten by
+initialization. Preserve incident evidence and obtain approval for any targeted
+production recovery; do not finalize an incomplete review.
+
+Bulk `/staff medal_give` reads all unique merit recipients after the event is
+finalized with merits. It paces role mutations and stops between recipients after
+twelve minutes, reporting remaining work. Rerunning skips existing medal roles;
+overlapping grants of the same medal are blocked within one bot process.
