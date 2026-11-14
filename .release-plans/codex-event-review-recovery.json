@@ -1,0 +1,29 @@
+{
+	"schemaVersion": 2,
+	"branch": "codex/event-review-recovery",
+	"baseRef": "origin/dev",
+	"mergeBase": "b343a1b8361f81b9d9fb26829f1c35e93f890197",
+	"headRef": "681a481e6fa748265280398e8d64e010e0f90ea6",
+	"generatedAt": "2026-11-14T01:25:30.431Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Replaces serial participant upserts with a parameterized bulk write and commits snapshots plus default decisions atomically; bounds bulk medal processing with pacing, partial counts and a per-role run guard. No generic retry command or production recovery is included.",
+	"publicNote": {
+		"mode": "standalone",
+		"description": "Staff can finish reviews for large events without attendance saves timing out, while existing review decisions remain intact and unresolved attendees keep their tracking data for investigation. Bulk medal grants process all eligible recipients at a controlled pace, report unfinished work, and safely skip existing medals when staff run the command again.",
+		"section": "Fixes"
+	},
+	"commits": [
+		{
+			"sha": "681a481e6fa748265280398e8d64e010e0f90ea6",
+			"subject": "fix(events): persist bulk reviews atomically and bound medal grants",
+			"committedAt": "2026-11-13T15:24:33-10:00",
+			"committedAtMs": 1794619473000,
+			"type": "fix",
+			"scope": "events",
+			"description": "persist bulk reviews atomically and bound medal grants",
+			"breaking": false,
+			"section": "Fixes"
+		}
+	]
+}

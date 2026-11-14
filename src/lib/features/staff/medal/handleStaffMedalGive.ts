@@ -1,5 +1,5 @@
 import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
-import type { Guild, Role } from 'discord.js';
+import { RESTJSONErrorCodes, type Guild, type Role } from 'discord.js';
 import type { Subcommand } from '@sapphire/plugin-subcommands';
 import { z } from 'zod';
 
@@ -17,6 +17,8 @@ import { MEDAL_ROLE_PREFIX, SEVEN_DAYS_IN_MS } from './staffMedalConstants';
 type HandleStaffMedalGiveParams = {
 	interaction: Subcommand.ChatInputCommandInteraction;
 	context: ExecutionContext;
+	/** Injectable clock and pacing for deterministic, side-effect-free bulk tests. */
+	bulkRuntime?: { now: () => number; sleep: (ms: number) => Promise<void> };
 };
 
 type MedalGrantTarget = {
@@ -25,8 +27,13 @@ type MedalGrantTarget = {
 	discordUsername: string | null;
 };
 
+// Serialize medal runs per guild and resolved role, including single-target grants.
+// This follows the single-process bulk-run guards used by staff badge sync.
+const activeMedalRuns = new Set<string>();
+const MEDAL_BULK_DEADLINE_MS = 12 * 60_000;
+const MEDAL_BULK_PACE_MS = 1_000;
 const EVENT_SESSION_ID_SCHEMA = z.coerce.number().int().positive();
-export async function handleStaffMedalGive({ interaction, context }: HandleStaffMedalGiveParams) {
+export async function handleStaffMedalGive({ interaction, context, bulkRuntime }: HandleStaffMedalGiveParams) {
 	const prepared = await prepareGuildInteraction({
 		interaction,
 		context,
@@ -70,6 +77,7 @@ export async function handleStaffMedalGive({ interaction, context }: HandleStaff
 		return;
 	}
 
+	let runKey: string | undefined;
 	try {
 		const medalRole = await resolveMedalRole({
 			guild,
@@ -81,6 +89,16 @@ export async function handleStaffMedalGive({ interaction, context }: HandleStaff
 			});
 			return;
 		}
+
+		const resolvedRunKey = `${guild.id}:${medalRole.id}`;
+		if (activeMedalRuns.has(resolvedRunKey)) {
+			await responder.safeEditReply({
+				content: `A grant for this medal is already running. Wait for it to finish before retrying. requestId=\`${context.requestId}\``
+			});
+			return;
+		}
+		activeMedalRuns.add(resolvedRunKey);
+		runKey = resolvedRunKey;
 
 		const sendDirectMessage = createGuildMemberDirectMessageGateway({
 			guild,
@@ -165,7 +183,11 @@ export async function handleStaffMedalGive({ interaction, context }: HandleStaff
 			const recipients = await staffMedalRepository.listEventMeritRecipients({
 				eventSessionId: recentEvent.id
 			});
+			await responder.safeEditReply({
+				content: `Medal grant started for ${recipients.length} recipients. Large runs may stop early; rerun to process remaining recipients. requestId=\`${context.requestId}\``
+			});
 			const summary = await grantMedalToMany({
+				bulkRuntime,
 				guild,
 				role: medalRole,
 				targets: recipients.map((recipient) => recipient.user),
@@ -184,7 +206,7 @@ export async function handleStaffMedalGive({ interaction, context }: HandleStaff
 				eventSessionId: recentEvent.id,
 				...summary
 			};
-			if (summary.failed > 0) {
+			if (summary.failed > 0 || summary.remaining > 0) {
 				logger.warn(bulkLogBindings, 'staff.medal_give.bulk.completed_with_failures');
 			} else {
 				logger.info(bulkLogBindings, 'staff.medal_give.bulk.completed');
@@ -255,6 +277,8 @@ export async function handleStaffMedalGive({ interaction, context }: HandleStaff
 		await responder.fail('Failed to grant medal due to an unexpected error.', {
 			requestId: true
 		});
+	} finally {
+		if (runKey) activeMedalRuns.delete(runKey);
 	}
 }
 
@@ -329,6 +353,7 @@ async function resolveMedalRole({ guild, selection }: { guild: Guild; selection:
 }
 
 async function grantMedalToMany({
+	bulkRuntime,
 	guild,
 	role,
 	targets,
@@ -337,6 +362,7 @@ async function grantMedalToMany({
 	reason,
 	logger
 }: {
+	bulkRuntime?: HandleStaffMedalGiveParams['bulkRuntime'];
 	guild: Guild;
 	role: Role;
 	targets: MedalGrantTarget[];
@@ -345,6 +371,9 @@ async function grantMedalToMany({
 	reason: string;
 	logger: ExecutionContext['logger'];
 }) {
+	const now = bulkRuntime?.now ?? Date.now;
+	const sleep = bulkRuntime?.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+	const startedAt = now();
 	const uniqueTargets = [...new Map(targets.map((target) => [target.discordUserId, target])).values()];
 	const summary = {
 		eligible: uniqueTargets.length,
@@ -352,10 +381,13 @@ async function grantMedalToMany({
 		alreadyHadRole: 0,
 		notInGuild: 0,
 		failed: 0,
-		dmSent: 0
+		dmSent: 0,
+		processed: 0,
+		remaining: uniqueTargets.length
 	};
 
 	for (const target of uniqueTargets) {
+		if (now() - startedAt >= MEDAL_BULK_DEADLINE_MS) break;
 		const result = await grantMedalToOne({
 			guild,
 			role,
@@ -366,6 +398,11 @@ async function grantMedalToMany({
 			logger
 		});
 
+		summary.processed++;
+		summary.remaining--;
+		if ((result.kind === 'granted' || result.kind === 'failed') && summary.remaining > 0) {
+			await sleep(MEDAL_BULK_PACE_MS);
+		}
 		if (result.kind === 'granted') {
 			summary.granted += 1;
 			if (result.dmSent) {
@@ -405,7 +442,16 @@ async function grantMedalToOne({
 	reason: string;
 	logger: ExecutionContext['logger'];
 }): Promise<{ kind: 'granted'; dmSent: boolean } | { kind: 'already_has_role' } | { kind: 'not_in_guild' } | { kind: 'failed' }> {
-	const member = await guild.members.fetch(target.discordUserId).catch(() => null);
+	let member;
+	try {
+		member = await guild.members.fetch(target.discordUserId);
+	} catch (error: unknown) {
+		if (typeof error === 'object' && error !== null && 'code' in error && error.code === RESTJSONErrorCodes.UnknownMember) {
+			return { kind: 'not_in_guild' };
+		}
+		logger.warn({ err: error, targetDiscordUserId: target.discordUserId }, 'Failed to fetch medal recipient');
+		return { kind: 'failed' };
+	}
 	if (!member) {
 		return {
 			kind: 'not_in_guild'
@@ -439,6 +485,9 @@ async function grantMedalToOne({
 		discordUserId: target.discordUserId,
 		content: dmContent,
 		logMessage: 'Failed to DM medal recipient'
+	}).catch((error: unknown) => {
+		logger.warn({ err: error, targetDiscordUserId: target.discordUserId }, 'Failed to DM medal recipient after granting role');
+		return false;
 	});
 
 	return {
@@ -495,6 +544,8 @@ function buildBulkGrantReply({
 	return [
 		`Processed **${medalRoleName}** for **${eventName}**.`,
 		`Eligible merit recipients: ${summary.eligible}`,
+		`Processed: ${summary.processed}; remaining: ${summary.remaining}`,
+		...(summary.remaining > 0 ? ['Stopped at the time limit. Rerun this command to continue; existing medal roles are skipped.'] : []),
 		`Granted: ${summary.granted}`,
 		`Already had role: ${summary.alreadyHadRole}`,
 		`Not in guild: ${summary.notInGuild}`,
