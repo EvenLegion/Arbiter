@@ -103,3 +103,7 @@ Schema-version 1 plans are never classified implicitly. Migrate each one with
 required by that mode. Review and commit the result explicitly. Migration
 preserves branch and commit provenance while retiring the legacy per-commit
 public-label field.
+
+Hotfix branches (`hotfix/*`) use `origin/main` rather than `origin/dev` and
+require a patch bump. Prepare only the branch-owned plan; never include pending
+dev plans. The [hotfix path](../../website/docs/contributing/release-process.md#hotfix-source-publication) owns preparation and publication sequencing.

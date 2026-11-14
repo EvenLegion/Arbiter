@@ -1,12 +1,13 @@
-import { git } from './lib.mjs';
-import { RELEASE_PLAN_BASE_REF, assertValidBranchReleasePlan } from './plan-contract.mjs';
+import { checkHotfix } from './hotfix-check.mjs';
+import { git, readReleasePlans } from './lib.mjs';
+import { releasePlanBaseForBranch, assertValidBranchReleasePlan } from './plan-contract.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 export function parseCheckArguments(args) {
 	const options = {
 		branch: process.env.RELEASE_PLAN_BRANCH || process.env.GITHUB_HEAD_REF || null,
-		baseRef: RELEASE_PLAN_BASE_REF,
+		baseRef: null,
 		headRef: 'HEAD'
 	};
 
@@ -45,15 +46,21 @@ function main() {
 		throw new Error('Unable to resolve the working branch. Pass --branch explicitly.');
 	}
 
+	if (branch.startsWith('hotfix/') && readReleasePlans().length === 0) {
+		const result = checkHotfix({ branch, preparedOnly: true });
+		console.log(`Valid prepared hotfix v${result.version}; source plan retained in provenance.`);
+		return;
+	}
+
 	const inspection = assertValidBranchReleasePlan({
 		branch,
-		baseRef: options.baseRef,
+		baseRef: options.baseRef || releasePlanBaseForBranch(branch),
 		headRef: options.headRef
 	});
 
 	console.log(`Valid release plan: .release-plans/${inspection.entry.fileName}`);
 	console.log(`Branch: ${branch}`);
-	console.log(`Base: ${options.baseRef} at ${inspection.currentMergeBase}`);
+	console.log(`Base: ${options.baseRef || releasePlanBaseForBranch(branch)} at ${inspection.currentMergeBase}`);
 	console.log(`Recorded head: ${inspection.entry.plan.headRef}`);
 	console.log(`Public note mode: ${inspection.entry.plan.publicNote.mode}`);
 	if (inspection.entry.plan.publicNote.group) {

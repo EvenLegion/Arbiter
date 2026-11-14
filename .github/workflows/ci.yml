@@ -48,6 +48,12 @@ jobs:
           RELEASE_PLAN_BRANCH: ${{ github.head_ref }}
         run: pnpm release:plan:check -- --branch "$RELEASE_PLAN_BRANCH" --base origin/dev
 
+      - name: Validate hotfix release scope
+        if: github.event_name == 'pull_request' && github.base_ref == 'main' && startsWith(github.head_ref, 'hotfix/')
+        env:
+          RELEASE_PLAN_BRANCH: ${{ github.head_ref }}
+        run: node scripts/release/hotfix-check.mjs --prepared
+
       - name: Run repository checks
         run: pnpm check
 

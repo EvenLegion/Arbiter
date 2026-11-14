@@ -13,7 +13,7 @@ import {
 	writeReleasePlanFile
 } from './lib.mjs';
 import {
-	RELEASE_PLAN_BASE_REF,
+	releasePlanBaseForBranch,
 	RELEASE_PLAN_SCHEMA_VERSION,
 	ReleasePlanContractError,
 	buildPublicNote,
@@ -47,13 +47,14 @@ export async function runReleasePlan({
 		throw new Error('Run release planning from your working branch, not from main or dev.');
 	}
 
-	if (!gitRefExists(RELEASE_PLAN_BASE_REF, { repoRoot })) {
-		throw new Error(`Unable to resolve ${RELEASE_PLAN_BASE_REF}. Fetch origin/dev before planning a release.`);
+	const baseRef = releasePlanBaseForBranch(currentBranch);
+	if (!gitRefExists(baseRef, { repoRoot })) {
+		throw new Error(`Unable to resolve ${baseRef}. Fetch its remote history before planning a release.`);
 	}
 
 	const inspection = inspectBranchReleasePlan({
 		branch: currentBranch,
-		baseRef: RELEASE_PLAN_BASE_REF,
+		baseRef,
 		repoRoot
 	});
 
@@ -118,6 +119,10 @@ export async function runReleasePlan({
 		throw new Error(`Noninteractive release-plan creation requires --bump with one of: ${BUMP_ORDER.join(', ')}.`);
 	}
 
+	if (currentBranch.startsWith('hotfix/') && selectedBump !== 'patch') {
+		throw new Error('Hotfix releases require a patch bump.');
+	}
+
 	if (!BUMP_ORDER.includes(selectedBump)) {
 		throw new Error(`Unsupported bump type: ${String(selectedBump)}. Expected one of: ${BUMP_ORDER.join(', ')}`);
 	}
@@ -136,7 +141,7 @@ export async function runReleasePlan({
 	ensureCleanWorktree(repoRoot);
 
 	const { mergeBase, commits } = getBranchCommits({
-		baseRef: RELEASE_PLAN_BASE_REF,
+		baseRef,
 		repoRoot
 	});
 	const planCommits = buildPlanCommits(commits);
@@ -152,7 +157,7 @@ export async function runReleasePlan({
 	const plan = {
 		schemaVersion: RELEASE_PLAN_SCHEMA_VERSION,
 		branch: currentBranch,
-		baseRef: RELEASE_PLAN_BASE_REF,
+		baseRef,
 		mergeBase,
 		headRef: planHeadRef,
 		generatedAt: new Date().toISOString(),
@@ -165,7 +170,7 @@ export async function runReleasePlan({
 	const candidateIssues = collectReleasePlanIssues({
 		entry: { fileName, plan },
 		branch: currentBranch,
-		baseRef: RELEASE_PLAN_BASE_REF,
+		baseRef,
 		headRef: 'HEAD',
 		packageVersion: packageJson.version,
 		currentMergeBase: mergeBase,
@@ -199,7 +204,7 @@ export async function runReleasePlan({
 		throw error;
 	}
 
-	log(`Base ref: ${RELEASE_PLAN_BASE_REF}`);
+	log(`Base ref: ${baseRef}`);
 	log(`Current version: v${packageJson.version}`);
 	log(`Selected bump: ${selectedBump}`);
 	log(`Planned version: v${plan.targetVersion}`);
