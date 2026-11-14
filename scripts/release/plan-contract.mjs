@@ -5,6 +5,7 @@ import { BUMP_ORDER, REPO_ROOT, SECTION_ORDER, bumpVersion, readPackageJson, san
 
 export const RELEASE_PLAN_SCHEMA_VERSION = 2;
 export const RELEASE_PLAN_BASE_REF = 'origin/dev';
+export const releasePlanBaseForBranch = (branch) => (branch?.startsWith('hotfix/') ? 'origin/main' : RELEASE_PLAN_BASE_REF);
 export const PUBLIC_NOTE_MODES = ['standalone', 'contribute', 'publish', 'internal'];
 export const PUBLIC_NOTE_GROUP_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -85,10 +86,10 @@ export function discoverBranchReleasePlan({ branch, repoRoot = REPO_ROOT } = {})
 	};
 }
 
-export function inspectBranchReleasePlan({ branch, baseRef = RELEASE_PLAN_BASE_REF, headRef = 'HEAD', repoRoot = REPO_ROOT } = {}) {
-	if (baseRef !== RELEASE_PLAN_BASE_REF) {
+export function inspectBranchReleasePlan({ branch, baseRef = releasePlanBaseForBranch(branch), headRef = 'HEAD', repoRoot = REPO_ROOT } = {}) {
+	if (baseRef !== releasePlanBaseForBranch(branch)) {
 		throw new ReleasePlanContractError(
-			`Release plans must be validated against ${RELEASE_PLAN_BASE_REF}; received ${String(baseRef)}.`,
+			`Release plans must be validated against ${releasePlanBaseForBranch(branch)}; received ${String(baseRef)}.`,
 			'UNSUPPORTED_BASE_REF'
 		);
 	}
@@ -222,9 +223,13 @@ export function collectReleasePlanIssues({ entry, branch, baseRef, headRef, pack
 			if (
 				typeof plan?.mergeBase === 'string' &&
 				gitCommitExists(plan.mergeBase, { repoRoot }) &&
-				!gitIsAncestor(plan.mergeBase, sha, { repoRoot })
+				(branch?.startsWith('hotfix/') ? gitIsAncestor(sha, plan.mergeBase, { repoRoot }) : !gitIsAncestor(plan.mergeBase, sha, { repoRoot }))
 			) {
-				issues.push(`commit ${sha} does not descend from recorded mergeBase ${plan.mergeBase}`);
+				issues.push(
+					branch?.startsWith('hotfix/')
+						? `commit ${sha} is already included in recorded main base ${plan.mergeBase}`
+						: `commit ${sha} does not descend from recorded mergeBase ${plan.mergeBase}`
+				);
 			}
 		}
 	}

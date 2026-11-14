@@ -130,6 +130,7 @@ export function buildReleaseProvenanceManifest({ version, plans, entries, attrib
 		releaseVersion: version,
 		plans: [...plans].sort(comparePlanEntries).map((entry) => ({
 			fileName: entry.fileName,
+			...(entry.plan.branch.startsWith('hotfix/') ? { sourcePlan: entry.plan } : {}),
 			branch: entry.plan.branch,
 			bump: entry.plan.bump,
 			contributionSummary: entry.plan.contributionSummary,

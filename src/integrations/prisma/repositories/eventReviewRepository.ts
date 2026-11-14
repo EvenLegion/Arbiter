@@ -1,3 +1,4 @@
+import { saveEventReviewInitialization } from '../event/review/saveEventReviewInitialization';
 import { getEventReviewAttendee } from '../event/review/getEventReviewAttendee';
 import { finalizeEventReviewTransaction as finalizeEventReview } from '../event/review/finalizeEventReviewTransaction';
 import { getEventReviewPage } from '../event/review/getEventReviewPage';
@@ -9,6 +10,7 @@ export type { EventReviewPage, EventReviewPageAttendee } from '../event/review/g
 
 export const eventReviewRepository = {
 	getReviewAttendee: getEventReviewAttendee,
+	saveInitialization: saveEventReviewInitialization,
 	getReviewPage: getEventReviewPage,
 	upsertDecision: upsertEventReviewDecision,
 	upsertParticipantStats: upsertManyEventParticipantStats,

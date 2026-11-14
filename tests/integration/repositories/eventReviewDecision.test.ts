@@ -41,6 +41,80 @@ describe('event review decision integration', () => {
 		}
 	});
 
+	it('atomically saves 75 participants, preserves review choices on retry, and refuses finalized events', async () => {
+		const users = await Promise.all(Array.from({ length: 75 }, (_, i) => createUser(standalone.prisma, { discordUserId: `bulk-recovery-${i}` })));
+		const event = await createEventSession(standalone.prisma, {
+			hostUserId: users[0]!.id,
+			threadId: 'recovery-75',
+			name: 'Recovery',
+			state: EventSessionState.ENDED_PENDING_REVIEW,
+			eventTierCode: MeritTypeCode.TIER_2
+		});
+		const participants = users.map((user, i) => ({ dbUserId: user.id, attendedSeconds: i < 72 ? 480 : [420, 360, 300][i - 72]! }));
+		const input = {
+			eventSessionId: event.id,
+			participants,
+			decisions: participants.map((p) => ({ targetDbUserId: p.dbUserId, decision: EventReviewDecisionKind.MERIT }))
+		};
+		expect(await eventReviewRepository.saveInitialization(input)).toBe(true);
+		expect(await standalone.prisma.eventParticipantStat.count({ where: { eventSessionId: event.id } })).toBe(75);
+		expect(
+			await standalone.prisma.eventReviewDecision.count({ where: { eventSessionId: event.id, decision: EventReviewDecisionKind.MERIT } })
+		).toBe(75);
+		await eventReviewRepository.upsertDecision({
+			eventSessionId: event.id,
+			targetDbUserId: users[0]!.id,
+			decision: EventReviewDecisionKind.NO_MERIT
+		});
+		expect(await eventReviewRepository.saveInitialization(input)).toBe(true);
+		expect(
+			await standalone.prisma.eventReviewDecision.count({ where: { eventSessionId: event.id, decision: EventReviewDecisionKind.NO_MERIT } })
+		).toBe(1);
+		expect(await standalone.prisma.merit.count({ where: { eventSessionId: event.id } })).toBe(0);
+		await expect(
+			eventReviewRepository.saveInitialization({
+				...input,
+				participants: [
+					{ dbUserId: users[0]!.id, attendedSeconds: 999 },
+					{ dbUserId: 'missing-user', attendedSeconds: 1 }
+				]
+			})
+		).rejects.toThrow();
+		expect(
+			(
+				await standalone.prisma.eventParticipantStat.findUniqueOrThrow({
+					where: { eventSessionId_userId: { eventSessionId: event.id, userId: users[0]!.id } }
+				})
+			).attendedSeconds
+		).toBe(480);
+		// A default-decision failure must also roll back the already-written snapshot.
+		await expect(
+			eventReviewRepository.saveInitialization({
+				...input,
+				participants: [{ dbUserId: users[0]!.id, attendedSeconds: 999 }],
+				decisions: [{ targetDbUserId: 'missing-decision-user', decision: EventReviewDecisionKind.MERIT }]
+			})
+		).rejects.toThrow();
+		expect(
+			(
+				await standalone.prisma.eventParticipantStat.findUniqueOrThrow({
+					where: { eventSessionId_userId: { eventSessionId: event.id, userId: users[0]!.id } }
+				})
+			).attendedSeconds
+		).toBe(480);
+		await standalone.prisma.event.update({ where: { id: event.id }, data: { state: EventSessionState.FINALIZED_NO_MERITS } });
+		expect(await eventReviewRepository.saveInitialization({ ...input, participants: [{ dbUserId: users[0]!.id, attendedSeconds: 999 }] })).toBe(
+			false
+		);
+		expect(
+			(
+				await standalone.prisma.eventParticipantStat.findUniqueOrThrow({
+					where: { eventSessionId_userId: { eventSessionId: event.id, userId: users[0]!.id } }
+				})
+			).attendedSeconds
+		).toBe(480);
+	});
+
 	it('creates and updates a single review decision', async () => {
 		const hostUser = await createUser(standalone.prisma, {
 			discordUserId: '4301',

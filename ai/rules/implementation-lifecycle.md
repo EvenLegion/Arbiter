@@ -44,6 +44,11 @@ For a new ticket, implementation, or repository-change branch:
    its Linear ID; Codex prefers `codex/STE-NNN-short-slug`. Use a descriptive
    branch without an invented ID for standalone work.
 
+For an explicitly approved production hotfix, use `hotfix/<slug>` from freshly
+fetched `origin/main`, not `dev`, and follow the [hotfix release path](../../website/docs/contributing/release-process.md#hotfix-source-publication).
+Never retarget a dev-derived branch to main as a substitute for a narrow backport.
+This exception does not authorize publication, deployment, or live recovery.
+
 Do not branch feature work from `main`; `main` is the release branch reached by
 promotion from `dev`. If local and remote `dev` remain ahead, behind, or
 diverged, ask the user to reconcile them. Never reset, rebase, merge, stash,

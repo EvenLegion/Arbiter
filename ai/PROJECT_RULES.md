@@ -212,7 +212,8 @@ step. Never treat container health alone as proof that the bot, database,
 Redis-backed event tracking, or log shipping is healthy.
 
 Feature branches merge into `dev`; `dev` is promoted to `main` through the
-release workflow. Every externally handed-off branch owns one release plan for
+release workflow. Explicitly approved production hotfixes use the isolated
+`hotfix/*` to `main` path described in the implementation lifecycle. Every externally handed-off branch owns one release plan for
 provenance and semantic versioning. Public-note selection is explicit rather
 than inferred from commit subjects. Detailed validity, sequencing, and handoff
 rules live in `ai/rules/implementation-lifecycle.md`; classification, grouping,
