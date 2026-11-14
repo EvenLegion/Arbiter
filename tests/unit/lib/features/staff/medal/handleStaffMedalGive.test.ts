@@ -417,6 +417,129 @@ describe('handleStaffMedalGive', () => {
 	});
 });
 
+describe('bulk medal resilience', () => {
+	function fixture(count = 75) {
+		const prepared = createPrepared();
+		const targets = Array.from({ length: count }, (_, index) => ({
+			user: {
+				discordUserId: `bulk-${index}`,
+				discordNickname: null,
+				discordUsername: null
+			}
+		}));
+		const members = targets.map(() => {
+			let hasRole = false;
+			return {
+				roles: {
+					cache: { has: vi.fn(() => hasRole) },
+					add: vi.fn(async () => {
+						hasRole = true;
+					})
+				}
+			};
+		});
+		prepared.guild.roles.fetch.mockResolvedValue(new Map([['role-1', { id: 'role-1', name: 'Medal: Valor' }]]));
+		prepared.guild.members.fetch.mockImplementation(async (id: string) => members[Number(id.split('-')[1])]);
+		mocks.prepareGuildInteraction.mockResolvedValue(prepared);
+		mocks.parseDiscordUserIdInput.mockReturnValue(undefined);
+		mocks.staffMedalRepository.getRecentEventById.mockResolvedValue({ id: 1011, name: 'Large event', state: 'FINALIZED_WITH_MERITS' });
+		mocks.staffMedalRepository.listEventMeritRecipients.mockResolvedValue(targets);
+		const dm = vi.fn().mockResolvedValue(true);
+		mocks.createGuildMemberDirectMessageGateway.mockReturnValue(dm);
+		let clock = 0;
+		const runtime = {
+			now: () => clock,
+			sleep: vi.fn(async (ms: number) => {
+				clock += ms;
+			})
+		};
+		const run = () =>
+			handleStaffMedalGive({
+				interaction: createInteraction({ medal_name: 'role-1', event_name: '1011', user_name: null }),
+				context: { requestId: 'bulk-test' } as never,
+				bulkRuntime: runtime
+			});
+		return { prepared, targets, members, dm, runtime, run };
+	}
+
+	it('processes all 75 unique recipients, paces mutations, and skips existing medals on retry', async () => {
+		const f = fixture();
+		mocks.staffMedalRepository.listEventMeritRecipients.mockResolvedValue([...f.targets, f.targets[0]]);
+		await f.run();
+		expect(f.members.every((member) => member.roles.add.mock.calls.length === 1)).toBe(true);
+		expect(f.dm).toHaveBeenCalledTimes(75);
+		expect(f.runtime.sleep).toHaveBeenCalledTimes(74);
+		expect(f.prepared.responder.safeEditReply).toHaveBeenLastCalledWith({ content: expect.stringContaining('Processed: 75; remaining: 0') });
+		await f.run();
+		expect(f.dm).toHaveBeenCalledTimes(75);
+		expect(f.prepared.responder.safeEditReply).toHaveBeenLastCalledWith({ content: expect.stringContaining('Already had role: 75') });
+	});
+
+	it('stops between recipients at the deadline and reports a resumable partial result', async () => {
+		const f = fixture();
+		let now = 0;
+		f.runtime.now = () => now;
+		f.runtime.sleep.mockImplementation(async () => {
+			now += 13 * 60_000;
+		});
+		await f.run();
+		expect(f.dm).toHaveBeenCalledTimes(1);
+		expect(f.prepared.responder.safeEditReply).toHaveBeenLastCalledWith({ content: expect.stringContaining('Processed: 1; remaining: 74') });
+		expect(f.prepared.logger.warn).toHaveBeenCalledWith(
+			expect.objectContaining({ remaining: 74 }),
+			'staff.medal_give.bulk.completed_with_failures'
+		);
+	});
+
+	it('blocks overlapping medal grants and releases the guard after completion', async () => {
+		const f = fixture(1);
+		let finish!: () => void;
+		let started!: () => void;
+		const entered = new Promise<void>((resolve) => {
+			started = resolve;
+		});
+		f.dm.mockImplementationOnce(async () => {
+			started();
+			await new Promise<void>((resolve) => {
+				finish = resolve;
+			});
+			return true;
+		});
+		const first = f.run();
+		await entered;
+		await f.run();
+		expect(f.prepared.responder.safeEditReply).toHaveBeenLastCalledWith({ content: expect.stringContaining('already running') });
+		finish();
+		await first;
+		await f.run();
+		expect(f.members[0].roles.add).toHaveBeenCalledTimes(1);
+		expect(f.dm).toHaveBeenCalledTimes(1);
+		expect(f.prepared.responder.safeEditReply).toHaveBeenLastCalledWith({ content: expect.stringContaining('Already had role: 1') });
+	});
+
+	it('counts fetch failures separately from departed members and continues after a DM failure', async () => {
+		const f = fixture(3);
+		f.prepared.guild.members.fetch.mockRejectedValueOnce(new Error('temporary network failure')).mockRejectedValueOnce({ code: 10007 });
+		f.dm.mockRejectedValueOnce(new Error('DM lookup failed'));
+		await f.run();
+		const reply = f.prepared.responder.safeEditReply.mock.calls.at(-1)?.[0].content;
+		expect(reply).toContain('Failed: 1');
+		expect(reply).toContain('Not in guild: 1');
+		expect(reply).toContain('Granted: 1');
+		expect(reply).toContain('Recipient DMs sent: 0/1');
+		expect(reply).toContain('remaining: 0');
+	});
+
+	it('releases the guard after a repository error', async () => {
+		const f = fixture(1);
+		mocks.staffMedalRepository.listEventMeritRecipients.mockRejectedValueOnce(new Error('database unavailable'));
+		await f.run();
+		expect(f.prepared.responder.fail).toHaveBeenCalled();
+		await f.run();
+		expect(f.dm).toHaveBeenCalledTimes(1);
+	});
+});
+
 function createPrepared() {
 	return {
 		guild: {
