@@ -30,25 +30,7 @@ export function createInitializeEventReviewDeps({ guild, logger }: { guild: impo
 								discordUserId: user.discordUserId
 							}))
 						),
-		upsertParticipantStats: async (params: {
-			eventSessionId: number;
-			participants: Array<{
-				dbUserId: string;
-				attendedSeconds: number;
-			}>;
-		}) => {
-			await eventReviewRepository.upsertParticipantStats(params);
-		},
-		upsertReviewDecisions: async (params: {
-			eventSessionId: number;
-			decisions: Array<{
-				targetDbUserId: string;
-				decision: 'MERIT' | 'NO_MERIT';
-			}>;
-			overwriteExisting: boolean;
-		}) => {
-			await eventReviewRepository.upsertReviewDecisions(params);
-		},
+		saveInitialization: eventReviewRepository.saveInitialization,
 		clearTrackingSession: async (eventSessionId: number) => {
 			await clearTrackedSessionState({
 				eventSessionId
