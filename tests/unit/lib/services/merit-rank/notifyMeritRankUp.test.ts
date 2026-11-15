@@ -14,22 +14,22 @@ describe('notifyMeritRankUp', () => {
 
 		expect(member.user.send).toHaveBeenCalledWith(
 			[
-				"Congratulations, Legionnaire! You've earned the **Aes III** merit badge!",
+				"Congratulations, Legionnaire! You've earned the **Argentum II** merit badge!",
 				'You have **12 merits** total.',
-				'Next badge **Argentum I** in **4 merits**.'
+				'Next badge **Argentum III** in **2 merits**.'
 			].join('\n')
 		);
 	});
 
 	it('keeps the legacy next line when the next badge has no role yet', async () => {
 		const member = createMember();
-		const ferrumToAes = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6].map((tier) => [tier, `${100000000000000000 + tier}`])));
+		const ferrumToArgentum = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6, 7, 8].map((tier) => [tier, `${100000000000000000 + tier}`])));
 
-		await expect(notify({ member, previousTotalMerits: 10, currentTotalMerits: 12, badgeRoles: ferrumToAes })).resolves.toBe(true);
+		await expect(notify({ member, previousTotalMerits: 10, currentTotalMerits: 12, badgeRoles: ferrumToArgentum })).resolves.toBe(true);
 
 		expect(member.user.send).toHaveBeenCalledWith(
 			[
-				"Congratulations, Legionnaire! You've earned the **Aes III** merit badge!",
+				"Congratulations, Legionnaire! You've earned the **Argentum II** merit badge!",
 				'You have **12 merits** total.',
 				'Next rank level in **6 merits**.'
 			].join('\n')
@@ -39,7 +39,7 @@ describe('notifyMeritRankUp', () => {
 	it('sends no DM when the badge does not change, even if the legacy level does', async () => {
 		const member = createMember();
 
-		// 12 is legacy level 4 (from 11 at level 3), but both totals hold Aes III.
+		// 12 is legacy level 4 (from 11 at level 3), but both totals hold Argentum II.
 		await expect(notify({ member, previousTotalMerits: 11, currentTotalMerits: 12, badgeRoles: ALL_ROLES })).resolves.toBe(false);
 
 		expect(member.user.send).not.toHaveBeenCalled();

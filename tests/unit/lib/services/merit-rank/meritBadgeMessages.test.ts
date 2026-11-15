@@ -16,11 +16,11 @@ describe('meritBadgeMessages', () => {
 	it('names the badge and the next badge for a total of 12', () => {
 		const copy = resolveMeritBadgeCopy({ totalMerits: 12, badgeRoles: ALL_ROLES });
 
-		expect(copy?.progress.currentTier?.label).toBe('Aes III');
-		expect(buildNextMeritBadgeLine(copy!)).toBe('Next badge **Argentum I** in **4 merits**');
+		expect(copy?.progress.currentTier?.label).toBe('Argentum II');
+		expect(buildNextMeritBadgeLine(copy!)).toBe('Next badge **Argentum III** in **2 merits**');
 		expect(buildMeritBadgeListFields(copy!)).toEqual({
-			currentValue: 'Aes III',
-			progressValue: ['To Argentum I: [==----------] 20%', '4 merits needed to next badge'].join('\n')
+			currentValue: 'Argentum II',
+			progressValue: ['To Argentum III: [====--------] 33%', '2 merits needed to next badge'].join('\n')
 		});
 	});
 
@@ -33,12 +33,12 @@ describe('meritBadgeMessages', () => {
 	});
 
 	it('does not promise a next badge whose role is not configured yet', () => {
-		// Ferrum I to Aes III have roles; Argentum I does not, so sync could not award it.
-		const copy = resolveMeritBadgeCopy({ totalMerits: 12, badgeRoles: rolesForTiers([1, 2, 3, 4, 5, 6]) });
+		// Ferrum I to Argentum II have roles; Argentum III does not, so sync could not award it.
+		const copy = resolveMeritBadgeCopy({ totalMerits: 12, badgeRoles: rolesForTiers([1, 2, 3, 4, 5, 6, 7, 8]) });
 
 		expect(copy?.canPromiseNextTier).toBe(false);
 		expect(buildNextMeritBadgeLine(copy!)).toBeNull();
-		expect(buildMeritBadgeListFields(copy!)).toEqual({ currentValue: 'Aes III', progressValue: null });
+		expect(buildMeritBadgeListFields(copy!)).toEqual({ currentValue: 'Argentum II', progressValue: null });
 	});
 
 	it('reports every badge role configured only when all 36 tiers have one', () => {

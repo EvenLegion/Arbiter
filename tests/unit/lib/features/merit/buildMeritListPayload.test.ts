@@ -84,18 +84,18 @@ describe('buildMeritListPayload', () => {
 		const payload = buildMeritListPayload({ ...listParams(), badgeRoles });
 
 		expect(payload.embeds[0].data.fields?.slice(2)).toEqual([
-			{ name: 'Current Badge', value: 'Aes III', inline: true },
-			{ name: 'Badge Progress', value: 'To Argentum I: [==----------] 20%\n4 merits needed to next badge', inline: false }
+			{ name: 'Current Badge', value: 'Argentum II', inline: true },
+			{ name: 'Badge Progress', value: 'To Argentum III: [====--------] 33%\n2 merits needed to next badge', inline: false }
 		]);
 	});
 
 	it('keeps the rank progress field while the next badge has no role', () => {
-		const badgeRoles = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6].map((tier) => [tier, `${100000000000000000 + tier}`])));
+		const badgeRoles = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6, 7, 8].map((tier) => [tier, `${100000000000000000 + tier}`])));
 
 		const payload = buildMeritListPayload({ ...listParams(), badgeRoles });
 
 		expect(payload.embeds[0].data.fields?.slice(2)).toEqual([
-			{ name: 'Current Badge', value: 'Aes III', inline: true },
+			{ name: 'Current Badge', value: 'Argentum II', inline: true },
 			{ name: 'Rank Progress', value: 'To Level 5: [------------] 0%\n6 merits needed to next rank', inline: false }
 		]);
 	});

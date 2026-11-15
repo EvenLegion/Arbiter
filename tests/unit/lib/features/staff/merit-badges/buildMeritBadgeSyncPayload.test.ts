@@ -13,7 +13,7 @@ import { buildMeritBadgeReportCsv, escapeCsvCell } from '../../../../../../src/l
 import type { MeritBadgeReportRow } from '../../../../../../src/lib/services/merit-badge/meritBadgeBulkSyncService';
 import { getMeritBadgeTier } from '../../../../../../src/lib/services/merit-rank/meritBadge';
 
-const obsianusIII = getMeritBadgeTier(27)!;
+const aquilaII = getMeritBadgeTier(32)!;
 const ferrumI = getMeritBadgeTier(1)!;
 
 const rows: MeritBadgeReportRow[] = [
@@ -23,7 +23,7 @@ const rows: MeritBadgeReportRow[] = [
 		totalMerits: 599,
 		legacyLevel: 33,
 		legacySymbol: '㉝',
-		desiredTier: obsianusIII,
+		desiredTier: aquilaII,
 		desiredRoleConfigured: false,
 		currentTiers: [ferrumI],
 		action: 'unconfigured'
@@ -67,7 +67,7 @@ describe('buildMeritBadgeReportCsv', () => {
 	it('writes a header and one escaped row per member', () => {
 		expect(buildMeritBadgeReportCsv(rows).split('\r\n')).toEqual([
 			'discord_user_id,stored_username,total_merits,legacy_level,legacy_symbol,desired_tier,desired_badge,desired_role_configured,current_badges,planned_action',
-			`400000000000000001,"'=HYPERLINK(""x"")",599,33,㉝,27,Obsianus III,no,Ferrum I,unconfigured`,
+			`400000000000000001,"'=HYPERLINK(""x"")",599,33,㉝,32,Aquila II,no,Ferrum I,unconfigured`,
 			'400000000000000002,,0,,,,,,,none',
 			''
 		]);
@@ -80,7 +80,7 @@ describe('buildMeritBadgeDryRunPayload', () => {
 			report: {
 				kind: 'report',
 				rows,
-				histogram: [{ tier: obsianusIII, count: 1 }],
+				histogram: [{ tier: aquilaII, count: 1 }],
 				noBadgeCount: 1,
 				actionCounts: { add: 0, swap: 0, remove: 0, none: 1, unconfigured: 1 }
 			},
@@ -91,7 +91,7 @@ describe('buildMeritBadgeDryRunPayload', () => {
 
 		expect(payload.content).toContain('nothing was changed');
 		const embed = (payload.embeds[0] as EmbedBuilder).toJSON();
-		expect(embed.description).toContain('Obsianus III (tier 27): 1');
+		expect(embed.description).toContain('Aquila II (tier 32): 1');
 		expect(embed.description).toContain('No badge: 1');
 		expect(embed.fields).toEqual(
 			expect.arrayContaining([

@@ -1,13 +1,13 @@
 /**
- * Merit badge policy: the 36-tier, 2,000-deep badge ladder.
+ * Merit badge policy: the 36-tier, 1,000-deep badge ladder.
  *
  * A badge is the highest tier floor at or below a member's current merit total.
  * Totals are never stored or edited for badges; they are read at query time.
  *
- * Floor derivation (D9): each floor is round(base × 2000 / 3750), where base is the
- * earlier 3,750-deep ladder (1, 3, 6 … 2800, 3250, 3750). The first floor is fixed
- * at 1 and every floor is at least one above the previous floor. The literal list
- * below is authoritative. Floors can change later only by a reviewed code change,
+ * Floor derivation: each floor is half the earlier 2,000-deep floor (D9), rounded half
+ * up. The first floor is fixed at 1 and every floor is at least one above the previous
+ * floor. The top moved from 2,000 to 1,000 on 2026-11-15 to match real event activity.
+ * The literal list below is authoritative. Floors can change later only by a reviewed code change,
  * which moves members between badges and never changes merits.
  *
  * This table is separate from the frozen legacy 50-level policy in `meritRank.ts`.
@@ -38,17 +38,17 @@ const MERIT_BADGE_SECTIONS: readonly MeritBadgeSection[] = Object.freeze(['I', '
 
 export const MERIT_BADGE_LEVELS: readonly MeritBadgeLevel[] = deepFreeze([
 	{ level: 1, name: 'Ferrum', floors: [1, 2, 3] },
-	{ level: 2, name: 'Aes', floors: [5, 8, 11] },
-	{ level: 3, name: 'Argentum', floors: [16, 21, 27] },
-	{ level: 4, name: 'Aurum', floors: [35, 43, 53] },
-	{ level: 5, name: 'Smaragdus', floors: [64, 80, 96] },
-	{ level: 6, name: 'Sapphirus', floors: [120, 144, 171] },
-	{ level: 7, name: 'Amethystus', floors: [200, 232, 267] },
-	{ level: 8, name: 'Adamas', floors: [307, 347, 387] },
-	{ level: 9, name: 'Obsianus', floors: [427, 480, 533] },
-	{ level: 10, name: 'Sanguis', floors: [613, 693, 800] },
-	{ level: 11, name: 'Aquila', floors: [933, 1093, 1280] },
-	{ level: 12, name: 'Supra Omnia', floors: [1493, 1733, 2000] }
+	{ level: 2, name: 'Aes', floors: [4, 5, 6] },
+	{ level: 3, name: 'Argentum', floors: [8, 11, 14] },
+	{ level: 4, name: 'Aurum', floors: [18, 22, 27] },
+	{ level: 5, name: 'Smaragdus', floors: [32, 40, 48] },
+	{ level: 6, name: 'Sapphirus', floors: [60, 72, 86] },
+	{ level: 7, name: 'Amethystus', floors: [100, 116, 134] },
+	{ level: 8, name: 'Adamas', floors: [154, 174, 194] },
+	{ level: 9, name: 'Obsianus', floors: [214, 240, 267] },
+	{ level: 10, name: 'Sanguis', floors: [307, 347, 400] },
+	{ level: 11, name: 'Aquila', floors: [467, 547, 640] },
+	{ level: 12, name: 'Supra Omnia', floors: [747, 867, 1000] }
 ] satisfies MeritBadgeLevel[]);
 
 export const MERIT_BADGE_TIERS: readonly MeritBadgeTier[] = deepFreeze(

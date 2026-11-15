@@ -181,8 +181,8 @@ describe('manualMeritService', () => {
 				'Your merits were adjusted by: **+1 merit**',
 				'Reason: Not provided',
 				'You have **12 merits total**',
-				'Current badge: **Aes III**',
-				'Next badge **Argentum I** in **4 merits**'
+				'Current badge: **Argentum II**',
+				'Next badge **Argentum III** in **2 merits**'
 			].join('\n')
 		});
 	});
@@ -198,7 +198,7 @@ describe('manualMeritService', () => {
 				meritAmount: -1
 			}
 		});
-		deps.getRecipientTotalMerits.mockResolvedValue(4);
+		deps.getRecipientTotalMerits.mockResolvedValue(3);
 
 		await awardManualMeritWorkflow(deps, {
 			actor: createActor(),
@@ -212,7 +212,7 @@ describe('manualMeritService', () => {
 		expect(deps.sendRecipientDm).toHaveBeenCalledWith(
 			expect.objectContaining({
 				content: expect.stringMatching(
-					/Your merits were adjusted by: \*\*-1 merit\*\*[\s\S]*You have \*\*4 merits total\*\*\nCurrent badge: \*\*Ferrum III\*\*\nNext badge \*\*Aes I\*\* in \*\*1 merit\*\*$/
+					/Your merits were adjusted by: \*\*-1 merit\*\*[\s\S]*You have \*\*3 merits total\*\*\nCurrent badge: \*\*Ferrum III\*\*\nNext badge \*\*Aes I\*\* in \*\*1 merit\*\*$/
 				)
 			})
 		);
@@ -220,7 +220,7 @@ describe('manualMeritService', () => {
 
 	it('keeps the legacy next line in the recipient DM while the next badge has no role', async () => {
 		const deps = createDeps();
-		deps.badgeRoles = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6].map((tier) => [tier, `${100000000000000000 + tier}`])));
+		deps.badgeRoles = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6, 7, 8].map((tier) => [tier, `${100000000000000000 + tier}`])));
 
 		await awardManualMeritWorkflow(deps, {
 			actor: createActor(),
@@ -234,7 +234,7 @@ describe('manualMeritService', () => {
 		expect(deps.sendRecipientDm).toHaveBeenCalledWith(
 			expect.objectContaining({
 				content: expect.stringMatching(
-					/You have \*\*12 merits total\*\*\nCurrent badge: \*\*Aes III\*\*\nNext rank level in \*\*6 merits\*\*$/
+					/You have \*\*12 merits total\*\*\nCurrent badge: \*\*Argentum II\*\*\nNext rank level in \*\*6 merits\*\*$/
 				)
 			})
 		);

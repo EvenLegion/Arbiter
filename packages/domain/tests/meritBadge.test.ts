@@ -11,8 +11,8 @@ import {
 } from '../src';
 
 const EXPECTED_FLOORS = [
-	1, 2, 3, 5, 8, 11, 16, 21, 27, 35, 43, 53, 64, 80, 96, 120, 144, 171, 200, 232, 267, 307, 347, 387, 427, 480, 533, 613, 693, 800, 933, 1093, 1280,
-	1493, 1733, 2000
+	1, 2, 3, 4, 5, 6, 8, 11, 14, 18, 22, 27, 32, 40, 48, 60, 72, 86, 100, 116, 134, 154, 174, 194, 214, 240, 267, 307, 347, 400, 467, 547, 640, 747,
+	867, 1000
 ];
 
 const EXPECTED_LEVEL_NAMES = [
@@ -78,9 +78,10 @@ describe('resolveMeritBadgeTier', () => {
 	);
 
 	it.each([
-		[12, 'Aes III'],
-		[599, 'Obsianus III'],
-		[1323, 'Aquila III'],
+		[12, 'Argentum II'],
+		[599, 'Aquila II'],
+		[999, 'Supra Omnia II'],
+		[1000, 'Supra Omnia III'],
 		[2000, 'Supra Omnia III'],
 		[1e6, 'Supra Omnia III']
 	])('total %s resolves to %s', (total, label) => {
@@ -119,14 +120,14 @@ describe('getMeritBadgeTier', () => {
 
 describe('resolveMeritBadgeProgress', () => {
 	it('reports the next badge and the merits still needed', () => {
-		expect(resolveMeritBadgeProgress(12)).toEqual({
-			currentTier: expect.objectContaining({ label: 'Aes III', floor: 11 }),
-			nextTier: expect.objectContaining({ label: 'Argentum I', floor: 16 }),
+		expect(resolveMeritBadgeProgress(15)).toEqual({
+			currentTier: expect.objectContaining({ label: 'Argentum III', floor: 14 }),
+			nextTier: expect.objectContaining({ label: 'Aurum I', floor: 18 }),
 			meritsIntoCurrentTier: 1,
-			meritsNeededForNextTier: 5,
-			meritsRemainingToNextTier: 4,
-			progressRatio: 0.2,
-			progressPercent: 20
+			meritsNeededForNextTier: 4,
+			meritsRemainingToNextTier: 3,
+			progressRatio: 0.25,
+			progressPercent: 25
 		});
 	});
 
@@ -145,7 +146,7 @@ describe('resolveMeritBadgeProgress', () => {
 		expect(resolveMeritBadgeProgress(2400)).toMatchObject({
 			currentTier: { label: 'Supra Omnia III' },
 			nextTier: null,
-			meritsIntoCurrentTier: 400,
+			meritsIntoCurrentTier: 1400,
 			meritsNeededForNextTier: null,
 			meritsRemainingToNextTier: null,
 			progressPercent: 100
@@ -155,7 +156,7 @@ describe('resolveMeritBadgeProgress', () => {
 
 describe('resolveMeritBadgePromotion', () => {
 	it('reports a section promotion without a level up', () => {
-		expect(resolveMeritBadgePromotion({ previousTotalMerits: 5, currentTotalMerits: 8 })).toEqual({
+		expect(resolveMeritBadgePromotion({ previousTotalMerits: 4, currentTotalMerits: 5 })).toEqual({
 			previousTier: expect.objectContaining({ label: 'Aes I' }),
 			currentTier: expect.objectContaining({ label: 'Aes II' }),
 			isLevelUp: false
@@ -163,7 +164,7 @@ describe('resolveMeritBadgePromotion', () => {
 	});
 
 	it('reports a level up when the promotion reaches a new level', () => {
-		expect(resolveMeritBadgePromotion({ previousTotalMerits: 10, currentTotalMerits: 16 })).toMatchObject({
+		expect(resolveMeritBadgePromotion({ previousTotalMerits: 5, currentTotalMerits: 8 })).toMatchObject({
 			previousTier: { label: 'Aes II' },
 			currentTier: { label: 'Argentum I' },
 			isLevelUp: true
@@ -176,7 +177,7 @@ describe('resolveMeritBadgePromotion', () => {
 	});
 
 	it('returns null when the tier stays the same or drops', () => {
-		expect(resolveMeritBadgePromotion({ previousTotalMerits: 5, currentTotalMerits: 7 })).toBeNull();
+		expect(resolveMeritBadgePromotion({ previousTotalMerits: 8, currentTotalMerits: 10 })).toBeNull();
 		expect(resolveMeritBadgePromotion({ previousTotalMerits: 8, currentTotalMerits: 7 })).toBeNull();
 		expect(resolveMeritBadgePromotion({ previousTotalMerits: 1, currentTotalMerits: 0 })).toBeNull();
 		expect(resolveMeritBadgePromotion({ previousTotalMerits: 2000, currentTotalMerits: 2500 })).toBeNull();
