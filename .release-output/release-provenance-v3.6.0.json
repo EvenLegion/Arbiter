@@ -1,0 +1,455 @@
+{
+	"schemaVersion": 1,
+	"releaseVersion": "3.6.0",
+	"plans": [
+		{
+			"fileName": "claude-nickname-sync-pacing.json",
+			"branch": "claude/nickname-sync-pacing",
+			"bump": "patch",
+			"contributionSummary": "Staff /staff sync_nickname now paces live nickname changes (1 s), stops between users after 12 minutes or 3 long rate-limit waits, and reports the remaining count, matching the badge bulk sync. Needed for the MB-11 bulk number strip over ~4,000 members.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "afb879a8b2a6c65742c386a25c414994bada2a7f",
+					"subject": "feat(staff): pace and time-box /staff sync_nickname",
+					"committedAt": "2026-11-11T09:01:53+00:00",
+					"committedAtMs": 1794387713000,
+					"type": "feat",
+					"scope": "staff",
+					"description": "pace and time-box /staff sync_nickname",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 134,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/134"
+					},
+					"contributor": "Spacesai1or"
+				},
+				{
+					"sha": "05a098bf82e6f14708de71e48fed31c971102aa2",
+					"subject": "docs(staff): describe sync_nickname pacing and stopping",
+					"committedAt": "2026-11-11T09:02:11+00:00",
+					"committedAtMs": 1794387731000,
+					"type": "docs",
+					"scope": "staff",
+					"description": "describe sync_nickname pacing and stopping",
+					"breaking": false,
+					"section": "Maintenance",
+					"pullRequest": {
+						"number": 134,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/134"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "claude-project-thread-0mptxh.json",
+			"branch": "claude/project-thread-0mptxh",
+			"bump": "patch",
+			"contributionSummary": "Adds the dormant merit badge foundations: the frozen 36-tier badge policy in @arbiter/domain, a frozen legacy rank surface, and optional per-tier badge role ID configuration with a read-only startup role check. Badge sync stays off until role IDs are set.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "30b90a2dde5e35c0fa8198031d2e7ddc215b8848",
+					"subject": "feat(domain): add frozen merit badge policy and freeze legacy ranks",
+					"committedAt": "2026-11-10T23:50:09+00:00",
+					"committedAtMs": 1794354609000,
+					"type": "feat",
+					"scope": "domain",
+					"description": "add frozen merit badge policy and freeze legacy ranks",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 124,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/124"
+					},
+					"contributor": "Spacesai1or"
+				},
+				{
+					"sha": "118f8fa321c558eafbee9b2117bfb227dedeae97",
+					"subject": "feat(config): read optional merit badge role IDs and check them at startup",
+					"committedAt": "2026-11-10T23:55:57+00:00",
+					"committedAtMs": 1794354957000,
+					"type": "feat",
+					"scope": "config",
+					"description": "read optional merit badge role IDs and check them at startup",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 124,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/124"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "claude-project-thread-14js5f.json",
+			"branch": "claude/project-thread-14js5f",
+			"bump": "patch",
+			"contributionSummary": "Adds the dormant single-member merit badge sync service, planner and role gateway (MB-03). No caller is wired yet, and it does nothing while no badge role ID is configured.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "321efba9dd664f88a50ff5e0ae0f879214d5cf00",
+					"subject": "feat(merit-badge): add single-member badge sync service and role gateway",
+					"committedAt": "2026-11-11T00:30:30+00:00",
+					"committedAtMs": 1794357030000,
+					"type": "feat",
+					"scope": "merit-badge",
+					"description": "add single-member badge sync service and role gateway",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 125,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/125"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "claude-project-thread-2dtvzj.json",
+			"branch": "claude/project-thread-2dtvzj",
+			"bump": "minor",
+			"contributionSummary": "MB-09 (STE-1568): buildUserNickname stops appending the legacy circled rank symbol (D4) while still stripping the frozen 1-50 set and enforcing the 32-character limit. Merit totals leave the nickname path. Name-change too-long copy drops the rank wording. Held unmerged until rollout runbook step 10.",
+			"publicNote": {
+				"mode": "standalone",
+				"description": "Member nicknames no longer end in a circled rank number, because merit standing now shows as a merit badge role. Any old number is removed the next time a member's nickname updates, and names get two more characters of room.",
+				"section": "Features"
+			},
+			"commits": [
+				{
+					"sha": "4bf19a5bfb820604280460bdc2a509914ea90462",
+					"subject": "feat(nickname): stop adding the merit rank number to nicknames",
+					"committedAt": "2026-11-11T08:31:21+00:00",
+					"committedAtMs": 1794385881000,
+					"type": "feat",
+					"scope": "nickname",
+					"description": "stop adding the merit rank number to nicknames",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 133,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/133"
+					},
+					"contributor": "Spacesai1or"
+				},
+				{
+					"sha": "f334ae0cea7273cc9697b0b67fce42609ffa4332",
+					"subject": "docs(nickname): describe nicknames without the merit rank number",
+					"committedAt": "2026-11-11T08:31:21+00:00",
+					"committedAtMs": 1794385881000,
+					"type": "docs",
+					"scope": "nickname",
+					"description": "describe nicknames without the merit rank number",
+					"breaking": false,
+					"section": "Maintenance",
+					"pullRequest": {
+						"number": 133,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/133"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "claude-project-thread-4nns8n.json",
+			"branch": "claude/project-thread-4nns8n",
+			"bump": "patch",
+			"contributionSummary": "Keeps merit badge roles out of /staff user_migrate role copying and syncs the old and new accounts' badges after the merge (MB-05). Inert until badge role IDs are configured.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "fb2f07a57150195e804ee1ef948274118d051650",
+					"subject": "feat(staff): keep badge roles out of user_migrate and sync both accounts",
+					"committedAt": "2026-11-11T01:27:16+00:00",
+					"committedAtMs": 1794360436000,
+					"type": "feat",
+					"scope": "staff",
+					"description": "keep badge roles out of user_migrate and sync both accounts",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 127,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/127"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "claude-project-thread-9ywc1f.json",
+			"branch": "claude/project-thread-9ywc1f",
+			"bump": "patch",
+			"contributionSummary": "Adds /staff merit_badges sync: a read-only dry-run cutover report with CSV that works before badge role IDs exist, and a staff-only, run-locked live run that applies badge roles paced, time-boxed and stopped on repeated rate-limit waits. Inert until badge role IDs are configured.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "78ddb750580577bc3f19e341f3082be1146cfa4c",
+					"subject": "feat(interactions): forward file attachments in interaction replies",
+					"committedAt": "2026-11-11T01:43:56+00:00",
+					"committedAtMs": 1794361436000,
+					"type": "feat",
+					"scope": "interactions",
+					"description": "forward file attachments in interaction replies",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 128,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/128"
+					},
+					"contributor": "Spacesai1or"
+				},
+				{
+					"sha": "111119f21ae33749b3f884fb93a54dd226dc1539",
+					"subject": "feat(staff): add /staff merit_badges sync cutover report and paced live run",
+					"committedAt": "2026-11-11T01:44:20+00:00",
+					"committedAtMs": 1794361460000,
+					"type": "feat",
+					"scope": "staff",
+					"description": "add /staff merit_badges sync cutover report and paced live run",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 128,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/128"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "claude-project-thread-f63wk8.json",
+			"branch": "claude/project-thread-f63wk8",
+			"bump": "patch",
+			"contributionSummary": "Adds a Current badge line to the manual merit and demerit DM once the member's badge tier has a role, so a demerit that drops a section names the badge the member now holds. No new DM; legacy copy is unchanged while the tier has no role.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "fc928a165f35144ea77bc8a8cd7cfd17d9efc7ec",
+					"subject": "feat(merit): name the current badge in merit and demerit DMs",
+					"committedAt": "2026-11-11T07:41:32+00:00",
+					"committedAtMs": 1794382892000,
+					"type": "feat",
+					"scope": "merit",
+					"description": "name the current badge in merit and demerit DMs",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 131,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/131"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "claude-project-thread-fssz4i.json",
+			"branch": "claude/project-thread-fssz4i",
+			"bump": "patch",
+			"contributionSummary": "Adds dry_run to /staff sync_nickname (MB-08): same per-member decisions as a live run with no setNickname call, ephemeral reply with counts, a sample and a CSV of changes, skipped staff and failures; dry-run logs carry counts only. Docs no longer call bulk nickname sync dev-only.",
+			"publicNote": {
+				"mode": "standalone",
+				"description": "Staff can now preview a nickname sync before running it. The new dry run option on /staff sync_nickname lists every nickname a real sync would change, including names someone edited by hand, and every staff member it would skip, without changing anyone's nickname.",
+				"section": "Features"
+			},
+			"commits": [
+				{
+					"sha": "98c5b338b729b4b9213b1a7548bdfce2f475dae5",
+					"subject": "feat(staff): add dry_run to /staff sync_nickname",
+					"committedAt": "2026-11-11T02:30:03+00:00",
+					"committedAtMs": 1794364203000,
+					"type": "feat",
+					"scope": "staff",
+					"description": "add dry_run to /staff sync_nickname",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 130,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/130"
+					},
+					"contributor": "Spacesai1or"
+				},
+				{
+					"sha": "cbdf24ad82852fec47676f22946602077eaa39ba",
+					"subject": "fix(staff): keep nicknames and failure lists out of dry-run logs",
+					"committedAt": "2026-11-11T02:30:03+00:00",
+					"committedAtMs": 1794364203000,
+					"type": "fix",
+					"scope": "staff",
+					"description": "keep nicknames and failure lists out of dry-run logs",
+					"breaking": false,
+					"section": "Fixes",
+					"pullRequest": {
+						"number": 130,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/130"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "claude-project-thread-pqj0g1.json",
+			"branch": "claude/project-thread-pqj0g1",
+			"bump": "patch",
+			"contributionSummary": "Shows merit badges in member copy (MB-07): the badge-earned DM on every new badge, the next-badge line in the manual award DM, badge fields in /merit list, and /merit rank_list counts per badge tier (9 per page). Each switches only once the relevant badge role is configured, so nothing changes before cutover.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "ff3747b7381633a4cf131f696ded6c7c9109b4b6",
+					"subject": "feat(merit): show merit badges in member DMs, /merit list and rank_list",
+					"committedAt": "2026-11-11T02:05:11+00:00",
+					"committedAtMs": 1794362711000,
+					"type": "feat",
+					"scope": "merit",
+					"description": "show merit badges in member DMs, /merit list and rank_list",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 129,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/129"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "claude-project-thread-qq6wlx.json",
+			"branch": "claude/project-thread-qq6wlx",
+			"bump": "patch",
+			"contributionSummary": "Sets the merit badge ladder top to 1,000 by halving every badge floor (rounded half up, each at least one above the last). Names, tiers and curve shape are unchanged and no merit totals change; members only move to the badge that matches their total. Badge roles are not live yet, so nobody sees a badge move.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "53516d184a290378ea8aada8a5617dfea74acf22",
+					"subject": "feat(merit): set the merit badge ladder top to 1,000",
+					"committedAt": "2026-11-15T22:18:34+00:00",
+					"committedAtMs": 1794781114000,
+					"type": "feat",
+					"scope": "merit",
+					"description": "set the merit badge ladder top to 1,000",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 138,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/138"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		},
+		{
+			"fileName": "claude-project-thread-s950vu.json",
+			"branch": "claude/project-thread-s950vu",
+			"bump": "patch",
+			"contributionSummary": "Wires the merit badge sync into event finalize, manual awards and demerits, the guild-member update and join listeners, and /dev sync_guild_members (MB-04). Inert until badge role IDs are configured.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "4dd26fab85205b120a674f6be7c86439a3401619",
+					"subject": "feat(merit-badge): sync badges after event review and manual merits",
+					"committedAt": "2026-11-11T00:51:35+00:00",
+					"committedAtMs": 1794358295000,
+					"type": "feat",
+					"scope": "merit-badge",
+					"description": "sync badges after event review and manual merits",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 126,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/126"
+					},
+					"contributor": "Spacesai1or"
+				},
+				{
+					"sha": "84c4035a34a73caa55d92c7bc4438432a7d853a5",
+					"subject": "feat(guild-member): sync merit badges from member listeners and dev sync",
+					"committedAt": "2026-11-11T00:51:52+00:00",
+					"committedAtMs": 1794358312000,
+					"type": "feat",
+					"scope": "guild-member",
+					"description": "sync merit badges from member listeners and dev sync",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 126,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/126"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		}
+	],
+	"publicNotes": [
+		{
+			"mode": "standalone",
+			"group": null,
+			"section": "Features",
+			"description": "Staff can now preview a nickname sync before running it. The new dry run option on /staff sync_nickname lists every nickname a real sync would change, including names someone edited by hand, and every staff member it would skip, without changing anyone's nickname.",
+			"planFiles": [
+				"claude-project-thread-fssz4i.json"
+			],
+			"branches": [
+				"claude/project-thread-fssz4i"
+			],
+			"commitShas": [
+				"98c5b338b729b4b9213b1a7548bdfce2f475dae5",
+				"cbdf24ad82852fec47676f22946602077eaa39ba"
+			],
+			"pullRequests": [
+				{
+					"number": 130,
+					"url": "https://github.com/EvenLegion/Arbiter/pull/130"
+				}
+			],
+			"contributors": [
+				"Spacesai1or"
+			]
+		},
+		{
+			"mode": "standalone",
+			"group": null,
+			"section": "Features",
+			"description": "Member nicknames no longer end in a circled rank number, because merit standing now shows as a merit badge role. Any old number is removed the next time a member's nickname updates, and names get two more characters of room.",
+			"planFiles": [
+				"claude-project-thread-2dtvzj.json"
+			],
+			"branches": [
+				"claude/project-thread-2dtvzj"
+			],
+			"commitShas": [
+				"4bf19a5bfb820604280460bdc2a509914ea90462",
+				"f334ae0cea7273cc9697b0b67fce42609ffa4332"
+			],
+			"pullRequests": [
+				{
+					"number": 133,
+					"url": "https://github.com/EvenLegion/Arbiter/pull/133"
+				}
+			],
+			"contributors": [
+				"Spacesai1or"
+			]
+		}
+	]
+}

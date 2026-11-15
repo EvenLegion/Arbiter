@@ -112,6 +112,28 @@ describe('interactionResponder', () => {
 		);
 		expect(logger.warn).not.toHaveBeenCalled();
 	});
+
+	it('leaves the raw error, and its request body, out of the log when logRawError is false', async () => {
+		const logger = createMockLogger();
+		const apiError = Object.assign(new Error('Unknown interaction'), {
+			code: '10062',
+			requestBody: { files: [{ name: 'report.csv', data: 'secret nickname' }], json: { content: 'secret nickname' } }
+		});
+		const interaction = createMockInteraction({
+			editReply: vi.fn(async () => {
+				throw apiError;
+			})
+		});
+		const responder = createInteractionResponder({ interaction, context: { requestId: 'req-5', logger }, logger, caller: 'test' });
+
+		await responder.safeEditReply({ content: 'secret nickname' }, { logRawError: false });
+		await responder.safeEditReply({ content: 'other' });
+
+		const [sanitized] = logger.error.mock.calls[0];
+		expect(sanitized).toEqual({ errorMessage: 'Unknown interaction', errorName: 'Error', errorCode: '10062', caller: 'test' });
+		expect(JSON.stringify(sanitized)).not.toContain('secret');
+		expect(logger.error.mock.calls[1][0]).toMatchObject({ err: apiError });
+	});
 });
 
 function createMockInteraction(overrides: Partial<ReturnType<typeof baseInteraction>> = {}) {
@@ -146,3 +168,27 @@ function createMockLogger() {
 		})
 	};
 }
+
+describe('interactionResponder files', () => {
+	it('forwards files to reply, editReply and followUp', async () => {
+		const interaction = createMockInteraction();
+		const responder = createInteractionResponder({
+			interaction,
+			context: {
+				requestId: 'req-files',
+				logger: createMockLogger()
+			},
+			logger: createMockLogger(),
+			caller: 'test'
+		});
+		const files = [{ attachment: Buffer.from('a,b\r\n'), name: 'report.csv' }];
+
+		await responder.safeReply({ content: 'reply', files });
+		await responder.safeEditReply({ content: 'edit', files });
+		await responder.safeFollowUp({ content: 'follow', files });
+
+		expect(interaction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: 'reply', files }));
+		expect(interaction.editReply).toHaveBeenCalledWith(expect.objectContaining({ content: 'edit', files }));
+		expect(interaction.followUp).toHaveBeenCalledWith(expect.objectContaining({ content: 'follow', files }));
+	});
+});

@@ -80,7 +80,7 @@ describe('nameChangeReviewResultPresenter', () => {
 			})
 		).toEqual({
 			content:
-				'Cannot approve this request because the resulting nickname would exceed Discord limits after organization formatting/rank is applied. Ask the requester for a shorter name.'
+				'Cannot approve this request because the resulting nickname, including any division prefix, would exceed Discord limits. Ask the requester for a shorter name.'
 		});
 	});
 

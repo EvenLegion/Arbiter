@@ -94,11 +94,34 @@ describe('manualMeritResultPresenter', () => {
 				linkedEventName: 'Friday Op',
 				reason: 'Helped lead',
 				dmSent: true,
-				recipientNicknameTooLong: false
+				recipientNicknameTooLong: false,
+				recipientBadgeSyncFailed: false
 			})
 		).toEqual({
 			delivery: 'editReply',
 			content: 'Applied **+2 merits** (On Time) to <@user-1>\nLinked event: **Friday Op**\nReason: Helped lead\nRecipient notified via DM.'
+		});
+	});
+
+	it('adds a badge warning line when the badge role could not be updated', () => {
+		expect(
+			presentManualMeritResult({
+				kind: 'awarded',
+				meritRecordId: 1,
+				targetDiscordUserId: 'user-1',
+				meritTypeCode: 'ON_TIME',
+				meritTypeName: 'On Time',
+				meritAmount: -1,
+				linkedEventName: null,
+				reason: null,
+				dmSent: true,
+				recipientNicknameTooLong: false,
+				recipientBadgeSyncFailed: true
+			})
+		).toEqual({
+			delivery: 'editReply',
+			content:
+				'Applied **-1 merit** (On Time) to <@user-1>\nRecipient notified via DM.\nMerit badge role could not be updated. The merit was still applied.'
 		});
 	});
 });

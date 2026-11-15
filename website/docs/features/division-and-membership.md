@@ -19,12 +19,12 @@ That includes:
 
 This workflow family is easier to reason about when you separate four related but different things:
 
-| Concern                   | Primary source of truth                                          | Notes                                                                             |
-| ------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Division definitions      | Postgres plus the in-process division cache                      | Definitions drive permissions, prefixes, role mappings, and merit-rank visibility |
-| Public division selection | Discord role state first, then reconciliation into durable state | The public selector updates roles directly                                        |
-| Staff membership mutation | Durable division membership plus follow-up sync behavior         | Used for administrative correction and maintenance                                |
-| Effective nickname        | Computed projection, not free-form text                          | Depends on base nickname, divisions, merit totals, and policy rules               |
+| Concern                   | Primary source of truth                                          | Notes                                                      |
+| ------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------- |
+| Division definitions      | Postgres plus the in-process division cache                      | Definitions drive permissions, prefixes, and role mappings |
+| Public division selection | Discord role state first, then reconciliation into durable state | The public selector updates roles directly                 |
+| Staff membership mutation | Durable division membership plus follow-up sync behavior         | Used for administrative correction and maintenance         |
+| Effective nickname        | Computed projection, not free-form text                          | Depends on base nickname, divisions, and policy rules      |
 
 ## The Core Identity Model
 
@@ -35,8 +35,8 @@ A member's effective nickname is a computed projection of:
 - the stored base nickname
 - the member's durable division memberships
 - division priority and prefix rules
-- whether the selected division shows merit rank
-- the member's current total merits
+
+Nicknames carry no merit rank. The old circled rank number (① to ㊿) was retired when merit badge roles went live; any leftover number is stripped on the member's next nickname sync. Merit standing now shows as a merit badge role.
 
 That is why nickname behavior is its own workflow area instead of a few string helpers scattered around the repo.
 
@@ -47,7 +47,8 @@ Division records carry more than a label. They define:
 - kind and priority implications
 - optional display prefix
 - optional Discord role mapping
-- whether merit rank should be shown in the final nickname
+
+The `showRank` column is still in the schema but nothing reads it since the rank number was retired. A follow-up ticket drops it.
 
 Because those rules affect permissions, role reconciliation, public division selection, and nickname output, the repo keeps division data cached in memory and refreshes it on a schedule.
 
@@ -79,16 +80,22 @@ This is useful when Discord role state and database state need to be brought bac
 
 Guild-member role changes are an important source of truth for some automation paths.
 
-When a member's Discord roles change, the guild-member update listener can:
+When a member's Discord roles change in the configured guild, the guild-member update listener can (updates from other guilds are ignored):
 
 - detect relevant role diffs
 - reconcile durable division memberships from the current Discord role set
 - recompute the member's nickname
+- re-check the member's merit badge role
+
+If only merit badge roles changed (Arbiter's own badge sync, or someone editing a badge role by hand), the listener skips membership reconciliation and the nickname and only re-checks the badge, so a hand-edited badge is put back. Badge roles never feed membership reconciliation. When Discord sends a partial old member, the change is handled as a full role change.
 
 When a new guild member joins, Arbiter currently:
 
 - upserts the user into durable state
+- restores a returning member's merit badge role from their stored total (configured guild only)
 - sends the welcome message in the configured welcome channel
+
+A badge failure never stops the welcome message. Listener badge syncs always read the total fresh from Postgres.
 
 Together, those flows keep the durable user directory warm and keep Discord-side role administration connected to Arbiter's identity model.
 
@@ -98,8 +105,7 @@ Nickname computation has real policy behind it. The workflow considers:
 
 - whether the member is the guild owner
 - which division should win prefix priority
-- whether the chosen division shows merit rank
-- current total merits
+- stripping any leftover legacy rank number (① to ㊿)
 - Discord's nickname length limit
 
 Many bulk nickname workflows skip staff by default. That is intentional. Staff often need operational flexibility or carry role combinations that make automatic mass updates riskier.
@@ -116,7 +122,7 @@ The flow looks like this:
 4. staff can approve, deny, or edit the pending requested name
 5. approval updates durable and Discord-facing identity state
 
-Normalization matters here. The requested name is expected to be a base name, not a full decorated nickname with division prefixes or merit-rank suffixes.
+Normalization matters here. The requested name is expected to be a base name, not a full decorated nickname with division prefixes or legacy merit-rank numbers. Names that contain ① to ㊿ are still rejected.
 
 The thread-based review flow gives the repo three things:
 
@@ -124,14 +130,34 @@ The thread-based review flow gives the repo three things:
 - collaborative staff review in Discord
 - a stable reference that can be edited, updated, and archived as the request progresses
 
+## Staff Nickname Sync Command
+
+`/staff sync_nickname [user] [include_staff] [dry_run]` recomputes and applies the nickname for every user in the database, or for one selected user. It is a staff command, not a development command.
+
+- **Live run (default).** Members with a staff role are skipped unless `include_staff` is true. The reply counts updated, unchanged, skipped and failed members.
+- **Dry run (`dry_run: true`).** Makes the same decisions as a live run, including `include_staff`, but changes no nickname. The ephemeral reply shows the counts and up to 10 sample changes, plus a CSV with each change (Discord ID, stored username, current and planned nickname), each skipped staff member and each member it would fail on, with the reason. A nickname someone edited by hand in Discord shows up as a change, because a live run overwrites it.
+
+- **Pacing and stopping.** Users are processed one at a time. A live run pauses after each nickname it changes and relies on the discord.js rate-limit queue. A live run or dry run stops between users after 12 minutes or after repeated long rate-limit waits, so the reply arrives before Discord's 15-minute limit. It then reports the remaining count. There is no checkpoint: run the command again and users who are already correct are skipped, at no Discord cost. Pacing and limits are constants in `src/lib/services/bulk-nickname/bulkNicknameService.ts`.
+
+A dry run logs counts only; its nicknames and failures appear only in the ephemeral reply and its CSV. If that reply cannot be sent, the error log keeps only the error's name, message and code. A live run's summary log also lists failures (Discord ID, stored username, reason), never nicknames.
+
+## Merit Badge Sync Command
+
+`/staff merit_badges sync [user] [dry_run]` reconciles merit badge roles for every non-bot member, or for one selected member. Arbiter re-checks the staff capability inside the handler.
+
+- **Dry run (default).** Read-only. It works before any badge role ID is configured, so it is the cutover report: an ephemeral summary with a tier histogram, planned action counts (add, swap, remove, none, unconfigured) and the badge role hierarchy check, plus a CSV with each member's Discord ID, stored username, total, legacy level and symbol, earned badge, current badge roles and planned action. CSV text cells that a spreadsheet could run as a formula are escaped.
+- **Live run (`dry_run: false`).** Only one live run at a time. It first checks that badge role IDs are configured, that Arbiter has Manage Roles and that Arbiter can assign every configured badge role; otherwise it changes nothing. Members are processed one at a time in Discord ID order. Totals are read 100 members at a time; if a read fails, those members count as failed and get no role calls. A member who already has the right badge costs zero Discord calls. Any other member goes through the single-member badge sync, which re-reads the total inside the member lock.
+- **Pacing and stopping.** Arbiter pauses after each member whose roles changed and relies on the discord.js rate-limit queue. A run stops between members after 12 minutes or after repeated long rate-limit waits, and reports processed and remaining counts. There is no checkpoint: run the command again and correct members are skipped.
+
+The command never sends DMs and never creates or edits roles. The command's own report and run logs carry counts only; each member a live run changes or fails still gets the standard badge sync log line (Discord ID, tier numbers and role IDs, never names or totals). Pacing and limits are constants in `src/lib/services/merit-badge/meritBadgeBulkSyncService.ts`.
+
 ## Development Repair Commands
 
 The development-only command group exists because identity and membership state sometimes need repair or migration support during development.
 
 Current repair-style workflows include:
 
-- syncing guild members into the database
-- bulk nickname synchronization
+- syncing guild members into the database (this also syncs each member's merit badge role and reports badge updates and failures)
 - bulk nickname transformations for cleanup and migration work
 
 These are intentionally kept behind development mode because they are operational tools, not normal production user flows.
@@ -146,6 +172,7 @@ Today this area is concentrated in a few predictable places:
 | Staff membership mutation          | `src/lib/features/staff/division-membership`                                                          | `src/lib/services/division-membership`                                                                        |
 | Guild-member add/update automation | `src/lib/features/guild-member`                                                                       | `src/lib/services/guild-member`, `src/lib/services/guild-member-change`, `src/lib/services/guild-member-sync` |
 | Nickname computation and bulk sync | `src/lib/features/staff/nickname-sync`                                                                | `src/lib/services/nickname`, `src/lib/services/bulk-nickname`, `src/lib/services/merit-rank`                  |
+| Merit badge bulk sync              | `src/lib/features/staff/merit-badges`                                                                 | `src/lib/services/merit-badge`                                                                                |
 | Name-change request and review     | `src/lib/features/ticket/request`, `src/lib/features/ticket/review`, `src/lib/features/ticket/thread` | `src/lib/services/name-change`                                                                                |
 
 That map is a current orientation aid, not a promise that file paths will never move.

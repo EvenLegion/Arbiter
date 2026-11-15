@@ -6,7 +6,16 @@ const mocks = vi.hoisted(() => ({
 	resolveConfiguredGuild: vi.fn(),
 	resolveInteractionActor: vi.fn(),
 	getMeritRankBreakdown: vi.fn(),
-	buildMeritRankListPayload: vi.fn()
+	buildMeritRankListPayload: vi.fn(),
+	allBadgeRolesConfigured: false
+}));
+
+vi.mock('../../../../../src/config/env/discord', () => ({
+	ENV_MERIT_BADGE_ROLES: {
+		get configuredRoles() {
+			return Array.from({ length: mocks.allBadgeRolesConfigured ? 36 : 6 });
+		}
+	}
 }));
 
 vi.mock('../../../../../src/lib/discord/interactions/interactionResponder', () => ({
@@ -25,8 +34,7 @@ vi.mock('../../../../../src/integrations/prisma/repositories', () => ({
 }));
 
 vi.mock('../../../../../src/lib/features/merit/rank-list/buildMeritRankListPayload', () => ({
-	buildMeritRankListPayload: mocks.buildMeritRankListPayload,
-	MERIT_RANK_LIST_PAGE_SIZE: 10
+	buildMeritRankListPayload: mocks.buildMeritRankListPayload
 }));
 
 import { handleMeritRankList, handleMeritRankListPageButton } from '../../../../../src/lib/features/merit/rank-list/handleMeritRankList';
@@ -38,6 +46,7 @@ describe('handleMeritRankList', () => {
 		mocks.resolveInteractionActor.mockReset();
 		mocks.getMeritRankBreakdown.mockReset();
 		mocks.buildMeritRankListPayload.mockReset();
+		mocks.allBadgeRolesConfigured = false;
 	});
 
 	it('requires staff before loading the initial merit rank list', async () => {
@@ -78,13 +87,45 @@ describe('handleMeritRankList', () => {
 		expect(responder.deferReply).toHaveBeenCalledWith({
 			flags: MessageFlags.Ephemeral
 		});
-		expect(mocks.getMeritRankBreakdown).toHaveBeenCalledTimes(1);
+		expect(mocks.getMeritRankBreakdown).toHaveBeenCalledWith({ ladder: 'legacy' });
 		expect(mocks.buildMeritRankListPayload).toHaveBeenCalledWith({
 			entries,
 			page: 1,
-			pageSize: 10
+			ladder: 'legacy'
 		});
 		expect(responder.safeEditReply).toHaveBeenCalledWith(payload);
+	});
+
+	it('counts by badge tier once every badge role is configured, for the first view and for pages', async () => {
+		const responder = createResponder();
+		const logger = createLogger();
+		const entries = [{ level: 1 }];
+		const payload = { content: 'badge list payload' };
+
+		mocks.allBadgeRolesConfigured = true;
+		mocks.createInteractionResponder.mockReturnValue(responder);
+		mocks.resolveConfiguredGuild.mockResolvedValue({ id: 'guild-1' });
+		mocks.resolveInteractionActor.mockResolvedValue({ actor: { discordUserId: 'staff-1' } });
+		mocks.getMeritRankBreakdown.mockResolvedValue(entries);
+		mocks.buildMeritRankListPayload.mockReturnValue(payload);
+
+		await handleMeritRankList({
+			interaction: createChatInputInteraction(false),
+			context: createContext(logger)
+		});
+		await handleMeritRankListPageButton({
+			interaction: createButtonInteraction(),
+			parsedMeritRankListButton: {
+				action: 'page',
+				page: 5
+			},
+			context: createContext(logger)
+		});
+
+		expect(mocks.getMeritRankBreakdown).toHaveBeenNthCalledWith(1, { ladder: 'badge' });
+		expect(mocks.getMeritRankBreakdown).toHaveBeenNthCalledWith(2, { ladder: 'badge' });
+		expect(mocks.buildMeritRankListPayload).toHaveBeenNthCalledWith(1, { entries, page: 1, ladder: 'badge' });
+		expect(mocks.buildMeritRankListPayload).toHaveBeenNthCalledWith(2, { entries, page: 5, ladder: 'badge' });
 	});
 
 	it('does not paginate the merit rank list for non-staff users', async () => {

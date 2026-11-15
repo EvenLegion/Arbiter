@@ -1,4 +1,4 @@
-import type { Guild, GuildMember } from 'discord.js';
+import { RESTEvents, type Guild, type GuildMember, type RateLimitData } from 'discord.js';
 
 import { refreshDivisionCache } from '../../../discord/guild/divisions';
 import { getDbUser, listDbUsers } from '../../../discord/guild/users';
@@ -26,10 +26,18 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 			),
 		getMember: members.getMember,
 		listMembers: members.listMembers,
+		watchRateLimits: (onWait: (waitMs: number) => void) => {
+			const listener = (info: RateLimitData) => onWait(info.timeToReset);
+			guild.client.rest.on(RESTEvents.RateLimited, listener);
+			return () => {
+				guild.client.rest.off(RESTEvents.RateLimited, listener);
+			};
+		},
 		syncNickname: ({
 			target,
 			member,
-			includeStaff
+			includeStaff,
+			dryRun
 		}: {
 			target: {
 				id: string;
@@ -37,6 +45,7 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 			};
 			member: GuildMember;
 			includeStaff: boolean;
+			dryRun: boolean;
 		}) =>
 			createGuildNicknameWorkflow({
 				guild,
@@ -48,7 +57,8 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 						step: 'buildUserNickname'
 					}
 				}),
-				includeStaff
+				includeStaff,
+				dryRun
 			})
 				.syncNickname({
 					discordUserId: member.id,
@@ -61,7 +71,9 @@ export function createStaffBulkNicknameSyncDeps({ guild, context }: { guild: Gui
 
 					return {
 						outcome: result.outcome,
-						reason: result.reason
+						reason: result.reason,
+						currentNickname: result.member.nickname,
+						computedNickname: result.computedNickname
 					};
 				})
 	};

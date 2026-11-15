@@ -2,9 +2,6 @@ import { DivisionKind } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-	meritRepository: {
-		getUsersTotalMerits: vi.fn()
-	},
 	staffMedalRepository: {
 		getRecentEventById: vi.fn(),
 		listEventAttendees: vi.fn()
@@ -19,7 +16,6 @@ vi.mock('../../../../../../src/lib/services/nickname/buildUserNickname', () => (
 }));
 
 vi.mock('../../../../../../src/integrations/prisma/repositories', () => ({
-	meritRepository: mocks.meritRepository,
 	staffMedalRepository: mocks.staffMedalRepository
 }));
 
@@ -27,7 +23,6 @@ import { buildEventAttendeeAutocompleteChoices } from '../../../../../../src/lib
 
 describe('staffMedalAutocompleteChoices', () => {
 	beforeEach(() => {
-		mocks.meritRepository.getUsersTotalMerits.mockReset();
 		mocks.staffMedalRepository.getRecentEventById.mockReset();
 		mocks.staffMedalRepository.listEventAttendees.mockReset();
 		mocks.buildUserNickname.mockReset();
@@ -49,7 +44,6 @@ describe('staffMedalAutocompleteChoices', () => {
 		).resolves.toEqual([]);
 
 		expect(mocks.staffMedalRepository.listEventAttendees).not.toHaveBeenCalled();
-		expect(mocks.meritRepository.getUsersTotalMerits).not.toHaveBeenCalled();
 	});
 
 	it('loads attendee suggestions for recent eligible medal events', async () => {
@@ -90,7 +84,6 @@ describe('staffMedalAutocompleteChoices', () => {
 				}
 			}
 		]);
-		mocks.meritRepository.getUsersTotalMerits.mockResolvedValue(new Map([['db-1', 0]]));
 		mocks.buildUserNickname.mockReturnValue({
 			newUserNickname: 'RES | Spacesailor'
 		});
@@ -136,7 +129,6 @@ describe('staffMedalAutocompleteChoices', () => {
 				}
 			}
 		]);
-		mocks.meritRepository.getUsersTotalMerits.mockResolvedValue(new Map([['db-1', 0]]));
 		const unexpectedError = new Error('boom');
 		mocks.buildUserNickname.mockImplementation(() => {
 			throw unexpectedError;

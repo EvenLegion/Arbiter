@@ -66,4 +66,44 @@ describe('buildMeritRankListPayload', () => {
 			'merit:rank-list:page-disabled:next:1'
 		]);
 	});
+
+	it('lists badge tiers 9 per page, so each page is 3 badge levels, and clamps old pages', () => {
+		const entries = Array.from({ length: 36 }, (_, index) => ({ ...emptyCounts(), level: index + 1, lgnCount: index }));
+
+		const firstPage = buildMeritRankListPayload({ entries, page: 1, ladder: 'badge' });
+		const legacyPageFive = buildMeritRankListPayload({ entries, page: 5, ladder: 'badge' });
+
+		expect(firstPage.embeds[0]?.data.title).toBe('Merit Badge List (Ferrum-Argentum)');
+		expect(firstPage.embeds[0]?.data.footer?.text).toBe('Page 1/4');
+		const table = firstPage.embeds[0]?.data.fields?.[0]?.value ?? '';
+		expect(table).toContain('Badge        LGN/RES LGN RES\nFerrum I           0   0   0');
+		expect(table).toContain('Ferrum I');
+		expect(table).toContain('Argentum III');
+		expect(table).not.toContain('Aurum I');
+		expect(legacyPageFive.embeds[0]?.data.title).toBe('Merit Badge List (Sanguis-Supra Omnia)');
+		expect(legacyPageFive.embeds[0]?.data.footer?.text).toBe('Page 4/4');
+		expect(legacyPageFive.embeds[0]?.data.fields?.[0]?.value).toContain('Supra Omnia III');
+		expect(legacyPageFive.components[0]?.components.map((component) => component.data.custom_id)).toEqual([
+			'merit:rank-list:page:3',
+			'merit:rank-list:page-indicator:4',
+			'merit:rank-list:page-disabled:next:4'
+		]);
+	});
 });
+
+function emptyCounts() {
+	return {
+		level: 0,
+		lgnOrResCount: 0,
+		lgnCount: 0,
+		resCount: 0,
+		centCount: 0,
+		optCount: 0,
+		nvyCount: 0,
+		nvyLCount: 0,
+		mrnCount: 0,
+		mrnLCount: 0,
+		supCount: 0,
+		supLCount: 0
+	};
+}

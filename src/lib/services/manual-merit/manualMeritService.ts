@@ -2,6 +2,7 @@ import { MeritTypeCode } from '@prisma/client';
 import { z } from 'zod';
 
 import type { ActorContext } from '../_shared/actor';
+import { buildNextMeritBadgeLine, resolveMeritBadgeCopy, type MeritBadgeCopy, type MeritBadgeCopyRoles } from '../merit-rank/meritBadgeMessages';
 import { resolveMeritRankProgress } from '../merit-rank/meritRank';
 
 const PLAYER_DISCORD_USER_ID_SCHEMA = z.string().trim().min(1);
@@ -46,8 +47,12 @@ export type ManualMeritServiceDeps = {
 	syncRecipientNickname: (params: { discordUserId: string }) => Promise<'ok' | 'nickname-too-long' | 'failed'>;
 	computeAwarderNickname: (params: { discordUserId: string }) => Promise<string | null>;
 	getRecipientTotalMerits: (params: { userDbUserId: string }) => Promise<number>;
+	/** Syncs the recipient's merit badge from the post-commit total. */
+	syncRecipientBadge: (params: { discordUserId: string; totalMerits: number }) => Promise<'ok' | 'failed'>;
 	notifyRankUp: (params: { discordUserId: string; previousTotalMerits: number; currentTotalMerits: number }) => Promise<void>;
 	sendRecipientDm: (params: { discordUserId: string; content: string }) => Promise<boolean>;
+	/** Configured badge roles; the DM's next line names the next badge once both the member's tier and the next tier have a role. */
+	badgeRoles: MeritBadgeCopyRoles;
 };
 
 export type AwardManualMeritWorkflowResult =
@@ -70,6 +75,7 @@ export type AwardManualMeritWorkflowResult =
 			reason: string | null;
 			dmSent: boolean;
 			recipientNicknameTooLong: boolean;
+			recipientBadgeSyncFailed: boolean;
 	  };
 
 export type AwardManualMeritWorkflowInput = {
@@ -157,7 +163,8 @@ export async function awardManualMeritWorkflow(
 		linkedEventName: linkedEvent?.name ?? null,
 		reason: input.reason,
 		dmSent: notifications.dmSent,
-		recipientNicknameTooLong: notifications.recipientNicknameTooLong
+		recipientNicknameTooLong: notifications.recipientNicknameTooLong,
+		recipientBadgeSyncFailed: notifications.recipientBadgeSyncFailed
 	};
 }
 
@@ -276,7 +283,13 @@ async function finalizeManualMeritNotifications({
 }: {
 	deps: Pick<
 		ManualMeritServiceDeps,
-		'syncRecipientNickname' | 'computeAwarderNickname' | 'getRecipientTotalMerits' | 'notifyRankUp' | 'sendRecipientDm'
+		| 'syncRecipientNickname'
+		| 'computeAwarderNickname'
+		| 'getRecipientTotalMerits'
+		| 'syncRecipientBadge'
+		| 'notifyRankUp'
+		| 'sendRecipientDm'
+		| 'badgeRoles'
 	>;
 	targetMember: ResolvedManualMeritMember;
 	awarderMember: ResolvedManualMeritMember;
@@ -299,6 +312,11 @@ async function finalizeManualMeritNotifications({
 	const currentTotalMerits = await deps.getRecipientTotalMerits({
 		userDbUserId: targetDbUserId
 	});
+	const recipientBadgeSyncFailed = await syncRecipientBadgeWithoutThrowing(deps, {
+		discordUserId: targetMember.discordUserId,
+		totalMerits: currentTotalMerits
+	});
+
 	const previousTotalMerits = Math.max(0, currentTotalMerits - meritAmount);
 	await deps.notifyRankUp({
 		discordUserId: targetMember.discordUserId,
@@ -314,14 +332,28 @@ async function finalizeManualMeritNotifications({
 			currentTotalMerits,
 			linkedEventName,
 			reason,
-			awarderNickname: awarderNicknameForDm
+			awarderNickname: awarderNicknameForDm,
+			badgeRoles: deps.badgeRoles
 		})
 	});
 
 	return {
 		dmSent,
-		recipientNicknameTooLong
+		recipientNicknameTooLong,
+		recipientBadgeSyncFailed
 	};
+}
+
+/** The merit is already committed, so a badge failure only adds a warning to the reply. */
+async function syncRecipientBadgeWithoutThrowing(
+	deps: Pick<ManualMeritServiceDeps, 'syncRecipientBadge'>,
+	params: { discordUserId: string; totalMerits: number }
+) {
+	try {
+		return (await deps.syncRecipientBadge(params)) === 'failed';
+	} catch {
+		return true;
+	}
 }
 
 function buildManualMeritDmContent({
@@ -330,7 +362,8 @@ function buildManualMeritDmContent({
 	currentTotalMerits,
 	linkedEventName,
 	reason,
-	awarderNickname
+	awarderNickname,
+	badgeRoles
 }: {
 	meritTypeName: string;
 	meritAmount: number;
@@ -338,14 +371,18 @@ function buildManualMeritDmContent({
 	linkedEventName: string | null;
 	reason: string | null;
 	awarderNickname: string;
+	badgeRoles: MeritBadgeCopyRoles;
 }) {
 	const meritChangeLabel = `${formatSignedMeritAmount(meritAmount)} ${Math.abs(meritAmount) === 1 ? 'merit' : 'merits'}`;
 	const dmReasonLine = reason ?? 'Not provided';
 	const dmEventLine = linkedEventName ?? 'None';
-	const rankProgress = resolveMeritRankProgress(currentTotalMerits);
-	const nextRankLine = rankProgress.nextLevel
-		? `Next rank level in **${rankProgress.meritsRemainingToNextLevel} merit${rankProgress.meritsRemainingToNextLevel === 1 ? '' : 's'}**`
-		: 'You are at the maximum merit rank level.';
+	const badgeCopy = resolveMeritBadgeCopy({
+		totalMerits: currentTotalMerits,
+		badgeRoles
+	});
+	// Names the badge after any change, including a demerit that drops a section.
+	const currentBadgeLine = badgeCopy ? `Current badge: **${badgeCopy.progress.currentTier?.label ?? 'No badge yet'}**` : null;
+	const nextRankLine = buildNextProgressLine({ currentTotalMerits, badgeCopy });
 
 	return [
 		`**${awarderNickname}** gave you **${meritTypeName}**`,
@@ -353,10 +390,23 @@ function buildManualMeritDmContent({
 		`Reason: ${dmReasonLine}`,
 		dmEventLine !== 'None' ? `Related event: ${dmEventLine}` : null,
 		`You have **${currentTotalMerits} merits total**`,
+		currentBadgeLine,
 		nextRankLine
 	]
 		.filter((line): line is string => line !== null)
 		.join('\n');
+}
+
+function buildNextProgressLine({ currentTotalMerits, badgeCopy }: { currentTotalMerits: number; badgeCopy: MeritBadgeCopy | null }) {
+	const badgeLine = badgeCopy ? buildNextMeritBadgeLine(badgeCopy) : null;
+	if (badgeLine) {
+		return badgeLine;
+	}
+
+	const rankProgress = resolveMeritRankProgress(currentTotalMerits);
+	return rankProgress.nextLevel
+		? `Next rank level in **${rankProgress.meritsRemainingToNextLevel} merit${rankProgress.meritsRemainingToNextLevel === 1 ? '' : 's'}**`
+		: 'You are at the maximum merit rank level.';
 }
 
 function formatSignedMeritAmount(amount: number) {

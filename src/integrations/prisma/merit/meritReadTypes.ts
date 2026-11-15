@@ -37,7 +37,11 @@ export type GetUsersTotalMeritsParams = {
 	userDbUserIds: string[];
 };
 
+/** Which ladder `/merit rank_list` counts by: the frozen 50 legacy levels or the 36 badge tiers. */
+export type MeritRankBreakdownLadder = 'legacy' | 'badge';
+
 export type MeritRankBreakdownEntry = {
+	/** The legacy level (1–50) or, on the badge ladder, the badge tier (1–36). */
 	level: number;
 	lgnOrResCount: number;
 	lgnCount: number;

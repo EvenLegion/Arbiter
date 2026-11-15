@@ -1,6 +1,6 @@
 import type { Guild, Role } from 'discord.js';
 
-import { meritRepository, staffMedalRepository } from '../../../../integrations/prisma/repositories';
+import { staffMedalRepository } from '../../../../integrations/prisma/repositories';
 import { buildUserNickname, isNicknameTooLongError } from '../../../services/nickname/buildUserNickname';
 import { MEDAL_ROLE_PREFIX, SEVEN_DAYS_IN_MS } from './staffMedalConstants';
 
@@ -49,12 +49,8 @@ export async function buildEventAttendeeAutocompleteChoices({ eventSessionId, qu
 		query,
 		limit: DEFAULT_AUTOCOMPLETE_LIMIT
 	});
-	const totalMeritsByUserId = await meritRepository.getUsersTotalMerits({
-		userDbUserIds: attendees.map((attendee) => attendee.user.id)
-	});
-
 	return attendees.map((attendee) => ({
-		name: buildUserChoiceLabel(attendee.user, totalMeritsByUserId.get(attendee.user.id) ?? 0).slice(0, 100),
+		name: buildUserChoiceLabel(attendee.user).slice(0, 100),
 		value: attendee.user.discordUserId
 	}));
 }
@@ -64,28 +60,21 @@ export async function buildStandaloneMedalEligibleUserChoices({ query }: { query
 		query,
 		limit: DEFAULT_AUTOCOMPLETE_LIMIT
 	});
-	const totalMeritsByUserId = await meritRepository.getUsersTotalMerits({
-		userDbUserIds: users.map((user) => user.id)
-	});
-
 	return users.map((user) => ({
-		name: buildUserChoiceLabel(user, totalMeritsByUserId.get(user.id) ?? 0).slice(0, 100),
+		name: buildUserChoiceLabel(user).slice(0, 100),
 		value: user.discordUserId
 	}));
 }
 
-function buildUserChoiceLabel(
-	user: {
-		id: string;
-		discordUserId: string;
-		discordNickname: string | null;
-		discordUsername: string | null;
-		divisionMemberships: Array<{
-			division: Parameters<typeof buildUserNickname>[0]['divisions'][number];
-		}>;
-	},
-	totalMerits: number
-) {
+function buildUserChoiceLabel(user: {
+	id: string;
+	discordUserId: string;
+	discordNickname: string | null;
+	discordUsername: string | null;
+	divisionMemberships: Array<{
+		division: Parameters<typeof buildUserNickname>[0]['divisions'][number];
+	}>;
+}) {
 	const baseNickname = user.discordNickname?.trim() || user.discordUsername?.trim() || user.discordUserId;
 
 	try {
@@ -93,8 +82,7 @@ function buildUserChoiceLabel(
 			buildUserNickname({
 				isGuildOwner: false,
 				baseNickname,
-				divisions: user.divisionMemberships.map((membership) => membership.division),
-				totalMerits
+				divisions: user.divisionMemberships.map((membership) => membership.division)
 			}).newUserNickname ?? baseNickname
 		);
 	} catch (error) {

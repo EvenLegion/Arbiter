@@ -120,9 +120,10 @@ export async function handleGiveMerit({ interaction, context }: HandleGiveMeritP
 			eventSessionId: parsedEventSessionId?.success ? parsedEventSessionId.data : null,
 			meritRecordId: result.meritRecordId,
 			dmSent: result.dmSent,
-			recipientNicknameTooLong: result.recipientNicknameTooLong
+			recipientNicknameTooLong: result.recipientNicknameTooLong,
+			recipientBadgeSyncFailed: result.recipientBadgeSyncFailed
 		};
-		if (!result.dmSent || result.recipientNicknameTooLong) {
+		if (!result.dmSent || result.recipientNicknameTooLong || result.recipientBadgeSyncFailed) {
 			logger.warn(logBindings, 'merit.manual_award.completed_with_warnings');
 		} else {
 			logger.info(logBindings, 'merit.manual_award.completed');

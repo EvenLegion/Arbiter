@@ -42,8 +42,7 @@ describe('presentNameChangeTicketResult', () => {
 			})
 		).toEqual({
 			delivery: 'editReply',
-			content:
-				'Requested name is too long after organization formatting/rank is applied. Please submit a shorter name that fits Discord nickname limits.'
+			content: 'Requested name is too long once any division prefix is added. Please submit a shorter name that fits Discord nickname limits.'
 		});
 
 		expect(

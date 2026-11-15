@@ -26,8 +26,9 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 		return;
 	}
 	const { guild, logger, responder } = prepared;
+	const dryRun = interaction.options.getBoolean('dry_run', false) ?? false;
 	await responder.safeEditReply({
-		content: `Nickname sync started. requestId=\`${context.requestId}\``
+		content: `${dryRun ? 'Nickname sync dry run' : 'Nickname sync'} started. requestId=\`${context.requestId}\``
 	});
 
 	const optionValue = interaction.options.getString('user', false);
@@ -48,7 +49,8 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 			}),
 			{
 				requestedDiscordUserId,
-				includeStaff
+				includeStaff,
+				dryRun
 			}
 		);
 
@@ -68,22 +70,29 @@ export async function handleStaffSyncNickname({ interaction, context }: HandleSt
 			return;
 		}
 
+		// A dry run logs counts only: its plan (nicknames) and failures go only into the ephemeral reply and CSV.
+		// A live run keeps today's log payload, including the failure list.
+		const { plan, failures, ...counts } = result;
 		const logBindings = {
-			...result,
+			...counts,
+			...(dryRun ? { planRows: plan.length } : { failures }),
 			includeStaff
 		};
+		const logEvent = dryRun ? 'nickname.sync.dry_run_completed' : 'nickname.sync.completed';
 		if (result.failed > 0) {
-			logger.warn(logBindings, 'nickname.sync.completed_with_failures');
+			logger.warn(logBindings, `${logEvent}_with_failures`);
 		} else {
-			logger.info(logBindings, 'nickname.sync.completed');
+			logger.info(logBindings, logEvent);
 		}
 
+		// A dry-run report holds nicknames, so a failed send must not log the raw error (it keeps the request body).
 		await responder.safeEditReply(
 			buildBulkNicknameSyncPayload({
 				result,
 				includeStaff,
 				requestId: context.requestId
-			})
+			}),
+			{ logRawError: !dryRun }
 		);
 	} catch (error: unknown) {
 		logger.error(

@@ -4,6 +4,7 @@ import type { Client } from 'discord.js';
 import { ENV_CONFIG, ENV_DISCORD } from '../config/env';
 import { initializeDivisionCache } from '../integrations/prisma';
 import { createListenerExecutionContext } from '../lib/logging/ingressExecutionContext';
+import { runMeritBadgeRoleStartupCheck } from '../lib/services/merit-badge/runMeritBadgeRoleCheck';
 
 @ApplyOptions<Listener.Options>({ event: 'clientReady', once: true })
 export class ReadyListener extends Listener {
@@ -24,6 +25,8 @@ export class ReadyListener extends Listener {
 			// Utilities are exposed in a post-login hook, which can run after `clientReady`.
 			// Initialize the cache directly here to avoid startup race conditions.
 			await initializeDivisionCache();
+			// Reports badge role problems; does nothing while no badge role ID is configured.
+			await runMeritBadgeRoleStartupCheck({ logger });
 
 			logger.info(
 				{

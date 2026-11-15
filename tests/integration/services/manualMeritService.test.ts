@@ -1,6 +1,7 @@
 import { MeritTypeCode } from '@prisma/client';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createMeritBadgeRoleMap } from '../../../src/config/meritBadgeRoles';
 import { awardManualMeritWorkflow, type ResolvedManualMeritMember } from '../../../src/lib/services/manual-merit/manualMeritService';
 import { createStandalonePrisma, pushPrismaSchema, resetDatabase, seedReferenceData, type StandalonePrisma } from '../setup/database';
 import { createEventSession, createUser } from '../setup/fixtures';
@@ -78,8 +79,10 @@ describe('manualMeritService integration', () => {
 				syncRecipientNickname: async () => 'ok',
 				computeAwarderNickname: async () => 'Staff Display',
 				getRecipientTotalMerits: meritRepository.getUserTotalMerits,
+				syncRecipientBadge: async () => 'ok',
 				notifyRankUp: vi.fn().mockResolvedValue(undefined),
-				sendRecipientDm: vi.fn().mockResolvedValue(true)
+				sendRecipientDm: vi.fn().mockResolvedValue(true),
+				badgeRoles: createMeritBadgeRoleMap(new Map())
 			},
 			{
 				actor: {
@@ -109,7 +112,8 @@ describe('manualMeritService integration', () => {
 			linkedEventName: eventSession.name,
 			reason: 'Exceptional leadership',
 			dmSent: true,
-			recipientNicknameTooLong: false
+			recipientNicknameTooLong: false,
+			recipientBadgeSyncFailed: false
 		});
 		await expect(
 			standalone.prisma.merit.findMany({
@@ -135,8 +139,10 @@ describe('manualMeritService integration', () => {
 				syncRecipientNickname: async () => 'ok',
 				computeAwarderNickname: async () => 'Staff Display',
 				getRecipientTotalMerits: meritRepository.getUserTotalMerits,
+				syncRecipientBadge: async () => 'ok',
 				notifyRankUp: vi.fn().mockResolvedValue(undefined),
-				sendRecipientDm: vi.fn().mockResolvedValue(true)
+				sendRecipientDm: vi.fn().mockResolvedValue(true),
+				badgeRoles: createMeritBadgeRoleMap(new Map())
 			},
 			{
 				actor: {

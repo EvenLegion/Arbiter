@@ -1,11 +1,15 @@
 import type { Subcommand } from '@sapphire/plugin-subcommands';
+import type { Guild } from 'discord.js';
 
+import { ENV_MERIT_BADGE_ROLES } from '../../../../config/env/discord';
 import { userMigrationRepository, type MigrationCounts } from '../../../../integrations/prisma/repositories';
 import { getGuildMember } from '../../../discord/guild/guildMembers';
 import { prepareGuildInteraction } from '../../../discord/interactions/prepareGuildInteraction';
 import { parseDiscordUserIdInput } from '../../../discord/members/memberDirectory';
 import type { ExecutionContext } from '../../../logging/executionContext';
 import { createChildExecutionContext } from '../../../logging/executionContext';
+import { createMeritBadgeSyncRuntime } from '../../../services/merit-badge/createMeritBadgeSyncRuntime';
+import type { MeritBadgeSyncResult } from '../../../services/merit-badge/meritBadgeSyncService';
 import { createGuildNicknameWorkflow } from '../../../services/nickname/guildNicknameWorkflow';
 
 type HandleStaffUserMigrateParams = {
@@ -100,6 +104,15 @@ export async function handleStaffUserMigrate({ interaction, context }: HandleSta
 			newMember,
 			oldDiscordUserId,
 			newDiscordUserId,
+			badgeRoleIds: ENV_MERIT_BADGE_ROLES.roleIds,
+			logger
+		});
+
+		const badgeSyncLine = await syncMeritBadgesAfterMigration({
+			guild,
+			context,
+			oldDiscordUserId,
+			newDiscordUserId,
 			logger
 		});
 
@@ -146,6 +159,7 @@ export async function handleStaffUserMigrate({ interaction, context }: HandleSta
 				newDiscordUserId,
 				counts: migrationResult.counts,
 				roleCopyLine,
+				badgeSyncLine,
 				nicknameSyncLine,
 				requestId: context.requestId
 			})
@@ -171,6 +185,7 @@ function buildUserMigrateReply({
 	newDiscordUserId,
 	counts,
 	roleCopyLine,
+	badgeSyncLine,
 	nicknameSyncLine,
 	requestId
 }: {
@@ -178,6 +193,7 @@ function buildUserMigrateReply({
 	newDiscordUserId: string;
 	counts: MigrationCounts;
 	roleCopyLine: string;
+	badgeSyncLine: string | null;
 	nicknameSyncLine: string;
 	requestId: string;
 }) {
@@ -191,9 +207,81 @@ function buildUserMigrateReply({
 		`Events/channels: hosted ${counts.hostedEventsMigrated}, finalized ${counts.finalizedEventsMigrated}, channels ${counts.eventChannelsMigrated}.`,
 		`Name change requests: requester ${counts.requestedNameChangesMigrated}, reviewer ${counts.reviewedNameChangesMigrated}.`,
 		roleCopyLine,
+		...(badgeSyncLine ? [badgeSyncLine] : []),
 		nicknameSyncLine,
 		`requestId=\`${requestId}\``
 	].join('\n');
+}
+
+/**
+ * Gives the new account the badge for its merged total and takes the badge off the old account,
+ * which now has no merits. The migration is already committed, so this never throws.
+ * Returns null while badge sync is off, so the reply is unchanged until the cutover.
+ */
+async function syncMeritBadgesAfterMigration({
+	guild,
+	context,
+	oldDiscordUserId,
+	newDiscordUserId,
+	logger
+}: {
+	guild: Guild;
+	context: ExecutionContext;
+	oldDiscordUserId: string;
+	newDiscordUserId: string;
+	logger: {
+		error: (...values: readonly unknown[]) => void;
+	};
+}): Promise<string | null> {
+	try {
+		const badges = createMeritBadgeSyncRuntime({
+			guild,
+			context: createChildExecutionContext({
+				context,
+				bindings: {
+					oldDiscordUserId,
+					newDiscordUserId,
+					step: 'syncMeritBadgesAfterStaffUserMigrate'
+				}
+			}),
+			auditReason: `Merit badge sync after /staff user_migrate (${oldDiscordUserId} -> ${newDiscordUserId})`
+		});
+		// No total override: each sync reads the committed total (merged for the new account, 0 for the old).
+		const newResult = await badges.syncMember({ discordUserId: newDiscordUserId });
+		const oldResult = await badges.syncMember({ discordUserId: oldDiscordUserId });
+		if (newResult.kind === 'disabled' && oldResult.kind === 'disabled') {
+			return null;
+		}
+
+		return `Merit badge sync: new account ${describeBadgeSyncResult(newResult)}; old account ${describeBadgeSyncResult(oldResult)}.`;
+	} catch (error: unknown) {
+		logger.error(
+			{
+				errorName: error instanceof Error ? error.name : undefined,
+				oldDiscordUserId,
+				newDiscordUserId
+			},
+			'Failed to sync merit badges after staff user_migrate command'
+		);
+		return 'Merit badge sync could not complete. The migration itself succeeded.';
+	}
+}
+
+function describeBadgeSyncResult(result: MeritBadgeSyncResult) {
+	switch (result.kind) {
+		case 'updated':
+			return 'updated';
+		case 'unchanged':
+			return 'already correct';
+		case 'member_not_found':
+			return 'not in the server';
+		case 'skipped_bot':
+			return 'skipped (bot)';
+		case 'disabled':
+			return 'skipped (sync off)';
+		case 'failed':
+			return `could not be updated (\`${result.code}\`)`;
+	}
 }
 
 async function copyRolesFromOldMemberToNewMember({
@@ -202,6 +290,7 @@ async function copyRolesFromOldMemberToNewMember({
 	newMember,
 	oldDiscordUserId,
 	newDiscordUserId,
+	badgeRoleIds,
 	logger
 }: {
 	guild: { id: string };
@@ -219,6 +308,8 @@ async function copyRolesFromOldMemberToNewMember({
 	} | null;
 	oldDiscordUserId: string;
 	newDiscordUserId: string;
+	/** Badge roles follow the merit total, so the badge sync sets them instead. */
+	badgeRoleIds: ReadonlySet<string>;
 	logger: {
 		error: (...values: readonly unknown[]) => void;
 	};
@@ -232,7 +323,7 @@ async function copyRolesFromOldMemberToNewMember({
 	}
 
 	const rolesToCopy = [...oldMember.roles.cache.values()].filter(
-		(role) => role.id !== guild.id && role.managed !== true && !newMember.roles.cache.has(role.id)
+		(role) => role.id !== guild.id && role.managed !== true && !badgeRoleIds.has(role.id) && !newMember.roles.cache.has(role.id)
 	);
 
 	if (rolesToCopy.length === 0) {

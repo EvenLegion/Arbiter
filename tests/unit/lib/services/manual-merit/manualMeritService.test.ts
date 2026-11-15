@@ -1,6 +1,7 @@
 import { MeritTypeCode } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 
+import { createMeritBadgeRoleMap } from '../../../../../src/config/meritBadgeRoles';
 import { awardManualMeritWorkflow } from '../../../../../src/lib/services/manual-merit/manualMeritService';
 
 describe('manualMeritService', () => {
@@ -26,8 +27,14 @@ describe('manualMeritService', () => {
 			linkedEventName: 'Training Op',
 			reason: 'Hosted training',
 			dmSent: true,
-			recipientNicknameTooLong: false
+			recipientNicknameTooLong: false,
+			recipientBadgeSyncFailed: false
 		});
+		expect(deps.syncRecipientBadge).toHaveBeenCalledWith({
+			discordUserId: 'target-user',
+			totalMerits: 12
+		});
+		expect(deps.syncRecipientBadge.mock.invocationCallOrder[0]).toBeGreaterThan(deps.awardManualMerit.mock.invocationCallOrder[0]);
 		expect(deps.sendRecipientDm).toHaveBeenCalledWith({
 			discordUserId: 'target-user',
 			content: [
@@ -64,7 +71,8 @@ describe('manualMeritService', () => {
 			linkedEventName: 'Training Op',
 			reason: 'Hosted training',
 			dmSent: true,
-			recipientNicknameTooLong: true
+			recipientNicknameTooLong: true,
+			recipientBadgeSyncFailed: false
 		});
 	});
 
@@ -91,13 +99,42 @@ describe('manualMeritService', () => {
 			linkedEventName: 'Training Op',
 			reason: 'Hosted training',
 			dmSent: false,
-			recipientNicknameTooLong: false
+			recipientNicknameTooLong: false,
+			recipientBadgeSyncFailed: false
 		});
 		expect(deps.notifyRankUp).toHaveBeenCalledWith({
 			discordUserId: 'target-user',
 			previousTotalMerits: 11,
 			currentTotalMerits: 12
 		});
+	});
+
+	it.each([
+		['returns failed', (deps: ReturnType<typeof createDeps>) => deps.syncRecipientBadge.mockResolvedValueOnce('failed')],
+		['throws', (deps: ReturnType<typeof createDeps>) => deps.syncRecipientBadge.mockRejectedValueOnce(new Error('boom'))]
+	])('keeps the award and warns when the badge sync %s', async (_label, failBadgeSync) => {
+		const deps = createDeps();
+		failBadgeSync(deps);
+
+		const result = await awardManualMeritWorkflow(deps, {
+			actor: createActor(),
+			actorMember: buildMember('staff-user'),
+			playerInput: 'target-user',
+			rawMeritTypeCode: MeritTypeCode.COMMANDER_MERIT,
+			reason: 'Hosted training',
+			linkedEventSessionId: 55
+		});
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				kind: 'awarded',
+				meritRecordId: 99,
+				dmSent: true,
+				recipientBadgeSyncFailed: true
+			})
+		);
+		expect(deps.notifyRankUp).toHaveBeenCalled();
+		expect(deps.sendRecipientDm).toHaveBeenCalled();
 	});
 
 	it('fills missing reason and event lines in the recipient DM', async () => {
@@ -122,6 +159,85 @@ describe('manualMeritService', () => {
 				'Next rank level in **6 merits**'
 			].join('\n')
 		});
+	});
+
+	it('names the next badge in the recipient DM once the badge tier has a role', async () => {
+		const deps = createDeps();
+		deps.badgeRoles = createMeritBadgeRoleMap(new Map(Array.from({ length: 36 }, (_, index) => [index + 1, `${100000000000000000 + index}`])));
+
+		await awardManualMeritWorkflow(deps, {
+			actor: createActor(),
+			actorMember: buildMember('staff-user'),
+			playerInput: 'target-user',
+			rawMeritTypeCode: MeritTypeCode.COMMANDER_MERIT,
+			reason: null,
+			linkedEventSessionId: null
+		});
+
+		expect(deps.sendRecipientDm).toHaveBeenCalledWith({
+			discordUserId: 'target-user',
+			content: [
+				'**Staff Display** gave you **Commander Merit**',
+				'Your merits were adjusted by: **+1 merit**',
+				'Reason: Not provided',
+				'You have **12 merits total**',
+				'Current badge: **Argentum II**',
+				'Next badge **Argentum III** in **2 merits**'
+			].join('\n')
+		});
+	});
+
+	it('names the lower badge in the recipient DM after a demerit', async () => {
+		const deps = createDeps();
+		deps.badgeRoles = createMeritBadgeRoleMap(new Map(Array.from({ length: 36 }, (_, index) => [index + 1, `${100000000000000000 + index}`])));
+		deps.awardManualMerit.mockResolvedValue({
+			id: 99,
+			meritType: {
+				code: MeritTypeCode.DEMERIT,
+				name: 'Demerit',
+				meritAmount: -1
+			}
+		});
+		deps.getRecipientTotalMerits.mockResolvedValue(3);
+
+		await awardManualMeritWorkflow(deps, {
+			actor: createActor(),
+			actorMember: buildMember('staff-user'),
+			playerInput: 'target-user',
+			rawMeritTypeCode: MeritTypeCode.DEMERIT,
+			reason: null,
+			linkedEventSessionId: null
+		});
+
+		expect(deps.sendRecipientDm).toHaveBeenCalledWith(
+			expect.objectContaining({
+				content: expect.stringMatching(
+					/Your merits were adjusted by: \*\*-1 merit\*\*[\s\S]*You have \*\*3 merits total\*\*\nCurrent badge: \*\*Ferrum III\*\*\nNext badge \*\*Aes I\*\* in \*\*1 merit\*\*$/
+				)
+			})
+		);
+	});
+
+	it('keeps the legacy next line in the recipient DM while the next badge has no role', async () => {
+		const deps = createDeps();
+		deps.badgeRoles = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6, 7, 8].map((tier) => [tier, `${100000000000000000 + tier}`])));
+
+		await awardManualMeritWorkflow(deps, {
+			actor: createActor(),
+			actorMember: buildMember('staff-user'),
+			playerInput: 'target-user',
+			rawMeritTypeCode: MeritTypeCode.COMMANDER_MERIT,
+			reason: null,
+			linkedEventSessionId: null
+		});
+
+		expect(deps.sendRecipientDm).toHaveBeenCalledWith(
+			expect.objectContaining({
+				content: expect.stringMatching(
+					/You have \*\*12 merits total\*\*\nCurrent badge: \*\*Argentum II\*\*\nNext rank level in \*\*6 merits\*\*$/
+				)
+			})
+		);
 	});
 
 	it('returns linked_event_not_found when the selected event does not exist', async () => {
@@ -242,7 +358,9 @@ function createDeps({
 		syncRecipientNickname: vi.fn().mockResolvedValue('ok'),
 		computeAwarderNickname: vi.fn().mockResolvedValue('Staff Display'),
 		getRecipientTotalMerits: vi.fn().mockResolvedValue(12),
+		syncRecipientBadge: vi.fn().mockResolvedValue('ok'),
 		notifyRankUp: vi.fn().mockResolvedValue(undefined),
-		sendRecipientDm: vi.fn().mockResolvedValue(true)
+		sendRecipientDm: vi.fn().mockResolvedValue(true),
+		badgeRoles: createMeritBadgeRoleMap(new Map())
 	};
 }

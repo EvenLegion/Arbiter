@@ -1,9 +1,15 @@
 import type { Guild, GuildMember } from 'discord.js';
 
+import { ENV_MERIT_BADGE_ROLES } from '../../../../config/env/discord';
 import { getGuildMember } from '../../../discord/guild/guildMembers';
 import { createChildExecutionContext, type ExecutionContext } from '../../../logging/executionContext';
 import { createDivisionMembershipDeps } from '../../../services/division-membership/createDivisionMembershipDeps';
-import { mapNicknameSyncResult, processGuildMemberRoleChange } from '../../../services/guild-member-change/guildMemberChangeService';
+import {
+	mapNicknameSyncResult,
+	processGuildMemberRoleChange,
+	toGuildMemberBadgeOutcome
+} from '../../../services/guild-member-change/guildMemberChangeService';
+import { createMeritBadgeSyncRuntime } from '../../../services/merit-badge/createMeritBadgeSyncRuntime';
 import { reconcileDivisionMemberships } from '../../../services/division-membership/reconcileDivisionMemberships';
 import { createGuildNicknameServiceDeps } from '../../../services/nickname/createGuildNicknameServiceDeps';
 import { syncNicknameForUser } from '../../../services/nickname/nicknameService';
@@ -11,6 +17,11 @@ import { syncNicknameForUser } from '../../../services/nickname/nicknameService'
 export function createGuildMemberChangeDeps({ guild, context }: { guild: Guild; context: ExecutionContext }) {
 	const resolveMemberLogger = context.logger.child({
 		caller: 'createGuildMemberChangeDeps.resolveMember'
+	});
+	const badges = createMeritBadgeSyncRuntime({
+		guild,
+		context,
+		auditReason: 'Merit badge sync after member role change'
 	});
 
 	return {
@@ -47,6 +58,9 @@ export function createGuildMemberChangeDeps({ guild, context }: { guild: Guild; 
 			);
 
 			return mapNicknameSyncResult(nicknameSyncResult);
-		}
+		},
+		isBadgeRole: (roleId: string) => ENV_MERIT_BADGE_ROLES.roleIds.has(roleId),
+		// No total override: listener paths always re-read the total inside the member lock.
+		syncBadge: async ({ discordUserId }: { discordUserId: string }) => toGuildMemberBadgeOutcome(await badges.syncMember({ discordUserId }))
 	} satisfies Parameters<typeof processGuildMemberRoleChange<GuildMember>>[0];
 }

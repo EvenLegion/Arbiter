@@ -8,8 +8,9 @@ export function buildManualMeritAwardReply(result: Extract<AwardManualMeritWorkf
 	const nicknameWarningLine = result.recipientNicknameTooLong
 		? '\nNickname was not updated because the computed nickname exceeds Discord limits. Ask the user to shorten their base nickname.'
 		: '';
+	const badgeWarningLine = result.recipientBadgeSyncFailed ? '\nMerit badge role could not be updated. The merit was still applied.' : '';
 
-	return `Applied **${meritChangeLabel}** (${result.meritTypeName}) to <@${result.targetDiscordUserId}>${eventLine}${reasonLine}${dmLine}${nicknameWarningLine}`;
+	return `Applied **${meritChangeLabel}** (${result.meritTypeName}) to <@${result.targetDiscordUserId}>${eventLine}${reasonLine}${dmLine}${nicknameWarningLine}${badgeWarningLine}`;
 }
 
 function formatSignedMeritAmount(amount: number) {

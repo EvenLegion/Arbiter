@@ -4,6 +4,7 @@ import type { Guild } from 'discord.js';
 import { eventRepository, eventReviewRepository } from '../../../../../integrations/prisma/repositories';
 import type { ExecutionContext } from '../../../../logging/executionContext';
 import { EVENT_LIFECYCLE_SESSION_INCLUDE, type EventLifecycleEventSession } from '../../../../services/event-lifecycle';
+import { syncAwardedMemberBadges } from '../../gateways/awardedMemberBadgeSyncGateway';
 import { syncAwardedMemberNicknamesAndNotifyRankUp } from '../../gateways/nicknameRankSyncGateway';
 import { postReviewSubmissionTimelineMessages } from '../../gateways/postReviewSubmissionTimelineMessages';
 import { syncEventReviewPresentation } from '../../presentation/syncEventReviewPresentation';
@@ -35,6 +36,14 @@ export function createFinalizeEventReviewLifecycleDeps({
 			}>;
 		}) => {
 			await syncAwardedMemberNicknamesAndNotifyRankUp({
+				guild,
+				awardedUsers,
+				context,
+				logger
+			});
+		},
+		syncAwardedBadges: async ({ awardedUsers }: { awardedUsers: Array<{ discordUserId: string }> }) => {
+			await syncAwardedMemberBadges({
 				guild,
 				awardedUsers,
 				context,
