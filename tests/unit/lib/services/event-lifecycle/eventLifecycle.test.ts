@@ -1,4 +1,4 @@
-import { EventReviewDecisionKind, EventSessionChannelKind, EventSessionState } from '@prisma/client';
+import { EventSessionChannelKind, EventSessionState } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -451,8 +451,7 @@ describe('eventLifecycle', () => {
 					discordUserId: 'known-user'
 				}
 			]),
-			upsertParticipantStats: vi.fn().mockResolvedValue(undefined),
-			upsertReviewDecisions: vi.fn().mockResolvedValue(undefined),
+			saveInitialization: vi.fn().mockResolvedValue(true),
 			clearTrackingSession: vi.fn().mockResolvedValue(undefined),
 			syncReviewMessage: vi.fn().mockResolvedValue(false),
 			defaultMinAttendancePercent: 50
@@ -462,31 +461,9 @@ describe('eventLifecycle', () => {
 			eventSessionId: 10
 		});
 
-		expect(result).toEqual({
-			kind: 'review_initialized_sync_failed',
-			durationSeconds: 3600,
-			snapshotParticipantCount: 2,
-			persistedParticipantCount: 1
-		});
-		expect(deps.upsertParticipantStats).toHaveBeenCalledWith({
-			eventSessionId: 10,
-			participants: [
-				{
-					dbUserId: 'known-db-user',
-					attendedSeconds: 3600
-				}
-			]
-		});
-		expect(deps.upsertReviewDecisions).toHaveBeenCalledWith({
-			eventSessionId: 10,
-			decisions: [
-				{
-					targetDbUserId: 'known-db-user',
-					decision: EventReviewDecisionKind.MERIT
-				}
-			],
-			overwriteExisting: false
-		});
+		expect(result).toEqual({ kind: 'unresolved_participants', count: 1 });
+		expect(deps.saveInitialization).not.toHaveBeenCalled();
+		expect(deps.clearTrackingSession).not.toHaveBeenCalled();
 	});
 
 	it('finalizes review and reports whether the review message sync succeeded', async () => {

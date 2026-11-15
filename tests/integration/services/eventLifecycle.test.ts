@@ -302,8 +302,7 @@ describe('eventLifecycle integration', () => {
 							discordUserId: true
 						}
 					}),
-				upsertParticipantStats: eventReviewRepository.upsertParticipantStats,
-				upsertReviewDecisions: eventReviewRepository.upsertReviewDecisions,
+				saveInitialization: eventReviewRepository.saveInitialization,
 				clearTrackingSession: async (eventSessionId) => {
 					await clearTrackingSession({
 						eventSessionId

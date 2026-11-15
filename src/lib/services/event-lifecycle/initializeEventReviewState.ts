@@ -13,21 +13,11 @@ type InitializeEventReviewDeps = {
 	} | null>;
 	getTrackingParticipantsSnapshot: (eventSessionId: number) => Promise<EventReviewParticipantSnapshot[]>;
 	findUsersByDiscordUserIds: (discordUserIds: string[]) => Promise<EventReviewUserLookup[]>;
-	upsertParticipantStats: (params: {
+	saveInitialization: (params: {
 		eventSessionId: number;
-		participants: Array<{
-			dbUserId: string;
-			attendedSeconds: number;
-		}>;
-	}) => Promise<void>;
-	upsertReviewDecisions: (params: {
-		eventSessionId: number;
-		decisions: Array<{
-			targetDbUserId: string;
-			decision: EventReviewDecisionKind;
-		}>;
-		overwriteExisting: boolean;
-	}) => Promise<void>;
+		participants: Array<{ dbUserId: string; attendedSeconds: number }>;
+		decisions: Array<{ targetDbUserId: string; decision: EventReviewDecisionKind }>;
+	}) => Promise<boolean>;
 	clearTrackingSession: (eventSessionId: number) => Promise<void>;
 	syncReviewMessage: (params: { eventSessionId: number; page: number }) => Promise<boolean>;
 	defaultMinAttendancePercent: number;
@@ -35,6 +25,8 @@ type InitializeEventReviewDeps = {
 
 export type InitializeEventReviewResult =
 	| { kind: 'event_not_found' }
+	| { kind: 'unresolved_participants'; count: number }
+	| { kind: 'state_conflict' }
 	| { kind: 'invalid_state'; currentState: EventSessionState }
 	| {
 			kind: 'review_initialized';
@@ -90,6 +82,9 @@ export async function initializeEventReviewState(
 	const users = discordUserIds.length > 0 ? await deps.findUsersByDiscordUserIds(discordUserIds) : [];
 	const dbUserIdByDiscordUserId = new Map(users.map((user) => [user.discordUserId, user.id]));
 
+	const unresolvedCount = discordUserIds.filter((id) => !dbUserIdByDiscordUserId.has(id)).length;
+	if (unresolvedCount > 0) return { kind: 'unresolved_participants', count: unresolvedCount };
+
 	const participants = participantSnapshots.flatMap((participant) => {
 		const dbUserId = dbUserIdByDiscordUserId.get(participant.discordUserId);
 		if (!dbUserId) {
@@ -104,13 +99,9 @@ export async function initializeEventReviewState(
 		];
 	});
 
-	await deps.upsertParticipantStats({
+	const saved = await deps.saveInitialization({
 		eventSessionId: input.eventSessionId,
-		participants
-	});
-
-	await deps.upsertReviewDecisions({
-		eventSessionId: input.eventSessionId,
+		participants,
 		decisions: participants.map((participant) => ({
 			targetDbUserId: participant.dbUserId,
 			decision: resolveDefaultReviewDecision({
@@ -118,9 +109,9 @@ export async function initializeEventReviewState(
 				durationSeconds: attendancePolicy.durationSeconds,
 				defaultMinAttendancePercent: attendancePolicy.defaultMinAttendancePct
 			})
-		})),
-		overwriteExisting: false
+		}))
 	});
+	if (!saved) return { kind: 'state_conflict' };
 
 	await deps.clearTrackingSession(input.eventSessionId);
 

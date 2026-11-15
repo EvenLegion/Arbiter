@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   prepare_release:
-    if: github.actor != 'github-actions[bot]' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'dev'
+    if: github.actor != 'github-actions[bot]' && github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.head.ref == 'dev' || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -42,6 +42,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Validate isolated hotfix source
+        if: startsWith(github.head_ref, 'hotfix/')
+        env:
+          RELEASE_PLAN_BRANCH: ${{ github.head_ref }}
+        run: node scripts/release/hotfix-check.mjs
+
       - name: Prepare release artifacts
         id: prepare_release
         env:
@@ -59,7 +65,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Create or update release prep PR into dev
+      - name: Create or update release prep PR into source branch
         if: steps.prepare_release.outputs.release_created == 'true'
         id: release_prep_pr
         uses: peter-evans/create-pull-request@v7
@@ -71,14 +77,14 @@ jobs:
           body: |
             Automated release prep for `${{ steps.prepare_release.outputs.release_tag }}`.
 
-            This PR was generated from the `dev` -> `main` release workflow because `dev` is protected from direct pushes.
+            This PR was generated from the `${{ github.event.pull_request.head.ref }}` -> `main` release workflow so generated artifacts are reviewed before publication.
 
-            Merging this PR into `dev` will bring in:
+            Merging this PR into `${{ github.event.pull_request.head.ref }}` will bring in:
             - version bump in `package.json`
             - consolidated changelog entry in `CHANGELOG.md`
             - generated release notes in `.release-output/`
             - removal of consumed `.release-plans/*.json` files
-          base: dev
+          base: ${{ github.event.pull_request.head.ref }}
           add-paths: |
             package.json
             CHANGELOG.md
@@ -100,7 +106,7 @@ jobs:
             const body = [
               `Automated release prep for \`${releaseTag}\`.`,
               '',
-              'This PR body is generated from the consolidated changelog entry produced from pending release plans on `dev`.',
+              'This PR body is generated from the consolidated changelog entry produced from pending release plans on this source branch.',
               releasePrepPrUrl ? `Merge the linked release prep PR before merging this PR: ${releasePrepPrUrl}` : null,
               '',
               notes

@@ -18,9 +18,9 @@ public release note.
 1. Commit the scoped work with Conventional Commit subjects.
 2. Before every push, run the read-only branch check:
 
-   ```bash
-   pnpm release:plan:check
-   ```
+    ```bash
+    pnpm release:plan:check
+    ```
 
 3. Reuse the matching plan when its branch, `origin/dev` base, merge base,
    semantic bump, contribution summary, and public-note classification remain
@@ -29,22 +29,23 @@ public release note.
 4. If the branch has no plan, run `pnpm release:plan` once after the scoped
    commits exist. Choose the smallest correct bump and an explicit mode:
 
-   | Mode | Use it when | Public note |
-   | --- | --- | --- |
-   | `standalone` | The branch completes one independently understandable outcome | Required |
-   | `contribute` | The branch is one staged part of a named capability group | None |
-   | `publish` | The branch supplies the single final description for a capability group | Required |
-   | `internal` | The branch needs provenance and versioning but no member-facing note | None |
+    | Mode         | Use it when                                                             | Public note |
+    | ------------ | ----------------------------------------------------------------------- | ----------- |
+    | `standalone` | The branch completes one independently understandable outcome           | Required    |
+    | `contribute` | The branch is one staged part of a named capability group               | None        |
+    | `publish`    | The branch supplies the single final description for a capability group | Required    |
+    | `internal`   | The branch needs provenance and versioning but no member-facing note    | None        |
 
-   ```bash
-   pnpm release:plan -- --bump patch --mode internal \
-     --summary "Updates operator release and recovery guidance."
-   ```
+    ```bash
+    pnpm release:plan -- --bump patch --mode internal \
+      --summary "Updates operator release and recovery guidance."
+    ```
 
-   `standalone` also requires `--section` and `--description`. `contribute`
-   requires a stable lowercase kebab-case `--group` and `--section`. `publish`
-   requires all three and must describe the complete group after inspecting
-   every pending contribution in it.
+    `standalone` also requires `--section` and `--description`. `contribute`
+    requires a stable lowercase kebab-case `--group` and `--section`. `publish`
+    requires all three and must describe the complete group after inspecting
+    every pending contribution in it.
+
 5. Inspect the generated schema-version 2 JSON and its automatic commit, then
    rerun `pnpm release:plan:check` before pushing.
 
@@ -135,3 +136,62 @@ database migration, change DNS or the reverse proxy, or deploy the portal.
 Publication and deployment remain separate even when they use the same source
 revision. Continue with [Production deployment](../operations/production-deployment.md)
 only after the release and an operator-approved rollout are both ready.
+
+## Hotfix Source Publication
+
+When explicitly approved, a production fix may bypass unreleased `dev` work:
+
+1. Fetch `main` and `dev`. Create an isolated `hotfix/<slug>` branch from current
+   `origin/main`. Verify this release matches the deployed source separately.
+2. Backport only approved fixes. Review the complete diff against main and run
+   the relevant tests on this base. A dev-based branch retargeted to main is not
+   an isolated hotfix.
+3. Commit the changes and create the usual branch-owned plan with `--bump patch`.
+   Planning and checking automatically use `origin/main` for `hotfix/*` branches.
+4. Open a draft hotfix-to-main PR when publication is authorized. Release Prep
+   creates a preparation PR back into that hotfix branch, never into dev.
+5. Review and merge the preparation PR into the hotfix branch. CI requires the
+   prepared patch version, notes and provenance before publication. Re-review
+   the final diff and obtain merge/release approval before merging into main.
+6. Release Publish tags that merged revision and creates its GitHub release.
+   Hotfix releases do **not** post the optional Discord announcement. Deployment
+   and event recovery remain separate, explicitly approved operations.
+7. Reconcile the released fix and release metadata back into dev in a reviewed
+   follow-up. Do not promote dev to production to accomplish this.
+
+`node scripts/release/hotfix-check.mjs` is read-only and accepts pending or
+prepared state; `--prepared` requires generated artifacts. It rejects dev-only
+commit ancestry, a stale main base, foreign pending plans, non-patch bumps and
+missing prepared metadata. This cannot identify unrelated code copied or
+cherry-picked under new commits: diff review remains necessary. If main advances,
+update the hotfix and regenerate/review its plan and artifacts before merging.
+
+The first hotfix introducing these workflow changes must be reviewed especially
+carefully: no GitHub workflow run or production rollout is implied by local tests.
+
+### Review Fixes After Hotfix Preparation
+
+After preparation consumes the pending plan, `pnpm release:plan:check` validates
+its retained source plan and generated artifacts instead. Ordinary review fixes
+may be committed and pushed without creating another plan or incrementing the
+version again. Re-run checks and inspect the full diff.
+
+If the correction changes the release classification or public description,
+commit local work first, then run `node scripts/release/hotfix-refresh.mjs`.
+This restores the pending source plan, resets only the package version and
+changelog to main, and removes this hotfix's generated notes/provenance. Review
+and commit that artifact reset, then run `pnpm release:plan -- --regenerate`
+with `--bump patch`, the complete intended classification and `--reason`.
+The preparation workflow generates a new reviewed artifact PR for the same patch
+version. Do not invent a second plan or prepare the next patch on top of an
+unpublished hotfix. The refresh command requires a clean checkout and does not
+commit, push or publish anything.
+
+If main advances after preparation, **refresh before integrating the new main**.
+The refresh validates the old preparation against its recorded base and restores
+that base's release metadata, even when `origin/main` now points elsewhere.
+Commit the reset, update the branch onto current main, resolve any conflicts,
+and regenerate the plan explicitly against current main. If another release
+advanced the version, the new plan correctly targets its next patch instead.
+Do not publish the stale prepared artifacts. The refresh is deliberately an
+artifact reset, not an automatic merge, rebase, or conflict resolver.
