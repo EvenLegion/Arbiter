@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createMeritBadgeRoleMap } from '../../../../../src/config/meritBadgeRoles';
 import { isMeritBadgeRolePlanNoOp, planMeritBadgeRoles } from '../../../../../src/lib/services/merit-badge/meritBadgeRolePlan';
 
-// Tiers: 1 Ferrum I (1), 2 Ferrum II (2), 3 Ferrum III (3), 4 Aes I (5), 5 Aes II (8), 6 Aes III (11).
+// Tiers: 1 Ferrum I (1), 2 Ferrum II (2), 3 Ferrum III (3), 4 Aes I (4), 5 Aes II (5), 6 Aes III (6).
 const FERRUM_I = '200000000000000001';
 const FERRUM_II = '200000000000000002';
 const AES_I = '200000000000000004';
@@ -51,7 +51,7 @@ describe('planMeritBadgeRoles', () => {
 		},
 		{
 			name: 'does nothing when the member already holds exactly the right badge',
-			total: 5,
+			total: 4,
 			held: [DIVISION_ROLE, AES_I],
 			expected: {
 				desiredTier: 'Aes I',
@@ -65,7 +65,7 @@ describe('planMeritBadgeRoles', () => {
 		},
 		{
 			name: 'swaps the old badge for the new one on a promotion',
-			total: 11,
+			total: 6,
 			held: [AES_I],
 			expected: {
 				desiredTier: 'Aes III',
@@ -79,9 +79,9 @@ describe('planMeritBadgeRoles', () => {
 		},
 		{
 			name: 'drops one section after a demerit below the floor (D1)',
-			total: 10,
+			total: 5,
 			held: [AES_III],
-			// Aes II (8) is unconfigured, so the applied tier falls back to Aes I.
+			// Aes II (5) is unconfigured, so the applied tier falls back to Aes I.
 			expected: {
 				desiredTier: 'Aes II',
 				appliedTier: 'Aes I',
@@ -122,7 +122,7 @@ describe('planMeritBadgeRoles', () => {
 		},
 		{
 			name: 'removes duplicate badge roles and keeps the right one',
-			total: 6,
+			total: 4,
 			held: [FERRUM_I, AES_I, FERRUM_II, AES_III],
 			expected: {
 				desiredTier: 'Aes I',

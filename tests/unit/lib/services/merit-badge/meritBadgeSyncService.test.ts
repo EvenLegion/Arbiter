@@ -129,11 +129,11 @@ describe('syncMemberMeritBadge', () => {
 	});
 
 	it('drops one section after a demerit (D1)', async () => {
-		const { deps, member } = setup({ member: { id: MEMBER_ID, bot: false, roles: new Set([AES_I]) }, total: 4 });
+		const { deps, member } = setup({ member: { id: MEMBER_ID, bot: false, roles: new Set([AES_I]) }, total: 3 });
 
 		const result = await syncMemberMeritBadge(deps, { discordUserId: MEMBER_ID });
 
-		// 4 merits is Ferrum III, which is unconfigured here, so Ferrum II applies.
+		// 3 merits is Ferrum III, which is unconfigured here, so Ferrum II applies.
 		expect(result).toMatchObject({ kind: 'updated', addedRoleId: FERRUM_II, removedRoleIds: [AES_I] });
 		expect(badgeRolesOf(member)).toEqual([FERRUM_II]);
 		expect(deps.logger.info).toHaveBeenCalledWith(
@@ -270,7 +270,7 @@ describe('syncMemberMeritBadge', () => {
 	});
 
 	it('logs IDs, tiers and the outcome only', async () => {
-		const { deps } = setup({ member: { id: MEMBER_ID, bot: false, roles: new Set([FERRUM_I]) }, total: 5 });
+		const { deps } = setup({ member: { id: MEMBER_ID, bot: false, roles: new Set([FERRUM_I]) }, total: 4 });
 
 		await syncMemberMeritBadge(deps, { discordUserId: MEMBER_ID });
 

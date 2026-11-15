@@ -121,7 +121,7 @@ function createWorld(initial: Record<string, WorldMember>, { roleMap = configure
 }
 
 describe('buildMeritBadgeCutoverReport', () => {
-	it('works with no role IDs configured, makes no role calls and shows the top member as Obsianus III', async () => {
+	it('works with no role IDs configured, makes no role calls and shows the top member as Aquila II', async () => {
 		const world = createWorld(
 			{
 				[memberId(2)]: { roles: new Set([OTHER_ROLE]), total: 599, username: 'top.member' },
@@ -148,9 +148,9 @@ describe('buildMeritBadgeCutoverReport', () => {
 			currentTiers: [],
 			action: 'unconfigured'
 		});
-		expect(top.desiredTier?.label).toBe('Obsianus III');
+		expect(top.desiredTier?.label).toBe('Aquila II');
 		expect(report.rows[0]).toMatchObject({ desiredTier: null, legacyLevel: null, legacySymbol: null, action: 'none' });
-		expect(report.histogram.map(({ tier, count }) => [tier.label, count])).toEqual([['Obsianus III', 1]]);
+		expect(report.histogram.map(({ tier, count }) => [tier.label, count])).toEqual([['Aquila II', 1]]);
 		expect(report.noBadgeCount).toBe(1);
 		expect(report.actionCounts).toEqual({ add: 0, swap: 0, remove: 0, none: 1, unconfigured: 1 });
 	});
@@ -178,7 +178,7 @@ describe('buildMeritBadgeCutoverReport', () => {
 	});
 
 	it('fails the whole report when a totals read fails', async () => {
-		const world = createWorld({ [memberId(1)]: { roles: new Set(), total: 5 } });
+		const world = createWorld({ [memberId(1)]: { roles: new Set(), total: 4 } });
 		world.deps.readTotals.mockRejectedValueOnce(new Error('db down'));
 
 		await expect(buildMeritBadgeCutoverReport(world.deps)).resolves.toEqual({ kind: 'read_failed' });
@@ -196,7 +196,7 @@ describe('runMeritBadgeBulkSync', () => {
 	it('applies badges, then a rerun converges to updated 0 and failed 0 with zero role calls', async () => {
 		const world = createWorld({
 			[memberId(1)]: { roles: new Set(), total: 1 },
-			[memberId(2)]: { roles: new Set([FERRUM_I]), total: 5 },
+			[memberId(2)]: { roles: new Set([FERRUM_I]), total: 4 },
 			[memberId(3)]: { roles: new Set([FERRUM_II, OTHER_ROLE]), total: 0 },
 			[memberId(4)]: { roles: new Set([FERRUM_II]), total: 2 }
 		});
@@ -230,7 +230,7 @@ describe('runMeritBadgeBulkSync', () => {
 	it('counts every member of a chunk whose totals read fails as failed, with no role calls', async () => {
 		const world = createWorld({
 			[memberId(1)]: { roles: new Set([FERRUM_II]), total: 2 },
-			[memberId(2)]: { roles: new Set([AES_I]), total: 5 },
+			[memberId(2)]: { roles: new Set([AES_I]), total: 4 },
 			[memberId(3)]: { roles: new Set(), total: 1 }
 		});
 		world.deps.readTotals.mockRejectedValueOnce(new Error('db down'));
