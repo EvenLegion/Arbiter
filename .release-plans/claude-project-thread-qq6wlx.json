@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-qq6wlx",
+	"baseRef": "origin/dev",
+	"mergeBase": "b343a1b8361f81b9d9fb26829f1c35e93f890197",
+	"headRef": "53516d184a290378ea8aada8a5617dfea74acf22",
+	"generatedAt": "2026-11-15T22:18:54.241Z",
+	"bump": "patch",
+	"targetVersion": "3.5.1",
+	"contributionSummary": "Sets the merit badge ladder top to 1,000 by halving every badge floor (rounded half up, each at least one above the last). Names, tiers and curve shape are unchanged and no merit totals change; members only move to the badge that matches their total. Badge roles are not live yet, so nobody sees a badge move.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "53516d184a290378ea8aada8a5617dfea74acf22",
+			"subject": "feat(merit): set the merit badge ladder top to 1,000",
+			"committedAt": "2026-11-15T22:18:34+00:00",
+			"committedAtMs": 1794781114000,
+			"type": "feat",
+			"scope": "merit",
+			"description": "set the merit badge ladder top to 1,000",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}
