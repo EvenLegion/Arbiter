@@ -124,3 +124,32 @@ describe('checkMeritBadgeRoles', () => {
 		expect(check(roles)).toEqual([]);
 	});
 });
+
+describe('checkMeritBadgeRoles with the divider role', () => {
+	const DIVIDER_ROLE_ID = '200000000000000099';
+	const dividerMap = createMeritBadgeRoleMap(new Map([[1, BADGE_1_ROLE_ID]]), DIVIDER_ROLE_ID);
+	const dividerRef = { tier: null, tierLabel: 'Merit rank divider', roleId: DIVIDER_ROLE_ID };
+
+	it('accepts a divider below Arbiter with no moderation permissions, even above staff roles', () => {
+		expect(check([...healthyGuildRoles(), role(DIVIDER_ROLE_ID, 'Merit Rank', 5)], dividerMap)).toEqual([]);
+	});
+
+	it('reports a missing divider role', () => {
+		expect(check(healthyGuildRoles(), dividerMap)).toEqual([{ kind: 'role_missing', ...dividerRef }]);
+	});
+
+	it('reports a divider above Arbiter or with moderation permissions', () => {
+		const roles = [...healthyGuildRoles(), role(DIVIDER_ROLE_ID, 'Merit Rank', 7, PermissionFlagsBits.ManageMessages)];
+
+		expect(check(roles, dividerMap)).toEqual([
+			{ kind: 'not_below_bot_role', ...dividerRef, roleName: 'Merit Rank', otherRoleId: BOT_ROLE_ID, otherRoleName: 'Arbiter' },
+			{ kind: 'has_moderation_permissions', ...dividerRef, roleName: 'Merit Rank', hasIcon: false }
+		]);
+	});
+
+	it('does not treat a divider with moderation permissions as the lowest moderation role for badges', () => {
+		const roles = [...healthyGuildRoles(), role(DIVIDER_ROLE_ID, 'Merit Rank', 1, PermissionFlagsBits.KickMembers)];
+
+		expect(check(roles, dividerMap)).toEqual([expect.objectContaining({ kind: 'has_moderation_permissions', tier: null })]);
+	});
+});

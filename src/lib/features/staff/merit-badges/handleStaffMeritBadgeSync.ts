@@ -95,6 +95,8 @@ export async function handleStaffMeritBadgeSync({ interaction, context, runLock 
 					memberCount: report.rows.length,
 					noBadgeCount: report.noBadgeCount,
 					...report.actionCounts,
+					dividerAdd: report.dividerActionCounts.add,
+					dividerRemove: report.dividerActionCounts.remove,
 					configuredTierCount: deps.roleMap.configuredRoles.length,
 					roleCheckStatus: roleCheck.status,
 					roleIssueCount: roleCheck.status === 'checked' ? roleCheck.issues.length : null

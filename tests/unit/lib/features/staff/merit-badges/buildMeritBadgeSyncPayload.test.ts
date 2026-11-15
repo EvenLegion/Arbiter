@@ -26,7 +26,8 @@ const rows: MeritBadgeReportRow[] = [
 		desiredTier: aquilaII,
 		desiredRoleConfigured: false,
 		currentTiers: [ferrumI],
-		action: 'unconfigured'
+		action: 'unconfigured',
+		dividerAction: 'add'
 	},
 	{
 		discordUserId: '400000000000000002',
@@ -37,7 +38,8 @@ const rows: MeritBadgeReportRow[] = [
 		desiredTier: null,
 		desiredRoleConfigured: false,
 		currentTiers: [],
-		action: 'none'
+		action: 'none',
+		dividerAction: 'none'
 	}
 ];
 
@@ -66,9 +68,9 @@ describe('escapeCsvCell', () => {
 describe('buildMeritBadgeReportCsv', () => {
 	it('writes a header and one escaped row per member', () => {
 		expect(buildMeritBadgeReportCsv(rows).split('\r\n')).toEqual([
-			'discord_user_id,stored_username,total_merits,legacy_level,legacy_symbol,desired_tier,desired_badge,desired_role_configured,current_badges,planned_action',
-			`400000000000000001,"'=HYPERLINK(""x"")",599,33,㉝,32,Aquila II,no,Ferrum I,unconfigured`,
-			'400000000000000002,,0,,,,,,,none',
+			'discord_user_id,stored_username,total_merits,legacy_level,legacy_symbol,desired_tier,desired_badge,desired_role_configured,current_badges,planned_action,planned_divider',
+			`400000000000000001,"'=HYPERLINK(""x"")",599,33,㉝,32,Aquila II,no,Ferrum I,unconfigured,add`,
+			'400000000000000002,,0,,,,,,,none,none',
 			''
 		]);
 	});
@@ -82,7 +84,8 @@ describe('buildMeritBadgeDryRunPayload', () => {
 				rows,
 				histogram: [{ tier: aquilaII, count: 1 }],
 				noBadgeCount: 1,
-				actionCounts: { add: 0, swap: 0, remove: 0, none: 1, unconfigured: 1 }
+				actionCounts: { add: 0, swap: 0, remove: 0, none: 1, unconfigured: 1 },
+				dividerActionCounts: { add: 1, remove: 0 }
 			},
 			roleCheck: { status: 'disabled' },
 			roleMap: createMeritBadgeRoleMap(new Map()),
@@ -97,12 +100,31 @@ describe('buildMeritBadgeDryRunPayload', () => {
 			expect.arrayContaining([
 				{ name: 'Members', value: '2', inline: true },
 				{ name: 'Badge roles configured', value: '0 of 36', inline: true },
+				{ name: 'Divider role', value: 'Not configured', inline: true },
 				{ name: 'Role hierarchy check', value: 'Not run: no badge role IDs are configured.' }
 			])
 		);
 		const file = payload.files[0] as AttachmentBuilder;
 		expect(file.name).toBe(MERIT_BADGE_DRY_RUN_CSV_NAME);
 		expect(String(file.attachment)).toBe(buildMeritBadgeReportCsv(rows));
+	});
+
+	it('shows planned divider adds and removes when the divider is configured', () => {
+		const payload = buildMeritBadgeDryRunPayload({
+			report: {
+				kind: 'report',
+				rows,
+				histogram: [],
+				noBadgeCount: 1,
+				actionCounts: { add: 0, swap: 0, remove: 0, none: 1, unconfigured: 1 },
+				dividerActionCounts: { add: 3, remove: 1 }
+			},
+			roleCheck: { status: 'disabled' },
+			roleMap: createMeritBadgeRoleMap(new Map([[1, '200000000000000001']]), '200000000000000099'),
+			requestId: 'req-1'
+		});
+
+		expect((payload.embeds[0] as EmbedBuilder).toJSON().fields).toContainEqual({ name: 'Divider role', value: 'add: 3\nremove: 1', inline: true });
 	});
 
 	it('lists role check problems within the embed field limit', () => {
@@ -117,7 +139,7 @@ describe('buildMeritBadgeDryRunPayload', () => {
 		}));
 
 		const payload = buildMeritBadgeDryRunPayload({
-			report: { kind: 'report', rows, histogram: [], noBadgeCount: 2, actionCounts: { add: 0, swap: 0, remove: 0, none: 2, unconfigured: 0 } },
+			report: { kind: 'report', rows, histogram: [], noBadgeCount: 2, actionCounts: { add: 0, swap: 0, remove: 0, none: 2, unconfigured: 0 }, dividerActionCounts: { add: 0, remove: 0 } },
 			roleCheck: { status: 'checked', configuredTierCount: 36, issues },
 			roleMap: createMeritBadgeRoleMap(new Map()),
 			requestId: 'req-1'

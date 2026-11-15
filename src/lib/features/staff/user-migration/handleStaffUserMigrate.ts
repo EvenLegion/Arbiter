@@ -104,7 +104,7 @@ export async function handleStaffUserMigrate({ interaction, context }: HandleSta
 			newMember,
 			oldDiscordUserId,
 			newDiscordUserId,
-			badgeRoleIds: ENV_MERIT_BADGE_ROLES.roleIds,
+			badgeRoleIds: ENV_MERIT_BADGE_ROLES.syncedRoleIds,
 			logger
 		});
 
@@ -308,7 +308,7 @@ async function copyRolesFromOldMemberToNewMember({
 	} | null;
 	oldDiscordUserId: string;
 	newDiscordUserId: string;
-	/** Badge roles follow the merit total, so the badge sync sets them instead. */
+	/** Badge roles and the divider follow the merit total, so the badge sync sets them instead. */
 	badgeRoleIds: ReadonlySet<string>;
 	logger: {
 		error: (...values: readonly unknown[]) => void;
