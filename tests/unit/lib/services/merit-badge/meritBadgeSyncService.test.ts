@@ -283,9 +283,115 @@ describe('syncMemberMeritBadge', () => {
 				previousTier: 1,
 				tierRoleMissing: false,
 				addedRoleId: AES_I,
-				removedRoleIds: [FERRUM_I]
+				removedRoleIds: [FERRUM_I],
+				dividerChange: null
 			},
 			'merit_badge.sync.completed'
 		);
+	});
+});
+
+describe('syncMemberMeritBadge with the divider role', () => {
+	const DIVIDER = '200000000000000099';
+	const dividerMap = createMeritBadgeRoleMap(
+		new Map([
+			[1, FERRUM_I],
+			[2, FERRUM_II],
+			[4, AES_I]
+		]),
+		DIVIDER
+	);
+
+	it('adds the first badge, then the divider', async () => {
+		const { deps, calls, member } = setup({ map: dividerMap, total: 1 });
+
+		const result = await syncMemberMeritBadge(deps, { discordUserId: MEMBER_ID });
+
+		expect(result).toMatchObject({ kind: 'updated', addedRoleId: FERRUM_I, removedRoleIds: [], dividerChange: 'added' });
+		expect(calls).toEqual([`add:${FERRUM_I}`, `add:${DIVIDER}`]);
+		expect([...(member?.roles ?? [])]).toEqual([FERRUM_I, DIVIDER]);
+	});
+
+	it('adds only the divider to a badge holder who lacks it', async () => {
+		const { deps, calls } = setup({ map: dividerMap, member: { id: MEMBER_ID, bot: false, roles: new Set([AES_I]) }, total: 4 });
+
+		await expect(syncMemberMeritBadge(deps, { discordUserId: MEMBER_ID })).resolves.toMatchObject({
+			kind: 'updated',
+			addedRoleId: null,
+			dividerChange: 'added'
+		});
+		expect(calls).toEqual([`add:${DIVIDER}`]);
+	});
+
+	it('makes zero Discord calls when the badge and divider are both right', async () => {
+		const { deps, calls } = setup({ map: dividerMap, member: { id: MEMBER_ID, bot: false, roles: new Set([AES_I, DIVIDER]) }, total: 4 });
+
+		await expect(syncMemberMeritBadge(deps, { discordUserId: MEMBER_ID })).resolves.toMatchObject({ kind: 'unchanged' });
+		expect(calls).toEqual([]);
+	});
+
+	it('removes the last badge, then the divider', async () => {
+		const { deps, calls, member } = setup({
+			map: dividerMap,
+			member: { id: MEMBER_ID, bot: false, roles: new Set([FERRUM_I, DIVIDER, STAFF_ROLE]) },
+			total: 0
+		});
+
+		await expect(syncMemberMeritBadge(deps, { discordUserId: MEMBER_ID })).resolves.toMatchObject({
+			kind: 'updated',
+			removedRoleIds: [FERRUM_I],
+			dividerChange: 'removed'
+		});
+		expect(calls).toEqual([`remove:${FERRUM_I}`, `remove:${DIVIDER}`]);
+		expect([...(member?.roles ?? [])]).toEqual([STAFF_ROLE]);
+	});
+
+	it('keeps the divider through a badge swap', async () => {
+		const { deps, calls } = setup({ map: dividerMap, member: { id: MEMBER_ID, bot: false, roles: new Set([FERRUM_II, DIVIDER]) }, total: 4 });
+
+		await expect(syncMemberMeritBadge(deps, { discordUserId: MEMBER_ID })).resolves.toMatchObject({ kind: 'updated', dividerChange: null });
+		expect(calls).toEqual([`add:${AES_I}`, `remove:${FERRUM_II}`]);
+	});
+
+	it('does not add the divider when the badge add fails', async () => {
+		const { deps, calls } = setup({ map: dividerMap, total: 1, addResult: { ok: false, code: 'missing_permissions', discordErrorCode: 50013 } });
+
+		await expect(syncMemberMeritBadge(deps, { discordUserId: MEMBER_ID })).resolves.toMatchObject({ kind: 'failed', stage: 'add_role' });
+		expect(calls).toEqual([`add:${FERRUM_I}`]);
+	});
+
+	it('reports a divider failure after the badge change succeeded', async () => {
+		const { deps, member } = setup({ map: dividerMap, total: 1 });
+		deps.addRole.mockImplementation(async (target: FakeMember, roleId: string) => {
+			if (roleId === DIVIDER) {
+				return { ok: false, code: 'unknown_role', discordErrorCode: 10011 };
+			}
+			target.roles.add(roleId);
+			return { ok: true };
+		});
+
+		await expect(syncMemberMeritBadge(deps, { discordUserId: MEMBER_ID })).resolves.toMatchObject({
+			kind: 'failed',
+			stage: 'add_divider_role',
+			code: 'unknown_role',
+			addedRoleId: FERRUM_I,
+			removedRoleIds: []
+		});
+		expect([...(member?.roles ?? [])]).toEqual([FERRUM_I]);
+	});
+
+	it('reports a failed divider removal', async () => {
+		const { deps } = setup({
+			map: dividerMap,
+			member: { id: MEMBER_ID, bot: false, roles: new Set([FERRUM_I, DIVIDER]) },
+			total: 0,
+			removeResults: [{ ok: true }, { ok: false, code: 'missing_permissions', discordErrorCode: 50013 }]
+		});
+
+		await expect(syncMemberMeritBadge(deps, { discordUserId: MEMBER_ID })).resolves.toMatchObject({
+			kind: 'failed',
+			stage: 'remove_divider_role',
+			removedRoleIds: [FERRUM_I]
+		});
 	});
 });

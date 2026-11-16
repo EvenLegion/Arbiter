@@ -3,7 +3,12 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { MERIT_BADGE_ROLE_ENV_NAMES, createMeritBadgeRoleMap, parseMeritBadgeRoleIds } from '../../../src/config/meritBadgeRoles';
+import {
+	MERIT_BADGE_DIVIDER_ROLE_ENV_NAME,
+	MERIT_BADGE_ROLE_ENV_NAMES,
+	createMeritBadgeRoleMap,
+	parseMeritBadgeRoleIds
+} from '../../../src/config/meritBadgeRoles';
 
 // Dummy snowflake-shaped IDs; they do not exist in any guild.
 const dummyRoleId = (tier: number) => `1000000000000000${String(tier).padStart(3, '0')}`;
@@ -26,9 +31,10 @@ describe('merit badge role variable names', () => {
 
 	it('lists every badge role variable in .env.example, unset', () => {
 		const exampleLines = readFileSync(join(__dirname, '../../../.env.example'), 'utf8').split('\n');
-		const badgeLines = exampleLines.filter((line) => line.startsWith('MERIT_BADGE_'));
+		const badgeLines = exampleLines.filter((line) => line.startsWith('MERIT_BADGE_') && !line.startsWith(MERIT_BADGE_DIVIDER_ROLE_ENV_NAME));
 
 		expect(badgeLines).toEqual(MERIT_BADGE_ROLE_ENV_NAMES.map((name) => `${name}=`));
+		expect(exampleLines).toContain(`${MERIT_BADGE_DIVIDER_ROLE_ENV_NAME}=`);
 	});
 });
 
@@ -41,10 +47,10 @@ describe('parseMeritBadgeRoleIds', () => {
 	});
 
 	it('treats unset and empty variables as not configured', () => {
-		expect(parseMeritBadgeRoleIds({})).toEqual({ roleIdsByTier: new Map(), issues: [] });
+		expect(parseMeritBadgeRoleIds({})).toEqual({ roleIdsByTier: new Map(), dividerRoleId: null, issues: [] });
 		expect(
 			parseMeritBadgeRoleIds({ MERIT_BADGE_FERRUM_I_ROLE_ID: '', MERIT_BADGE_FERRUM_II_ROLE_ID: '   ', MERIT_BADGE_AES_I_ROLE_ID: undefined })
-		).toEqual({ roleIdsByTier: new Map(), issues: [] });
+		).toEqual({ roleIdsByTier: new Map(), dividerRoleId: null, issues: [] });
 	});
 
 	it('allows a prefix of the ladder', () => {
@@ -91,6 +97,46 @@ describe('parseMeritBadgeRoleIds', () => {
 
 		expect(result.issues).toEqual(['MERIT_BADGE_FERRUM_I_ROLE_ID: uses the same role ID as LGN_ROLE_ID; badge roles must be separate roles']);
 		expect(parseMeritBadgeRoleIds({ MERIT_BADGE_FERRUM_I_ROLE_ID: dummyRoleId(1), PRA_ROLE_ID: '' }).issues).toEqual([]);
+	});
+});
+
+describe('merit rank divider role', () => {
+	const DIVIDER = '1569916657776861194';
+
+	it('reads the divider without treating it as a badge tier', () => {
+		const result = parseMeritBadgeRoleIds({ ...envWithTiers([1]), MERIT_BADGE_DIVIDER_ROLE_ID: ` ${DIVIDER} ` });
+
+		expect(result.issues).toEqual([]);
+		expect(result.dividerRoleId).toBe(DIVIDER);
+		expect([...result.roleIdsByTier.keys()]).toEqual([1]);
+	});
+
+	it('rejects a divider that is not a role ID, or is a badge or other configured role', () => {
+		expect(parseMeritBadgeRoleIds({ MERIT_BADGE_DIVIDER_ROLE_ID: 'divider' })).toEqual({
+			roleIdsByTier: new Map(),
+			dividerRoleId: null,
+			issues: ['MERIT_BADGE_DIVIDER_ROLE_ID: must be a Discord role ID (17 to 20 digits)']
+		});
+		expect(parseMeritBadgeRoleIds({ ...envWithTiers([1]), MERIT_BADGE_DIVIDER_ROLE_ID: dummyRoleId(1) }).issues).toEqual([
+			'MERIT_BADGE_DIVIDER_ROLE_ID: uses the same role ID as MERIT_BADGE_FERRUM_I_ROLE_ID; the divider must be its own role'
+		]);
+		expect(parseMeritBadgeRoleIds({ LGN_ROLE_ID: DIVIDER, MERIT_BADGE_DIVIDER_ROLE_ID: DIVIDER }).issues).toEqual([
+			'MERIT_BADGE_DIVIDER_ROLE_ID: uses the same role ID as LGN_ROLE_ID; the divider must be its own role'
+		]);
+	});
+
+	it('is off while unset or while no badge role is configured', () => {
+		expect(createMeritBadgeRoleMap(new Map([[1, dummyRoleId(1)]])).dividerRoleId).toBeNull();
+		expect(createMeritBadgeRoleMap(new Map(), DIVIDER)).toMatchObject({ dividerRoleId: null, syncedRoleIds: new Set() });
+	});
+
+	it('adds the divider to the synced roles but not to the badge roles', () => {
+		const roleMap = createMeritBadgeRoleMap(new Map([[1, dummyRoleId(1)]]), DIVIDER);
+
+		expect(roleMap.dividerRoleId).toBe(DIVIDER);
+		expect(roleMap.roleIds).toEqual(new Set([dummyRoleId(1)]));
+		expect(roleMap.syncedRoleIds).toEqual(new Set([dummyRoleId(1), DIVIDER]));
+		expect(roleMap.byRoleId(DIVIDER)).toBeNull();
 	});
 });
 

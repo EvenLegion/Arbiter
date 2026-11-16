@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 2,
+	"branch": "claude/project-thread-8drros",
+	"baseRef": "origin/dev",
+	"mergeBase": "2d89f7cf6d345dd03590830c01e2a61fc1db5ad9",
+	"headRef": "50973b0693d51aa21dd27acb1e34658aa8130e9c",
+	"generatedAt": "2026-11-15T23:45:31.363Z",
+	"bump": "minor",
+	"targetVersion": "3.7.0",
+	"contributionSummary": "Keeps the optional merit rank divider role in sync with merit badge roles (MERIT_BADGE_DIVIDER_ROLE_ID): sync, dry run, role check, readiness and user_migrate copy.",
+	"publicNote": {
+		"mode": "internal"
+	},
+	"commits": [
+		{
+			"sha": "50973b0693d51aa21dd27acb1e34658aa8130e9c",
+			"subject": "feat(merit-badges): keep the merit rank divider role in sync",
+			"committedAt": "2026-11-15T23:45:22+00:00",
+			"committedAtMs": 1794786322000,
+			"type": "feat",
+			"scope": "merit-badges",
+			"description": "keep the merit rank divider role in sync",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}

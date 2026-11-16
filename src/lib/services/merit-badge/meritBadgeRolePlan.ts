@@ -17,6 +17,10 @@ export type MeritBadgeRolePlan = Readonly<{
 	roleIdToAdd: string | null;
 	/** Every other badge role the member holds, in ladder order. */
 	roleIdsToRemove: readonly string[];
+	/** The divider role to add: the member ends up with a badge role and lacks the divider. */
+	dividerRoleIdToAdd: string | null;
+	/** The divider role to remove: the member ends up with no badge role and holds the divider. */
+	dividerRoleIdToRemove: string | null;
 }>;
 
 /**
@@ -24,7 +28,7 @@ export type MeritBadgeRolePlan = Readonly<{
  *
  * Discord roles are output only (D6). The member's current roles are read here only to work out
  * which configured badge roles to add or remove; roles that are not configured badge roles are
- * never touched.
+ * never touched. The configured divider role follows the badge: held with any badge, removed with none.
  */
 export function planMeritBadgeRoles({
 	totalMerits,
@@ -39,8 +43,10 @@ export function planMeritBadgeRoles({
 	const appliedRole = desiredTier ? roleMap.resolveConfiguredRoleAtOrBelow(desiredTier.tier) : null;
 	const appliedRoleId = appliedRole?.roleId ?? null;
 
+	// Read once: callers may pass a one-shot iterator such as `member.roles.cache.keys()`.
+	const currentRoleIdSet = new Set(currentRoleIds);
 	const heldBadgeRoles: { tier: MeritBadgeTier; roleId: string }[] = [];
-	for (const roleId of new Set(currentRoleIds)) {
+	for (const roleId of currentRoleIdSet) {
 		const tier = roleMap.byRoleId(roleId);
 		if (tier) {
 			heldBadgeRoles.push({ tier, roleId });
@@ -49,6 +55,8 @@ export function planMeritBadgeRoles({
 	heldBadgeRoles.sort((left, right) => left.tier.tier - right.tier.tier);
 
 	const holdsAppliedRole = heldBadgeRoles.some((held) => held.roleId === appliedRoleId);
+	const { dividerRoleId } = roleMap;
+	const holdsDivider = dividerRoleId !== null && currentRoleIdSet.has(dividerRoleId);
 
 	return Object.freeze({
 		desiredTier,
@@ -57,10 +65,14 @@ export function planMeritBadgeRoles({
 		tierRoleMissing: desiredTier !== null && appliedRole?.tier.tier !== desiredTier.tier,
 		previousTier: heldBadgeRoles.at(-1)?.tier ?? null,
 		roleIdToAdd: appliedRoleId !== null && !holdsAppliedRole ? appliedRoleId : null,
-		roleIdsToRemove: Object.freeze(heldBadgeRoles.filter((held) => held.roleId !== appliedRoleId).map((held) => held.roleId))
+		roleIdsToRemove: Object.freeze(heldBadgeRoles.filter((held) => held.roleId !== appliedRoleId).map((held) => held.roleId)),
+		dividerRoleIdToAdd: dividerRoleId !== null && appliedRoleId !== null && !holdsDivider ? dividerRoleId : null,
+		dividerRoleIdToRemove: dividerRoleId !== null && appliedRoleId === null && holdsDivider ? dividerRoleId : null
 	});
 }
 
 export function isMeritBadgeRolePlanNoOp(plan: MeritBadgeRolePlan) {
-	return plan.roleIdToAdd === null && plan.roleIdsToRemove.length === 0;
+	return (
+		plan.roleIdToAdd === null && plan.roleIdsToRemove.length === 0 && plan.dividerRoleIdToAdd === null && plan.dividerRoleIdToRemove === null
+	);
 }

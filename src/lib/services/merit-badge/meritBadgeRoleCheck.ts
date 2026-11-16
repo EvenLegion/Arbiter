@@ -3,7 +3,8 @@ import { PermissionFlagsBits } from 'discord.js';
 import type { MeritBadgeRoleMap } from '../../../config/meritBadgeRoles';
 
 /**
- * Read-only check of the admin-provided badge roles against the guild's role list.
+ * Read-only check of the admin-provided badge roles, and the optional divider role, against the
+ * guild's role list.
  *
  * It reports problems; it never edits a role and never blocks badge writes. The admin owns
  * role creation and order (D2, D5, D11).
@@ -35,7 +36,10 @@ export type GuildRoleSnapshot = Readonly<{
 	hasIcon: boolean;
 }>;
 
-type BadgeRoleRef = { tier: number; tierLabel: string; roleId: string };
+/** `tier` is null for the divider role. */
+type BadgeRoleRef = { tier: number | null; tierLabel: string; roleId: string };
+
+export const MERIT_BADGE_DIVIDER_ROLE_LABEL = 'Merit rank divider';
 type OtherRoleRef = { otherRoleId: string; otherRoleName: string };
 
 export type MeritBadgeRoleIssue =
@@ -79,7 +83,7 @@ export function checkMeritBadgeRoles({
 	const lowestStaffRole = findLowest(guildRoles.filter((role) => role.id !== everyoneRoleId && staffRoleIds.has(role.id)));
 	// Badge roles with moderation permissions are reported on their own below.
 	const lowestModerationRole = findLowest(
-		guildRoles.filter((role) => role.id !== everyoneRoleId && !roleMap.roleIds.has(role.id) && hasModerationPermissions(role.permissions))
+		guildRoles.filter((role) => role.id !== everyoneRoleId && !roleMap.syncedRoleIds.has(role.id) && hasModerationPermissions(role.permissions))
 	);
 
 	for (const { tier, roleId } of roleMap.configuredRoles) {
@@ -101,6 +105,22 @@ export function checkMeritBadgeRoles({
 		}
 		if (hasModerationPermissions(role.permissions)) {
 			issues.push({ kind: 'has_moderation_permissions', ...ref, roleName: role.name, hasIcon: role.hasIcon });
+		}
+	}
+
+	// The divider only needs to be assignable and harmless; its place among staff roles is the admin's choice.
+	if (roleMap.dividerRoleId) {
+		const ref: BadgeRoleRef = { tier: null, tierLabel: MERIT_BADGE_DIVIDER_ROLE_LABEL, roleId: roleMap.dividerRoleId };
+		const role = rolesById.get(roleMap.dividerRoleId);
+		if (!role) {
+			issues.push({ kind: 'role_missing', ...ref });
+		} else {
+			if (botHighestRole && role.position >= botHighestRole.position) {
+				issues.push({ kind: 'not_below_bot_role', ...ref, roleName: role.name, ...otherRoleRef(botHighestRole) });
+			}
+			if (hasModerationPermissions(role.permissions)) {
+				issues.push({ kind: 'has_moderation_permissions', ...ref, roleName: role.name, hasIcon: role.hasIcon });
+			}
 		}
 	}
 

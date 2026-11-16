@@ -12,6 +12,12 @@ import { MERIT_BADGE_TIERS, getMeritBadgeTier, type MeritBadgeTier } from '@arbi
 const DISCORD_SNOWFLAKE_PATTERN = /^\d{17,20}$/;
 const MERIT_BADGE_ROLE_ENV_PATTERN = /^MERIT_BADGE_\w+_ROLE_ID$/;
 
+/**
+ * Optional "merit rank divider" role. Every member who holds a badge role also gets it, and a member
+ * with no badge role loses it. Unset means Arbiter never touches the divider.
+ */
+export const MERIT_BADGE_DIVIDER_ROLE_ENV_NAME = 'MERIT_BADGE_DIVIDER_ROLE_ID';
+
 export function getMeritBadgeRoleEnvName(tier: Pick<MeritBadgeTier, 'levelName' | 'section'>) {
 	return `MERIT_BADGE_${tier.levelName.toUpperCase().replace(/\s+/g, '_')}_${tier.section}_ROLE_ID`;
 }
@@ -23,6 +29,8 @@ const TIER_BY_ENV_NAME = new Map(MERIT_BADGE_TIERS.map((tier) => [getMeritBadgeR
 
 export type ParsedMeritBadgeRoleIds = {
 	roleIdsByTier: ReadonlyMap<number, string>;
+	/** The divider role ID, or null when unset or invalid. */
+	dividerRoleId: string | null;
 	issues: string[];
 };
 
@@ -31,7 +39,8 @@ export type ParsedMeritBadgeRoleIds = {
  *
  * Reports, without throwing: a value that is not a Discord ID, an ID shared by two tiers, an ID
  * that reuses another `*_ROLE_ID` variable in the same source (for example a division role), and a
- * set `MERIT_BADGE_*_ROLE_ID` variable that names no tier.
+ * set `MERIT_BADGE_*_ROLE_ID` variable that names no tier. The divider role follows the same ID
+ * rules and must differ from every badge role and every other `*_ROLE_ID` variable.
  */
 export function parseMeritBadgeRoleIds(source: Readonly<Record<string, string | undefined>>): ParsedMeritBadgeRoleIds {
 	const issues: string[] = [];
@@ -47,7 +56,7 @@ export function parseMeritBadgeRoleIds(source: Readonly<Record<string, string | 
 			}
 			continue;
 		}
-		if (TIER_BY_ENV_NAME.has(envName)) {
+		if (TIER_BY_ENV_NAME.has(envName) || envName === MERIT_BADGE_DIVIDER_ROLE_ENV_NAME) {
 			continue;
 		}
 		if (value.length > 0) {
@@ -85,7 +94,40 @@ export function parseMeritBadgeRoleIds(source: Readonly<Record<string, string | 
 		roleIdsByTier.set(tier.tier, roleId);
 	}
 
-	return { roleIdsByTier, issues };
+	const dividerRoleId = parseDividerRoleId({ source, envNameByRoleId, otherEnvNameByRoleId, issues });
+
+	return { roleIdsByTier, dividerRoleId, issues };
+}
+
+function parseDividerRoleId({
+	source,
+	envNameByRoleId,
+	otherEnvNameByRoleId,
+	issues
+}: {
+	source: Readonly<Record<string, string | undefined>>;
+	envNameByRoleId: ReadonlyMap<string, string>;
+	otherEnvNameByRoleId: ReadonlyMap<string, string>;
+	issues: string[];
+}): string | null {
+	const envName = MERIT_BADGE_DIVIDER_ROLE_ENV_NAME;
+	const roleId = (source[envName] ?? '').trim();
+	if (roleId.length === 0) {
+		return null;
+	}
+
+	if (!DISCORD_SNOWFLAKE_PATTERN.test(roleId)) {
+		issues.push(`${envName}: must be a Discord role ID (17 to 20 digits)`);
+		return null;
+	}
+
+	const sameEnvName = envNameByRoleId.get(roleId) ?? otherEnvNameByRoleId.get(roleId);
+	if (sameEnvName) {
+		issues.push(`${envName}: uses the same role ID as ${sameEnvName}; the divider must be its own role`);
+		return null;
+	}
+
+	return roleId;
 }
 
 export type ConfiguredMeritBadgeRole = Readonly<{
@@ -96,8 +138,12 @@ export type ConfiguredMeritBadgeRole = Readonly<{
 export type MeritBadgeRoleMap = Readonly<{
 	/** True when at least one tier has a role ID. False means badge sync is off. */
 	isEnabled: boolean;
-	/** Every configured badge role ID. */
+	/** Every configured badge role ID. Does not include the divider. */
 	roleIds: ReadonlySet<string>;
+	/** The divider role ID, or null when unset or when badge sync is off. */
+	dividerRoleId: string | null;
+	/** Every role badge sync adds and removes: the badge roles plus the divider. */
+	syncedRoleIds: ReadonlySet<string>;
 	/** Configured tiers in ladder order. */
 	configuredRoles: readonly ConfiguredMeritBadgeRole[];
 	byTier: (tier: number) => string | null;
@@ -109,17 +155,22 @@ export type MeritBadgeRoleMap = Readonly<{
 	resolveConfiguredRoleAtOrBelow: (tier: number) => ConfiguredMeritBadgeRole | null;
 }>;
 
-export function createMeritBadgeRoleMap(roleIdsByTier: ReadonlyMap<number, string>): MeritBadgeRoleMap {
+export function createMeritBadgeRoleMap(roleIdsByTier: ReadonlyMap<number, string>, dividerRoleId: string | null = null): MeritBadgeRoleMap {
 	const configuredRoles = MERIT_BADGE_TIERS.flatMap((tier) => {
 		const roleId = roleIdsByTier.get(tier.tier);
 		return roleId ? [Object.freeze({ tier, roleId })] : [];
 	});
 	const roleIdByTier = new Map(configuredRoles.map((role) => [role.tier.tier, role.roleId] as const));
 	const tierByRoleId = new Map(configuredRoles.map((role) => [role.roleId, role.tier] as const));
+	const isEnabled = configuredRoles.length > 0;
+	// The divider only follows badge roles, so it is off while badge sync is off.
+	const activeDividerRoleId = isEnabled && dividerRoleId && !tierByRoleId.has(dividerRoleId) ? dividerRoleId : null;
 
 	return Object.freeze({
-		isEnabled: configuredRoles.length > 0,
+		isEnabled,
 		roleIds: new Set(tierByRoleId.keys()),
+		dividerRoleId: activeDividerRoleId,
+		syncedRoleIds: new Set([...tierByRoleId.keys(), ...(activeDividerRoleId ? [activeDividerRoleId] : [])]),
 		configuredRoles: Object.freeze(configuredRoles),
 		byTier: (tier: number) => roleIdByTier.get(tier) ?? null,
 		byRoleId: (roleId: string) => tierByRoleId.get(roleId) ?? null,

@@ -33,6 +33,7 @@ describe('merit badge role environment validation', () => {
 	afterEach(() => {
 		delete process.env.MERIT_BADGE_FERRUM_I_ROLE_ID;
 		delete process.env.MERIT_BADGE_FERRUM_II_ROLE_ID;
+		delete process.env.MERIT_BADGE_DIVIDER_ROLE_ID;
 		vi.resetModules();
 	});
 
@@ -51,6 +52,17 @@ describe('merit badge role environment validation', () => {
 		const { ENV_MERIT_BADGE_ROLES } = await import('../../../src/config/env/discord');
 
 		expect(ENV_MERIT_BADGE_ROLES.byTier(1)).toBe('100000000000000001');
+	});
+
+	it('reads the divider role at boot without treating it as a badge tier', async () => {
+		process.env.MERIT_BADGE_FERRUM_I_ROLE_ID = '100000000000000001';
+		process.env.MERIT_BADGE_DIVIDER_ROLE_ID = '100000000000000099';
+		vi.resetModules();
+
+		const { ENV_MERIT_BADGE_ROLES } = await import('../../../src/config/env/discord');
+
+		expect(ENV_MERIT_BADGE_ROLES.dividerRoleId).toBe('100000000000000099');
+		expect(ENV_MERIT_BADGE_ROLES.configuredRoles).toHaveLength(1);
 	});
 
 	it('fails boot validation for a duplicate badge role ID', async () => {

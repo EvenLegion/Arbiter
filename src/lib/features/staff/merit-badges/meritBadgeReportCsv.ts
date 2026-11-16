@@ -10,7 +10,8 @@ const CSV_HEADER = [
 	'desired_badge',
 	'desired_role_configured',
 	'current_badges',
-	'planned_action'
+	'planned_action',
+	'planned_divider'
 ] as const;
 
 /**
@@ -31,7 +32,8 @@ export function buildMeritBadgeReportCsv(rows: readonly MeritBadgeReportRow[]): 
 				row.desiredTier?.label ?? null,
 				row.desiredTier ? (row.desiredRoleConfigured ? 'yes' : 'no') : null,
 				row.currentTiers.map((tier) => tier.label).join('; '),
-				row.action
+				row.action,
+				row.dividerAction
 			]
 				.map(escapeCsvCell)
 				.join(',')

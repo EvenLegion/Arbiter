@@ -1,9 +1,10 @@
 import type { MeritBadgeRoleMap } from '../../../config/meritBadgeRoles';
 import type { ContextLogger } from '../../logging/executionContext';
+import { MERIT_BADGE_DIVIDER_ROLE_LABEL } from './meritBadgeRoleCheck';
 import { MERIT_BADGE_TIERS, type MeritBadgeTier } from '../merit-rank/meritBadge';
 import { getMeritRankSymbol, resolveMeritRankLevel } from '../merit-rank/meritRank';
 import { isMeritBadgeRolePlanNoOp, planMeritBadgeRoles, type MeritBadgeRolePlan } from './meritBadgeRolePlan';
-import type { MeritBadgeSyncResult } from './meritBadgeSyncService';
+import type { MeritBadgeSyncResult, MeritBadgeSyncStage } from './meritBadgeSyncService';
 
 /**
  * Server-wide badge reconcile for `/staff merit_badges sync` (MB-06).
@@ -49,6 +50,9 @@ export type MeritBadgePlannedAction = 'add' | 'swap' | 'remove' | 'none' | 'unco
 
 export const MERIT_BADGE_PLANNED_ACTIONS: readonly MeritBadgePlannedAction[] = Object.freeze(['add', 'swap', 'remove', 'none', 'unconfigured']);
 
+/** The planned divider role change. Always 'none' while no divider role is configured. */
+export type MeritBadgeDividerAction = 'add' | 'remove' | 'none';
+
 export type MeritBadgeReportRow = Readonly<{
 	discordUserId: string;
 	/** The stored Discord username from the User row, or null when the member has no User row. */
@@ -62,6 +66,7 @@ export type MeritBadgeReportRow = Readonly<{
 	/** Configured badge roles the member holds now, in ladder order. */
 	currentTiers: readonly MeritBadgeTier[];
 	action: MeritBadgePlannedAction;
+	dividerAction: MeritBadgeDividerAction;
 }>;
 
 export type MeritBadgeTierCount = Readonly<{ tier: MeritBadgeTier; count: number }>;
@@ -76,6 +81,7 @@ export type MeritBadgeCutoverReport =
 			histogram: readonly MeritBadgeTierCount[];
 			noBadgeCount: number;
 			actionCounts: Readonly<Record<MeritBadgePlannedAction, number>>;
+			dividerActionCounts: Readonly<Record<Exclude<MeritBadgeDividerAction, 'none'>, number>>;
 	  };
 
 export type MeritBadgeBulkReportDeps = {
@@ -121,9 +127,13 @@ export async function buildMeritBadgeCutoverReport(
 
 	const countsByTier = new Map<number, number>();
 	const actionCounts: Record<MeritBadgePlannedAction, number> = { add: 0, swap: 0, remove: 0, none: 0, unconfigured: 0 };
+	const dividerActionCounts = { add: 0, remove: 0 };
 	let noBadgeCount = 0;
 	for (const row of rows) {
 		actionCounts[row.action]++;
+		if (row.dividerAction !== 'none') {
+			dividerActionCounts[row.dividerAction]++;
+		}
 		if (row.desiredTier) {
 			countsByTier.set(row.desiredTier.tier, (countsByTier.get(row.desiredTier.tier) ?? 0) + 1);
 		} else {
@@ -139,7 +149,8 @@ export async function buildMeritBadgeCutoverReport(
 			return count > 0 ? [{ tier, count }] : [];
 		}),
 		noBadgeCount,
-		actionCounts
+		actionCounts,
+		dividerActionCounts
 	};
 }
 
@@ -172,7 +183,8 @@ function buildReportRow({
 		desiredTier: plan.desiredTier,
 		desiredRoleConfigured: plan.desiredTier !== null && roleMap.byTier(plan.desiredTier.tier) !== null,
 		currentTiers,
-		action: toPlannedAction(plan)
+		action: toPlannedAction(plan),
+		dividerAction: plan.dividerRoleIdToAdd ? 'add' : plan.dividerRoleIdToRemove ? 'remove' : 'none'
 	};
 }
 
@@ -195,8 +207,8 @@ export type MeritBadgeLiveRunReadiness =
 
 /**
  * Prepare checks before any live role call: role IDs configured, Arbiter has Manage Roles, and
- * Arbiter can assign every configured badge role (it exists, is not managed, and sits below
- * Arbiter's highest role).
+ * Arbiter can assign every configured badge role and the divider role (it exists, is not managed,
+ * and sits below Arbiter's highest role).
  */
 export function checkMeritBadgeLiveRunReadiness({
 	roleMap,
@@ -214,9 +226,12 @@ export function checkMeritBadgeLiveRunReadiness({
 		return { ok: false, reason: 'missing_manage_roles' };
 	}
 
-	const notEditable = roleMap.configuredRoles.filter(({ roleId }) => !editableRoleIds.has(roleId));
+	const notEditable = roleMap.configuredRoles.filter(({ roleId }) => !editableRoleIds.has(roleId)).map(({ tier }) => tier.label);
+	if (roleMap.dividerRoleId && !editableRoleIds.has(roleMap.dividerRoleId)) {
+		notEditable.push(MERIT_BADGE_DIVIDER_ROLE_LABEL);
+	}
 	if (notEditable.length > 0) {
-		return { ok: false, reason: 'roles_not_editable', tierLabels: notEditable.map(({ tier }) => tier.label) };
+		return { ok: false, reason: 'roles_not_editable', tierLabels: notEditable };
 	}
 
 	return { ok: true };
@@ -385,8 +400,10 @@ function countSyncResult(counts: { updated: number; unchanged: number; memberLef
 	}
 }
 
+const ROLE_CALL_STAGES: ReadonlySet<MeritBadgeSyncStage> = new Set(['add_role', 'remove_role', 'add_divider_role', 'remove_divider_role']);
+
 function madeRoleCalls(result: MeritBadgeSyncResult) {
-	return result.kind === 'updated' || (result.kind === 'failed' && (result.stage === 'add_role' || result.stage === 'remove_role'));
+	return result.kind === 'updated' || (result.kind === 'failed' && ROLE_CALL_STAGES.has(result.stage));
 }
 
 /** Non-bot members in Discord ID (snowflake) order, so reruns walk the same order. */

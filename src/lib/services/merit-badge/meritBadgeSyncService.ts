@@ -25,7 +25,18 @@ export type MeritBadgeSyncInput = {
 	totalMeritsOverride?: number;
 };
 
-export type MeritBadgeSyncStage = 'guild' | 'load_member' | 'read_total' | 'add_role' | 'remove_role' | 'unexpected';
+export type MeritBadgeSyncStage =
+	| 'guild'
+	| 'load_member'
+	| 'read_total'
+	| 'add_role'
+	| 'remove_role'
+	| 'add_divider_role'
+	| 'remove_divider_role'
+	| 'unexpected';
+
+/** What happened to the divider role: added, removed, or nothing. */
+export type MeritBadgeDividerChange = 'added' | 'removed' | null;
 
 export type MeritBadgeSyncFailureCode = MeritBadgeRoleErrorCode | 'wrong_guild' | 'read_failed' | 'invalid_total' | 'unexpected';
 
@@ -42,9 +53,9 @@ export type MeritBadgeSyncFailure = {
 	code: MeritBadgeSyncFailureCode;
 	totalMerits?: number;
 	plan?: MeritBadgeRolePlan;
-	/** The role added before a later removal failed, or null. */
+	/** The badge role added before a later step failed, or null. */
 	addedRoleId: string | null;
-	/** Roles removed before a removal failed. */
+	/** Badge roles removed before a later step failed. */
 	removedRoleIds: string[];
 };
 
@@ -53,7 +64,7 @@ export type MeritBadgeSyncResult =
 	| { kind: 'member_not_found'; discordUserId: string }
 	| { kind: 'skipped_bot'; discordUserId: string }
 	| ({ kind: 'unchanged' } & PlannedFields)
-	| ({ kind: 'updated'; addedRoleId: string | null; removedRoleIds: string[] } & PlannedFields)
+	| ({ kind: 'updated'; addedRoleId: string | null; removedRoleIds: string[]; dividerChange: MeritBadgeDividerChange } & PlannedFields)
 	| MeritBadgeSyncFailure;
 
 /**
@@ -63,6 +74,7 @@ export type MeritBadgeSyncResult =
  * - Runs inside the per-member lock, so two syncs for one member never interleave.
  * - A member who already holds the right role, and no other badge role, gets zero Discord calls.
  * - Adds the new role before removing old ones; if the add fails, the old badge stays.
+ * - Changes the divider role last, only after every badge change succeeded.
  * - Never throws.
  */
 export async function syncMemberMeritBadge<TMember>(deps: MeritBadgeSyncDeps<TMember>, input: MeritBadgeSyncInput): Promise<MeritBadgeSyncResult> {
@@ -157,7 +169,23 @@ async function syncInsideLock<TMember>(
 		removedRoleIds.push(roleId);
 	}
 
-	return { kind: 'updated', discordUserId, totalMerits, plan, addedRoleId: plan.roleIdToAdd, removedRoleIds };
+	const badgeChanges = { totalMerits, plan, addedRoleId: plan.roleIdToAdd, removedRoleIds };
+	let dividerChange: MeritBadgeDividerChange = null;
+	if (plan.dividerRoleIdToAdd) {
+		const added = await deps.addRole(member, plan.dividerRoleIdToAdd);
+		if (!added.ok) {
+			return failure({ discordUserId, stage: 'add_divider_role', code: added.code, ...badgeChanges });
+		}
+		dividerChange = 'added';
+	} else if (plan.dividerRoleIdToRemove) {
+		const removed = await deps.removeRole(member, plan.dividerRoleIdToRemove);
+		if (!removed.ok) {
+			return failure({ discordUserId, stage: 'remove_divider_role', code: removed.code, ...badgeChanges });
+		}
+		dividerChange = 'removed';
+	}
+
+	return { kind: 'updated', discordUserId, ...badgeChanges, dividerChange };
 }
 
 function failure(
@@ -182,7 +210,9 @@ function logResult(logger: ContextLogger, result: MeritBadgeSyncResult) {
 					discordUserId: result.discordUserId,
 					outcome: result.kind,
 					...tierFields(result.plan),
-					...(result.kind === 'updated' ? { addedRoleId: result.addedRoleId, removedRoleIds: result.removedRoleIds } : {})
+					...(result.kind === 'updated'
+						? { addedRoleId: result.addedRoleId, removedRoleIds: result.removedRoleIds, dividerChange: result.dividerChange }
+						: {})
 				},
 				'merit_badge.sync.completed'
 			);
