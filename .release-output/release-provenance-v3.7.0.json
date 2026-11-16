@@ -1,0 +1,34 @@
+{
+	"schemaVersion": 1,
+	"releaseVersion": "3.7.0",
+	"plans": [
+		{
+			"fileName": "claude-project-thread-8drros.json",
+			"branch": "claude/project-thread-8drros",
+			"bump": "minor",
+			"contributionSummary": "Keeps the optional merit rank divider role in sync with merit badge roles (MERIT_BADGE_DIVIDER_ROLE_ID): sync, dry run, role check, readiness and user_migrate copy.",
+			"publicNote": {
+				"mode": "internal"
+			},
+			"commits": [
+				{
+					"sha": "50973b0693d51aa21dd27acb1e34658aa8130e9c",
+					"subject": "feat(merit-badges): keep the merit rank divider role in sync",
+					"committedAt": "2026-11-15T23:45:22+00:00",
+					"committedAtMs": 1794786322000,
+					"type": "feat",
+					"scope": "merit-badges",
+					"description": "keep the merit rank divider role in sync",
+					"breaking": false,
+					"section": "Features",
+					"pullRequest": {
+						"number": 142,
+						"url": "https://github.com/EvenLegion/Arbiter/pull/142"
+					},
+					"contributor": "Spacesai1or"
+				}
+			]
+		}
+	],
+	"publicNotes": []
+}

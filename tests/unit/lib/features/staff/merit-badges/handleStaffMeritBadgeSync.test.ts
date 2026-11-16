@@ -102,7 +102,8 @@ describe('handleStaffMeritBadgeSync', () => {
 			rows: [],
 			histogram: [],
 			noBadgeCount: 0,
-			actionCounts: { add: 0, swap: 0, remove: 0, none: 0, unconfigured: 0 }
+			actionCounts: { add: 0, swap: 0, remove: 0, none: 0, unconfigured: 0 },
+			dividerActionCounts: { add: 0, remove: 0 }
 		});
 		const runLock = createMeritBadgeBulkRunLock();
 		const held = runLock.tryAcquire();

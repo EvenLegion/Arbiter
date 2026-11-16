@@ -215,3 +215,48 @@ describe('planMeritBadgeRoles', () => {
 		expect(planMeritBadgeRoles({ totalMerits: Number.NaN, currentRoleIds: [], roleMap }).desiredTier).toBeNull();
 	});
 });
+
+describe('planMeritBadgeRoles with the divider role', () => {
+	const DIVIDER = '200000000000000099';
+	const dividerMap = createMeritBadgeRoleMap(
+		new Map([
+			[1, FERRUM_I],
+			[4, AES_I]
+		]),
+		DIVIDER
+	);
+	const dividerPlan = (totalMerits: number, currentRoleIds: Iterable<string>) => {
+		const result = planMeritBadgeRoles({ totalMerits, currentRoleIds, roleMap: dividerMap });
+		return {
+			roleIdToAdd: result.roleIdToAdd,
+			dividerRoleIdToAdd: result.dividerRoleIdToAdd,
+			dividerRoleIdToRemove: result.dividerRoleIdToRemove,
+			noOp: isMeritBadgeRolePlanNoOp(result)
+		};
+	};
+
+	it('adds the divider with the first badge', () => {
+		expect(dividerPlan(1, [DIVISION_ROLE])).toEqual({ roleIdToAdd: FERRUM_I, dividerRoleIdToAdd: DIVIDER, dividerRoleIdToRemove: null, noOp: false });
+	});
+
+	it('adds only the divider to a badge holder who lacks it', () => {
+		expect(dividerPlan(4, [AES_I])).toEqual({ roleIdToAdd: null, dividerRoleIdToAdd: DIVIDER, dividerRoleIdToRemove: null, noOp: false });
+	});
+
+	it('does nothing when the member holds the right badge and the divider', () => {
+		expect(dividerPlan(4, [AES_I, DIVIDER]).noOp).toBe(true);
+	});
+
+	it('removes the divider from a member left with no badge', () => {
+		expect(dividerPlan(0, [FERRUM_I, DIVIDER])).toEqual({ roleIdToAdd: null, dividerRoleIdToAdd: null, dividerRoleIdToRemove: DIVIDER, noOp: false });
+		expect(dividerPlan(0, [DIVIDER]).dividerRoleIdToRemove).toBe(DIVIDER);
+	});
+
+	it('leaves a member with no badge and no divider alone', () => {
+		expect(dividerPlan(0, [DIVISION_ROLE]).noOp).toBe(true);
+	});
+
+	it('reads a one-shot iterator of role IDs only once', () => {
+		expect(dividerPlan(4, new Map([[AES_I, true], [DIVIDER, true]]).keys()).noOp).toBe(true);
+	});
+});

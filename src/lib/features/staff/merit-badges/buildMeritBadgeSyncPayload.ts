@@ -45,6 +45,13 @@ export function buildMeritBadgeDryRunPayload({
 				value: MERIT_BADGE_PLANNED_ACTIONS.map((action) => `${action}: ${report.actionCounts[action]}`).join('\n'),
 				inline: true
 			},
+			{
+				name: 'Divider role',
+				value: roleMap.dividerRoleId
+					? `add: ${report.dividerActionCounts.add}\nremove: ${report.dividerActionCounts.remove}`
+					: 'Not configured',
+				inline: true
+			},
 			{ name: 'Role hierarchy check', value: formatRoleCheck(roleCheck) }
 		)
 		.setTimestamp();

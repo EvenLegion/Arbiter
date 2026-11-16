@@ -347,6 +347,67 @@ describe('runMeritBadgeBulkSync', () => {
 	});
 });
 
+describe('merit badge bulk sync with the divider role', () => {
+	const DIVIDER = '200000000000000099';
+	const dividerMap = createMeritBadgeRoleMap(
+		new Map([
+			[1, FERRUM_I],
+			[4, AES_I]
+		]),
+		DIVIDER
+	);
+	const initial = () => ({
+		[memberId(1)]: { roles: new Set<string>(), total: 1 },
+		[memberId(2)]: { roles: new Set([AES_I]), total: 4 },
+		[memberId(3)]: { roles: new Set([AES_I, DIVIDER]), total: 4 },
+		[memberId(4)]: { roles: new Set([DIVIDER]), total: 0 },
+		[memberId(5)]: { roles: new Set<string>(), total: 0 }
+	});
+
+	it('plans divider adds and removes in the dry run without role calls', async () => {
+		const world = createWorld(initial(), { roleMap: dividerMap });
+
+		const report = await buildMeritBadgeCutoverReport(world.deps);
+
+		expect(world.roleCalls).toEqual([]);
+		if (report.kind !== 'report') throw new Error('expected a report');
+		expect(report.rows.map((row) => [row.action, row.dividerAction])).toEqual([
+			['add', 'add'],
+			['none', 'add'],
+			['none', 'none'],
+			['none', 'remove'],
+			['none', 'none']
+		]);
+		expect(report.dividerActionCounts).toEqual({ add: 2, remove: 1 });
+	});
+
+	it('syncs the divider, then a rerun makes zero role calls', async () => {
+		const world = createWorld(initial(), { roleMap: dividerMap });
+
+		const first = await runMeritBadgeBulkSync(world.deps);
+		expect(first).toMatchObject({ kind: 'completed', updated: 3, unchanged: 2, failed: 0 });
+		expect([...world.members.values()].map((member) => [...member.roles])).toEqual([
+			[FERRUM_I, DIVIDER],
+			[AES_I, DIVIDER],
+			[AES_I, DIVIDER],
+			[],
+			[]
+		]);
+
+		world.roleCalls.length = 0;
+		await expect(runMeritBadgeBulkSync(world.deps)).resolves.toMatchObject({ updated: 0, unchanged: 5, failed: 0 });
+		expect(world.roleCalls).toEqual([]);
+	});
+
+	it('requires the divider role to be editable before a live run', () => {
+		expect(checkMeritBadgeLiveRunReadiness({ roleMap: dividerMap, botHasManageRoles: true, editableRoleIds: new Set([FERRUM_I, AES_I]) })).toEqual({
+			ok: false,
+			reason: 'roles_not_editable',
+			tierLabels: ['Merit rank divider']
+		});
+	});
+});
+
 describe('checkMeritBadgeLiveRunReadiness', () => {
 	it('requires configured roles, Manage Roles and every badge role editable', () => {
 		const allEditable = new Set(configuredRoleMap.roleIds);

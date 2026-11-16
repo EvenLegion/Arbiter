@@ -35,7 +35,7 @@ vi.mock('../../../../../../src/lib/services/merit-badge/createMeritBadgeSyncRunt
 
 vi.mock('../../../../../../src/config/env/discord', () => ({
 	ENV_MERIT_BADGE_ROLES: {
-		get roleIds() {
+		get syncedRoleIds() {
 			return mocks.badgeRoleIds;
 		}
 	}
@@ -191,10 +191,10 @@ describe('handleStaffUserMigrate', () => {
 		});
 	});
 
-	it('keeps badge roles out of the role copy and syncs both accounts after the merge', async () => {
+	it('keeps badge roles and the divider out of the role copy and syncs both accounts after the merge', async () => {
 		const prepared = createPrepared();
-		mocks.badgeRoleIds = new Set(['badge-old', 'badge-new']);
-		const oldMember = createMember(OLD_ID, ['role-copy', 'badge-old', 'guild-1']);
+		mocks.badgeRoleIds = new Set(['badge-old', 'badge-new', 'merit-divider']);
+		const oldMember = createMember(OLD_ID, ['role-copy', 'badge-old', 'merit-divider', 'guild-1']);
 		const newMember = createMember(NEW_ID, ['badge-new', 'guild-1']);
 		const order: string[] = [];
 		newMember.roles.add.mockImplementation(async (roleId: string) => {

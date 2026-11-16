@@ -59,7 +59,8 @@ export function createGuildMemberChangeDeps({ guild, context }: { guild: Guild; 
 
 			return mapNicknameSyncResult(nicknameSyncResult);
 		},
-		isBadgeRole: (roleId: string) => ENV_MERIT_BADGE_ROLES.roleIds.has(roleId),
+		// The divider follows the badge, so a divider-only change is also badge-only.
+		isBadgeRole: (roleId: string) => ENV_MERIT_BADGE_ROLES.syncedRoleIds.has(roleId),
 		// No total override: listener paths always re-read the total inside the member lock.
 		syncBadge: async ({ discordUserId }: { discordUserId: string }) => toGuildMemberBadgeOutcome(await badges.syncMember({ discordUserId }))
 	} satisfies Parameters<typeof processGuildMemberRoleChange<GuildMember>>[0];
