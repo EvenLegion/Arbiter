@@ -10,7 +10,7 @@
 	"contributionSummary": "Adds optional per-tier badge emoji settings and uses them in the badge rank-up DM and the /merit list badge fields. Staff manual-merit DMs are unchanged.",
 	"publicNote": {
 		"mode": "standalone",
-		"description": "Members now see their merit badge as a picture. The congratulations message you get on reaching a new badge shows your badge and the next one, and the Badge Progress section of /merit list shows your current badge, a progress bar to the next badge, and how many merits you still need.",
+		"description": "Members now see their merit badges as pictures. The message sent when a member reaches a new badge shows the badge they earned and the next one, and the Badge Progress section of /merit list shows the current badge, a progress bar to the next badge, and how many merits are still needed.",
 		"section": "Features"
 	},
 	"commits": [
