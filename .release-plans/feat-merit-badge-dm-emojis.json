@@ -1,0 +1,29 @@
+{
+	"schemaVersion": 2,
+	"branch": "feat/merit-badge-dm-emojis",
+	"baseRef": "origin/dev",
+	"mergeBase": "faf1fa4656169b9f5bfbde0112e0b82e0d64bf7a",
+	"headRef": "45d4c274c9a7e91d8f46cc8929ad733b96053df4",
+	"generatedAt": "2026-11-24T00:17:02.568Z",
+	"bump": "minor",
+	"targetVersion": "3.8.0",
+	"contributionSummary": "Adds optional per-tier badge emoji settings and uses them in the badge rank-up DM and the /merit list badge fields. Staff manual-merit DMs are unchanged.",
+	"publicNote": {
+		"mode": "standalone",
+		"description": "Members now see their merit badges as pictures. The message sent when a member reaches a new badge shows the badge they earned and the next one, and the Badge Progress section of /merit list shows the current badge, a progress bar to the next badge, and how many merits are still needed.",
+		"section": "Features"
+	},
+	"commits": [
+		{
+			"sha": "45d4c274c9a7e91d8f46cc8929ad733b96053df4",
+			"subject": "feat(merit): show badge emojis in rank-up DM and /merit list",
+			"committedAt": "2026-11-23T19:16:41-05:00",
+			"committedAtMs": 1795479401000,
+			"type": "feat",
+			"scope": "merit",
+			"description": "show badge emojis in rank-up DM and /merit list",
+			"breaking": false,
+			"section": "Features"
+		}
+	]
+}

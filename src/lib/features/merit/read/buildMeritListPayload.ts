@@ -1,8 +1,13 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 
-import { ENV_MERIT_BADGE_ROLES } from '../../../../config/env/discord';
+import { ENV_MERIT_BADGE_EMOJIS, ENV_MERIT_BADGE_ROLES } from '../../../../config/env/discord';
 import type { MeritSummaryEntry } from '../../../../integrations/prisma/repositories';
-import { buildMeritBadgeListFields, resolveMeritBadgeCopy, type MeritBadgeCopyRoles } from '../../../services/merit-rank/meritBadgeMessages';
+import {
+	buildMeritBadgeListFields,
+	resolveMeritBadgeCopy,
+	type MeritBadgeCopyEmojis,
+	type MeritBadgeCopyRoles
+} from '../../../services/merit-rank/meritBadgeMessages';
 import { buildMeritRankProgressBar, resolveMeritRankProgress } from '../../../services/merit-rank/meritRank';
 import { buildMeritListPageButtonId, buildMeritListPageIndicatorButtonId } from './meritListButtonCustomId';
 
@@ -16,6 +21,8 @@ type BuildMeritListPayloadParams = {
 	entries: MeritSummaryEntry[];
 	/** Defaults to the configured badge roles. */
 	badgeRoles?: MeritBadgeCopyRoles;
+	/** Defaults to the configured badge emojis. A tier without an emoji shows its name alone. */
+	badgeEmojis?: MeritBadgeCopyEmojis;
 };
 
 export function buildMeritListPayload({
@@ -26,14 +33,16 @@ export function buildMeritListPayload({
 	page,
 	totalPages,
 	entries,
-	badgeRoles = ENV_MERIT_BADGE_ROLES
+	badgeRoles = ENV_MERIT_BADGE_ROLES,
+	badgeEmojis = ENV_MERIT_BADGE_EMOJIS
 }: BuildMeritListPayloadParams) {
 	const embed = buildMeritListEmbed({
 		targetDisplayName,
 		totalMerits,
 		totalLinkedEvents,
 		entries,
-		badgeRoles
+		badgeRoles,
+		badgeEmojis
 	});
 	const prevPage = Math.max(1, page - 1);
 	const nextPage = Math.min(totalPages, page + 1);
@@ -85,18 +94,20 @@ function buildMeritListEmbed({
 	totalMerits,
 	totalLinkedEvents,
 	entries,
-	badgeRoles
+	badgeRoles,
+	badgeEmojis
 }: {
 	targetDisplayName: string;
 	totalMerits: number;
 	totalLinkedEvents: number;
 	entries: MeritSummaryEntry[];
 	badgeRoles: MeritBadgeCopyRoles;
+	badgeEmojis: MeritBadgeCopyEmojis;
 }) {
 	const description = buildEntriesDescription({
 		entries
 	});
-	const standing = buildStandingFields({ totalMerits, badgeRoles });
+	const standing = buildStandingFields({ totalMerits, badgeRoles, badgeEmojis });
 
 	return new EmbedBuilder()
 		.setTitle(`Merits for ${targetDisplayName}`)
@@ -131,7 +142,15 @@ function buildMeritListEmbed({
  * Badge fields once the member's badge tier has a role; otherwise the legacy rank fields.
  * While the next badge has no role yet, the progress field stays the legacy rank progress.
  */
-function buildStandingFields({ totalMerits, badgeRoles }: { totalMerits: number; badgeRoles: MeritBadgeCopyRoles }) {
+function buildStandingFields({
+	totalMerits,
+	badgeRoles,
+	badgeEmojis
+}: {
+	totalMerits: number;
+	badgeRoles: MeritBadgeCopyRoles;
+	badgeEmojis: MeritBadgeCopyEmojis;
+}) {
 	const legacy = buildLegacyRankFields(totalMerits);
 	const badgeCopy = resolveMeritBadgeCopy({
 		totalMerits,
@@ -141,7 +160,7 @@ function buildStandingFields({ totalMerits, badgeRoles }: { totalMerits: number;
 		return legacy;
 	}
 
-	const badgeFields = buildMeritBadgeListFields(badgeCopy);
+	const badgeFields = buildMeritBadgeListFields(badgeCopy, badgeEmojis);
 	return {
 		currentName: 'Current Badge',
 		currentValue: badgeFields.currentValue,

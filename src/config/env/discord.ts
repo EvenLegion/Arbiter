@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { createMeritBadgeEmojiMap, parseMeritBadgeEmojiIds } from '../meritBadgeEmojis';
 import { createMeritBadgeRoleMap, parseMeritBadgeRoleIds } from '../meritBadgeRoles';
 import { env } from './env';
 
@@ -72,3 +73,13 @@ if (meritBadgeRoles.issues.length > 0) {
 }
 
 export const ENV_MERIT_BADGE_ROLES = createMeritBadgeRoleMap(meritBadgeRoles.roleIdsByTier, meritBadgeRoles.dividerRoleId);
+
+// Optional merit badge emoji IDs: MERIT_BADGE_FERRUM_I_EMOJI_ID … MERIT_BADGE_SUPRA_OMNIA_III_EMOJI_ID.
+// Unset means that tier's badge DM shows the badge name without an emoji. See src/config/meritBadgeEmojis.ts.
+const meritBadgeEmojis = parseMeritBadgeEmojiIds(env);
+
+if (meritBadgeEmojis.issues.length > 0) {
+	throw new Error(`Invalid environment configuration:\n${meritBadgeEmojis.issues.join('\n')}`);
+}
+
+export const ENV_MERIT_BADGE_EMOJIS = createMeritBadgeEmojiMap(meritBadgeEmojis.emojiIdsByTier);

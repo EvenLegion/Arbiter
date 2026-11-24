@@ -30,8 +30,10 @@ describe('merit badge role variable names', () => {
 	});
 
 	it('lists every badge role variable in .env.example, unset', () => {
-		const exampleLines = readFileSync(join(__dirname, '../../../.env.example'), 'utf8').split('\n');
-		const badgeLines = exampleLines.filter((line) => line.startsWith('MERIT_BADGE_') && !line.startsWith(MERIT_BADGE_DIVIDER_ROLE_ENV_NAME));
+		const exampleLines = readFileSync(join(__dirname, '../../../.env.example'), 'utf8').split(/\r?\n/);
+		const badgeLines = exampleLines.filter(
+			(line) => line.startsWith('MERIT_BADGE_') && line.includes('_ROLE_ID=') && !line.startsWith(MERIT_BADGE_DIVIDER_ROLE_ENV_NAME)
+		);
 
 		expect(badgeLines).toEqual(MERIT_BADGE_ROLE_ENV_NAMES.map((name) => `${name}=`));
 		expect(exampleLines).toContain(`${MERIT_BADGE_DIVIDER_ROLE_ENV_NAME}=`);

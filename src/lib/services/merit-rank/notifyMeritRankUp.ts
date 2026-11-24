@@ -1,9 +1,15 @@
 import { GuildMember } from 'discord.js';
 
-import { ENV_MERIT_BADGE_ROLES } from '../../../config/env/discord';
+import { ENV_MERIT_BADGE_EMOJIS, ENV_MERIT_BADGE_ROLES } from '../../../config/env/discord';
 import type { ContextLogger } from '../../logging/executionContext';
 import { resolveMeritBadgePromotion } from './meritBadge';
-import { buildMeritBadgeEarnedDm, buildNextMeritBadgeLine, resolveMeritBadgeCopy, type MeritBadgeCopyRoles } from './meritBadgeMessages';
+import {
+	buildMeritBadgeEarnedDm,
+	buildRankUpNextBadgeLine,
+	resolveMeritBadgeCopy,
+	type MeritBadgeCopyEmojis,
+	type MeritBadgeCopyRoles
+} from './meritBadgeMessages';
 import { resolveMeritRankLevel, resolveMeritRankProgress } from './meritRank';
 
 type NotifyMeritRankUpParams = {
@@ -13,6 +19,8 @@ type NotifyMeritRankUpParams = {
 	logger: ContextLogger;
 	/** Defaults to the configured badge roles. */
 	badgeRoles?: MeritBadgeCopyRoles;
+	/** Defaults to the configured badge emojis. A tier without an emoji shows its name alone. */
+	badgeEmojis?: MeritBadgeCopyEmojis;
 };
 
 /**
@@ -26,7 +34,8 @@ export async function notifyMeritRankUp({
 	previousTotalMerits,
 	currentTotalMerits,
 	logger,
-	badgeRoles = ENV_MERIT_BADGE_ROLES
+	badgeRoles = ENV_MERIT_BADGE_ROLES,
+	badgeEmojis = ENV_MERIT_BADGE_EMOJIS
 }: NotifyMeritRankUpParams) {
 	const badgeCopy = resolveMeritBadgeCopy({
 		totalMerits: currentTotalMerits,
@@ -46,7 +55,8 @@ export async function notifyMeritRankUp({
 			content: buildMeritBadgeEarnedDm({
 				earnedTier: promotion.currentTier,
 				currentTotalMerits,
-				nextLine: withPeriod(buildNextMeritBadgeLine(badgeCopy)) ?? buildLegacyNextRankLine(currentTotalMerits)
+				nextLine: buildRankUpNextBadgeLine(badgeCopy, badgeEmojis) ?? buildLegacyNextRankLine(currentTotalMerits),
+				badgeEmojis
 			}),
 			logger,
 			logFields: {
@@ -97,10 +107,6 @@ function buildLegacyNextRankLine(currentTotalMerits: number) {
 	return rankProgress.nextLevel
 		? `Next rank level in **${rankProgress.meritsRemainingToNextLevel} merit${rankProgress.meritsRemainingToNextLevel === 1 ? '' : 's'}**.`
 		: 'You are at the maximum merit rank level.';
-}
-
-function withPeriod(line: string | null) {
-	return line === null ? null : `${line}.`;
 }
 
 async function sendBestEffort({

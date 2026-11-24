@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { createMeritBadgeEmojiMap } from '../../../../../src/config/meritBadgeEmojis';
 import { createMeritBadgeRoleMap } from '../../../../../src/config/meritBadgeRoles';
 import { notifyMeritRankUp } from '../../../../../src/lib/services/merit-rank/notifyMeritRankUp';
 
@@ -15,8 +16,34 @@ describe('notifyMeritRankUp', () => {
 		expect(member.user.send).toHaveBeenCalledWith(
 			[
 				"Congratulations, Legionnaire! You've earned the **Argentum II** merit badge!",
-				'You have **12 merits** total.',
-				'Next badge **Argentum III** in **2 merits**.'
+				'',
+				'Your badge: **Argentum II**',
+				'Next badge: **Argentum III** in **2 merits**',
+				'',
+				'You have **12 merits** total.'
+			].join('\n')
+		);
+	});
+
+	it('shows the earned and next badge emojis in the badge DM', async () => {
+		const member = createMember();
+		const badgeEmojis = createMeritBadgeEmojiMap(
+			new Map([
+				[8, '300000000000000008'],
+				[9, '300000000000000009']
+			])
+		);
+
+		await expect(notify({ member, previousTotalMerits: 10, currentTotalMerits: 12, badgeRoles: ALL_ROLES, badgeEmojis })).resolves.toBe(true);
+
+		expect(member.user.send).toHaveBeenCalledWith(
+			[
+				"Congratulations, Legionnaire! You've earned the **Argentum II** merit badge!",
+				'',
+				'Your badge: <:argentum_ii:300000000000000008> **Argentum II**',
+				'Next badge: <:argentum_iii:300000000000000009> **Argentum III** in **2 merits**',
+				'',
+				'You have **12 merits** total.'
 			].join('\n')
 		);
 	});
@@ -30,8 +57,11 @@ describe('notifyMeritRankUp', () => {
 		expect(member.user.send).toHaveBeenCalledWith(
 			[
 				"Congratulations, Legionnaire! You've earned the **Argentum II** merit badge!",
-				'You have **12 merits** total.',
-				'Next rank level in **6 merits**.'
+				'',
+				'Your badge: **Argentum II**',
+				'Next rank level in **6 merits**.',
+				'',
+				'You have **12 merits** total.'
 			].join('\n')
 		);
 	});
@@ -102,8 +132,11 @@ function notify(params: {
 	previousTotalMerits: number;
 	currentTotalMerits: number;
 	badgeRoles: ReturnType<typeof createMeritBadgeRoleMap>;
+	badgeEmojis?: ReturnType<typeof createMeritBadgeEmojiMap>;
 }) {
 	return notifyMeritRankUp({
+		// Explicit so these tests never depend on emoji IDs in the real environment.
+		badgeEmojis: createMeritBadgeEmojiMap(new Map()),
 		...params,
 		member: params.member as never,
 		logger: { warn: vi.fn() } as never
