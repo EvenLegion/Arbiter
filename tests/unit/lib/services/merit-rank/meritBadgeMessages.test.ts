@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { createMeritBadgeEmojiMap } from '../../../../../src/config/meritBadgeEmojis';
 import { createMeritBadgeRoleMap } from '../../../../../src/config/meritBadgeRoles';
 import {
 	buildMeritBadgeEarnedDm,
 	buildMeritBadgeListFields,
 	buildNextMeritBadgeLine,
+	buildRankUpNextBadgeLine,
 	hasEveryMeritBadgeRole,
 	resolveMeritBadgeCopy
 } from '../../../../../src/lib/services/merit-rank/meritBadgeMessages';
@@ -20,8 +22,85 @@ describe('meritBadgeMessages', () => {
 		expect(buildNextMeritBadgeLine(copy!)).toBe('Next badge **Argentum III** in **2 merits**');
 		expect(buildMeritBadgeListFields(copy!)).toEqual({
 			currentValue: 'Argentum II',
-			progressValue: ['To Argentum III: [====--------] 33%', '2 merits needed to next badge'].join('\n')
+			progressValue: ['[====--------] 33%', '2 merits to Argentum III'].join('\n')
 		});
+	});
+
+	it('shows the earned and next badge with their emojis in the DM', () => {
+		const copy = resolveMeritBadgeCopy({ totalMerits: 75, badgeRoles: ALL_ROLES })!;
+		const badgeEmojis = createMeritBadgeEmojiMap(
+			new Map([
+				[17, '300000000000000017'],
+				[18, '300000000000000018']
+			])
+		);
+
+		expect(copy.progress.currentTier?.label).toBe('Sapphirus II');
+		expect(buildRankUpNextBadgeLine(copy, badgeEmojis)).toBe(
+			'Next badge: <:sapphirus_iii:300000000000000018> **Sapphirus III** in **11 merits**'
+		);
+		expect(
+			buildMeritBadgeEarnedDm({
+				earnedTier: copy.progress.currentTier!,
+				currentTotalMerits: 75,
+				nextLine: buildRankUpNextBadgeLine(copy, badgeEmojis)!,
+				badgeEmojis
+			})
+		).toBe(
+			[
+				"Congratulations, Legionnaire! You've earned the **Sapphirus II** merit badge!",
+				'',
+				'Your badge: <:sapphirus_ii:300000000000000017> **Sapphirus II**',
+				'Next badge: <:sapphirus_iii:300000000000000018> **Sapphirus III** in **11 merits**',
+				'',
+				'You have **75 merits** total.'
+			].join('\n')
+		);
+	});
+
+	it('puts the emojis on the current badge and around the progress bar in the list fields', () => {
+		const copy = resolveMeritBadgeCopy({ totalMerits: 78, badgeRoles: ALL_ROLES })!;
+		const badgeEmojis = createMeritBadgeEmojiMap(
+			new Map([
+				[17, '300000000000000017'],
+				[18, '300000000000000018']
+			])
+		);
+
+		expect(buildMeritBadgeListFields(copy, badgeEmojis)).toEqual({
+			currentValue: '<:sapphirus_ii:300000000000000017> Sapphirus II',
+			progressValue: [
+				'<:sapphirus_ii:300000000000000017> [=====-------] <:sapphirus_iii:300000000000000018> 43%',
+				'8 merits to Sapphirus III'
+			].join('\n')
+		});
+	});
+
+	it('skips a missing emoji slot in the list fields, and shows no left emoji before the first badge', () => {
+		const nextOnly = createMeritBadgeEmojiMap(new Map([[1, '300000000000000001']]));
+		const noBadgeYet = resolveMeritBadgeCopy({ totalMerits: 0, badgeRoles: ALL_ROLES })!;
+		const earned = resolveMeritBadgeCopy({ totalMerits: 12, badgeRoles: ALL_ROLES })!;
+
+		expect(buildMeritBadgeListFields(noBadgeYet, nextOnly)).toEqual({
+			currentValue: 'No badge yet',
+			progressValue: ['[------------] <:ferrum_i:300000000000000001> 0%', '1 merit to Ferrum I'].join('\n')
+		});
+		expect(buildMeritBadgeListFields(earned, nextOnly).progressValue).toBe(['[====--------] 33%', '2 merits to Argentum III'].join('\n'));
+	});
+
+	it('leaves out the emoji for a tier that has none', () => {
+		const copy = resolveMeritBadgeCopy({ totalMerits: 75, badgeRoles: ALL_ROLES })!;
+		const earnedOnly = createMeritBadgeEmojiMap(new Map([[17, '300000000000000017']]));
+
+		expect(buildRankUpNextBadgeLine(copy, earnedOnly)).toBe('Next badge: **Sapphirus III** in **11 merits**');
+		expect(
+			buildMeritBadgeEarnedDm({
+				earnedTier: copy.progress.currentTier!,
+				currentTotalMerits: 75,
+				nextLine: buildRankUpNextBadgeLine(copy, earnedOnly)!,
+				badgeEmojis: earnedOnly
+			})
+		).toContain('Your badge: <:sapphirus_ii:300000000000000017> **Sapphirus II**\nNext badge: **Sapphirus III** in **11 merits**');
 	});
 
 	it('uses badge copy only when the tier the copy is about has a role', () => {
@@ -52,26 +131,29 @@ describe('meritBadgeMessages', () => {
 
 		expect(buildMeritBadgeListFields(copy!)).toEqual({
 			currentValue: 'No badge yet',
-			progressValue: ['To Ferrum I: [------------] 0%', '1 merit needed to next badge'].join('\n')
+			progressValue: ['[------------] 0%', '1 merit to Ferrum I'].join('\n')
 		});
 	});
 
 	it('says the member holds the highest badge at Supra Omnia III', () => {
 		const copy = resolveMeritBadgeCopy({ totalMerits: 2_400, badgeRoles: ALL_ROLES });
 
-		expect(buildNextMeritBadgeLine(copy!)).toBe('You hold the highest merit badge');
+		expect(buildRankUpNextBadgeLine(copy!)).toBe('You hold the highest merit badge.');
 		expect(buildMeritBadgeListFields(copy!).progressValue).toBe('Highest badge reached');
 		expect(
 			buildMeritBadgeEarnedDm({
 				earnedTier: copy!.progress.currentTier!,
 				currentTotalMerits: 2_400,
-				nextLine: 'You hold the highest merit badge.'
+				nextLine: buildRankUpNextBadgeLine(copy!)!
 			})
 		).toBe(
 			[
 				"Congratulations, Legionnaire! You've earned the **Supra Omnia III** merit badge!",
-				'You have **2400 merits** total.',
-				'You hold the highest merit badge.'
+				'',
+				'Your badge: **Supra Omnia III**',
+				'You hold the highest merit badge.',
+				'',
+				'You have **2400 merits** total.'
 			].join('\n')
 		);
 	});

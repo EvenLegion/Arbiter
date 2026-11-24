@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { createMeritBadgeEmojiMap } from '../../../../../src/config/meritBadgeEmojis';
 import { createMeritBadgeRoleMap } from '../../../../../src/config/meritBadgeRoles';
 import { buildMeritListPayload } from '../../../../../src/lib/features/merit/read/buildMeritListPayload';
+
+// Passed explicitly so these tests never depend on emoji IDs in the real environment.
+const NO_EMOJIS = createMeritBadgeEmojiMap(new Map());
 
 describe('buildMeritListPayload', () => {
 	it('builds the merit summary embed and page controls', () => {
@@ -81,18 +85,39 @@ describe('buildMeritListPayload', () => {
 	it('shows the badge and badge progress once the badge tier has a role', () => {
 		const badgeRoles = createMeritBadgeRoleMap(new Map(Array.from({ length: 36 }, (_, index) => [index + 1, `${100000000000000000 + index}`])));
 
-		const payload = buildMeritListPayload({ ...listParams(), badgeRoles });
+		const payload = buildMeritListPayload({ ...listParams(), badgeRoles, badgeEmojis: NO_EMOJIS });
 
 		expect(payload.embeds[0].data.fields?.slice(2)).toEqual([
 			{ name: 'Current Badge', value: 'Argentum II', inline: true },
-			{ name: 'Badge Progress', value: 'To Argentum III: [====--------] 33%\n2 merits needed to next badge', inline: false }
+			{ name: 'Badge Progress', value: '[====--------] 33%\n2 merits to Argentum III', inline: false }
+		]);
+	});
+
+	it('puts the badge emojis on the current badge and on both ends of the progress bar', () => {
+		const badgeRoles = createMeritBadgeRoleMap(new Map(Array.from({ length: 36 }, (_, index) => [index + 1, `${100000000000000000 + index}`])));
+		const badgeEmojis = createMeritBadgeEmojiMap(
+			new Map([
+				[8, '300000000000000008'],
+				[9, '300000000000000009']
+			])
+		);
+
+		const payload = buildMeritListPayload({ ...listParams(), badgeRoles, badgeEmojis });
+
+		expect(payload.embeds[0].data.fields?.slice(2)).toEqual([
+			{ name: 'Current Badge', value: '<:argentum_ii:300000000000000008> Argentum II', inline: true },
+			{
+				name: 'Badge Progress',
+				value: '<:argentum_ii:300000000000000008> [====--------] <:argentum_iii:300000000000000009> 33%\n2 merits to Argentum III',
+				inline: false
+			}
 		]);
 	});
 
 	it('keeps the rank progress field while the next badge has no role', () => {
 		const badgeRoles = createMeritBadgeRoleMap(new Map([1, 2, 3, 4, 5, 6, 7, 8].map((tier) => [tier, `${100000000000000000 + tier}`])));
 
-		const payload = buildMeritListPayload({ ...listParams(), badgeRoles });
+		const payload = buildMeritListPayload({ ...listParams(), badgeRoles, badgeEmojis: NO_EMOJIS });
 
 		expect(payload.embeds[0].data.fields?.slice(2)).toEqual([
 			{ name: 'Current Badge', value: 'Argentum II', inline: true },
